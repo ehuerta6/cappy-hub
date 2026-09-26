@@ -6,9 +6,12 @@ export default function OfficersPage() {
     <div className="mx-auto w-full max-w-6xl p-8">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Officers</h1>
-        <button className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white">
+        <Link
+          href="/officers/new"
+          className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white"
+        >
           Add Officer
-        </button>
+        </Link>
       </div>
       <table className="w-full border-collapse">
         <thead>
@@ -16,6 +19,8 @@ export default function OfficersPage() {
             <th className="px-4 py-3 text-left">Name</th>
             <th className="px-4 py-3 text-left">Email</th>
             <th className="px-4 py-3 text-left">Role</th>
+            <th className="px-4 py-3 text-left">Branch</th>
+
             <th className="px-4 py-3 text-left">Status</th>
           </tr>
         </thead>
@@ -27,6 +32,10 @@ export default function OfficersPage() {
               </td>
               <td className="px-4 py-3">{officer.email}</td>
               <td className="px-4 py-3">{officer.role}</td>
+              <td className="px-4 py-3">
+                <span>{officer.branch ? officer.branch : "No branch"}</span>
+              </td>
+
               <td className="px-4 py-3">
                 <span
                   className={`rounded px-2 py-1 text-xs font-medium ${

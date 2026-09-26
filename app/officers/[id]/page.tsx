@@ -27,6 +27,11 @@ export default async function OfficerDetailPage({
       </div>
 
       <div>
+        <p>Branch</p>
+        <p>{officer.branch ? officer.branch : "No branch"}</p>
+      </div>
+
+      <div>
         <p>Status</p>
         <p>{officer.active ? "Active" : "Inactive"}</p>
       </div>

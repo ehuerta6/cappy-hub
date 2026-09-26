@@ -3,6 +3,7 @@ export type Officer = {
   name: string;
   email: string;
   role: string;
+  branch?: string;
   active: boolean;
 };
 
@@ -19,6 +20,7 @@ export const officers: Officer[] = [
     name: "Jane Smith",
     email: "jane.smith@example.com",
     role: "Vice President",
+    branch: "Intro Academic Officer",
     active: true,
   },
   {
