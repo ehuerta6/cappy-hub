@@ -125,13 +125,67 @@ Validation data created during implementation is explicitly named “Prototype �
 
 Authentication and account linking; admin/officer/branch-lead permissions and final RLS; trusted scheduled processing; early completion; warnings/approvals; System Log/full auditing; award removal with audit history; flyer workflow; recurring events; Google Calendar/Drive/Discord integrations; spreadsheet imports; advanced filtering/search; production error UX and deployment hardening. Club-title permissions and the actor foreign-key model remain design decisions. No production-ready security is claimed.
 
-## Contribution workflow
+## Git & GitHub Workflow
 
-1. Update clean `main`, then branch with `feat/`, `fix/`, `chore/`, `docs/`, or `refactor/`.
-2. Keep each logical unit small. Preserve other people's work and use conventional-style commits.
-3. Run local quality checks and manually verify the relevant workflow.
-4. Push and open a PR into `main` with Summary, Changes, Testing, and meaningful Notes.
-5. Review the complete diff and ensure no secrets or unrelated files; wait for green CI.
-6. Squash and Merge with a conventional title, delete the remote branch, update local main, and prune deleted remote branches.
+`main` is the stable integration branch. Do not develop directly on it.
 
-Never force-push main or merge failing checks.
+### Start new work
+
+Sync `main` before creating a short-lived branch:
+
+```sh
+git switch main
+git fetch --prune
+git pull
+git switch -c feat/event-signups
+```
+
+`git fetch --prune` updates remote-tracking references and removes references to remote branches that have been deleted. Use it to keep your local view of GitHub current, especially after merged branches are deleted; it does not delete your local branches.
+
+Use lowercase kebab-case branch names with one of these prefixes:
+
+- `feat/...` — features, e.g. `feat/event-signups`
+- `fix/...` — bug fixes
+- `chore/...` — maintenance
+- `docs/...` — documentation
+- `refactor/...` — code restructuring
+
+### Commits and pull requests
+
+Keep commits focused and meaningful. Use conventional-style commit messages: `feat: ...`, `fix: ...`, `chore: ...`, `docs: ...`, `refactor: ...`, or `ci: ...`.
+
+Push your branch and open a PR into `main`:
+
+```sh
+git push -u origin feat/event-signups
+```
+
+PR titles use the same conventional style, e.g. `feat: add event signups`. PR descriptions should contain:
+
+- **Summary** — what the PR accomplishes.
+- **Changes** — the important changes.
+- **Testing** — checks and relevant manual verification actually performed.
+- **Notes** — only when useful, such as limitations or implementation decisions.
+
+Before merging, review the diff and run the repository's CI checks:
+
+```sh
+npm run lint
+npm run format:check
+npm run typecheck
+npm run build
+```
+
+Wait for required GitHub checks to pass. Do not merge while required checks are failing.
+
+### Merge and clean up
+
+Use **Squash and Merge** for completed PRs. The squash commit title should be a clean conventional-style summary, normally matching the PR title. Delete the remote branch after merging, then synchronize locally:
+
+```sh
+git switch main
+git fetch --prune
+git pull
+```
+
+Never force-push or rewrite shared `main` history. Never commit `.env.local`, credentials, or secrets.
