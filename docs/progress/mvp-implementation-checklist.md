@@ -2527,8 +2527,10 @@
 - [x] Strict TypeScript check without emitted application files.
 - [x] Automated test command runs Vitest once in a Node environment.
 - [x] Production build check.
-- [ ] Current POC passes all quality gates (production build confirmation pending GitHub CI). The test suite is intentionally empty and supplies no domain coverage yet.
+- [x] Current POC passes all quality gates in GitHub CI on Node 24. The test suite is intentionally empty and supplies no domain coverage yet.
 - [x] CI uses only fake public Supabase values and contents: read permissions.
+
+PR 0 evidence: local npm ci, format, lint, typecheck, and the empty-suite test command pass on Node 26. The local Turbopack build is blocked by the execution sandbox’s temporary-port restriction (Operation not permitted); the real production build passes in GitHub Actions on Node 24. [Verification run](https://github.com/ehuerta6/cappy-hub/actions/runs/36347554555).
 
 ## Release hardening
 
@@ -2540,7 +2542,7 @@
     
 - [x] Workflow files contain no privileged secrets.
     
-- [x] Node 24 is documented and selected through .nvmrc for CI; the PR 0 local environment uses Node 26, and GitHub CI is configured to verify Node 24.
+- [x] Node 24 is documented and selected through .nvmrc for CI; the PR 0 local environment uses Node 26, and GitHub CI passes on Node 24.
     
 
 ---
