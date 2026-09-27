@@ -39,8 +39,24 @@ jobs:
       - name: Check TypeScript types
         run: npm run typecheck
 
+      - name: Start disposable local database and replay migrations
+        run: npm run db:start
+
       - name: Run automated tests
         run: npm test
 
+      - name: Verify populated POC upgrade and fresh replay
+        run: npm run test:db:upgrade
+
+      - name: Verify generated database types
+        run: npm run db:types:check
+
+      - name: Lint database functions
+        run: npx supabase db lint --local --schema public --fail-on error
+
       - name: Build for production
         run: npm run build
+
+      - name: Stop disposable database
+        if: always()
+        run: npx supabase stop --no-backup

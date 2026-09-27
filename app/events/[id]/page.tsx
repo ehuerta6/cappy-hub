@@ -14,7 +14,6 @@ import {
   StatusBadge,
   TableFrame,
 } from "@/components/ui";
-import { formatLabel } from "@/lib/presentation";
 export default async function EventDetailPage({
   params,
 }: {
@@ -28,7 +27,7 @@ export default async function EventDetailPage({
     supabase
       .from("events")
       .select(
-        "*,event_branches(branches(name)),event_officers(officers(id,name))",
+        "*,event_types(name),event_branches(branches(name)),event_officers(officers(id,name))",
       )
       .eq("id", Number(id))
       .maybeSingle(),
@@ -46,6 +45,7 @@ export default async function EventDetailPage({
   const transactions = await supabase
     .from("point_transactions")
     .select("*,officers(id,name),events(id,name)")
+    .is("removed_at", null)
     .eq("event_id", event.id)
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
@@ -64,7 +64,7 @@ export default async function EventDetailPage({
       />
       <dl className="grid max-w-2xl grid-cols-[7rem_1fr] gap-x-5 gap-y-3 rounded-lg border border-zinc-800 bg-zinc-900/30 p-4 text-sm">
         <dt>Type</dt>
-        <dd>{formatLabel(event.type)}</dd>
+        <dd>{event.event_types.name}</dd>
         <dt>Location</dt>
         <dd>{event.location || "Not set"}</dd>
         <dt>Start</dt>

@@ -10,13 +10,14 @@ import {
   StatusBadge,
   TableFrame,
 } from "@/components/ui";
-import { formatLabel } from "@/lib/presentation";
 export default async function EventsPage() {
   await connection();
   await processCompletedEvents();
   const { data, error } = await supabase
     .from("events")
-    .select("*,event_branches(branches(name)),event_officers(officer_id)")
+    .select(
+      "*,event_types(name),event_branches(branches(name)),event_officers(officer_id)",
+    )
     .order("starts_at", { ascending: false });
   if (error) throw new Error("Failed to load events");
   return (
@@ -45,7 +46,7 @@ export default async function EventsPage() {
                   <Link href={`/events/${event.id}`}>{event.name}</Link>
                 </td>
                 <td>{displayDate(event.starts_at)}</td>
-                <td>{formatLabel(event.type)}</td>
+                <td>{event.event_types.name}</td>
                 <td>
                   <BranchBadges
                     branches={event.event_branches.map((x) => x.branches.name)}

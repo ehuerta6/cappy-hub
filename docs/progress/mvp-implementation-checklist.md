@@ -238,7 +238,7 @@
     
 - [ ] Review grants for RPC functions.
     
-- [ ] Regenerate TypeScript database types after final schema migrations.
+- [x] Regenerate TypeScript database types after final schema migrations.
     
 
 ---
@@ -483,21 +483,24 @@
 
 # 7. Database — Final MVP Schema
 
+> [!note] PR 1 schema evidence
+> The forward migration and local PostgreSQL tests establish the final table/column model, transactional officer branch validation, controlled event types, actor FKs, and logical-removal-aware totals/uniqueness. See [PR 1 schema verification](pr1-schema-verification.md). Checked schema items refer to checked-in migrations verified locally, not a hosted deployment. Direct prototype table writes, final identity-aware RLS, scheduled processing, warnings, and flyer workflows remain incomplete.
+
 ## Required MVP tables
 
 - [x] `officers`
     
 - [x] `positions`
     
-- [ ] `officer_warnings`
+- [x] `officer_warnings`
     
-- [ ] `warning_approvals`
+- [x] `warning_approvals`
     
 - [x] `branches`
     
 - [x] `officer_branches`
     
-- [ ] `event_types`
+- [x] `event_types`
 
 - [x] `events`
     
@@ -507,9 +510,9 @@
     
 - [x] `point_transactions`
     
-- [ ] `application_config`
+- [x] `application_config`
     
-- [ ] `audit_logs`
+- [x] `audit_logs`
     
 
 **Target: 13 MVP application tables.**
@@ -531,8 +534,8 @@
 
 ## Final MVP authentication columns
 
-- [ ] Add nullable unique auth_user_id referencing auth.users.id.
-- [ ] Add application_role constrained to admin or officer.
+- [x] Add nullable unique auth_user_id referencing auth.users.id.
+- [x] Add application_role constrained to admin or officer.
 
 ## Current integrity
 
@@ -555,10 +558,11 @@
 
 ## Remaining officer integrity rule
 
-- [ ] Enforce the existing Design Doc requirement that every officer belongs to at least one branch.
-- [ ] Creating an officer with zero branches must be rejected transactionally.
-- [ ] Editing an officer so they have zero branches must be rejected transactionally.
-- [ ] Do not rely solely on form checkbox validation.
+- [x] Enforce at least one branch through the transactional save_officer RPC.
+- [ ] Restrict direct officer/membership writes so every permitted mutation preserves that requirement.
+- [x] Creating an officer with zero branches must be rejected transactionally.
+- [x] Editing an officer so they have zero branches must be rejected transactionally.
+- [x] Do not rely solely on form checkbox validation.
 
 # 9. Database — positions
 
@@ -579,7 +583,7 @@
 
 ## Remaining work
 
-- [ ] Implement can_manage_branch_events = true only for the three designated lead positions and false for all others.
+- [x] Implement can_manage_branch_events = true only for the three designated lead positions and false for all others.
 - [ ] Connect this capability to backend authorization and branch-membership scope.
 
 # 10. Database — `branches`
@@ -634,7 +638,8 @@
     
 - [x] Many-to-many relationship works.
     
-- [ ] Final officer-save workflow guarantees at least one row.
+- [x] Current officer-save RPC guarantees at least one branch row on success.
+- [ ] Add identity-aware authorization to the final save workflow.
     
 - [ ] Final RLS protects membership mutation.
     
@@ -645,17 +650,18 @@
 
 ## event_types — final MVP table
 
-- [ ] Create event_types with id, unique name, and created_at.
-- [ ] Seed General, Intro, ICPC, Meeting, Social, and Workshop; allow additional admin-created values.
+- [x] Create event_types with id, unique name, and created_at.
+- [x] Seed General, Intro, ICPC, Meeting, Social, and Workshop; preserve additional historical values.
+- [ ] Add admin event-type creation workflow.
 - [ ] Allow admins to delete only event types that are not referenced by events.
-- [ ] Reject deletion of referenced event types; never cascade deletion into event history.
+- [x] Reject deletion of referenced event types; never cascade deletion into event history.
 
 ## Existing POC event columns
 
 - [x] id
 - [x] name
 - [x] description
-- [x] type (current POC only; free-form text is replaced in the final MVP)
+- [x] Former POC type text migrated to event_type_id, preserving custom historical type meanings.
 - [x] location
 - [x] starts_at
 - [x] ends_at
@@ -664,11 +670,11 @@
 
 ## Final MVP event columns and constraints
 
-- [ ] Implement required event_type_id referencing event_types, replacing the current POC free-text type column.
-- [ ] Add nullable participation_points_per_hour_at_end for the scheduled-end rate snapshot.
-- [ ] Add optional slides_url and meeting_notes_url.
-- [ ] Add optional flyer_status and flyer_assigned_to for Social flyer workflow.
-- [x] Event name and type are required/nonblank in the current POC.
+- [x] Implement required event_type_id referencing event_types, replacing the current POC free-text type column.
+- [x] Add nullable participation_points_per_hour_at_end for the scheduled-end rate snapshot.
+- [x] Add optional slides_url and meeting_notes_url.
+- [x] Add optional flyer_status and flyer_assigned_to for Social flyer workflow.
+- [x] Event name is nonblank and event_type_id is required; referenced type names are nonblank.
 - [x] starts_at and ends_at are required in the current POC.
 - [x] ends_at > starts_at is enforced in the current POC.
 - [x] Current POC status values are upcoming, happening, past, and cancelled.
@@ -770,31 +776,31 @@
 ## Final MVP fields and behavior
 
 - [x] Resolved actor-FK decision: created_by, removed_by, warning_approvals.approver_id, and audit_logs.actor_id reference auth.users.id.
-- [ ] Add nullable removed_at and removed_by referencing auth.users.id.
+- [x] Add nullable removed_at and removed_by referencing auth.users.id.
 - [ ] Implement logical award removal; retain the original transaction as a voided history record.
-- [ ] Exclude removed transactions from derived totals and ordinary active history.
+- [x] Exclude removed transactions from derived totals and ordinary active history.
 - [x] Resolved decision: retain removed participation awards for idempotency so they are never regenerated.
-- [ ] Enforce at most one participation award per officer/event and at most one flyer award per event, including removed awards.
+- [x] Enforce at most one participation award per officer/event and at most one flyer award per event, including removed awards.
 - [ ] Preserve removal actor, timestamp, and transaction details in the System Log.
 - [ ] Store the final awarded amount in each transaction; later configuration changes do not recalculate it.
 
 # 16. Database — `officer_warnings`
 
-- [ ] Create `officer_warnings` table.
+- [x] Create `officer_warnings` table.
     
-- [ ] Add `id`.
+- [x] Add `id`.
     
-- [ ] Add `officer_id`.
+- [x] Add `officer_id`.
     
-- [ ] Add `reason`.
+- [x] Add `reason`.
     
-- [ ] Add `status`.
+- [x] Add `status`.
     
-- [ ] Add `created_at`.
+- [x] Add `created_at`.
     
-- [ ] `officer_id` references a valid officer.
+- [x] `officer_id` references a valid officer.
     
-- [ ] Warning status supports:
+- [x] Warning status supports:
     
     - `pending`
         
@@ -816,17 +822,17 @@
 
 # 17. Database — `warning_approvals`
 
-- [ ] Create `warning_approvals` table.
+- [x] Create `warning_approvals` table.
     
-- [ ] Add `warning_id`.
+- [x] Add `warning_id`.
     
-- [ ] Add `approver_id`.
+- [x] Add `approver_id`.
     
-- [ ] Add `approver_role`.
+- [x] Add `approver_role`.
     
-- [ ] Add `decision`.
+- [x] Add `decision`.
     
-- [ ] Add nullable `decided_at`.
+- [x] Add nullable `decided_at`.
     
 - [x] Resolved decision: warning_approvals.approver_id references auth.users.id; resolve the officer through officers.auth_user_id when needed.
     
@@ -834,9 +840,9 @@
     
 - [ ] Support approval records for every Vice President.
     
-- [ ] Prevent duplicate warning/approver pairs.
+- [x] Prevent duplicate warning/approver pairs.
     
-- [ ] Decision supports:
+- [x] Decision supports:
     
     - `pending`
         
@@ -845,7 +851,8 @@
     - `rejected`
         
     
-- [ ] Store decision timestamp.
+- [x] Nullable decided_at can store the decision timestamp.
+- [ ] Voting workflow writes the timestamp when deciding.
     
 - [ ] Prevent unauthorized users from writing approval decisions.
     
@@ -854,13 +861,13 @@
 
 # 18. Database — application_config
 
-- [ ] Create application_config as a single-row table.
-- [ ] Add id.
-- [ ] Add participation_points_per_hour (resolved design value in application_config).
-- [ ] Add flyer_completion_points (resolved design value in application_config).
-- [ ] Add updated_at.
-- [ ] Validate both configured point values according to the approved numeric constraints.
-- [ ] Provide a predictable way to access the single configuration row.
+- [x] Create application_config as a single-row table.
+- [x] Add id.
+- [x] Add participation_points_per_hour (resolved design value in application_config).
+- [x] Add flyer_completion_points (resolved design value in application_config).
+- [x] Add updated_at.
+- [x] Validate both configured point values according to the approved numeric constraints.
+- [x] Provide a predictable way to access the single configuration row.
 - [ ] Allow admins to view and change both values.
 - [ ] Prevent normal officers from changing either value.
 - [ ] Log rate and flyer-value changes with the authenticated actor.
@@ -869,7 +876,7 @@
 
 # 19. Database — audit_logs
 
-- [ ] Create audit_logs with id, actor_id, action, entity_type, entity_id, details, and created_at.
+- [x] Create audit_logs with id, actor_id, action, entity_type, entity_id, details, and created_at.
 - [x] Resolved actor-FK decision: audit_logs.actor_id references auth.users.id.
 - [ ] Preserve useful before/after data and deletion/removal snapshots where needed.
 - [ ] Retain audit entries after source entities or logical point awards are deleted/removed.
@@ -890,9 +897,9 @@
 
 - [ ] Verify views work under authenticated RLS.
 - [ ] Ensure peer officer fields match the resolved visibility policy while warnings remain restricted.
-- [ ] Ensure officer and Dashboard totals include only point_transactions with removed_at IS NULL.
+- [x] Ensure officer and Dashboard totals include only point_transactions with removed_at IS NULL.
 - [ ] Verify half-year Dashboard calculations use America/Denver local calendar periods.
-- [ ] Verify corrections affect active totals and logically removed awards do not.
+- [x] Verify corrections affect active totals and logically removed awards do not.
 
 # 21. Database RPCs / Trusted Operations
 
@@ -917,7 +924,7 @@
 
 - [ ] Make officer-save authorization identity-aware.
     
-- [ ] Enforce at least one officer branch in final save workflow.
+- [x] Enforce at least one officer branch in the existing transactional save workflow.
     
 - [ ] Make event-save authorization identity-aware.
     
@@ -2382,7 +2389,8 @@
     
 - [ ] Participation rate snapshot implemented.
     
-- [x] Resolved decision: actor references use auth.users.id; implementation and generated types remain pending.
+- [x] Actor FKs reference auth.users.id in the verified migration; public-schema types are regenerated.
+- [ ] Protected workflows record the authenticated actor.
     
 - [ ] Audit log survives source deletions.
     
@@ -2527,7 +2535,7 @@
 - [x] Strict TypeScript check without emitted application files.
 - [x] Automated test command runs Vitest once in a Node environment.
 - [x] Production build check.
-- [x] Current POC passes all quality gates in GitHub CI on Node 24. The test suite is intentionally empty and supplies no domain coverage yet.
+- [x] PR 0 passed all quality gates in GitHub CI on Node 24 with an intentionally empty suite. PR 1 adds real database coverage; its verification is recorded separately.
 - [x] CI uses only fake public Supabase values and contents: read permissions.
 
 PR 0 evidence: local npm ci, format, lint, typecheck, and the empty-suite test command pass on Node 26. The local Turbopack build is blocked by the execution sandbox’s temporary-port restriction (Operation not permitted); the real production build passes in GitHub Actions on Node 24. [Verification run](https://github.com/ehuerta6/cappy-hub/actions/runs/36347554555).
@@ -2536,9 +2544,9 @@ PR 0 evidence: local npm ci, format, lint, typecheck, and the empty-suite test c
 
 - [ ] Keep CI passing throughout MVP implementation.
     
-- [ ] Run migrations through reproducible files.
+- [x] Run migrations through reproducible files.
     
-- [ ] Regenerate DB types after schema changes.
+- [x] Regenerate DB types after schema changes.
     
 - [x] Workflow files contain no privileged secrets.
     
@@ -2559,9 +2567,16 @@ PR 0 evidence: local npm ci, format, lint, typecheck, and the empty-suite test c
 - [x] Run the automated test command in CI.
 - [x] Keep test setup simple; no browser, E2E, snapshot, or mocking stack is added.
 
-The initial suite is intentionally empty. npm test uses --passWithNoTests for PR 0; failing tests still fail the gate. Add meaningful behavior tests in their dedicated MVP PRs, then remove the empty-suite allowance. No database, authorization, points, warning, or recurrence coverage is claimed below.
+PR 1 removes --passWithNoTests. Vitest runs real pgTAP assertions against disposable local Supabase, and CI verifies populated-POC migration preservation, fresh replay, SQL function lint, and generated-type drift. The tests cover schema integrity and prototype compatibility, not final authorization, scheduled processing, warnings workflows, or recurrence.
 
 ## Database integrity tests
+
+- [x] Invalid application roles and invalid/duplicate auth links are rejected.
+- [x] Event type is required/valid; referenced types cannot be deleted.
+- [x] Removed participation and flyer awards still prevent regeneration.
+- [x] Removed awards do not contribute to totals; signed corrections do.
+- [x] Singleton configuration and finite fractional values are validated.
+- [x] Populated POC upgrade preserves IDs, history, custom event types, and relationships.
 
 - [ ] Officer email uniqueness.
     
@@ -2571,21 +2586,22 @@ The initial suite is intentionally empty. npm test uses --passWithNoTests for PR
     
 - [ ] Officer requires valid position.
     
-- [ ] Officer requires at least one branch.
+- [x] Officer save rejects empty/null branch sets and rolls back failed edits.
+- [ ] Verify the invariant across all final authorized mutation paths.
     
-- [ ] Officer/branch duplicate rejected.
+- [x] Officer/branch duplicate rejected.
     
-- [ ] Event/branch duplicate rejected.
+- [x] Event/branch duplicate rejected.
     
-- [ ] Officer/event duplicate rejected.
+- [x] Officer/event duplicate rejected.
     
-- [ ] Event end before/start equal rejected.
+- [x] Event end before/start equal rejected.
     
-- [ ] Duplicate participation award rejected.
+- [x] Duplicate participation award rejected.
     
-- [ ] Duplicate flyer award rejected.
+- [x] Duplicate flyer award rejected.
     
-- [ ] Warning/approver duplicate rejected.
+- [x] Warning/approver duplicate rejected.
     
 
 ## Authorization tests
@@ -2837,23 +2853,23 @@ These are product decisions, not implementation completion. The corresponding im
 
 ## Phase 1 — Finish core data model
 
-- [ ] Add `application_config`.
+- [x] Add `application_config`.
     
-- [ ] Add participation rate snapshot column to events.
+- [x] Add participation rate snapshot column to events.
     
-- [ ] Add missing event file/flyer columns.
+- [x] Add missing event file/flyer columns.
     
 - [ ] Add flyer award type/constraint; configured amount is awarded to the event’s flyer assignee.
     
-- [ ] Add `officer_warnings`.
+- [x] Add `officer_warnings`.
     
-- [ ] Add `warning_approvals`.
+- [x] Add `warning_approvals`.
     
-- [ ] Add `audit_logs`.
+- [x] Add `audit_logs`.
     
 - [ ] Enforce at least one branch per officer.
     
-- [ ] Regenerate Supabase TypeScript types.
+- [x] Regenerate Supabase TypeScript types.
     
 
 ## Phase 2 — Authentication
@@ -2977,11 +2993,11 @@ These are product decisions, not implementation completion. The corresponding im
 
 ## Phase 9 — Testing and production hardening
 
-- [ ] Add automated tests.
+- [x] Add automated tests.
     
 - [ ] Authorization tests.
     
-- [ ] Database integrity tests.
+- [x] Database integrity tests.
     
 - [ ] Scheduler tests.
     
@@ -2995,7 +3011,7 @@ These are product decisions, not implementation completion. The corresponding im
     
 - [ ] Verify CI.
     
-- [ ] Verify fresh migration replay.
+- [x] Verify fresh migration replay.
     
 - [ ] Verify production build.
     
@@ -3268,19 +3284,19 @@ These are product decisions, not implementation completion. The corresponding im
 
 ## Database
 
-- [ ] All 13 intended MVP application tables exist.
+- [x] All 13 intended MVP application tables exist.
     
-- [ ] All required columns exist.
+- [x] All required columns exist.
     
-- [ ] All required FKs exist.
+- [x] All required FKs exist.
     
-- [ ] All required uniqueness constraints exist.
+- [x] All required uniqueness constraints exist.
     
-- [ ] All required check constraints exist.
+- [x] All required check constraints exist.
     
-- [ ] Migrations reproduce complete schema from scratch.
+- [x] Migrations reproduce complete schema from scratch.
     
-- [ ] Database types are regenerated.
+- [x] Database types are regenerated.
     
 
 ## Authentication and security
@@ -3363,19 +3379,19 @@ These are product decisions, not implementation completion. The corresponding im
 
 ## Quality
 
-- [ ] Lint passes.
+- [x] Lint passes.
     
-- [ ] Format check passes.
+- [x] Format check passes.
     
-- [ ] Typecheck passes.
+- [x] Typecheck passes.
     
 - [ ] Production build passes.
     
-- [ ] Automated tests pass.
+- [x] Automated tests pass.
     
 - [ ] Authorization test suite passes.
     
-- [ ] Fresh migration replay passes.
+- [x] Fresh migration replay passes.
     
 - [ ] Production security review passes.
     

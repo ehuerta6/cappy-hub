@@ -1,0 +1,22 @@
+-- Used only by scripts/test-db-upgrade.mjs after a local reset to the PR 0 schema.
+insert into auth.users(id) values ('20000000-0000-0000-0000-000000000001');
+insert into officers(id,name,position_id,utep_email,personal_email,classification,status) values
+  (90001,'Historical officer',1,'history@miners.utep.edu','history@example.org','graduate','inactive');
+insert into officer_branches(officer_id,branch_id) values (90001,1),(90001,2);
+insert into events(id,name,type,starts_at,ends_at,status) values
+  (90001,'Custom historical event',' Career Fair ',now()-interval '2 days',now()-interval '1 day','past'),
+  (90002,'Same custom type','career fair',now()-interval '2 days',now()-interval '1 day','past'),
+  (90003,'Seeded type variant',' WORKSHOP ',now()+interval '1 day',now()+interval '2 days','upcoming');
+insert into event_branches(event_id,branch_id) values (90001,1),(90001,2);
+insert into event_officers(event_id,officer_id) values (90001,90001);
+insert into point_transactions(id,officer_id,event_id,points,reason,award_type,created_by) values
+  (90001,90001,90001,2.5,'Historical participation','participation',null),
+  (90002,90001,90001,-0.75,'Historical correction','correction','20000000-0000-0000-0000-000000000001');
+-- Outside public: test-only snapshots, never an application migration/table.
+create schema upgrade_fixture;
+create table upgrade_fixture.officers as select to_jsonb(o) as original from officers o;
+create table upgrade_fixture.events as select to_jsonb(e) as original from events e;
+create table upgrade_fixture.points as select to_jsonb(p) as original from point_transactions p;
+create table upgrade_fixture.officer_branches as select * from officer_branches;
+create table upgrade_fixture.event_branches as select * from event_branches;
+create table upgrade_fixture.event_officers as select * from event_officers;

@@ -41,15 +41,15 @@ Apply the migrations below to a development Supabase project, then:
 npm run dev
 ```
 
-Open http://localhost:3000. All schedule entry and displayed dates use UTC, explicitly labeled in the forms. Event types are free text with suggested initial values. Upcoming/happening/past status is derived from timestamps; cancellation is explicit. Refresh a page to observe a time transition; there is no live timer.
+Open http://localhost:3000. All schedule entry and displayed dates use UTC, explicitly labeled in the forms. Event types are selected from database records; existing custom types remain available. Upcoming/happening/past status is derived from timestamps; cancellation is explicit. Refresh a page to observe a time transition; there is no live timer.
 
 ## Database and migrations
 
-Eight primary tables: `officers`, `positions`, `branches`, `officer_branches`, `events`, `event_branches`, `event_officers`, `point_transactions`.
+Thirteen application tables: `officers`, `positions`, `branches`, `officer_branches`, `events`, `event_types`, `event_branches`, `event_officers`, `point_transactions`, `officer_warnings`, `warning_approvals`, `application_config`, and `audit_logs`. Supabase manages `auth.users` separately.
 
-Migrations in `supabase/migrations` capture the original schema, migrate text positions to `position_id`, seed the 15 design-doc positions and four branches (intro, social, icpc, general), and add events, points, and computed views. Existing legacy position names are preserved as catalog entries rather than guessed replacements. `can_manage_branch_events` defaults to false and is unused until permissions are designed.
+Migrations in `supabase/migrations` capture the original schema, migrate text positions to `position_id`, seed the 15 design-doc positions and four branches (intro, social, icpc, general), and add events, points, and computed views. Existing legacy position names are preserved as catalog entries rather than guessed replacements. `can_manage_branch_events` defaults to false; only ICPC Lead, Intro Lead, and Social Media Lead are seeded true. Authorization using that capability is deferred.
 
-Foreign keys preserve references; composite primary keys prevent duplicate memberships/signups; constraints enforce classification/status, unique provided UTEP/personal emails and position/branch names, nonblank names/reasons, finite numeric points, and end after start. Deactivation/cancellation retain history. `created_by` is nullable and remains null without authentication; its final actor relationship is deferred.
+Foreign keys preserve references; composite primary keys prevent duplicate memberships/signups; constraints enforce classification/status, unique provided UTEP/personal emails and position/branch names, nonblank names/reasons, finite numeric points, and end after start. Deactivation/cancellation retain history. `created_by`, `removed_by`, warning approvers, and audit actors now reference `auth.users`. Nullable actors support system operations without fake users. Officers have a nullable unique auth link and default to the `officer` application role; login/linking and role authorization are deferred.
 
 For a **new development project**, use the official Supabase CLI:
 
@@ -60,16 +60,34 @@ npx supabase link --project-ref YOUR_PROJECT_REF
 npx supabase db push
 ```
 
-The implementation migrations have already been applied to the connected CappyHub development project. Local filenames match Supabase's recorded versions. Do not replay them manually against that database. The first migration also supports a fresh empty public schema. Review migration history with `npx supabase migration list` before applying to an existing project with other changes.
+The original POC migrations were applied to the connected CappyHub development project. PR 1 adds a forward migration verified locally; this PR does **not** apply it to a hosted project. Deploy the migration and matching application code together. Do not replay old migrations manually against that database. The first migration also supports a fresh empty public schema. Review migration history with `npx supabase migration list` before applying to an existing project with other changes.
 
 For a new change, create a migration with `npx supabase migration new descriptive_name`, write the SQL, review it, and apply through the usual Supabase workflow. Regenerate the schema types after applying:
 
 ```sh
-npx supabase gen types typescript --linked > lib/database.types.ts
-npm run format
+npm run db:types
+npm run db:types:check
 ```
 
-Supabase's connected plugin can also apply hosted migrations and generate types. Keep checked-in filenames aligned with the versions recorded remotely. Local CLI metadata is ignored.
+The pinned CLI generates public-schema types from the local migrated database; CI checks for drift. Auth-schema foreign keys are enforced in PostgreSQL even though public-only type generation omits relationships to that private schema. Local CLI metadata is ignored.
+
+PR 1 converts `events.type` to a required `event_type_id`, seeding the six documented types and preserving custom historical values. Case/outer-whitespace variants share a catalog record. It preserves IDs and relationships and aborts on unknown non-null legacy point actors instead of deleting attribution. Officer saves reject empty branch selections transactionally; direct prototype table writes still require the later authorization hardening.
+
+`application_config` has one seeded record (`id = 1`), a positive finite participation rate of **1**, and a nonnegative finite flyer amount of **0**. Zero is a neutral migration placeholder because no initial flyer business value is specified. Admin configuration, rate snapshotting, and flyer processing are deferred. Existing page-load processing still uses the prototype environment setting until the processing PR.
+
+For local database verification, start Docker and run:
+
+```sh
+npm run db:start
+npm test
+npm run test:db:upgrade
+npm run db:types:check
+npx supabase db lint --local --schema public --fail-on error
+```
+
+`db:start` runs the database services needed by the tests. `npm test` uses Vitest to execute real PostgreSQL pgTAP assertions in a rolled-back transaction; missing local database access fails the test. `test:db:upgrade` **resets the local Cappy Hub database**, seeds synthetic POC history, applies the new migration, checks preservation, and resets to a fresh latest schema in cleanup. It has no hosted/URL option. Use this workflow only with disposable local data. `npm run db:reset` is also destructive to local development data. Stop the test stack with `npx supabase stop --no-backup`.
+
+See [PR 1 schema verification](docs/progress/pr1-schema-verification.md) for the integrity rules, migration choices, and remaining work.
 
 ## Automatic participation points
 
@@ -85,20 +103,21 @@ A 90-minute event at the default rate awards 1.5 points. PostgreSQL numeric supp
 
 No scheduled job runs while the app is idle. The next relevant server page load catches up ended events. Reload an already-open page after an event ends. Next.js may prefetch server pages, which can also trigger processing. A production MVP needs authenticated trusted processing at scheduled times and a decision about rate changes over time.
 
-Officer totals use the `officer_point_totals` query view over all transactions. The dashboard uses a query view over records for January–June or July–December in UTC, based on transaction creation time, including negative corrections. History is limited to the latest 50 transactions on Points, 100 on a detail page, and 10 on Dashboard; totals include all records. Lists are intended for a small prototype; pagination/search is deferred.
+Officer totals use the `officer_point_totals` query view over active transactions (`removed_at IS NULL`). The dashboard uses a query view over records for January–June or July–December in UTC, based on transaction creation time, including negative corrections. History is limited to the latest 50 transactions on Points, 100 on a detail page, and 10 on Dashboard; totals include all active records. Normal history queries also exclude removed rows. Automatic-award uniqueness includes removed rows, so a voided participation or flyer award cannot be regenerated. Lists are intended for a small prototype; pagination/search is deferred.
 
 Corrections add a new manual or correction transaction; original transactions remain unchanged. Signups close at the scheduled end or cancellation. Upcoming-event editing prevents changing a completed schedule through the app. There is no early-completion UI or attendance verification in this pass.
 
 ## Temporary development security
 
-**TEMPORARY DEVELOPMENT POLICIES — not production authorization.** RLS is enabled on all eight tables. Policies target the anonymous role used by the publishable key:
+**TEMPORARY DEVELOPMENT POLICIES — not production authorization.** RLS is enabled on all thirteen tables. New warning, approval, configuration, and audit tables have no anonymous/authenticated access yet. Event types permit prototype read access only. Existing prototype policies target the anonymous role used by the publishable key:
 
 - Positions and branches: read only.
 - Officers: read, insert, update; officer branches: read, insert, delete.
 - Events: read, insert, update while the existing scheduled end is still future.
 - Event branches: read, insert, delete.
 - Event officers: read; insert/delete only for noncancelled events before their scheduled end.
-- Point transactions: read and insert with `created_by` null; no update/delete permissions.
+- Point transactions: read and insert existing POC award types with `created_by` null; no update/delete permissions or anonymous flyer/removal writes.
+- Role/auth-link, event snapshot/file/flyer, and point removal columns are excluded from prototype write grants.
 - Computed views use `security_invoker`; database functions run as the caller with an empty search path and explicit execute grants.
 
 These grants allow unauthenticated users with the project URL/key to access prototype data and perform the allowed writes. They support workflow development, **not user identity, admin restrictions, or trusted participation-award configuration**. The server action's configured rate is not a production security boundary: the anonymous RPC remains callable during development. Use development data and replace these policies, grants, and processing access before production. Do not work around RLS with a service-role key in the browser.
@@ -113,9 +132,9 @@ npm test
 npm run build
 ```
 
-`npm run format` fixes formatting. CI runs all five checks after `npm ci` on pull requests into `main` or `mvp` and pushes to either branch. It uses Node.js 24 from `.nvmrc`, read-only repository permissions, and fake public Supabase values; database queries run at request time rather than build time. No privileged credentials are needed to compile.
+`npm run format` fixes formatting. CI runs all five checks, local database migration replay, populated-upgrade preservation tests, generated-type verification, and SQL function lint after `npm ci` on pull requests into `main` or `mvp` and pushes to either branch. It uses Node.js 24 from `.nvmrc`, read-only repository permissions, and fake public Supabase values; database queries run at request time rather than build time. No privileged credentials are needed to compile.
 
-`npm test` runs Vitest once, using a Node environment and the application's `@/` import alias. Add meaningful TypeScript tests as `*.test.ts` or `*.spec.ts` next to the behavior they protect. The initial suite is intentionally empty: `--passWithNoTests` permits this infrastructure baseline, but failing tests still fail the command. This does not provide domain or database coverage yet. Remove that flag when the first meaningful tests land so an accidentally empty suite becomes a failure.
+`npm test` runs Vitest once with the existing `@/` alias; its database test invokes pgTAP against local Supabase. There is no empty-suite allowance or mock of PostgreSQL constraints. Application behavior tests can still be added as `*.test.ts` or `*.spec.ts` when relevant.
 
 ## Try the core flow
 
@@ -131,7 +150,7 @@ Validation data created during implementation is explicitly named “Prototype �
 
 ## Deferred to MVP
 
-Authentication and account linking; admin/officer/branch-lead permissions and final RLS; trusted scheduled processing; early completion; warnings/approvals; System Log/full auditing; award removal with audit history; flyer workflow; recurring events; Google Calendar/Drive/Discord integrations; spreadsheet imports; advanced filtering/search; production error UX and deployment hardening. Club-title permissions and the actor foreign-key model remain design decisions. No production-ready security is claimed.
+Authentication and account linking; admin/officer/branch-lead permissions and final RLS; trusted scheduled processing; early completion; warnings/approvals; System Log/full auditing; award removal with audit history; flyer workflow; recurring events; Google Calendar/Drive/Discord integrations; spreadsheet imports; advanced filtering/search; production error UX and deployment hardening. The actor foreign keys and stored lead capabilities are implemented; identity-aware enforcement remains deferred. No production-ready security is claimed.
 
 ## Git & GitHub Workflow
 

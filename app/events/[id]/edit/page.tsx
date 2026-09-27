@@ -11,15 +11,16 @@ export default async function EditEventPage({
   await connection();
   const { id } = await params;
   if (!/^[1-9]\d*$/.test(id)) notFound();
-  const [event, branches] = await Promise.all([
+  const [event, branches, eventTypes] = await Promise.all([
     supabase
       .from("events")
       .select("*,event_branches(branch_id)")
       .eq("id", Number(id))
       .maybeSingle(),
     supabase.from("branches").select("id,name").order("name"),
+    supabase.from("event_types").select("id,name").order("name"),
   ]);
-  if (event.error || branches.error)
+  if (event.error || branches.error || eventTypes.error)
     throw new Error("Failed to load event form");
   if (!event.data) notFound();
   return (
@@ -28,6 +29,7 @@ export default async function EditEventPage({
       <EventForm
         event={event.data}
         branches={branches.data}
+        eventTypes={eventTypes.data}
         branchIds={event.data.event_branches.map((x) => x.branch_id)}
       />
     </div>

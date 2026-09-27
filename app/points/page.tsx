@@ -21,6 +21,7 @@ export default async function PointsPage() {
     supabase
       .from("point_transactions")
       .select("*,officers(id,name),events(id,name)")
+      .is("removed_at", null)
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
       .limit(50),
