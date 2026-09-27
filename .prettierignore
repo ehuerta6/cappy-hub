@@ -7,5 +7,7 @@ AGENTS.md
 CLAUDE.md
 public/*.svg
 
-# Preserve the supplied product Design Doc without reformatting it.
+# Preserve source-authored product documents without reformatting them.
 /Cappy Hub - Design Doc.md
+/docs/product/design-doc.md
+/docs/progress/mvp-implementation-checklist.md

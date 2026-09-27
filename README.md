@@ -12,6 +12,11 @@ Cappy Hub is an internal administrative application for the Coding Interview Clu
 
 Stack: Next.js App Router, React, TypeScript, Supabase/PostgreSQL, npm, existing Tailwind CSS. No ORM or component library.
 
+## Project references
+
+- [`docs/product/design-doc.md`](docs/product/design-doc.md) is the canonical source for product requirements and decisions.
+- [`docs/progress/mvp-implementation-checklist.md`](docs/progress/mvp-implementation-checklist.md) tracks implementation and release readiness. Checked items require evidence in the repository or verified external state; the checklist does not add product requirements.
+
 ## Local setup
 
 Use Node.js 24 (matching CI) and npm.
