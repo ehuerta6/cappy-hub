@@ -14,8 +14,8 @@ export default function TransactionForm({
     success: "",
   });
   return (
-    <form action={action}>
-      <label>
+    <form action={action} className="md:grid-cols-2 md:max-w-none">
+      <label className="md:col-span-2">
         Officer
         <select name="officer_id" required defaultValue="">
           <option value="">Select officer</option>
@@ -30,7 +30,7 @@ export default function TransactionForm({
         Points
         <input name="points" type="number" step="any" required />
       </label>
-      <label>
+      <label className="md:col-span-2">
         Reason
         <input name="reason" required />
       </label>
@@ -54,8 +54,8 @@ export default function TransactionForm({
       </label>
       {state.error && <p role="alert">{state.error}</p>}
       {state.success && <p role="status">{state.success}</p>}
-      <button disabled={pending}>
-        {pending ? "Saving…" : "Add transaction"}
+      <button disabled={pending} className="md:col-span-2">
+        {pending ? "Saving…" : "+ Add transaction"}
       </button>
     </form>
   );

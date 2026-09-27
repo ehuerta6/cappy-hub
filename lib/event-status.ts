@@ -1,4 +1,5 @@
 import type { Tables } from "./database.types";
+import { formatDate, formatDateTime } from "./presentation";
 export function eventStatus(
   event: Pick<Tables<"events">, "status" | "starts_at" | "ends_at">,
   now = Date.now(),
@@ -9,5 +10,9 @@ export function eventStatus(
   return "upcoming";
 }
 export function displayDate(value: string) {
-  return new Date(value).toLocaleString("en-US", { timeZone: "UTC" }) + " UTC";
+  return formatDate(value);
+}
+
+export function displayDateTime(value: string) {
+  return formatDateTime(value);
 }

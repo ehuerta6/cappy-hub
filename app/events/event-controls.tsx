@@ -34,7 +34,7 @@ export function SignupForm({
         </label>
       )}
       {state.error && <p role="alert">{state.error}</p>}
-      <button disabled={pending}>
+      <button disabled={pending} className={remove ? "button-secondary" : ""}>
         {remove ? "Remove signup" : "Add officer"}
       </button>
     </form>
@@ -46,7 +46,9 @@ export function CancelForm({ eventId }: { eventId: number }) {
     <form action={action}>
       <input type="hidden" name="event_id" value={eventId} />
       {state.error && <p role="alert">{state.error}</p>}
-      <button disabled={pending}>Cancel event</button>
+      <button disabled={pending} className="button-secondary">
+        Cancel event
+      </button>
     </form>
   );
 }

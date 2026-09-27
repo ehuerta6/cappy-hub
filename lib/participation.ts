@@ -18,5 +18,6 @@ export async function processCompletedEvents() {
     throw new Error(`Failed to process participation points: ${error.message}`);
 }
 export function displayPoints(points: number) {
-  return points.toLocaleString("en-US", { maximumFractionDigits: 6 });
+  const value = points.toLocaleString("en-US", { maximumFractionDigits: 6 });
+  return points > 0 ? `+${value}` : value;
 }

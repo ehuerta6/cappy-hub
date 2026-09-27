@@ -1,11 +1,20 @@
 import TransactionTable from "@/app/points/transaction-table";
-import { displayPoints } from "@/lib/participation";
 import { eventStatus, displayDate } from "@/lib/event-status";
 import { processCompletedEvents } from "@/lib/participation";
 import Link from "next/link";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import {
+  ActionLink,
+  BranchBadges,
+  PageHeader,
+  PointValue,
+  SectionHeading,
+  StatusBadge,
+  TableFrame,
+} from "@/components/ui";
+import { formatLabel } from "@/lib/presentation";
 
 export default async function OfficerDetailPage({
   params,
@@ -44,40 +53,68 @@ export default async function OfficerDetailPage({
   if (total.error || events.error || transactions.error)
     throw new Error("Failed to load officer history");
   return (
-    <>
-      <h1>{officer.name}</h1>
-      <p>
-        <Link href={`/officers/${id}/edit`}>Edit officer / change status</Link>
-      </p>
-      <dl>
+    <div className="space-y-8">
+      <PageHeader
+        title={officer.name}
+        action={
+          <ActionLink href={`/officers/${id}/edit`}>Edit officer</ActionLink>
+        }
+      />
+      <dl className="grid max-w-2xl grid-cols-[7rem_1fr] gap-x-5 gap-y-3 rounded-lg border border-zinc-800 bg-zinc-900/30 p-4 text-sm">
         <dt>Email</dt>
         <dd>{officer.email}</dd>
         <dt>Position</dt>
         <dd>{officer.positions.name}</dd>
         <dt>Classification</dt>
-        <dd>{officer.classification}</dd>
+        <dd>{formatLabel(officer.classification)}</dd>
         <dt>Status</dt>
-        <dd>{officer.status}</dd>
+        <dd>
+          <StatusBadge status={officer.status} />
+        </dd>
         <dt>Branches</dt>
         <dd>
-          {officer.officer_branches
-            .map((membership) => membership.branches.name)
-            .join(", ") || "None"}
+          <BranchBadges
+            branches={officer.officer_branches.map(
+              (membership) => membership.branches.name,
+            )}
+          />
         </dd>
       </dl>
-      <h2>Total points: {displayPoints(total.data.total_points ?? 0)}</h2>
-      <h2>Associated events</h2>
-      {!events.data.length && <p>No associated events yet.</p>}
-      <ul>
-        {events.data.map(({ events: event }) => (
-          <li key={event.id}>
-            <Link href={`/events/${event.id}`}>{event.name}</Link> —{" "}
-            {displayDate(event.starts_at)} — {eventStatus(event)}
-          </li>
-        ))}
-      </ul>
-      <h2>Point history (latest 100)</h2>
-      <TransactionTable transactions={transactions.data} />
-    </>
+      <p className="text-lg font-semibold text-zinc-100">
+        Total points: <PointValue value={total.data.total_points ?? 0} />
+      </p>
+      <section>
+        <SectionHeading title="Associated events" />
+        {!events.data.length && <p>No associated events yet.</p>}
+        <ul>
+          {events.data.map(({ events: event }) => (
+            <li
+              key={event.id}
+              className="flex flex-wrap items-center gap-2 border-b border-zinc-800 py-2 text-sm"
+            >
+              <Link
+                href={`/events/${event.id}`}
+                className="font-medium text-zinc-200 hover:underline"
+              >
+                {event.name}
+              </Link>
+              <span className="text-zinc-500">
+                {displayDate(event.starts_at)}
+              </span>
+              <StatusBadge status={eventStatus(event)} />
+            </li>
+          ))}
+        </ul>
+      </section>
+      <section>
+        <SectionHeading
+          title="Point history"
+          description="Latest 100 transactions"
+        />
+        <TableFrame>
+          <TransactionTable transactions={transactions.data} />
+        </TableFrame>
+      </section>
+    </div>
   );
 }

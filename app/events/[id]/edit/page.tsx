@@ -2,6 +2,7 @@ import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import EventForm from "../../event-form";
+import { PageHeader } from "@/components/ui";
 export default async function EditEventPage({
   params,
 }: {
@@ -22,13 +23,13 @@ export default async function EditEventPage({
     throw new Error("Failed to load event form");
   if (!event.data) notFound();
   return (
-    <>
-      <h1>Edit event</h1>
+    <div className="space-y-6">
+      <PageHeader title="Edit event" />
       <EventForm
         event={event.data}
         branches={branches.data}
         branchIds={event.data.event_branches.map((x) => x.branch_id)}
       />
-    </>
+    </div>
   );
 }

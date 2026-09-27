@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 import { supabase } from "@/lib/supabase";
 import EventForm from "../event-form";
+import { PageHeader } from "@/components/ui";
 export default async function NewEventPage() {
   await connection();
   const { data, error } = await supabase
@@ -9,9 +10,9 @@ export default async function NewEventPage() {
     .order("name");
   if (error) throw new Error("Failed to load branches");
   return (
-    <>
-      <h1>New event</h1>
+    <div className="space-y-6">
+      <PageHeader title="New event" />
       <EventForm branches={data} />
-    </>
+    </div>
   );
 }

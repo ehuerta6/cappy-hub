@@ -3,14 +3,20 @@ import { connection } from "next/server";
 import { supabase } from "@/lib/supabase";
 import {
   processCompletedEvents,
-  displayPoints,
   participationPointsPerHour,
 } from "@/lib/participation";
 import TransactionForm from "./transaction-form";
 import TransactionTable from "./transaction-table";
+import {
+  PageHeader,
+  PointValue,
+  SectionHeading,
+  TableFrame,
+} from "@/components/ui";
 export default async function PointsPage() {
   await connection();
   await processCompletedEvents();
+  const rateUnit = participationPointsPerHour === 1 ? "point" : "points";
   const [transactions, totals, officers, events] = await Promise.all([
     supabase
       .from("point_transactions")
@@ -28,35 +34,51 @@ export default async function PointsPage() {
   if (transactions.error || totals.error || officers.error || events.error)
     throw new Error("Failed to load points");
   return (
-    <>
-      <h1>Points</h1>
-      <p>
-        Participation: {participationPointsPerHour} points per scheduled hour.
-        Ended events are processed when data is loaded.
-      </p>
-      <h2>Officer totals</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Officer</th>
-            <th>Total points</th>
-          </tr>
-        </thead>
-        <tbody>
-          {totals.data.map((officer) => (
-            <tr key={officer.id}>
-              <td>
-                <Link href={`/officers/${officer.id}`}>{officer.name}</Link>
-              </td>
-              <td>{displayPoints(officer.total_points ?? 0)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <h2>Add manual transaction / correction</h2>
-      <TransactionForm officers={officers.data} events={events.data} />
-      <h2>Recent transactions (50)</h2>
-      <TransactionTable transactions={transactions.data} />
-    </>
+    <div className="space-y-8">
+      <PageHeader
+        title="Points"
+        description={`Participation: ${participationPointsPerHour} ${rateUnit} per scheduled hour. Ended events are processed when data is loaded.`}
+      />
+      <section>
+        <SectionHeading title="Officer totals" />
+        <TableFrame>
+          <table>
+            <thead>
+              <tr>
+                <th>Officer</th>
+                <th>Total points</th>
+              </tr>
+            </thead>
+            <tbody>
+              {totals.data.map((officer) => (
+                <tr key={officer.id}>
+                  <td>
+                    <Link href={`/officers/${officer.id}`}>{officer.name}</Link>
+                  </td>
+                  <td>
+                    <PointValue value={officer.total_points ?? 0} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableFrame>
+      </section>
+      <section>
+        <SectionHeading title="Add manual transaction or correction" />
+        <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4 sm:p-5">
+          <TransactionForm officers={officers.data} events={events.data} />
+        </div>
+      </section>
+      <section>
+        <SectionHeading
+          title="Recent transactions"
+          description="Latest 50 transactions"
+        />
+        <TableFrame>
+          <TransactionTable transactions={transactions.data} />
+        </TableFrame>
+      </section>
+    </div>
   );
 }

@@ -3,6 +3,14 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { eventStatus, displayDate } from "@/lib/event-status";
+import {
+  ActionLink,
+  BranchBadges,
+  PageHeader,
+  StatusBadge,
+  TableFrame,
+} from "@/components/ui";
+import { formatLabel } from "@/lib/presentation";
 export default async function EventsPage() {
   await connection();
   await processCompletedEvents();
@@ -12,38 +20,47 @@ export default async function EventsPage() {
     .order("starts_at", { ascending: false });
   if (error) throw new Error("Failed to load events");
   return (
-    <>
-      <h1>Events</h1>
-      <Link href="/events/new">New event</Link>
-      <table>
-        <thead>
-          <tr>
-            <th>Event</th>
-            <th>Start</th>
-            <th>Type</th>
-            <th>Branches</th>
-            <th>Officers</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((event) => (
-            <tr key={event.id}>
-              <td>
-                <Link href={`/events/${event.id}`}>{event.name}</Link>
-              </td>
-              <td>{displayDate(event.starts_at)}</td>
-              <td>{event.type}</td>
-              <td>
-                {event.event_branches.map((x) => x.branches.name).join(", ")}
-              </td>
-              <td>{event.event_officers.length}</td>
-              <td>{eventStatus(event)}</td>
+    <div className="space-y-6">
+      <PageHeader
+        title="Events"
+        description="Scheduled club events and participation."
+        action={<ActionLink href="/events/new">+ New event</ActionLink>}
+      />
+      <TableFrame>
+        <table>
+          <thead>
+            <tr>
+              <th>Event</th>
+              <th>Start</th>
+              <th>Type</th>
+              <th>Branches</th>
+              <th>Officers</th>
+              <th>Status</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {data.map((event) => (
+              <tr key={event.id}>
+                <td>
+                  <Link href={`/events/${event.id}`}>{event.name}</Link>
+                </td>
+                <td>{displayDate(event.starts_at)}</td>
+                <td>{formatLabel(event.type)}</td>
+                <td>
+                  <BranchBadges
+                    branches={event.event_branches.map((x) => x.branches.name)}
+                  />
+                </td>
+                <td className="tabular-nums">{event.event_officers.length}</td>
+                <td>
+                  <StatusBadge status={eventStatus(event)} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableFrame>
       {!data.length && <p>No events yet.</p>}
-    </>
+    </div>
   );
 }

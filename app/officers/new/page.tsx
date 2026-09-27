@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 import { supabase } from "@/lib/supabase";
 import OfficerForm from "./officer-form";
+import { PageHeader } from "@/components/ui";
 
 export default async function NewOfficerPage() {
   await connection();
@@ -11,9 +12,9 @@ export default async function NewOfficerPage() {
   if (branches.error || positions.error)
     throw new Error("Failed to load officer options");
   return (
-    <>
-      <h1>Add officer</h1>
+    <div className="space-y-6">
+      <PageHeader title="Add officer" />
       <OfficerForm branches={branches.data} positions={positions.data} />
-    </>
+    </div>
   );
 }
