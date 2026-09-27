@@ -3,13 +3,13 @@
 > [!info] Status baseline  
 > **POC snapshot:** 2026-09-27  
 > **Product source of truth:** Cappy Hub Design Doc  
-> **Implementation source of truth:** Cappy Hub POC Technical Report
+> **Implementation source of truth:** Current repository state
 > 
-> - `[x]` = confirmed implemented in the current POC
+> - `[x]` beside an implementation item = confirmed implemented in the current POC.
 >     
-> - `[ ]` = still required, incomplete, or needs production implementation
+> - `[ ]` beside an implementation item = still required or incomplete.
 >     
-> - Items marked **DECISION NEEDED** require a product/architecture decision before final implementation.
+> - Resolved product decisions are marked `[x]` in Section 65; that does not mean implementation is complete.
 >     
 
 ---
@@ -245,171 +245,79 @@
 
 # 3. Authentication
 
-## Authentication design
+## Resolved design
 
-- [ ] **DECISION NEEDED:** Choose final sign-in mechanism.
-    
-    - Google sign-in, or
-        
-    - Email authentication, or
-        
-    - Another approved-user login method consistent with the Design Doc.
-        
-    
-- [ ] **DECISION NEEDED:** Define how an authenticated account links to an officer record.
-    
-- [ ] **DECISION NEEDED:** Define how approved CIC users are identified.
-    
-- [ ] **DECISION NEEDED:** Define what happens when someone authenticates but is not an approved Cappy Hub user.
-    
-- [ ] **DECISION NEEDED:** Define what happens when an officer exists before their auth account exists.
-    
-- [ ] **DECISION NEEDED:** Define how application roles are stored.
-    
-- [ ] **DECISION NEEDED:** Define how the application owner identity is represented.
-    
-- [ ] Avoid expanding the core schema solely for auth until the account-linking model is deliberately chosen.
-    
+- [x] Google Sign-In through Supabase Auth is the MVP provider.
+- [x] Email magic links and other email sign-in methods are outside the MVP.
+- [x] An authenticated account links to an existing officer through nullable unique officers.auth_user_id referencing auth.users.id.
+- [x] First-login matching uses the verified Google email against UTEP or personal email, case-insensitively.
+- [x] Link only exactly one active, currently unlinked officer; deny access when there is no match or matching is ambiguous.
+- [x] Subsequent requests resolve the officer through auth_user_id.
+- [x] An approved user is a Google-authenticated user linked to an active officer.
+- [x] Inactive officers have no application access, including read-only access; status is checked on requests and history remains preserved.
+- [x] Authenticated actor fields reference auth.users.id; the officer relationship is resolved through officers.auth_user_id.
 
 ## Authentication implementation
 
-- [ ] Configure chosen provider in Supabase Auth.
-    
-- [ ] Implement sign-in flow.
-    
-- [ ] Implement auth callback flow if required by the chosen provider.
-    
-- [ ] Implement sign-out.
-    
-- [ ] Persist session correctly.
-    
-- [ ] Restore session on page requests.
-    
-- [ ] Protect internal application routes from unauthenticated users.
-    
-- [ ] Redirect unauthenticated users appropriately.
-    
-- [ ] Resolve `auth user → Cappy Hub officer`.
-    
-- [ ] Resolve `auth user → application role`.
-    
-- [ ] Resolve `auth user → officer branch memberships`.
-    
-- [ ] Resolve whether the current user's position grants branch-event management.
-    
-- [ ] Reject authenticated but unapproved users.
-    
-- [ ] Ensure deactivated officers receive the intended level of application access according to the final access decision.
-    
-- [ ] Display current signed-in identity where useful.
-    
-- [ ] Add logout control.
-    
-
----
+- [ ] Configure Google provider in Supabase Auth.
+- [ ] Implement Google sign-in and callback flow.
+- [ ] Persist and restore the Supabase session on page requests.
+- [ ] Protect internal routes and redirect unauthenticated users.
+- [ ] Implement safe first-login matching and linking, including duplicate/ambiguous-match denial.
+- [ ] Resolve the active officer through auth_user_id on each protected request.
+- [ ] Resolve application_role and branch memberships from the linked officer.
+- [ ] Reject unlinked, inactive, or otherwise unapproved users.
+- [ ] Revoke access after an officer is deactivated, even for an existing session.
+- [ ] Display signed-in identity where useful and provide sign-out.
 
 # 4. Application Roles
 
-## Role model
+## Resolved role model
 
-- [ ] Implement `admin` application role.
-    
-- [ ] Implement `officer` application role.
-    
-- [ ] Keep application role separate from club position.
-    
-- [ ] Keep application role separate from branch membership.
-    
-- [ ] Keep club position separate from application authorization except for the explicit branch-lead capability.
-    
+- [x] Application roles are stored on officers.application_role.
+- [x] Allowed application roles are admin and officer.
+- [x] Application role is separate from club position and branch membership.
+- [x] There is no third owner role; the application owner is an officer with application_role = admin.
+- [x] Academic Officer position titles are descriptive only and do not grant application permissions.
 
-## Admin users
+## Role implementation
 
-- [ ] Support multiple administrators.
-    
-- [ ] Support President as an admin where configured.
-    
-- [ ] Support Vice Presidents as admins where configured.
-    
-- [ ] Support the application owner as an admin.
-    
-- [ ] Support additional designated administrators.
-    
-- [ ] Allow an existing admin to add an admin.
-    
-- [ ] Allow an existing admin to remove an admin.
-    
-- [ ] Allow the application owner to add/remove admins.
-    
+- [ ] Implement and constrain the application_role officer column.
+- [ ] Support multiple administrators, including President, Vice Presidents, the application owner, and other designated officers as assigned.
+- [ ] Allow existing admins to add/remove admin assignments through backend-protected operations.
+- [ ] Prevent normal officers from promoting themselves or changing another user's role.
 - [ ] Protect admin-management operations on the backend.
-    
-- [ ] Prevent normal officers from promoting themselves to admin.
-    
-- [ ] Prevent normal officers from changing another user's application role.
-    
 
-## Officer users
+## Officer permissions
 
-- [ ] Authenticated approved officers can view permitted application data.
-    
-- [ ] Normal officers can manage their own event signups.
-    
+- [ ] Active authenticated officers can view permitted application data.
+- [ ] Normal officers can manage only their own event signups.
 - [ ] Normal officers cannot manage another officer's signup.
-    
-- [ ] Normal officers cannot create manual point transactions.
-    
-- [ ] Normal officers cannot create point corrections.
-    
-- [ ] Normal officers cannot remove point awards.
-    
-- [ ] Normal officers cannot edit other officer records.
-    
-- [ ] Normal officers cannot access the System Log.
-    
-
----
+- [ ] Normal officers cannot create manual point transactions or corrections.
+- [ ] Normal officers cannot remove point awards or alter configuration.
+- [ ] Normal officers cannot edit other officer records or manage arbitrary events.
+- [ ] Normal officers cannot access the System Log or other officers' warning records.
 
 # 5. Branch Lead Authorization
 
-## Position capability
+## Resolved position capability and scope
 
-- [ ] `positions.can_manage_branch_events` column exists.
-    
-- [ ] Configure the positions that actually act as branch leads.
-    
-- [ ] Stop leaving all `can_manage_branch_events` values as `false`.
-    
-- [ ] **DECISION NEEDED:** Confirm which existing club positions have branch-management permission.
-    
-- [ ] **DECISION NEEDED:** Resolve whether "Academic Officer" variants carry application permission or are descriptive titles only.
-    
+- [x] positions.can_manage_branch_events exists in the current schema.
+- [x] Only ICPC Lead, Intro Lead, and Social Media Lead positions are designated as branch leads.
+- [x] Academic Officer titles are descriptive and grant no additional Cappy Hub permission.
+- [x] Admins can manage all events regardless of position or branch.
+- [x] A branch lead may manage an event when the lead's memberships and event branches have at least one branch in common.
+- [x] A lead does not need to belong to every branch on a multi-branch event; for example, an Intro Lead in intro can manage an intro + general event.
+- [x] Normal officers cannot manage arbitrary events.
 
-## Branch scope
+## Implementation
 
-- [ ] Determine branch-lead scope from the officer's actual branch memberships.
-    
-- [ ] A lead can create/manage an event only for a branch they belong to.
-    
-- [ ] A lead can manage multi-branch events only when authorized according to the finalized multi-branch permission rule.
-    
-- [ ] A lead can assign officers only to authorized events.
-    
-- [ ] A lead can remove officers only from authorized events.
-    
-- [ ] A lead can manage event participation only for authorized events.
-    
-- [ ] A lead can cancel an event only within authorized branch scope.
-    
-- [ ] A lead can mark an event completed early only within authorized branch scope.
-    
-- [ ] A lead can manage flyer state for authorized Social events.
-    
-- [ ] Branch scope is enforced by backend/database authorization.
-    
-- [ ] Branch scope is not enforced only through hidden buttons.
-    
-
----
+- [ ] Set can_manage_branch_events = true only for the three designated lead positions; keep other positions false.
+- [ ] Connect the capability to backend authorization.
+- [ ] Determine the lead's scope from current officer branch memberships.
+- [ ] Enforce the non-empty intersection rule for creating/updating events, assigning/removing signups, cancellation, early completion, and flyer work.
+- [ ] Enforce branch scope in RLS/backend functions, not only through hidden buttons.
+- [ ] Prevent a lead from expanding their own permission by changing event/officer branch associations.
 
 # 6. Final Row Level Security
 
@@ -438,7 +346,11 @@
 
 ## Officers RLS
 
-- [ ] Approved users can read officer data they are permitted to see.
+- [x] Resolved read policy: active approved officers and admins may read other officers' names, positions, branches, UTEP/personal emails, points, point history, and event history.
+
+- [x] Resolved warning policy: admins administer warnings; an officer sees only their own approved warnings.
+
+- [ ] Implement these read policies in RLS and the application.
     
 - [ ] Admins can create officers.
     
@@ -470,9 +382,7 @@
     
 - [ ] Admins can modify any event allowed by event-state rules.
     
-- [ ] Branch leads can create branch-scoped events.
-    
-- [ ] Branch leads can modify branch-scoped events.
+- [ ] Branch leads can create/modify events only when their branch memberships intersect the event branches in at least one branch.
     
 - [ ] Normal officers cannot edit arbitrary events.
     
@@ -502,7 +412,7 @@
     
 - [ ] Admins can manage all event signups.
     
-- [ ] Branch leads can manage signups for authorized events.
+- [ ] Branch leads can manage signups only when their branch memberships intersect the event branches in at least one branch.
     
 - [ ] Signups remain closed after event end.
     
@@ -551,11 +461,9 @@
 
 ## Application config RLS
 
-- [ ] Admins can read current participation points-per-hour.
+- [ ] Admins can read and change both participation-points-per-hour and flyer-completion-points values.
     
-- [ ] Admins can change current participation points-per-hour.
-    
-- [ ] Normal officers cannot change the rate.
+- [ ] Normal officers cannot change either value.
     
 - [ ] Rate changes are logged.
     
@@ -589,6 +497,8 @@
     
 - [x] `officer_branches`
     
+- [ ] `event_types`
+
 - [x] `events`
     
 - [x] `event_branches`
@@ -602,120 +512,75 @@
 - [ ] `audit_logs`
     
 
-**Target: 12 MVP application tables.**
+**Target: 13 MVP application tables.**
 
 ---
 
-# 8. Database — `officers`
+# 8. Database — officers
 
-## Columns
+## Current POC columns
 
-- [x] `id`
-    
-- [x] `name`
-    
-- [x] `utep_email`
-    
-- [x] `personal_email`
-    
-- [x] `position_id`
-    
-- [x] `classification`
-    
-- [x] `status`
-    
-- [x] `created_at`
-    
+- [x] id
+- [x] name
+- [x] utep_email
+- [x] personal_email
+- [x] position_id
+- [x] classification
+- [x] status
+- [x] created_at
 
-## Constraints
+## Final MVP authentication columns
+
+- [ ] Add nullable unique auth_user_id referencing auth.users.id.
+- [ ] Add application_role constrained to admin or officer.
+
+## Current integrity
 
 - [x] Primary key exists.
-    
 - [x] Name cannot be blank.
-    
-- [x] UTEP email format is validated.
-    
-- [x] Personal email format is validated.
-    
-- [x] UTEP email is independently case-insensitive unique when provided.
-    
-- [x] Personal email is independently case-insensitive unique when provided.
-    
+- [x] UTEP and personal email formats are validated.
+- [x] Each email field is independently case-insensitive unique when provided.
 - [x] Multiple null emails are supported.
-    
-- [x] `position_id` references a valid position.
-    
-- [x] Classification is nullable.
-    
-- [x] Classification allowed values:
-    
-    - `freshman`
-        
-    - `sophomore`
-        
-    - `junior`
-        
-    - `senior`
-        
-    - `graduate`
-        
-    
-- [x] Status allowed values:
-    
-    - `active`
-        
-    - `inactive`
-        
-    
+- [x] position_id references a valid position.
+- [x] Classification is nullable and permits freshman, sophomore, junior, senior, and graduate.
+- [x] Status permits active and inactive.
+
+## Final MVP identity rules
+
+- [ ] Link at most one auth.users account to an officer.
+- [ ] First-login email matching considers verified email against UTEP or personal email, case-insensitively.
+- [ ] Link only exactly one active, unlinked officer; deny missing or ambiguous matches.
+- [ ] Check current active status on protected requests and deny all app access to inactive officers.
+- [ ] Preserve the officer and all historical relationships after deactivation.
 
 ## Remaining officer integrity rule
 
-- [ ] Every officer must belong to at least one branch.
-    
-- [ ] Creating an officer with zero branches must be rejected.
-    
-- [ ] Editing an officer so they have zero branches must be rejected.
-    
-- [ ] Do not rely solely on the form checkbox UI for this rule.
-    
-- [ ] Ensure the trusted save path enforces the requirement transactionally.
-    
+- [ ] Enforce the existing Design Doc requirement that every officer belongs to at least one branch.
+- [ ] Creating an officer with zero branches must be rejected transactionally.
+- [ ] Editing an officer so they have zero branches must be rejected transactionally.
+- [ ] Do not rely solely on form checkbox validation.
 
----
-
-# 9. Database — `positions`
+# 9. Database — positions
 
 ## Current schema
 
-- [x] `id`
-    
-- [x] `name`
-    
-- [ ] `can_manage_branch_events`
-    
-- [x] `created_at`
-    
-- [x] Position names are unique.
-    
-- [x] Position names are controlled database data.
-    
-- [x] Officers reference a position by ID.
-    
-- [x] Position values can change without altering the officers table schema.
-    
+- [x] id
+- [x] name
+- [x] can_manage_branch_events
+- [x] created_at
+- [x] Position names are unique controlled data.
+- [x] Officers reference one position by ID.
+
+## Resolved permission decisions
+
+- [x] Only ICPC Lead, Intro Lead, and Social Media Lead are branch-lead positions.
+- [x] Academic Officer titles are descriptive and do not grant branch-management capability.
+- [x] All other catalog positions remain non-leads regardless of title.
 
 ## Remaining work
 
-- [ ] Assign correct `can_manage_branch_events` values.
-    
-- [ ] Connect this boolean to real backend authorization.
-    
-- [ ] Prevent the boolean from acting alone without checking branch membership.
-    
-- [ ] **DECISION NEEDED:** finalize permission meaning for Academic Officer variants.
-    
-
----
+- [ ] Implement can_manage_branch_events = true only for the three designated lead positions and false for all others.
+- [ ] Connect this capability to backend authorization and branch-membership scope.
 
 # 10. Database — `branches`
 
@@ -748,7 +613,7 @@
     
 - [x] Branches are separate from positions.
     
-- [ ] Branches participate in final permission checks.
+- [x] Resolved decision: branch-lead authorization uses a non-empty intersection of the lead’s memberships and event branches.
     
 
 ---
@@ -776,82 +641,42 @@
 
 ---
 
-# 12. Database — `events`
+# 12. Database — events and event types
 
-## Existing columns
+## event_types — final MVP table
 
-- [x] `id`
-    
-- [x] `name`
-    
-- [x] `description`
-    
-- [x] `type`
-    
-- [x] `location`
-    
-- [x] `starts_at`
-    
-- [x] `ends_at`
-    
-- [x] `status`
-    
-- [x] `created_at`
-    
+- [ ] Create event_types with id, unique name, and created_at.
+- [ ] Seed General, Intro, ICPC, Meeting, Social, and Workshop; allow additional admin-created values.
+- [ ] Allow admins to delete only event types that are not referenced by events.
+- [ ] Reject deletion of referenced event types; never cascade deletion into event history.
 
-## Missing MVP columns
+## Existing POC event columns
 
-- [ ] `participation_points_per_hour_at_end`
-    
-- [ ] `slides_url`
-    
-- [ ] `meeting_notes_url`
-    
-- [ ] `flyer_status`
-    
-- [ ] `flyer_assigned_to`
-    
+- [x] id
+- [x] name
+- [x] description
+- [x] type (current POC only; free-form text is replaced in the final MVP)
+- [x] location
+- [x] starts_at
+- [x] ends_at
+- [x] status
+- [x] created_at
 
-## Event constraints
+## Final MVP event columns and constraints
 
-- [x] Event name cannot be blank.
-    
-- [x] Event type cannot be blank.
-    
-- [x] `starts_at` is required.
-    
-- [x] `ends_at` is required.
-    
-- [x] `ends_at > starts_at` is enforced.
-    
-- [x] Event status accepts:
-    
-    - `upcoming`
-        
-    - `happening`
-        
-    - `past`
-        
-    - `cancelled`
-        
-    
-- [ ] Flyer status accepts:
-    
-    - `not_started`
-        
-    - `in_progress`
-        
-    - `done`
-        
-    
-- [ ] `flyer_assigned_to` references a valid officer when provided.
-    
-- [ ] Rate snapshot is nullable until event processing/completion.
-    
-- [ ] Once participation awards are created, the event retains the rate used for those awards.
-    
-
----
+- [ ] Implement required event_type_id referencing event_types, replacing the current POC free-text type column.
+- [ ] Add nullable participation_points_per_hour_at_end for the scheduled-end rate snapshot.
+- [ ] Add optional slides_url and meeting_notes_url.
+- [ ] Add optional flyer_status and flyer_assigned_to for Social flyer workflow.
+- [x] Event name and type are required/nonblank in the current POC.
+- [x] starts_at and ends_at are required in the current POC.
+- [x] ends_at > starts_at is enforced in the current POC.
+- [x] Current POC status values are upcoming, happening, past, and cancelled.
+- [x] Resolved decision: early completion sets the existing status to past; it does not record an actual completion timestamp.
+- [x] Resolved decision: preserve scheduled starts_at/ends_at; do not add completed_at or an actual-end-time field.
+- [x] Resolved decision: early completion closes signup/signout, while participation processing waits until scheduled ends_at and uses the scheduled duration.
+- [x] Resolved decision: keep timezone-aware timestamps and use America/Denver for event input/display.
+- [x] Resolved decision: event-type names are unique; reject deletion while referenced and never cascade into event history.
 
 # 13. Database — `event_branches`
 
@@ -871,7 +696,7 @@
     
 - [x] Current event-save RPC requires at least one branch.
     
-- [ ] Final authorization uses event branches to determine branch-lead scope.
+- [x] Resolved decision: branch-lead scope is based on event branches and requires at least one shared branch.
     
 - [ ] Final RLS prevents unauthorized branch associations.
     
@@ -920,79 +745,38 @@
 
 ---
 
-# 15. Database — `point_transactions`
+# 15. Database — point_transactions
 
-## Existing columns
+## Current POC columns
 
-- [x] `id`
-    
-- [x] `officer_id`
-    
-- [x] `event_id`
-    
-- [x] `points`
-    
-- [x] `reason`
-    
-- [x] `award_type`
-    
-- [x] `created_by`
-    
-- [x] `created_at`
-    
+- [x] id
+- [x] officer_id
+- [x] event_id
+- [x] points
+- [x] reason
+- [x] award_type
+- [x] created_by
+- [x] created_at
 
-## Current award types
+## Current POC integrity
 
-- `participation`
-    
-- `manual`
-    
-- `correction`
-    
-- `flyer`
-    
-
-## Existing integrity
-
-- [x] Every transaction references an officer.
-    
-- [x] Event is optional.
-    
+- [x] Every transaction references an officer; event is optional.
 - [x] Participation requires an event.
-    
-- [x] Positive point values work.
-    
-- [x] Negative point values work.
-    
-- [x] Fractional point values work.
-    
-- [x] Reason cannot be blank.
-    
-- [x] Numeric point values are validated as finite.
-    
-- [x] One participation award per officer/event is enforced with a unique partial index.
-    
+- [x] Positive, negative, and fractional point values work.
+- [x] Reason cannot be blank; numeric points are finite.
+- [x] One participation award per officer/event is enforced by a unique partial index.
 - [x] Point totals are derived rather than stored on officers.
-    
 
-## Remaining point schema work
+## Final MVP fields and behavior
 
-- [ ] `created_by` has a finalized authentication relationship.
-    
-- [ ] Admin-created manual transactions store actor identity.
-    
-- [ ] Admin-created corrections store actor identity.
-    
-- [ ] Automatic transactions use the appropriate trusted actor/system representation.
-    
-- [ ] `flyer` is an allowed award type.
-    
-- [ ] Enforce no more than one flyer award per event.
-    
-- [ ] Award deletions preserve sufficient details in `audit_logs`.
-    
-
----
+- [x] Resolved actor-FK decision: created_by, removed_by, warning_approvals.approver_id, and audit_logs.actor_id reference auth.users.id.
+- [ ] Add nullable removed_at and removed_by referencing auth.users.id.
+- [ ] Implement logical award removal; retain the original transaction as a voided history record.
+- [ ] Exclude removed transactions from derived totals and ordinary active history.
+- [x] Resolved decision: retain removed participation awards for idempotency so they are never regenerated.
+- [ ] Enforce at most one participation award per officer/event and at most one flyer award per event, including removed awards.
+- [ ] Preserve removal actor, timestamp, and transaction details in the System Log.
+- [ ] Store the final awarded amount in each transaction; later configuration changes do not recalculate it.
 
 # 16. Database — `officer_warnings`
 
@@ -1044,7 +828,7 @@
     
 - [ ] Add nullable `decided_at`.
     
-- [ ] Finalize `approver_id` relationship after auth design.
+- [x] Resolved decision: warning_approvals.approver_id references auth.users.id; resolve the officer through officers.auth_user_id when needed.
     
 - [ ] Support President approval record.
     
@@ -1068,101 +852,47 @@
 
 ---
 
-# 18. Database — `application_config`
+# 18. Database — application_config
 
-- [ ] Create `application_config`.
-    
-- [ ] Use a single-row configuration record.
-    
-- [ ] Add `id`.
-    
-- [ ] Add `participation_points_per_hour`.
-    
-- [ ] Add `updated_at`.
-    
-- [ ] Store current participation rate in the database instead of only an environment variable.
-    
-- [ ] Validate configured rate as a valid numeric rate.
-    
+- [ ] Create application_config as a single-row table.
+- [ ] Add id.
+- [ ] Add participation_points_per_hour (resolved design value in application_config).
+- [ ] Add flyer_completion_points (resolved design value in application_config).
+- [ ] Add updated_at.
+- [ ] Validate both configured point values according to the approved numeric constraints.
 - [ ] Provide a predictable way to access the single configuration row.
-    
-- [ ] Admin rate updates modify this row.
-    
-- [ ] Rate changes create System Log entries.
-    
-- [ ] Automatic award processing reads this configuration.
-    
-- [ ] Event completion snapshots the current rate onto the event.
-    
+- [ ] Allow admins to view and change both values.
+- [ ] Prevent normal officers from changing either value.
+- [ ] Log rate and flyer-value changes with the authenticated actor.
+- [ ] Automatic participation processing reads and snapshots the current participation rate at scheduled event end.
+- [ ] Flyer completion reads the current flyer amount and stores the resulting award amount permanently.
 
----
+# 19. Database — audit_logs
 
-# 19. Database — `audit_logs`
-
-- [ ] Create `audit_logs`.
-    
-- [ ] Add `id`.
-    
-- [ ] Add `actor_id`.
-    
-- [ ] Add `action`.
-    
-- [ ] Add `entity_type`.
-    
-- [ ] Add `entity_id`.
-    
-- [ ] Add `details`.
-    
-- [ ] Add `created_at`.
-    
-- [ ] Finalize `actor_id` relationship after authentication design.
-    
-- [ ] Store enough detail to understand an action.
-    
-- [ ] Store before/after data where useful.
-    
-- [ ] Store deletion snapshots where required.
-    
-- [ ] Retain logs after source entity deletion.
-    
-- [ ] Protect logs from normal modification.
-    
-- [ ] Allow only admins to read logs.
-    
-
----
+- [ ] Create audit_logs with id, actor_id, action, entity_type, entity_id, details, and created_at.
+- [x] Resolved actor-FK decision: audit_logs.actor_id references auth.users.id.
+- [ ] Preserve useful before/after data and deletion/removal snapshots where needed.
+- [ ] Retain audit entries after source entities or logical point awards are deleted/removed.
+- [ ] Protect audit records from ordinary application modification.
+- [ ] Allow only admins to read System Log records.
 
 # 20. Database Views
 
 ## Existing views
 
-- [x] `officer_point_totals`
-    
-- [x] `dashboard_summary`
-    
+- [x] officer_point_totals
+- [x] dashboard_summary
 - [x] Views derive results from current records.
-    
 - [x] Totals are not duplicated into cached officer columns.
-    
-- [x] Current views use `security_invoker`.
-    
+- [x] Current views use security_invoker.
 
 ## Final review
 
-- [ ] Verify both views work correctly under authenticated RLS.
-    
-- [ ] Remove anonymous read grants if no longer appropriate.
-    
-- [ ] Ensure views cannot accidentally expose rows users cannot otherwise read.
-    
-- [ ] Verify Dashboard half-year totals remain correct after final point model changes.
-    
-- [ ] Verify deleted awards no longer contribute to point totals.
-    
-- [ ] Verify correction transactions do contribute positively/negatively as intended.
-    
-
----
+- [ ] Verify views work under authenticated RLS.
+- [ ] Ensure peer officer fields match the resolved visibility policy while warnings remain restricted.
+- [ ] Ensure officer and Dashboard totals include only point_transactions with removed_at IS NULL.
+- [ ] Verify half-year Dashboard calculations use America/Denver local calendar periods.
+- [ ] Verify corrections affect active totals and logically removed awards do not.
 
 # 21. Database RPCs / Trusted Operations
 
@@ -1511,7 +1241,7 @@
     
 - [ ] Logged-in officer's signup state is visible.
     
-- [ ] Use event type for organization/filtering according to final UI.
+- [x] Resolved decision: event type is for organization/filtering and does not grant permissions.
     
 - [ ] Apply final access rules to creation/manage actions.
     
@@ -1597,17 +1327,17 @@
 
 - [x] Event type remains primarily organizational and for filtering.
     
-- [ ] Event type does **not** determine branch-lead authorization.
+- [x] Resolved decision: event type does **not** determine branch-lead authorization.
     
-- [ ] Branch associations determine branch scope.
+- [x] Resolved decision: branch associations determine branch scope.
     
-- [ ] **DECISION NEEDED:** Design Doc says event types are "managed by admins", but the 12-table MVP schema does not contain an `event_types` table.
+- [x] Resolved product decision: The final MVP includes an `event_types` table (13 application tables total).
     
-- [ ] Decide how admin-managed event types are represented without silently expanding the schema.
+- [x] Use `event_types` with unique names; admins manage values, and referenced types cannot be deleted.
     
 - [ ] Implement the chosen admin-management behavior.
     
-- [ ] Ensure event type changes do not alter branch permissions.
+- [x] Resolved decision: event type changes do not alter branch permissions.
     
 
 ---
@@ -1634,7 +1364,7 @@
     
 - [ ] Participation points still use originally scheduled `starts_at → ends_at` duration.
     
-- [ ] **Implementation decision:** define how early completion state is represented using the existing event model without unnecessary schema expansion.
+- [x] Resolved decision: use the existing status value `past`; retain the originally scheduled timestamps and add no completion-time field.
     
 - [ ] Ensure early-completed events cannot continue accepting signups.
     
@@ -1859,9 +1589,9 @@
 
 ## Points
 
-- [ ] **DECISION NEEDED:** President approves final flyer award amount.
+- [x] Resolved product decision: the flyer award amount comes from `application_config.flyer_completion_points`.
     
-- [ ] Implement flyer award only after award amount/rule is finalized.
+- [ ] Implement flyer award using the configured amount and award it to `flyer_assigned_to`.
     
 - [ ] Completing flyer work creates no more than one flyer award for the event.
     
@@ -1998,7 +1728,8 @@
     
 - [ ] Database authorization independently prevents unauthorized direct inserts.
     
-- [ ] `created_by` stores admin actor.
+- [x] Resolved decision: created_by references auth.users.id for the authenticated actor.
+- [ ] Implement admin actor attribution.
     
 - [ ] Transaction creation is logged.
     
@@ -2065,17 +1796,19 @@
 
 ## Final MVP processing
 
-- [ ] Remove page-load processing as the production trigger.
+- [x] Resolved decision: page loads are not a production processing trigger.
+- [ ] Remove the current page-load trigger during implementation.
     
-- [ ] Add trusted scheduled event processing.
+- [x] Resolved decision: Supabase Cron/pg_cron invokes a private trusted PostgreSQL function approximately once per minute.
+- [ ] Implement the scheduled database function and configure its private execution path.
     
 - [ ] Processing runs even when nobody loads Cappy Hub.
     
-- [ ] Processing executes when an event reaches its scheduled end.
+- [x] Resolved decision: process an event only once it reaches its scheduled end (scheduler polling interval is approximately one minute).
     
-- [ ] Processing cannot be triggered anonymously with an arbitrary rate.
+- [x] Resolved decision: trusted private database processing reads configured values; no anonymous rate parameter is accepted.
     
-- [ ] Processing reads current rate from `application_config`.
+- [x] Resolved decision: read participation and flyer amounts from `application_config`.
     
 - [ ] Processing stores that rate in `events.participation_points_per_hour_at_end`.
     
@@ -2098,9 +1831,7 @@
     
 - [ ] Remove environment variable as the authoritative business configuration.
     
-- [ ] Admin can view current rate.
-    
-- [ ] Admin can change current rate.
+- [ ] Admin can view/change both configured values, participation rate and flyer completion points.
     
 - [ ] Normal officer cannot change rate.
     
@@ -2135,9 +1866,10 @@
     
 - [ ] Deleted award cannot silently disappear without trace.
     
-- [ ] Participation uniqueness allows the system's intended behavior after removal according to the finalized removal/re-award rule.
+- [x] Resolved decision: unique participation history includes logically removed rows and suppresses regeneration.
     
-- [ ] **Implementation decision:** define whether a removed participation award may ever be regenerated automatically for the same event/officer or remains intentionally suppressed.
+- [x] Resolved product decision: a logically removed participation award remains suppressed and is never regenerated for that officer/event.
+- [ ] Implement the suppression behavior through retained transaction history and uniqueness.
     
 
 ---
@@ -2213,7 +1945,7 @@
     
 - [x] Negative corrections affect current total.
     
-- [ ] Verify timezone semantics for production.
+- [ ] Verify America/Denver timezone semantics in production.
     
 - [ ] Ensure final rate/award model still feeds Dashboard correctly.
     
@@ -2303,9 +2035,9 @@
 
 ## Additional operational mutation logging
 
-- [ ] Decide whether officer create/edit/deactivate/reactivate is included in universal System Log coverage.
+- [ ] Implement System Log coverage for officer create/edit/deactivate/reactivate actions as specified in the audit requirements.
     
-- [ ] Decide whether application admin-role changes are included.
+- [ ] Implement System Log coverage for application admin-role changes as specified in the audit requirements.
     
 - [ ] Prefer logging security-sensitive/admin mutations for traceability.
     
@@ -2504,9 +2236,9 @@
 
 > Current POC treats event form/display timestamps as UTC.
 
-- [ ] **DECISION NEEDED:** define the user-facing timezone convention for Cappy Hub.
+- [x] Resolved product decision: user-facing event times and recurrence use America/Denver (El Paso local time).
     
-- [ ] Keep PostgreSQL timestamps timezone-aware.
+- [x] Resolved decision: PostgreSQL event timestamps remain timezone-aware.
     
 - [ ] Ensure datetime inputs are interpreted correctly.
     
@@ -2514,9 +2246,9 @@
     
 - [ ] Ensure event list displays expected local time.
     
-- [ ] Ensure Dashboard displays expected local time.
+- [ ] Ensure Dashboard displays expected America/Denver local time.
     
-- [ ] Ensure recurrence generation uses the chosen timezone consistently.
+- [ ] Ensure recurrence generation uses America/Denver consistently.
     
 - [ ] Ensure DST/timezone changes do not alter scheduled duration unexpectedly.
     
@@ -2595,7 +2327,7 @@
 
 ## Current roster
 
-- [ ] Current roster has already been imported into the POC while preserving existing officer identities according to the Technical Report.
+- [x] Current roster has already been imported into the POC while preserving existing officer identities according to the Technical Report.
     
 
 ---
@@ -2650,7 +2382,7 @@
     
 - [ ] Participation rate snapshot implemented.
     
-- [ ] Auth actor references finalized.
+- [x] Resolved decision: actor references use auth.users.id; implementation and generated types remain pending.
     
 - [ ] Audit log survives source deletions.
     
@@ -2969,13 +2701,15 @@
 
 # 62. Production Processing / Scheduler
 
-- [ ] Choose trusted scheduling mechanism compatible with Supabase/hosting environment.
+- [x] Resolved decision: use Supabase Cron/pg_cron with a private PostgreSQL function, approximately once per minute.
     
-- [ ] Scheduled processing does not depend on browser traffic.
+- [x] Resolved decision: scheduled processing does not depend on browser traffic.
+- [ ] Implement and verify processing while the application is idle.
     
-- [ ] Scheduler can authenticate as trusted execution context.
+- [x] Resolved decision: the scheduler invokes a private trusted database function.
     
-- [ ] Scheduler cannot be invoked by normal officer credentials to choose arbitrary point rate.
+- [x] Resolved decision: no client/anonymous caller may provide an arbitrary point rate.
+- [ ] Enforce private function execution grants and configuration reads.
     
 - [ ] Processing is safe to run more than once.
     
@@ -3048,60 +2782,34 @@
 
 ---
 
-# 65. Explicit Product Decisions Still Needed
+# 65. Resolved Product Decisions
 
-## Authentication
+These are product decisions, not implementation completion. The corresponding implementation items remain unchecked in their sections and release gates.
 
-- [ ] Choose Google vs email vs other approved-user sign-in.
-    
-- [ ] Define auth account ↔ officer linking.
-    
-- [ ] Define where `admin` / `officer` application role is stored.
-    
-- [ ] Define application owner representation.
-    
-- [ ] Define what data an approved officer may read.
-    
+## Authentication and roles
 
-## Positions and permissions
+- [x] Use Google Sign-In through Supabase Auth; do not use email magic links.
+- [x] On first login, match the verified Google email case-insensitively to UTEP or personal email; link only exactly one active, unlinked officer, otherwise deny access.
+- [x] Store a unique nullable `officers.auth_user_id` FK to `auth.users.id`; inactive officers have no application access.
+- [x] Store application role on officers as `admin` or `officer`; the app owner is an admin, with no separate owner role.
+- [x] `created_by`, `warning_approvals.approver_id`, `audit_logs.actor_id`, and `removed_by` identify `auth.users` accounts.
+- [x] Active approved officers can view peer officer contact information, points, and history; warning records remain separately restricted.
 
-- [ ] Decide whether regular vs Academic Officer titles carry different application permissions.
-    
-- [ ] Finalize which positions have `can_manage_branch_events = true`.
-    
+## Positions, branches, and event types
 
-## Event types
+- [x] Only ICPC Lead, Intro Lead, and Social Media Lead receive branch-management capability; academic officer titles are descriptive.
+- [x] A lead may manage an event only when their branch memberships and the event’s branches have a non-empty intersection.
+- [x] Include `event_types` in the MVP schema (13 application tables). Events use required `event_type_id`; admins manage unique types, and referenced types cannot be deleted.
 
-- [ ] Decide how admin-managed event types work given that the MVP's documented 12 tables do not include an `event_types` table.
-    
+## Points, scheduling, and time
 
-## Flyer points
-
-- [ ] President approves flyer award amount.
-    
-- [ ] Finalize exact flyer-award rule.
-    
-
-## Authentication foreign keys
-
-- [ ] Finalize `point_transactions.created_by`.
-    
-- [ ] Finalize `warning_approvals.approver_id`.
-    
-- [ ] Finalize `audit_logs.actor_id`.
-    
-
-## Time
-
-- [ ] Decide official user-facing timezone behavior.
-    
-
-## Award removal
-
-- [ ] Decide whether deleting an automatically generated participation award permanently suppresses regeneration or requires a separate suppression mechanism.
-    
-
----
+- [x] `application_config` stores both participation points per hour and flyer completion points.
+- [x] At scheduled event end, snapshot the participation rate and award using the scheduled duration.
+- [x] Flyer completion awards the configured amount to `flyer_assigned_to`, at most once per event.
+- [x] Use America/Denver for event input, display, recurrence, and half-year boundaries.
+- [x] Early completion sets status to `past`, closes participation, retains scheduled times, and does not start point processing early or add an actual-end timestamp.
+- [x] A logically removed award retains its history and is never regenerated.
+- [x] Trusted Supabase Cron/pg_cron calls a private database function approximately once per minute; processing does not depend on page loads, Vercel Cron, or Edge Functions.
 
 # 66. Explicitly Post-MVP / Not Required Now
 
@@ -3142,7 +2850,7 @@
     
 - [ ] Add missing event file/flyer columns.
     
-- [ ] Add flyer award type/constraint.
+- [ ] Add flyer award type/constraint; configured amount is awarded to the event’s flyer assignee.
     
 - [ ] Add `officer_warnings`.
     
@@ -3157,7 +2865,7 @@
 
 ## Phase 2 — Authentication
 
-- [ ] Make authentication decisions.
+- [x] Resolved product decisions are recorded below; implement Google Sign-In and officer linking.
     
 - [ ] Configure Supabase Auth.
     
@@ -3172,9 +2880,9 @@
 
 ## Phase 3 — Authorization
 
-- [ ] Configure admin identities.
+- [ ] Configure officer application_role assignments for admins.
     
-- [ ] Configure branch-lead positions.
+- [x] Resolved decision: ICPC Lead, Intro Lead, and Social Media Lead are the only branch-lead positions.
     
 - [ ] Implement branch-scope permission helpers.
     
@@ -3239,7 +2947,7 @@
     
 - [ ] Flyer points.
     
-- [ ] Event-type management decision/implementation.
+- [ ] Implement admin event-type management with reference-protected deletion.
     
 - [ ] Identity-aware signup controls.
     
@@ -3559,14 +3267,15 @@
 
 - [ ] All MVP features above are complete.
     
-- [ ] All unresolved product decisions above are resolved.
+- [x] Product decisions in the Design Doc and checklist are resolved.
+- [ ] Implement the resolved product decisions.
     
 - [ ] No post-MVP feature is accidentally blocking release.
     
 
 ## Database
 
-- [ ] All 12 intended MVP tables exist.
+- [ ] All 13 intended MVP application tables exist.
     
 - [ ] All required columns exist.
     

@@ -52,7 +52,7 @@ The Dashboard may display:
 
 * Number of upcoming events.
 
-* Total points awarded during the current half-year period (January–June or July–December), updated from current records.
+* Total active points awarded during the current half-year period (January–June or July–December in the official America/Denver timezone), updated from current records.
 
 * Upcoming events.
 
@@ -90,301 +90,129 @@ Dashboard values should be calculated from existing officer, event, and point re
 
 # **4\. Officer Management**
 
-Cappy Hub maintains a structured directory of CIC officers.
+Cappy Hub maintains a structured directory of CIC officers. Officer records remain available after deactivation so event, point, and audit history remains valid.
 
-Each officer has a stable record that can be referenced by events and point transactions.
+Each officer has one controlled club position, one application role, and one or more branch memberships. These are separate concepts: position describes club duties, application role controls Cappy Hub permissions, and branch memberships scope branch-lead event access.
 
-The system should support:
+The documented officer fields are:
 
-* Viewing all officers.
+- id
+- name
+- utep_email (optional)
+- personal_email (optional)
+- auth_user_id (nullable, unique FK to auth.users.id; links at most one account to one officer)
+- position_id (FK to positions)
+- application_role (admin or officer)
+- classification (nullable; freshman, sophomore, junior, senior, or graduate; descriptive only)
+- status (active or inactive)
+- created_at
+- Branch memberships through officer_branches
 
-* Adding an officer.
+UTEP and personal emails are independently case-insensitive unique when present. They are also the only email fields used for first-login officer matching.
 
-* Editing officer information.
+Club positions are controlled data. The current catalog is:
 
-* Deactivating an officer.
+- President
+- Vice President of Operations
+- Vice President of Academics
+- Secretary
+- ICPC Lead
+- Intro Lead
+- Chief Outreach
+- Social Media Lead
+- ICPC/Academic Officer
+- Intro/CIC Academic Officer
+- ICPC Officer
+- Intro Academic Officer
+- CIC Academic Officer
+- Outreach Officer
+- Social Media Officer
 
-* Reactivating an officer.
+Only ICPC Lead, Intro Lead, and Social Media Lead have can_manage_branch_events = true. Other positions have no branch-management permission based solely on their title. Titles containing Academic Officer describe club duties and do not grant Cappy Hub permissions.
 
-* Viewing an officer profile.
+An officer may belong to multiple branches and must belong to at least one. Current branch records include intro, social, icpc, and general. The general branch serves the general CIC audience across experience levels; intro is oriented toward beginners. Branches are controlled database records rather than hardcoded authorization rules.
 
-* Viewing the events associated with an officer.
-
-* Viewing an officer’s point history.
-
-* Viewing an officer’s total points.
-
-Officer records should remain available after deactivation so that historical event and point records remain valid.
-
-Suggested officer fields:
-
-id
-
-name
-
-utep_email
-
-personal_email
-
-position_id (references the positions table; one controlled position per officer)
-
-branch memberships (via officer\_branches)
-
-classification (nullable; descriptive only)
-
-status
-
-Created\_at
-
-Club positions are controlled selectable values stored as data, like branches, so values can be added or removed without a schema change. An officer has one position. Current position values (duplicates in the roster consolidated):
-
-* President
-* Vice President of Operations
-* Vice President of Academics
-* Secretary
-* ICPC Lead
-* Intro Lead
-* Chief Outreach
-* Social Media Lead
-* ICPC/Academic Officer
-* Intro/CIC Academic Officer
-* ICPC Officer
-* Intro Academic Officer
-* CIC Academic Officer
-* Outreach Officer
-* Social Media Officer
-
-**DECISION NEEDED:** What responsibilities distinguish a regular officer (such as an ICPC Officer or Social Media Officer) from an Academic Officer (such as an ICPC/Academic Officer, Intro Academic Officer, or CIC Academic Officer)? Should the titles carry different application permissions, or describe club duties only?
-
-Suggested branch values (multiple allowed; examples only): Branches are stored as data through branches and officer\_branches, not hardcoded database CHECK values, so branches can be added or removed without schema changes. Every officer must belong to at least one branch and may belong to multiple branches; creating or editing an officer requires at least one branch membership.
-
-intro
-
-social
-
-icpc
-
-general
-
-The `general` branch is a real CIC branch for programming content and events intended for the general CIC audience across experience levels, including beginner, intermediate, and advanced members. The `intro` branch is specifically oriented toward beginners.
-
-Suggested classification values:
-
-freshman
-
-sophomore
-
-junior
-
-senior
-
-graduate
-
-Classification is optional and descriptive only. It does not affect permissions or business logic.
-
-Suggested status values:
-
-active
-
-inactive
-
-An officer has one club position and must belong to at least one branch; an officer may belong to multiple branches. Position, branch membership, and application permissions are separate concepts.
-
-For example, an officer may hold the position of Academic Officer within the Intro branch while their application access level is Administrator.
-
----
+Classification is optional and descriptive. It does not affect access or business logic. Status is active or inactive.
 
 # **5\. Application Access**
 
-Cappy Hub is an internal tool intended for approved CIC users. Authentication may use a simple approved-user login flow such as Google sign-in or email authentication. The exact sign-in and account-to-officer linking rules remain to be decided.
+Cappy Hub uses Google Sign-In through Supabase Auth. Email magic links and other email sign-in flows are not part of the MVP.
 
-Application permissions should be enforced by the backend rather than only through the user interface. Application roles are `admin` and `officer`, and they are separate from club position and branch membership.
+Every authenticated account must link to an existing officer. On the first successful Google login, the application reads the verified Google email and compares it case-insensitively with officers.utep_email and officers.personal_email. Linking succeeds only when exactly one matching officer is active and has no auth_user_id; the application stores the authenticated auth.users.id on that officer. If there is no eligible match or the match is ambiguous, access is denied rather than guessed. Later requests resolve the officer through auth_user_id.
 
-The President, every Vice President, the application owner, and other designated administrators may hold the `admin` role. Multiple people may be admins. Existing admins and the application owner may add or remove admins. Admins can manage all operational data, including any event or officer, and are the only users who may create, remove, or correct point transactions.
+An approved user is an authenticated Google account linked to an active officer. Authentication by itself does not grant access. The application checks the linked officer's current status on requests; setting status = inactive immediately removes access, including read-only access, while preserving the officer's history.
 
-An officer whose selected position is designated as a branch-lead position may create and manage events, assign officers, and manage event participation only for branches they belong to. Events may be associated with multiple branches. The position catalog identifies which positions have this permission; branch scope comes from the officer’s branch memberships. Other officers may view permitted data and sign up for or out of events; they may not manage other officers’ event participation.
+officers.application_role contains admin or officer. It is independent from club position and branch membership. The application owner is an officer with application_role = admin; there is no separate owner role. Existing admins may manage admin assignments under the documented admin-management rules. Normal officers cannot promote themselves or change another user's role.
+
+Admins can manage all officers, events, signups, point transactions, configuration, warnings, and the System Log. Normal officers may read permitted application data, manage only their own event signups, and cannot perform admin operations.
+
+The only positions with branch-event capability are ICPC Lead, Intro Lead, and Social Media Lead. A lead may manage an event when at least one of the event's branches also belongs to the lead. Formally, lead branches ∩ event branches must be non-empty. A lead does not need to belong to every branch on a multi-branch event. For example, an Intro Lead in intro may manage an event associated with both intro and general. This scope applies to event creation/management, signup assignment/removal, cancellation, early completion, and flyer work. Admins remain globally authorized.
+
+Active approved officers and admins may view other officers' names, positions, branch memberships, UTEP and personal emails, points, point history, and event history. Warning visibility is separate: admins can administer warnings; an officer sees only approved warnings assigned to that officer and never other officers' warning records.
+
+Backend authorization and Supabase RLS enforce these rules; hidden controls alone are not security.
 
 # **6\. Event Management**
 
-Cappy Hub maintains structured records for CIC events.
+Cappy Hub supports event creation, editing, cancellation, early completion, details, branch associations, officer signups, related files, flyer work, and point history.
 
-The system should support:
+The final event fields include:
 
-* Viewing events.
+- id, name, description
+- event_type_id (FK to event_types)
+- location (optional)
+- starts_at, ends_at (timezone-aware timestamps)
+- status
+- participation_points_per_hour_at_end (nullable until scheduled-end processing)
+- slides_url and meeting_notes_url (optional)
+- flyer_status and flyer_assigned_to (optional; used for Social events)
+- created_at
+- Branch associations through event_branches
 
-* Creating an event.
+Event names and required event-type references cannot be blank. ends_at must be later than starts_at. Event types are selected from controlled records, not arbitrary text.
 
-* Editing an event.
+Cappy Hub's official user-facing timezone is El Paso, Texas: America/Denver. Event creation, editing, recurrence, and display use El Paso local time and handle daylight-saving-time transitions. PostgreSQL stores timezone-aware timestamps and compares them using normal timezone-safe semantics.
 
-* Cancelling an event.
+Upcoming and happening status normally follow the scheduled times. Cancellation is explicit. An authorized admin or branch lead may mark a running event completed early by setting its existing status to past; do not add an actual-completion timestamp. The scheduled starts_at and ends_at remain unchanged, and early completion closes signup/signout and displays the event as completed. Automatic participation processing still waits until the originally scheduled ends_at and uses the full scheduled duration.
 
-* Viewing event details.
+Admins can manage any event. A branch lead can manage an event only when at least one branch is shared between the event and the lead. Normal officers cannot manage arbitrary events. Officers may sign themselves up or out while signup remains open. Signups close at the scheduled end, on cancellation, or when an event is explicitly completed early.
 
-* Associating officers with an event.
+Event creation may generate independent recurring event rows for up to 15 weeks. Occurrences stay within the current January–June or July–December half-year, calculated in America/Denver local time. Each occurrence has its own schedule and state; signups are not copied. The schedule must remain correct across daylight-saving-time transitions. Occurrences can be edited or cancelled individually; eligible future occurrences may be deleted, but past events are not deleted through the UI.
 
-* Removing officers from an event.
-
-* Viewing all officers associated with an event.
-
-* Awarding points related to an event.
-
-Suggested event fields:
-
-id
-
-name
-
-description
-
-type
-
-location (optional; may be updated later)
-
-starts\_at
-
-ends\_at
-
-status
-
-slides\_url (optional)
-
-meeting\_notes\_url (optional)
-
-flyer\_status (not\_started, in\_progress, done; Social events)
-
-flyer\_assigned\_to (officer)
-
-created\_at
-
-Event states:
-
-upcoming
-
-happening
-
-past (completed)
-
-cancelled
-
-Each scheduled event should include a start time and an end time. As a data-integrity requirement, ends\_at must occur after starts\_at.
-
-Upcoming, happening, and past event states are determined from the scheduled times; cancellation is set explicitly. An event lead for an associated branch or an admin may cancel an event or mark it completed early. Participation points still use the originally scheduled duration. Officers may sign up for or out of events through the Events page. A Google Calendar invite with event details is a post-MVP enhancement.
-
-Event creation may generate a recurring schedule spanning up to 15 weeks. Each occurrence is created as an independent event, limited to the current January–June or July–December period. Occurrences may be edited or cancelled individually; future occurrences may be deleted individually, but deleting past events is unavailable in the UI. Copied occurrences do not inherit officer signups.
-
-Participation points are calculated from scheduled event duration (`ends_at` minus `starts_at`) using the current participation points-per-hour rate stored in application configuration, including fractional points. Admins can change this rate in Cappy Hub. When an event ends, the system snapshots the rate then in effect on the event and uses it to create one participation award for each signed-up officer. Later rate changes apply only to events that end afterward and do not change awards for completed events. An admin may remove an award when needed; separate awards for distinct reasons are allowed.
-
----
+At the scheduled end, trusted processing snapshots the current application_config.participation_points_per_hour onto the event and creates one participation award per signup using the originally scheduled duration. The transaction stores the awarded amount. Later rate changes do not alter snapshots or existing transactions. Admins may logically remove an incorrect award; the original transaction remains to preserve history and prevent regeneration.
 
 # **7\. Event Types**
 
-Events may be categorized using simple event types.
+Event types are controlled records in the event_types table with id, unique name, and created_at. Seed/default names are General, Intro, ICPC, Meeting, Social, and Workshop; this is not a closed list. Admins may add types and delete types that are unused.
 
-Examples include (not a closed list):
-
-General
-
-Intro
-
-ICPC
-
-Meeting (mandatory meetings)
-
-Social
-
-Workshop
-
-Event types are managed by admins and are intended primarily for organization and filtering. They do not determine branch-lead permissions; those depend on the event’s associated branches.
-
----
+Each event stores event_type_id referencing event_types. Do not store an unrestricted type string on final-MVP events. A type referenced by an event cannot be physically deleted or cascade into event history; enforce referential integrity and reject deletion while referenced. Event types organize and filter events but do not grant permissions. Branch associations determine branch-lead scope.
 
 # **8\. Officer Participation in Events**
 
-Officers and events have a many-to-many relationship.
+Officers and events have a many-to-many relationship through event_officers. The same officer/event pair cannot occur more than once. Signup is available until the scheduled end, cancellation, or explicit early completion.
 
-An officer may be associated with multiple events.
-
-An event may have multiple officers associated with it.
-
-The event\_officers relationship records an officer’s signup for an event. Officers may manage their own signups; admins and leads of a branch associated with the event may manage signups for that event.
-
-Suggested structure:
-
-event\_officers
-
-event\_id
-
-officer\_id
-
-Events may be associated with one or more branches through `event\_branches`. A branch lead’s event permissions are limited to events associated with their branch membership.
-
-The same officer should not be associated with the same event more than once. Branch membership is also unique per officer/branch pair.
-
-This should be enforced with a database uniqueness constraint.
-
----
+Officers may manage only their own signups. Admins may manage any eligible signup. A branch lead may assign or remove officers only for an event that shares at least one branch with the lead. A lead need not belong to every branch associated with a multi-branch event. Backend authorization and RLS enforce the distinction; signup and removal actions are included in the System Log.
 
 # **9\. Points System**
 
-Cappy Hub maintains a transaction-based points system.
+Points are individual transactions, not a stored officer total. A transaction records its final awarded amount and is not recalculated if configuration changes later.
 
-Points should be recorded as individual transactions rather than stored only as a total value on an officer record. Each event participation award is generated from scheduled event duration and signup using the participation points-per-hour rate captured when the event ends, with no more than one participation award per officer per event. The awarded point amount is stored in its transaction and is not recalculated after a later rate change. Separate awards for distinct reasons are allowed. Point totals are calculated from current transactions.
+The final point_transactions fields include:
 
-Suggested structure:
+- id, officer_id
+- event_id (nullable)
+- points, reason
+- award_type (participation, flyer, manual, or correction)
+- created_by (nullable FK to auth.users.id)
+- created_at
+- removed_at (nullable)
+- removed_by (nullable FK to auth.users.id)
 
-point\_transactions
+A transaction is active while removed_at IS NULL. Officer totals, Dashboard totals, and normal point history count active transactions only. A removal is a logical void: retain the original transaction, set removal metadata, and record enough detail in the System Log to explain the action. This preserves history and unique-award/idempotency behavior.
 
-id
+Participation awards use the scheduled event duration and the rate snapshot captured at scheduled end. Flyer awards use the configured application_config.flyer_completion_points and go to the event's flyer_assigned_to officer. The awarded amount is stored in each transaction. At most one participation award per officer/event and one flyer award per event may ever be created, including when a prior award was logically removed.
 
-officer\_id
-
-event\_id
-
-points
-
-reason
-
-created\_by (exact foreign-key relationship pending authentication design)
-
-created\_at
-
-The `event_id` field may be empty when the transaction is not associated with a specific event.
-
-Examples:
-
-Emi
-
-\+5
-
-Intro: Arrays & Hash Maps
-
-Session participation
-
-Alex
-
-\+10
-
-Career Fair
-
-Helped organize event
-
-Sarah
-
-\-5
-
-No event
-
-Manual correction
-
-An officer’s total points are calculated from their transactions.
-
-Conceptually:
-
-total\_points \= SUM(point\_transactions.points)
-
-This allows the system to preserve a complete point history while still displaying a current total.
-
----
+Admins may create manual transactions and corrections. Corrections are additional transactions; the original record remains unchanged. The authenticated actor for point creation/removal is stored by its auth.users.id.
 
 # **10\. Point Corrections**
 
@@ -412,12 +240,13 @@ This keeps changes understandable and traceable without requiring a separate com
 
 # **11\. Awarding Points from an Event**
 
-At the event’s scheduled end, the system snapshots the current participation points-per-hour rate from application configuration and automatically creates one participation point transaction for each signed-up officer. The points equal the scheduled duration multiplied by that captured rate, including fractional points. Admins can change the rate in Cappy Hub; later changes apply only to events ending afterward, and completed-event awards are not recalculated.
+Supabase Cron (pg_cron) runs a private, trusted PostgreSQL database function approximately once per minute. Page loads are not the production processing trigger; no Vercel Cron or Edge Function is required for database-only processing.
 
-Admins may remove an award when an officer did not attend. Separate awards with distinct reasons may be entered as separate transactions by an admin. Each award or removal is recorded in the System Log.
+For each eligible non-cancelled event whose scheduled ends_at has passed, the processor skips events already processed, reads the current application_config.participation_points_per_hour, stores the rate in events.participation_points_per_hour_at_end, and creates at most one participation transaction per signed-up officer. The points equal the originally scheduled duration in hours multiplied by the snapshotted rate. The transaction permanently stores the resulting amount.
 
+Processing is safe to run repeatedly. Existing participation transactions, including logically removed ones, prevent recreation. Later rate changes do not alter event snapshots or transaction amounts. The processor records required audit entries and is not executable by anon or ordinary authenticated users as an unrestricted RPC; revoke public/client grants and keep its execution private to the trusted scheduled path.
 
----
+Flyer completion reads application_config.flyer_completion_points at completion time and creates one flyer award for the event's flyer_assigned_to officer. The transaction stores the final amount. Later configuration changes do not alter it. A logically removed flyer award remains in history and is not recreated. Point awards and removals are logged.
 
 # **12\. Manual Point Transactions**
 
@@ -475,477 +304,129 @@ Example:
 
 # **14\. Officer Profile**
 
-Each officer should have a detail view.
+Each officer has a detail view. Active approved officers and admins may view other officers' name, position, branch memberships, UTEP and personal email, total points, point history, and event participation/history. Deactivated officers cannot access Cappy Hub, but their profile and relationships remain available to authorized active users and admins.
 
-Admins may create warnings and assign them to a specific officer. A warning is approved only after the President and every Vice President approve it. If any required approver rejects it, the warning becomes rejected; otherwise it remains pending. Warnings cannot be edited after creation. Admins may physically delete a warning. The System Log records warning creation, each approval or rejection, and deletion, including enough warning details to explain a deleted record.
+Warnings follow separate visibility rules. Admins can view and administer warning records. An officer sees only approved warnings assigned to that officer; normal officers cannot view pending/rejected warnings or other officers' warning records. Only approved warnings count toward warning totals. Three approved warnings flag an officer for admin review; deactivation remains a manual admin decision.
 
-Admins can view all warnings in a warnings component, filtered by pending, rejected, or approved status. Pending and rejected warnings are visible to admins; assigned officers see approved warnings on their profiles. Only approved warnings count toward the officer’s warning total. Three approved warnings flag an officer for admin review; an admin manually deactivates or reactivates the officer.
+The profile shows:
 
-* Name.
-
-* Position.
-
-* UTEP email.
-
-* Personal email.
-
-* Warnings and approval status.
-
-* Total points.
-
-* Event participation.
-
-* Point transaction history.
-
-Example:
-
-Emi
-
-Technical Officer
-
-Active
-
-Total Points
-
-85
-
-Events
-
-Intro: Arrays & Hash Maps
-
-Career Fair
-
-ICPC Practice
-
-Point History
-
-\+5  Intro participation
-
-\+10 Career Fair organization
-
-\-5  Manual correction
-
----
+- Name, position, status, and branch memberships.
+- UTEP email and personal email.
+- Total points and point transaction history.
+- Event participation/history.
+- The warning information permitted by the rules above.
 
 # **15\. Event Detail View**
 
-Each event should have a detail view with its name, description, type, location, schedule, signup information, associated officers, related files, flyer work, and point transactions.
+An event detail view shows its name, description, related event-type name, location, schedule in America/Denver, status, branches, signup information, associated officers, related files, flyer work, rate snapshot when useful, and point transactions.
 
-Optional presentation or slides link.
+For Social events, authorized users may assign flyer work and update its status. Admins may do so globally; a branch lead may do so only when at least one event branch matches the lead's membership. Flyer completion creates one award for the event's assigned officer using the current configured flyer amount. The transaction stores the final amount. Completion and award creation/removal appear in the System Log.
 
-For Social events, show flyer status (Not started, In progress, Done) and the assigned officer. The admin or lead for the event’s associated branch may mark the flyer done. Completing flyer work creates no more than one flyer award for that event. The award amount is **DECISION NEEDED** pending President review. Record flyer completion and its award in the System Log.
-
-Deleting a past event is not available in the UI; only the database owner may delete historical events.
-
-Meeting and weekly session events may also link to their meeting notes and presentation files.
-
-* Event name.
-
-* Description.
-
-* Type.
-
-* Location.
-
-* Start and end times.
-
-* Status.
-
-* Associated officers.
-
-* Point transactions associated with the event.
-
-Example:
-
-Intro: Arrays & Hash Maps
-
-Type: Intro
-
-September 29
-
-5:00 PM – 6:00 PM
-
-CCSB G.0208
-
-Officers
-
-Emi
-
-Alex
-
-Sarah
-
-\[ Add Officer \]
-
-Points
-
-Emi      \+5
-
-Alex     \+5
-
-Sarah    \+5
-
-\[ Award Points \]
-
----
+Meeting notes and presentation files remain in Google Drive; Cappy Hub stores optional URLs only. Past events are not deleted through the UI.
 
 # **16\. Database Structure**
 
-The core application data consists of twelve MVP tables. The System Log records actions performed by users throughout the application, including event creation and changes, signup and sign-out, officer assignments, warning creation/deletion and approval votes, participation rate changes, and point awards/removals. Each record identifies the actor, action, affected record, and time; deletion entries preserve enough details to understand what was removed. Only admins can view the log.
+The MVP contains 13 application tables. Supabase Auth's auth.users is a Supabase-managed table, not an additional Cappy Hub application table. audit_logs powers the admin-only System Log.
 
-Tables:
+The 13 application tables are:
 
-officers
+1. officers
+2. positions
+3. officer_warnings
+4. warning_approvals
+5. branches
+6. officer_branches
+7. event_types
+8. events
+9. event_branches
+10. event_officers
+11. point_transactions
+12. application_config
+13. audit_logs
 
-positions
+## Officers
 
-officer\_warnings
+officers: id, name, nullable utep_email, nullable personal_email, nullable unique auth_user_id referencing auth.users.id, position_id, application_role (admin or officer), nullable classification, status, and created_at. UTEP and personal email uniqueness is case-insensitive within each field. Every officer has at least one officer_branches row.
 
-warning\_approvals
+## Positions and branches
 
-branches
+positions: id, unique name, can_manage_branch_events, created_at. Only ICPC Lead, Intro Lead, and Social Media Lead have the flag set true. Academic Officer titles do not confer this capability.
 
-officer\_branches
+branches: id, unique name, created_at.
 
-events
+officer_branches: officer_id, branch_id, composite primary key.
 
-event\_branches
+## Warnings
 
-event\_officers
+officer_warnings: id, officer_id, reason, status (pending, approved, rejected), created_at.
 
-point\_transactions
+warning_approvals: warning_id, approver_id (authenticated account FK to auth.users.id), approver_role (President or Vice President), decision (pending, approved, rejected), nullable decided_at. Each required approver has one record per warning.
 
-application\_config
+## Event types and events
 
-audit\_logs
+event_types: id, unique name, created_at. Seed General, Intro, ICPC, Meeting, Social, and Workshop; admins may add types and delete only unused types.
 
-## **Officers**
+events: id, name, description, event_type_id (FK to event_types), optional location, timezone-aware starts_at and ends_at, status (upcoming, happening, past, cancelled), nullable participation_points_per_hour_at_end, optional slides_url and meeting_notes_url, optional flyer_status and flyer_assigned_to, and created_at. Do not add completed_at or an actual-end-time column. An early-completed event uses status = past while preserving its scheduled timestamps.
 
-officers
+event_branches: event_id, branch_id, composite primary key. event_officers: event_id, officer_id, composite primary key.
 
-──────────────
+## Point transactions
 
-id
+point_transactions: id, officer_id, nullable event_id, points, reason, award_type (participation, flyer, manual, correction), nullable created_by referencing auth.users.id, created_at, nullable removed_at, nullable removed_by referencing auth.users.id. Logical removal preserves the row and award uniqueness.
 
-name
+## Application configuration and audit
 
-utep\_email
+application_config is a single-row table with id, participation_points_per_hour, flyer_completion_points, and updated_at. Both amounts are configurable by admins only.
 
-personal\_email
-
-position\_id (references positions)
-
-classification (nullable)
-
-status
-
-created\_at
-
-## **Positions**
-
-positions
-
-──────────────
-
-id
-
-name (unique)
-
-can\_manage\_branch\_events (boolean)
-
-created\_at
-
-## **Officer Warnings**
-
-officer\_warnings
-
-──────────────
-
-id
-
-officer\_id
-
-reason
-
-status (pending, approved, rejected)
-
-created\_at
-
-## **Warning Approvals**
-
-warning\_approvals
-
-──────────────
-
-warning\_id
-
-approver\_id (authentication relationship pending)
-
-approver\_role (President or Vice President)
-
-decision (pending, approved, rejected)
-
-decided\_at nullable
-
-## **Branches**
-
-branches
-
-──────────────
-
-id
-
-name
-
-created\_at
-
-## **Officer Branches**
-
-officer\_branches
-
-──────────────
-
-officer\_id
-
-branch\_id
-
-Each officer must have at least one branch membership through this relationship.
-
-## **Event Branches**
-
-event\_branches
-
-──────────────
-
-event\_id
-
-branch\_id
-
-## **Events**
-
-events
-
-──────────────
-
-id
-
-name
-
-description
-
-type
-
-location (optional; may be updated later)
-
-starts\_at
-
-ends\_at
-
-participation\_points\_per\_hour\_at\_end (nullable until event ends; rate snapshot used for participation awards)
-
-status
-
-slides\_url nullable
-
-meeting\_notes\_url nullable
-
-flyer\_status nullable (Social events)
-
-flyer\_assigned\_to nullable (officer)
-
-created\_at
-
-## **Event Officers**
-
-event\_officers
-
-──────────────
-
-event\_id
-
-officer\_id
-
-## **Point Transactions**
-
-point\_transactions
-
-──────────────
-
-id
-
-officer\_id
-
-event\_id nullable
-
-points (supports fractional values)
-
-reason
-
-award\_type (participation, flyer, manual, correction)
-
-created\_by (exact foreign-key relationship pending authentication design)
-
-created\_at
-
-## **Application Configuration**
-
-application\_config
-
-──────────────
-
-id (single-row configuration record)
-
-participation\_points\_per\_hour (current rate for events that end next)
-
-updated\_at
-
-## **Audit Logs**
-
-audit\_logs
-
-──────────────
-
-id
-
-actor\_id (authentication relationship pending)
-
-action
-
-entity\_type
-
-entity\_id
-
-details (including before/after data or a deletion snapshot when needed)
-
-created\_at
-
----
+audit_logs: id, nullable actor_id referencing auth.users.id, action, entity_type, entity_id, details, and created_at. Details preserve relevant before/after or deletion snapshots. Only admins can read the System Log.
 
 # **17\. Data Relationships**
 
-The core relationships are: each officer references one position from positions and must have at least one branch membership through officer\_branches; positions are maintained as controlled data; officers and branches have a many-to-many relationship through officer\_branches; events and branches have a many-to-many relationship through event\_branches; officers and events have a many-to-many relationship through event\_officers; each warning has approval records for the President and every Vice President; each officer may have many warning and point transaction records; and each event may have many point transactions, while the event reference on a point transaction is optional. application\_config stores the current participation points-per-hour rate, and each event stores the rate snapshot used for its participation awards when it ends. Audit log entries record actions across the system.
+Each officer references one position and may link to at most one authenticated account through unique officers.auth_user_id → auth.users.id. Position and application role are separate. Officers and branches have a many-to-many relationship through officer_branches.
 
-Officer
+Each event references one event_types row through event_type_id. Event-type deletion is restricted while referenced; deleting a type never cascades into event history. Events and branches have a many-to-many relationship through event_branches; officers and events have a many-to-many relationship through event_officers.
 
-   │ participates in
+point_transactions.officer_id references an officer; its optional event_id references an event. created_by, removed_by, warning_approvals.approver_id, and audit_logs.actor_id reference authenticated accounts in auth.users. When the application needs an officer for one of these actors, it resolves the account using officers.auth_user_id.
 
-   │
-
-   ▼
-
-Event
-
-and:
-
-Officer
-
-   │
-
-   │ receives
-
-   │
-
-   ▼
-
-Point Transaction
-
-A point transaction may optionally reference an event.
-
-Conceptually:
-
-Officer ─────\< Officer Branch \>───── Branch
-
-Officer ─────\< Event Officer \>───── Event
-
-Officer ─────\< Point Transaction \>───── Event
-
-                         │
-
-                         └── Event is optional
-
----
+application_config stores the two current point values. Each event snapshots the participation rate used at scheduled end. Point transactions store the final awarded amount and, when removed, retain removed_at and removed_by. Audit entries record actor, action, affected entity, timestamp, and useful details.
 
 # **18\. Database Constraints**
 
-The database should enforce important data rules wherever practical:
+The database enforces these rules wherever practical:
 
-* Values of `utep_email` must be unique within that field, and values of `personal_email` must be unique within that field.
-
-* Each officer must reference one valid position; position names must be unique.
-
-* Branch names must be unique.
-
-* Each officer/branch pair in `officer\_branches` must be unique. Every officer must have at least one `officer\_branches` row; creating or editing an officer without a branch membership must be rejected.
-
-* Each officer/event pair in `event\_officers` must be unique.
-
-* Each event/branch pair in `event\_branches` must be unique.
-
-* Each warning/approver pair in `warning\_approvals` must be unique.
-
-* An event may have no more than one flyer award; an officer may have no more than one participation award per event.
-
-* Foreign keys must keep `officer\_branches`, `event\_branches`, `event\_officers`, `warning\_approvals`, `officer\_warnings`, point transaction references, and `flyer\_assigned\_to` valid when provided. Warning decisions must be `pending`, `approved`, or `rejected`.
-
-* If provided, officer classification must be `freshman`, `sophomore`, `junior`, `senior`, or `graduate`; classification is optional and descriptive only and must not affect permissions or business logic. Officer status must be `active` or `inactive`.
-
-* Event `ends\_at` must occur after `starts\_at`. When an event ends, store the current participation points-per-hour rate on the event and use that snapshot for participation awards. The current configured rate is stored in the single-row `application\_config` table and must be a valid numeric rate.
-
-* Deactivation or cancellation must preserve historical officer, branch, event, and point relationships.
-
-* The exact actor and `created\_by` foreign-key relationships are pending the authentication design.
-
-* Admins may view the System Log. Log records are retained when a warning or point award is deleted; warning-deletion entries preserve the warning reason and approval decisions.
-
----
+- UTEP emails and personal emails are separately case-insensitive unique when provided.
+- officers.auth_user_id is nullable, unique, and references auth.users.id. application_role is admin or officer; classification is nullable and restricted to freshman, sophomore, junior, senior, or graduate; status is active or inactive.
+- Officer position, event type, event/officer, event/branch, officer/branch, warning, approval, and point references use valid foreign keys. Every officer must have at least one branch membership.
+- Position and branch names are unique. Exactly ICPC Lead, Intro Lead, and Social Media Lead have branch-event capability in the current catalog.
+- event_types.name is unique. events.event_type_id is required and references event_types; deletion of a referenced type is rejected and never cascades into events.
+- Event ends_at is later than starts_at; timestamps are timezone-aware. status supports upcoming, happening, past, and cancelled. Early completion sets past without changing scheduled timestamps or adding an actual-end-time field.
+- application_config has one row with valid participation_points_per_hour and flyer_completion_points; only admins may change the values.
+- Participation award uniqueness is enforced per officer/event, and flyer award uniqueness per event persists even after logical removal.
+- Logical removal sets point_transactions.removed_at and removed_by without deleting the transaction. Derived totals and ordinary history include only rows with removed_at IS NULL.
+- created_by, removed_by, warning_approvals.approver_id, and audit_logs.actor_id reference auth.users.id.
+- Deactivation and cancellation preserve officer, branch, event, and point history. Audit logs retain the details needed to understand deleted/removed records.
 
 # **19\. Supabase**
 
-Supabase serves as the primary backend for Cappy Hub.
+Supabase provides PostgreSQL, Google Sign-In through Supabase Auth, relational constraints, Row Level Security, and server-enforced authorization. The first-login link uses the verified Google email to match exactly one active, unlinked officer by UTEP or personal email; all later requests resolve through officers.auth_user_id and check current officer status.
 
-It provides:
+Only client-safe Supabase credentials may be used in browser code. Service-role and other administrative credentials remain server-side.
 
-* PostgreSQL database.
-
-* Authentication.
-
-* Relational constraints.
-
-* Row Level Security.
-
-* Server-enforced authorization.
-
-The frontend should only use credentials intended for client-side access.
-
-Administrative or service credentials must remain server-side.
-
-Sensitive credentials should never be included in frontend source code.
-
----
+Supabase Cron (pg_cron) invokes a private PostgreSQL database function approximately once per minute to process due events. This database-only workflow does not require Vercel Cron or an Edge Function. Revoke function execution from public, anon, and ordinary authenticated users; keep the scheduled execution path private and trusted.
 
 # **20\. Row Level Security**
 
-Database access should use Supabase Row Level Security where appropriate.
+RLS and backend authorization enforce the same application access model. Authentication without a linked active officer is insufficient; inactive officers have no application access, including read-only access.
 
-Authorization rules should reflect the application’s access model.
+- Active approved officers may read names, positions, branch memberships, UTEP/personal emails, points, point history, and event history for other officers.
+- Warning records are separate: admins administer warnings; an officer sees only their own approved warnings.
+- Admins may manage officers, events, event types, signups, points, both configuration values, warnings, and System Log records.
+- Branch leads may manage events, signups, and flyer work only when the event shares at least one branch with their own memberships. Leads need not belong to every branch on a multi-branch event.
+- Normal officers may manage only their own event signups and cannot create manual/correction points, remove awards, alter roles, or manage events.
+- Point processing and other trusted operations cannot be invoked by anon or normal authenticated accounts as unrestricted privileged functions.
+- Only admins may read audit logs/System Log. Normal application workflows cannot modify audit records.
 
-For example:
-
-* Approved users may read permitted application data.
-
-* Administrators may create and modify officers. Administrators may view and change the participation points-per-hour rate in `application\_config`; rate changes are recorded in the System Log.
-
-* Administrators may create and modify events.
-
-* Administrators may create, remove, and correct point transactions.
-
-* Branch leads may manage events and signups only for their associated branches. Officers may manage only their own signups.
-
-* Only admins may view the System Log.
-
-The application should not rely exclusively on frontend controls for security.
-
----
+Frontend controls reflect these permissions but never substitute for backend checks. Tests must also cover direct Supabase/API access and branch-scope boundaries.
 
 # **21\. Google Drive**
 
@@ -991,37 +472,15 @@ The two systems do not need to share ownership of the same operational records.
 
 # **24\. UI Structure**
 
-The primary navigation should remain simple:
+The primary navigation remains simple:
 
 Cappy Hub
 
 Dashboard | Events | Officers | Points | System Log (admins only)
 
-A sidebar is not required.
+Google Sign-In is handled through Supabase Auth. Show the signed-in identity and role where useful; hide admin-only controls from officers while enforcing all access on the backend. Officer directory/profile views may show the permitted officer contact, branch, point, and event-history data. Warning visibility remains restricted to admins and the assigned officer's approved warnings.
 
-The application may use basic black-and-white styling.
-
-Core components include:
-
-Button
-
-Input
-
-Select
-
-Table
-
-Dialog
-
-Tabs
-
-Badge
-
-Form
-
-The UI should prioritize speed and readability over visual complexity.
-
----
+A sidebar is not required. Basic black-and-white styling and components such as buttons, inputs, selects, tables, dialogs, tabs, badges, and forms are sufficient. Prioritize speed and readability over visual complexity.
 
 # **25\. Dashboard Example**
 
@@ -1127,39 +586,39 @@ Sarah      —                Correction         \-5
 
 # **29\. Core Administrative Flow**
 
-A normal workflow through Cappy Hub may look like:
+A normal Cappy Hub workflow may look like:
 
-Administrator signs in
-
-        ↓
-
-Creates or updates officers
+Approved CIC officer signs in with Google
 
         ↓
 
-Creates an event
+Cappy Hub links the verified account to exactly one active officer
 
         ↓
 
-Adds participating officers
+An admin creates or updates officers and controlled event types
 
         ↓
 
-Event ends
+An admin or authorized branch lead creates an event and assigns its branches
 
         ↓
 
-Participation points are awarded from scheduled duration and signups
+Officers sign themselves up; admins/leads manage signups within their permissions
 
         ↓
 
-Admins may remove an incorrect award; actions are logged
+At scheduled event end, trusted Supabase Cron processing snapshots the current rate and awards points
 
         ↓
 
-Officer totals update automatically and history remains auditable
+Authorized users may complete flyer work or logically remove an incorrect award; actions are logged
 
----
+        ↓
+
+Active point totals and Dashboard summaries update from non-removed transactions
+
+An inactive officer loses application access immediately, while officer, event, point, and audit history remains preserved.
 
 # **30\. System Goals**
 
