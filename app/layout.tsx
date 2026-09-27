@@ -27,8 +27,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <nav>
           <Link href={"/"}>Dashboard</Link>
-          <Link href={"/officers"}>Officers</Link>
           <Link href={"/events"}>Events</Link>
+          <Link href={"/officers"}>Officers</Link>
           <Link href={"/points"}>Points</Link>
         </nav>
         <main>{children}</main>

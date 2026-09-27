@@ -24,3 +24,77 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Deliberately plain, visible controls for the prototype. */
+main {
+  max-width: 72rem;
+  padding: 1.5rem;
+}
+nav {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid;
+  display: flex;
+  gap: 1rem;
+}
+h1 {
+  font-size: 1.75rem;
+  margin-bottom: 1rem;
+}
+h2 {
+  font-size: 1.25rem;
+  margin: 1.5rem 0 0.5rem;
+}
+p {
+  margin: 0.5rem 0;
+}
+a {
+  text-decoration: underline;
+}
+form {
+  max-width: 42rem;
+}
+form > label {
+  display: block;
+  margin-bottom: 0.75rem;
+}
+input:not([type="checkbox"]),
+select,
+textarea {
+  display: block;
+  border: 1px solid;
+  padding: 0.4rem;
+  width: 100%;
+}
+button {
+  border: 1px solid;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+  margin: 0.5rem 0;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+fieldset {
+  border: 1px solid;
+  padding: 0.75rem;
+}
+fieldset label {
+  display: inline-block;
+  margin-right: 1rem;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+}
+th,
+td {
+  text-align: left;
+  padding: 0.5rem;
+  border-bottom: 1px solid;
+}
+dt {
+  font-weight: bold;
+  margin-top: 0.5rem;
+}

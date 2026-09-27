@@ -1,40 +1,45 @@
-import { officers } from "../data";
+import Link from "next/link";
+import { connection } from "next/server";
+import { notFound } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 export default async function OfficerDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await connection();
   const { id } = await params;
-
-  const officer = officers.find((officer) => officer.id === Number(id));
-
-  if (!officer) {
-    return <h1>Officer not found</h1>;
-  }
+  if (!/^[1-9]\d*$/.test(id)) notFound();
+  const { data: officer, error } = await supabase
+    .from("officers")
+    .select("*, positions(name), officer_branches(branches(name))")
+    .eq("id", Number(id))
+    .maybeSingle();
+  if (error) throw new Error(`Failed to load officer: ${error.message}`);
+  if (!officer) notFound();
   return (
-    <div className="space-y-6">
-      <h1 className="border-b">{officer.name}</h1>
-
-      <div>
-        <p>Email</p>
-        <p>{officer.email}</p>
-      </div>
-
-      <div>
-        <p>Role</p>
-        <p>{officer.role}</p>
-      </div>
-
-      <div>
-        <p>Branch</p>
-        <p>{officer.branch ? officer.branch : "No branch"}</p>
-      </div>
-
-      <div>
-        <p>Status</p>
-        <p>{officer.active ? "Active" : "Inactive"}</p>
-      </div>
-    </div>
+    <>
+      <h1>{officer.name}</h1>
+      <p>
+        <Link href={`/officers/${id}/edit`}>Edit officer / change status</Link>
+      </p>
+      <dl>
+        <dt>Email</dt>
+        <dd>{officer.email}</dd>
+        <dt>Position</dt>
+        <dd>{officer.positions.name}</dd>
+        <dt>Classification</dt>
+        <dd>{officer.classification}</dd>
+        <dt>Status</dt>
+        <dd>{officer.status}</dd>
+        <dt>Branches</dt>
+        <dd>
+          {officer.officer_branches
+            .map((membership) => membership.branches.name)
+            .join(", ") || "None"}
+        </dd>
+      </dl>
+    </>
   );
 }

@@ -1,41 +1,19 @@
-"use client";
+import { connection } from "next/server";
+import { supabase } from "@/lib/supabase";
+import OfficerForm from "./officer-form";
 
-export default function NewOfficerPage() {
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    console.log("Form submitted");
-
-    const formData = new FormData(event.currentTarget);
-
-    const name = formData.get("name");
-    const email = formData.get("email");
-    const role = formData.get("role");
-    const branch = formData.get("branch");
-
-    console.log(name, email, role, branch);
-  }
+export default async function NewOfficerPage() {
+  await connection();
+  const [branches, positions] = await Promise.all([
+    supabase.from("branches").select("id, name").order("name"),
+    supabase.from("positions").select("id, name").order("id"),
+  ]);
+  if (branches.error || positions.error)
+    throw new Error("Failed to load officer options");
   return (
-    <div>
-      <h1>Add Officer</h1>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="name">Name</label>
-          <input id="name" name="name" type="text" required />
-        </div>
-        <div>
-          <label htmlFor="email">Email</label>
-          <input id="email" name="email" type="email" required />
-        </div>
-        <div>
-          <label htmlFor="role">Role</label>
-          <input id="role" name="role" type="text" required />
-        </div>
-        <div>
-          <label htmlFor="branch">Branch</label>
-          <input id="branch" name="branch" type="text" required />
-        </div>
-        <button type="submit">Create Officer</button>
-      </form>
-    </div>
+    <>
+      <h1>Add officer</h1>
+      <OfficerForm branches={branches.data} positions={positions.data} />
+    </>
   );
 }
