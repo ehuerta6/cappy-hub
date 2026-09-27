@@ -32,6 +32,102 @@ export type Database = {
         };
         Relationships: [];
       };
+      event_branches: {
+        Row: {
+          branch_id: number;
+          event_id: number;
+        };
+        Insert: {
+          branch_id: number;
+          event_id: number;
+        };
+        Update: {
+          branch_id?: number;
+          event_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_branches_branch_id_fkey";
+            columns: ["branch_id"];
+            isOneToOne: false;
+            referencedRelation: "branches";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_branches_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      event_officers: {
+        Row: {
+          event_id: number;
+          officer_id: number;
+        };
+        Insert: {
+          event_id: number;
+          officer_id: number;
+        };
+        Update: {
+          event_id?: number;
+          officer_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_officers_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_officers_officer_id_fkey";
+            columns: ["officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      events: {
+        Row: {
+          created_at: string;
+          description: string;
+          ends_at: string;
+          id: number;
+          location: string | null;
+          name: string;
+          starts_at: string;
+          status: string;
+          type: string;
+        };
+        Insert: {
+          created_at?: string;
+          description?: string;
+          ends_at: string;
+          id?: number;
+          location?: string | null;
+          name: string;
+          starts_at: string;
+          status?: string;
+          type: string;
+        };
+        Update: {
+          created_at?: string;
+          description?: string;
+          ends_at?: string;
+          id?: number;
+          location?: string | null;
+          name?: string;
+          starts_at?: string;
+          status?: string;
+          type?: string;
+        };
+        Relationships: [];
+      };
       officer_branches: {
         Row: {
           branch_id: number;
@@ -126,6 +222,23 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      change_event_signup: {
+        Args: { p_event_id: number; p_officer_id: number; p_remove?: boolean };
+        Returns: undefined;
+      };
+      save_event: {
+        Args: {
+          p_branch_ids: number[];
+          p_description: string;
+          p_ends_at: string;
+          p_event_id?: number;
+          p_location: string;
+          p_name: string;
+          p_starts_at: string;
+          p_type: string;
+        };
+        Returns: number;
+      };
       save_officer: {
         Args: {
           p_branch_ids: number[];
