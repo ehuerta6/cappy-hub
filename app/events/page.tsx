@@ -1,9 +1,11 @@
+import { processCompletedEvents } from "@/lib/participation";
 import Link from "next/link";
 import { connection } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { eventStatus, displayDate } from "@/lib/event-status";
 export default async function EventsPage() {
   await connection();
+  await processCompletedEvents();
   const { data, error } = await supabase
     .from("events")
     .select("*,event_branches(branches(name)),event_officers(officer_id)")

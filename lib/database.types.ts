@@ -87,6 +87,13 @@ export type Database = {
             foreignKeyName: "event_officers_officer_id_fkey";
             columns: ["officer_id"];
             isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_officers_officer_id_fkey";
+            columns: ["officer_id"];
+            isOneToOne: false;
             referencedRelation: "officers";
             referencedColumns: ["id"];
           },
@@ -153,6 +160,13 @@ export type Database = {
             foreignKeyName: "officer_branches_officer_id_fkey";
             columns: ["officer_id"];
             isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "officer_branches_officer_id_fkey";
+            columns: ["officer_id"];
+            isOneToOne: false;
             referencedRelation: "officers";
             referencedColumns: ["id"];
           },
@@ -196,6 +210,61 @@ export type Database = {
           },
         ];
       };
+      point_transactions: {
+        Row: {
+          award_type: string;
+          created_at: string;
+          created_by: string | null;
+          event_id: number | null;
+          id: number;
+          officer_id: number;
+          points: number;
+          reason: string;
+        };
+        Insert: {
+          award_type: string;
+          created_at?: string;
+          created_by?: string | null;
+          event_id?: number | null;
+          id?: number;
+          officer_id: number;
+          points: number;
+          reason: string;
+        };
+        Update: {
+          award_type?: string;
+          created_at?: string;
+          created_by?: string | null;
+          event_id?: number | null;
+          id?: number;
+          officer_id?: number;
+          points?: number;
+          reason?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "point_transactions_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "point_transactions_officer_id_fkey";
+            columns: ["officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "point_transactions_officer_id_fkey";
+            columns: ["officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       positions: {
         Row: {
           can_manage_branch_events: boolean;
@@ -219,12 +288,23 @@ export type Database = {
       };
     };
     Views: {
-      [_ in never]: never;
+      officer_point_totals: {
+        Row: {
+          id: number | null;
+          name: string | null;
+          total_points: number | null;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       change_event_signup: {
         Args: { p_event_id: number; p_officer_id: number; p_remove?: boolean };
         Returns: undefined;
+      };
+      process_completed_events: {
+        Args: { p_points_per_hour: number };
+        Returns: number;
       };
       save_event: {
         Args: {

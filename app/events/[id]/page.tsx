@@ -1,3 +1,5 @@
+import TransactionTable from "@/app/points/transaction-table";
+import { processCompletedEvents } from "@/lib/participation";
 import Link from "next/link";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
@@ -10,6 +12,7 @@ export default async function EventDetailPage({
   params: Promise<{ id: string }>;
 }) {
   await connection();
+  await processCompletedEvents();
   const { id } = await params;
   if (!/^[1-9]\d*$/.test(id)) notFound();
   const [result, officers] = await Promise.all([
@@ -31,6 +34,14 @@ export default async function EventDetailPage({
   const event = result.data;
   const status = eventStatus(event);
   const signupOpen = status === "upcoming" || status === "happening";
+  const transactions = await supabase
+    .from("point_transactions")
+    .select("*,officers(id,name),events(id,name)")
+    .eq("event_id", event.id)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(100);
+  if (transactions.error) throw new Error("Failed to load event points");
   return (
     <>
       <h1>{event.name}</h1>
@@ -94,6 +105,8 @@ export default async function EventDetailPage({
           )}
         />
       )}
+      <h2>Event point history (latest 100)</h2>
+      <TransactionTable transactions={transactions.data} />
     </>
   );
 }
