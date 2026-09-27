@@ -2426,7 +2426,7 @@
     
 - [ ] `.env.local` is not committed.
     
-- [ ] CI uses placeholder public values.
+- [x] CI uses placeholder public values.
     
 - [ ] If a privileged server credential is ever introduced, keep it server-only.
     
@@ -2516,26 +2516,19 @@
 
 # 60. CI / Code Quality
 
-## Existing
+## Implemented quality gates (PR 0)
 
-- [ ] GitHub Actions workflow exists.
-    
-- [ ] CI runs on PRs to `main`.
-    
-- [ ] CI runs on pushes to `main`.
-    
-- [ ] `npm ci`
-    
-- [ ] ESLint check.
-    
-- [ ] Prettier formatting check.
-    
-- [ ] TypeScript check.
-    
-- [ ] Production build check.
-    
-- [ ] Current POC passes these checks.
-    
+- [x] GitHub Actions workflow exists.
+- [x] CI is configured for PRs to main and mvp.
+- [x] CI is configured for pushes to main and mvp.
+- [x] Deterministic dependency installation uses npm ci and package-lock.json.
+- [x] ESLint check.
+- [x] Prettier formatting check (read-only).
+- [x] Strict TypeScript check without emitted application files.
+- [x] Automated test command runs Vitest once in a Node environment.
+- [x] Production build check.
+- [ ] Current POC passes all quality gates (production build confirmation pending GitHub CI). The test suite is intentionally empty and supplies no domain coverage yet.
+- [x] CI uses only fake public Supabase values and contents: read permissions.
 
 ## Release hardening
 
@@ -2545,9 +2538,9 @@
     
 - [ ] Regenerate DB types after schema changes.
     
-- [ ] Keep secrets out of workflow files.
+- [x] Workflow files contain no privileged secrets.
     
-- [ ] Align/document supported local and CI Node version if the Node 26 local / Node 24 CI difference becomes problematic.
+- [x] Node 24 is documented and selected through .nvmrc for CI; the PR 0 local environment uses Node 26, and GitHub CI is configured to verify Node 24.
     
 
 ---
@@ -2559,14 +2552,12 @@
 
 ## Test infrastructure
 
-- [ ] Select minimal test approach.
-    
-- [ ] Add test script to `package.json`.
-    
-- [ ] Run automated tests in CI.
-    
-- [ ] Keep test setup simple; avoid unnecessary testing infrastructure.
-    
+- [x] Select minimal test approach: Vitest with Node environment and existing @/ imports.
+- [x] Add test script to package.json.
+- [x] Run the automated test command in CI.
+- [x] Keep test setup simple; no browser, E2E, snapshot, or mocking stack is added.
+
+The initial suite is intentionally empty. npm test uses --passWithNoTests for PR 0; failing tests still fail the gate. Add meaningful behavior tests in their dedicated MVP PRs, then remove the empty-suite allowance. No database, authorization, points, warning, or recurrence coverage is claimed below.
 
 ## Database integrity tests
 

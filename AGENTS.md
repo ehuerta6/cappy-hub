@@ -35,4 +35,4 @@ The stack is Next.js App Router, React, TypeScript, Supabase/PostgreSQL, npm, an
 
 ## Verification
 
-Use the scripts in `package.json` as appropriate for the change: `npm run lint`, `npm run format:check`, `npm run typecheck`, and `npm run build`. Do not claim a check passed unless it was run or required GitHub CI reports it passed. Keep `.env.local`, credentials, and secrets out of Git.
+Use the scripts in `package.json` as appropriate for the change: `npm run lint`, `npm run format:check`, `npm run typecheck`, `npm test`, and `npm run build`. Do not claim a check passed unless it was run or required GitHub CI reports it passed. Keep `.env.local`, credentials, and secrets out of Git.
