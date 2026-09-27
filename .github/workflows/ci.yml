@@ -2,9 +2,12 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, mvp]
   push:
-    branches: [main]
+    branches: [main, mvp]
+
+permissions:
+  contents: read
 
 jobs:
   checks:
@@ -21,20 +24,23 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run ESLint
-        run: npm run lint
-
       - name: Check formatting
         run: npm run format:check
 
+      - name: Run ESLint
+        run: npm run lint
+
       - name: Check TypeScript types
         run: npm run typecheck
+
+      - name: Run automated tests
+        run: npm test
 
       - name: Build for production
         run: npm run build

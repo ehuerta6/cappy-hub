@@ -59,6 +59,7 @@ Before merging, review the diff and run the repository checks:
 npm run lint
 npm run format:check
 npm run typecheck
+npm test
 npm run build
 ```
 

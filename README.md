@@ -109,10 +109,13 @@ These grants allow unauthenticated users with the project URL/key to access prot
 npm run lint
 npm run format:check
 npm run typecheck
+npm test
 npm run build
 ```
 
-`npm run format` fixes formatting. CI runs the four checks after `npm ci` on pull requests into main and pushes to main. It uses placeholder client-safe environment values; database queries run at request time rather than build time. There is no automated test framework in this prototype.
+`npm run format` fixes formatting. CI runs all five checks after `npm ci` on pull requests into `main` or `mvp` and pushes to either branch. It uses Node.js 24 from `.nvmrc`, read-only repository permissions, and fake public Supabase values; database queries run at request time rather than build time. No privileged credentials are needed to compile.
+
+`npm test` runs Vitest once, using a Node environment and the application's `@/` import alias. Add meaningful TypeScript tests as `*.test.ts` or `*.spec.ts` next to the behavior they protect. The initial suite is intentionally empty: `--passWithNoTests` permits this infrastructure baseline, but failing tests still fail the command. This does not provide domain or database coverage yet. Remove that flag when the first meaningful tests land so an accidentally empty suite becomes a failure.
 
 ## Try the core flow
 
@@ -178,6 +181,7 @@ Before merging, review the diff and run the repository's CI checks:
 npm run lint
 npm run format:check
 npm run typecheck
+npm test
 npm run build
 ```
 
