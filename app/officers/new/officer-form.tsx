@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import type { Tables } from "@/lib/database.types";
+import { formatLabel } from "@/lib/presentation";
 import { saveOfficer } from "../actions";
 
 type OfficerFormProps = {
@@ -25,12 +26,19 @@ export default function OfficerForm({
         Name <input name="name" required defaultValue={officer?.name} />
       </label>
       <label>
-        Email{" "}
+        UTEP email (optional)
         <input
-          name="email"
+          name="utep_email"
           type="email"
-          required
-          defaultValue={officer?.email}
+          defaultValue={officer?.utep_email ?? ""}
+        />
+      </label>
+      <label>
+        Personal email (optional)
+        <input
+          name="personal_email"
+          type="email"
+          defaultValue={officer?.personal_email ?? ""}
         />
       </label>
       <label>
@@ -49,17 +57,16 @@ export default function OfficerForm({
         </select>
       </label>
       <label>
-        Classification
+        Classification (optional)
         <select
           name="classification"
-          required
           defaultValue={officer?.classification ?? ""}
         >
-          <option value="">Select classification</option>
-          {["freshman", "sophomore", "junior", "senior", "masters", "phd"].map(
+          <option value="">Not specified</option>
+          {["freshman", "sophomore", "junior", "senior", "graduate"].map(
             (value) => (
               <option key={value} value={value}>
-                {value}
+                {formatLabel(value)}
               </option>
             ),
           )}

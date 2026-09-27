@@ -1,7 +1,6 @@
 export function formatLabel(value: string) {
   const known: Record<string, string> = {
     icpc: "ICPC",
-    phd: "PhD",
   };
   return (
     known[value.toLowerCase()] ??

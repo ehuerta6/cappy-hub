@@ -60,13 +60,23 @@ export default async function OfficerDetailPage({
           <ActionLink href={`/officers/${id}/edit`}>Edit officer</ActionLink>
         }
       />
-      <dl className="grid max-w-2xl grid-cols-[7rem_1fr] gap-x-5 gap-y-3 rounded-lg border border-zinc-800 bg-zinc-900/30 p-4 text-sm">
-        <dt>Email</dt>
-        <dd>{officer.email}</dd>
+      <dl className="grid max-w-2xl grid-cols-[7rem_minmax(0,1fr)] gap-x-5 gap-y-3 rounded-lg border border-zinc-800 bg-zinc-900/30 p-4 text-sm">
+        <dt>UTEP email</dt>
+        <dd className="min-w-0 break-words">
+          {officer.utep_email ?? "Not provided"}
+        </dd>
+        <dt>Personal email</dt>
+        <dd className="min-w-0 break-words">
+          {officer.personal_email ?? "Not provided"}
+        </dd>
         <dt>Position</dt>
         <dd>{officer.positions.name}</dd>
         <dt>Classification</dt>
-        <dd>{formatLabel(officer.classification)}</dd>
+        <dd>
+          {officer.classification
+            ? formatLabel(officer.classification)
+            : "Not specified"}
+        </dd>
         <dt>Status</dt>
         <dd>
           <StatusBadge status={officer.status} />

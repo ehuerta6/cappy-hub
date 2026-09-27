@@ -31,7 +31,8 @@ export default async function OfficersPage() {
           <thead>
             <tr>
               <th>Name</th>
-              <th>Email</th>
+              <th>UTEP email</th>
+              <th>Personal email</th>
               <th>Position</th>
               <th>Classification</th>
               <th>Branches</th>
@@ -44,9 +45,16 @@ export default async function OfficersPage() {
                 <td>
                   <Link href={`/officers/${officer.id}`}>{officer.name}</Link>
                 </td>
-                <td className="text-zinc-400">{officer.email}</td>
+                <td className="text-zinc-400">{officer.utep_email ?? "—"}</td>
+                <td className="text-zinc-400">
+                  {officer.personal_email ?? "—"}
+                </td>
                 <td>{officer.positions.name}</td>
-                <td>{formatLabel(officer.classification)}</td>
+                <td>
+                  {officer.classification
+                    ? formatLabel(officer.classification)
+                    : "Not specified"}
+                </td>
                 <td>
                   <BranchBadges
                     branches={officer.officer_branches.map(

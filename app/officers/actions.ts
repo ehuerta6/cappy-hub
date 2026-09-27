@@ -12,9 +12,12 @@ export async function saveOfficer(
   const { data, error } = await supabase.rpc("save_officer", {
     p_officer_id: officerId ? Number(officerId) : undefined,
     p_name: String(formData.get("name") ?? ""),
-    p_email: String(formData.get("email") ?? ""),
+    p_utep_email: String(formData.get("utep_email") ?? "").trim() || undefined,
+    p_personal_email:
+      String(formData.get("personal_email") ?? "").trim() || undefined,
     p_position_id: Number(formData.get("position_id")),
-    p_classification: String(formData.get("classification") ?? ""),
+    p_classification:
+      String(formData.get("classification") ?? "").trim() || undefined,
     p_status: String(formData.get("status") ?? ""),
     p_branch_ids: formData.getAll("branches").map(Number),
   });

@@ -4,7 +4,7 @@ Cappy Hub is an internal administrative application for the Coding Interview Clu
 
 ## Current scope
 
-- Officers: create, list, view, edit, deactivate/reactivate; one controlled position, academic classification, multiple branches.
+- Officers: create, list, view, edit, deactivate/reactivate; one controlled position, optional academic classification and separate optional UTEP/personal emails, multiple branches.
 - Events: create, list, view, edit upcoming events, cancel before the scheduled end, multiple branches, add/remove active officers while signup is open.
 - Points: automatic scheduled participation awards, positive/negative fractional manual transactions and corrections, officer totals calculated with SQL `SUM`.
 - Connected profiles: officer events and point history; event participants and related transactions.
@@ -44,7 +44,7 @@ Eight primary tables: `officers`, `positions`, `branches`, `officer_branches`, `
 
 Migrations in `supabase/migrations` capture the original schema, migrate text positions to `position_id`, seed the 15 design-doc positions and four branches (intro, social, icpc, general), and add events, points, and computed views. Existing legacy position names are preserved as catalog entries rather than guessed replacements. `can_manage_branch_events` defaults to false and is unused until permissions are designed.
 
-Foreign keys preserve references; composite primary keys prevent duplicate memberships/signups; constraints enforce classification/status, unique email/position/branch names, nonblank names/reasons, finite numeric points, and end after start. Deactivation/cancellation retain history. `created_by` is nullable and remains null without authentication; its final actor relationship is deferred.
+Foreign keys preserve references; composite primary keys prevent duplicate memberships/signups; constraints enforce classification/status, unique provided UTEP/personal emails and position/branch names, nonblank names/reasons, finite numeric points, and end after start. Deactivation/cancellation retain history. `created_by` is nullable and remains null without authentication; its final actor relationship is deferred.
 
 For a **new development project**, use the official Supabase CLI:
 

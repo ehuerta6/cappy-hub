@@ -174,31 +174,34 @@ export type Database = {
       };
       officers: {
         Row: {
-          classification: string;
+          classification: string | null;
           created_at: string;
-          email: string;
           id: number;
           name: string;
+          personal_email: string | null;
           position_id: number;
           status: string;
+          utep_email: string | null;
         };
         Insert: {
-          classification: string;
+          classification?: string | null;
           created_at?: string;
-          email: string;
           id?: number;
           name: string;
+          personal_email?: string | null;
           position_id: number;
           status?: string;
+          utep_email?: string | null;
         };
         Update: {
-          classification?: string;
+          classification?: string | null;
           created_at?: string;
-          email?: string;
           id?: number;
           name?: string;
+          personal_email?: string | null;
           position_id?: number;
           status?: string;
+          utep_email?: string | null;
         };
         Relationships: [
           {
@@ -330,12 +333,13 @@ export type Database = {
       save_officer: {
         Args: {
           p_branch_ids: number[];
-          p_classification: string;
-          p_email: string;
+          p_classification?: string;
           p_name: string;
           p_officer_id?: number;
+          p_personal_email?: string;
           p_position_id: number;
           p_status: string;
+          p_utep_email?: string;
         };
         Returns: number;
       };
