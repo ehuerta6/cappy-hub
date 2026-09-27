@@ -2540,6 +2540,8 @@
 
 PR 0 evidence: local npm ci, format, lint, typecheck, and the empty-suite test command pass on Node 26. The local Turbopack build is blocked by the execution sandbox’s temporary-port restriction (Operation not permitted); the real production build passes in GitHub Actions on Node 24. [Verification run](https://github.com/ehuerta6/cappy-hub/actions/runs/36347554555).
 
+PR 1 evidence: [GitHub CI on Node 24](https://github.com/ehuerta6/cappy-hub/actions/runs/36349607898) passed dependency installation, formatting, lint, TypeScript, fresh migrations, real database integrity tests, populated POC upgrade/replay, generated-type drift verification, SQL function lint, and the production build. The local Turbopack port restriction remains an environment limitation.
+
 ## Release hardening
 
 - [ ] Keep CI passing throughout MVP implementation.
@@ -3009,11 +3011,11 @@ These are product decisions, not implementation completion. The corresponding im
     
 - [ ] Verify zero temporary anon write policies.
     
-- [ ] Verify CI.
+- [x] Verify CI.
     
 - [x] Verify fresh migration replay.
     
-- [ ] Verify production build.
+- [x] Verify production build.
     
 
 ---
@@ -3385,7 +3387,7 @@ These are product decisions, not implementation completion. The corresponding im
     
 - [x] Typecheck passes.
     
-- [ ] Production build passes.
+- [x] Production build passes.
     
 - [x] Automated tests pass.
     

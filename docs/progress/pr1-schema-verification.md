@@ -53,7 +53,7 @@ Executed locally:
 - `npm run lint`, `npm run format:check`, `npm run typecheck` — passed.
 - `NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_ci_placeholder npm run build` — blocked locally by Turbopack's temporary-port sandbox restriction (`Operation not permitted`), as in PR 0. A successful GitHub CI production build is required before merge.
 
-The CI workflow also runs generated-type drift checks and SQL function lint. Hosted migration application and real-data reconciliation are not verified by local synthetic fixtures.
+[GitHub CI on Node 24](https://github.com/ehuerta6/cappy-hub/actions/runs/36349607898) passed all quality gates, the production build, database integrity tests, populated-upgrade/fresh-replay checks, generated-type drift verification, and SQL function lint. Hosted migration application and real-data reconciliation are not verified by local synthetic fixtures.
 
 ## Deferred work
 
