@@ -7,13 +7,59 @@ export type Json =
   | Json[];
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5";
-  };
   public: {
     Tables: {
+      application_config: {
+        Row: {
+          flyer_completion_points: number;
+          id: number;
+          participation_points_per_hour: number;
+          updated_at: string;
+        };
+        Insert: {
+          flyer_completion_points: number;
+          id?: number;
+          participation_points_per_hour: number;
+          updated_at?: string;
+        };
+        Update: {
+          flyer_completion_points?: number;
+          id?: number;
+          participation_points_per_hour?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      audit_logs: {
+        Row: {
+          action: string;
+          actor_id: string | null;
+          created_at: string;
+          details: NonNullable<Json>;
+          entity_id: string;
+          entity_type: string;
+          id: number;
+        };
+        Insert: {
+          action: string;
+          actor_id?: string | null;
+          created_at?: string;
+          details?: NonNullable<Json>;
+          entity_id: string;
+          entity_type: string;
+          id?: number;
+        };
+        Update: {
+          action?: string;
+          actor_id?: string | null;
+          created_at?: string;
+          details?: NonNullable<Json>;
+          entity_id?: string;
+          entity_type?: string;
+          id?: number;
+        };
+        Relationships: [];
+      };
       branches: {
         Row: {
           created_at: string;
@@ -99,41 +145,96 @@ export type Database = {
           },
         ];
       };
+      event_types: {
+        Row: {
+          created_at: string;
+          id: number;
+          name: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: number;
+          name: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: number;
+          name?: string;
+        };
+        Relationships: [];
+      };
       events: {
         Row: {
           created_at: string;
           description: string;
           ends_at: string;
+          event_type_id: number;
+          flyer_assigned_to: number | null;
+          flyer_status: string | null;
           id: number;
           location: string | null;
+          meeting_notes_url: string | null;
           name: string;
+          participation_points_per_hour_at_end: number | null;
+          slides_url: string | null;
           starts_at: string;
           status: string;
-          type: string;
         };
         Insert: {
           created_at?: string;
           description?: string;
           ends_at: string;
+          event_type_id: number;
+          flyer_assigned_to?: number | null;
+          flyer_status?: string | null;
           id?: number;
           location?: string | null;
+          meeting_notes_url?: string | null;
           name: string;
+          participation_points_per_hour_at_end?: number | null;
+          slides_url?: string | null;
           starts_at: string;
           status?: string;
-          type: string;
         };
         Update: {
           created_at?: string;
           description?: string;
           ends_at?: string;
+          event_type_id?: number;
+          flyer_assigned_to?: number | null;
+          flyer_status?: string | null;
           id?: number;
           location?: string | null;
+          meeting_notes_url?: string | null;
           name?: string;
+          participation_points_per_hour_at_end?: number | null;
+          slides_url?: string | null;
           starts_at?: string;
           status?: string;
-          type?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "events_event_type_id_fkey";
+            columns: ["event_type_id"];
+            isOneToOne: false;
+            referencedRelation: "event_types";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "events_flyer_assigned_to_fkey";
+            columns: ["flyer_assigned_to"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "events_flyer_assigned_to_fkey";
+            columns: ["flyer_assigned_to"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       officer_branches: {
         Row: {
@@ -172,8 +273,49 @@ export type Database = {
           },
         ];
       };
+      officer_warnings: {
+        Row: {
+          created_at: string;
+          id: number;
+          officer_id: number;
+          reason: string;
+          status: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: number;
+          officer_id: number;
+          reason: string;
+          status?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: number;
+          officer_id?: number;
+          reason?: string;
+          status?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "officer_warnings_officer_id_fkey";
+            columns: ["officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "officer_warnings_officer_id_fkey";
+            columns: ["officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       officers: {
         Row: {
+          application_role: string;
+          auth_user_id: string | null;
           classification: string | null;
           created_at: string;
           id: number;
@@ -184,6 +326,8 @@ export type Database = {
           utep_email: string | null;
         };
         Insert: {
+          application_role?: string;
+          auth_user_id?: string | null;
           classification?: string | null;
           created_at?: string;
           id?: number;
@@ -194,6 +338,8 @@ export type Database = {
           utep_email?: string | null;
         };
         Update: {
+          application_role?: string;
+          auth_user_id?: string | null;
           classification?: string | null;
           created_at?: string;
           id?: number;
@@ -223,6 +369,8 @@ export type Database = {
           officer_id: number;
           points: number;
           reason: string;
+          removed_at: string | null;
+          removed_by: string | null;
         };
         Insert: {
           award_type: string;
@@ -233,6 +381,8 @@ export type Database = {
           officer_id: number;
           points: number;
           reason: string;
+          removed_at?: string | null;
+          removed_by?: string | null;
         };
         Update: {
           award_type?: string;
@@ -243,6 +393,8 @@ export type Database = {
           officer_id?: number;
           points?: number;
           reason?: string;
+          removed_at?: string | null;
+          removed_by?: string | null;
         };
         Relationships: [
           {
@@ -289,6 +441,38 @@ export type Database = {
         };
         Relationships: [];
       };
+      warning_approvals: {
+        Row: {
+          approver_id: string;
+          approver_role: string;
+          decided_at: string | null;
+          decision: string;
+          warning_id: number;
+        };
+        Insert: {
+          approver_id: string;
+          approver_role: string;
+          decided_at?: string | null;
+          decision?: string;
+          warning_id: number;
+        };
+        Update: {
+          approver_id?: string;
+          approver_role?: string;
+          decided_at?: string | null;
+          decision?: string;
+          warning_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "warning_approvals_warning_id_fkey";
+            columns: ["warning_id"];
+            isOneToOne: false;
+            referencedRelation: "officer_warnings";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       dashboard_summary: {
@@ -323,10 +507,10 @@ export type Database = {
           p_description: string;
           p_ends_at: string;
           p_event_id?: number;
+          p_event_type_id: number;
           p_location: string;
           p_name: string;
           p_starts_at: string;
-          p_type: string;
         };
         Returns: number;
       };

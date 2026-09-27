@@ -4,10 +4,12 @@ import type { Tables } from "@/lib/database.types";
 import { saveEvent } from "./actions";
 export default function EventForm({
   branches,
+  eventTypes,
   event,
   branchIds = [],
 }: {
   branches: Pick<Tables<"branches">, "id" | "name">[];
+  eventTypes: Pick<Tables<"event_types">, "id" | "name">[];
   event?: Tables<"events">;
   branchIds?: number[];
 }) {
@@ -26,20 +28,25 @@ export default function EventForm({
       </label>
       <label>
         Type
-        <input
-          name="type"
-          list="event-types"
+        <select
+          name="event_type_id"
           required
-          defaultValue={event?.type ?? "General"}
-        />
+          defaultValue={
+            event?.event_type_id ??
+            eventTypes.find((type) => type.name === "General")?.id ??
+            ""
+          }
+        >
+          <option value="" disabled>
+            Select an event type
+          </option>
+          {eventTypes.map((type) => (
+            <option key={type.id} value={type.id}>
+              {type.name}
+            </option>
+          ))}
+        </select>
       </label>
-      <datalist id="event-types">
-        {["General", "Intro", "ICPC", "Meeting", "Social", "Workshop"].map(
-          (type) => (
-            <option key={type} value={type} />
-          ),
-        )}
-      </datalist>
       <label>
         Location
         <input name="location" defaultValue={event?.location ?? ""} />

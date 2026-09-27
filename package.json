@@ -8,9 +8,14 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "db:start": "supabase start -x gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,studio,edge-runtime,logflare,vector,supavisor",
+    "db:reset": "supabase db reset --local --no-seed",
+    "db:types": "node scripts/database-types.mjs",
+    "db:types:check": "node scripts/database-types.mjs --check",
+    "test:db:upgrade": "node scripts/test-db-upgrade.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.2",
@@ -26,6 +31,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
     "prettier": "^3.9.9",
+    "supabase": "2.118.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "5.0.2"

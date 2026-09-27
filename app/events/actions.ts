@@ -12,11 +12,14 @@ export async function saveEvent(
   const timestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/;
   if (!timestampPattern.test(start) || !timestampPattern.test(end))
     return { error: "Enter valid start and end times" };
+  const eventTypeId = Number(formData.get("event_type_id"));
+  if (!Number.isSafeInteger(eventTypeId) || eventTypeId <= 0)
+    return { error: "Select a valid event type" };
   const { data, error } = await supabase.rpc("save_event", {
     p_event_id: id ? Number(id) : undefined,
     p_name: String(formData.get("name") ?? ""),
     p_description: String(formData.get("description") ?? ""),
-    p_type: String(formData.get("type") ?? ""),
+    p_event_type_id: eventTypeId,
     p_location: String(formData.get("location") ?? ""),
     p_starts_at: start + "Z",
     p_ends_at: end + "Z",

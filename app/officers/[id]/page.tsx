@@ -45,6 +45,7 @@ export default async function OfficerDetailPage({
     supabase
       .from("point_transactions")
       .select("*,officers(id,name),events(id,name)")
+      .is("removed_at", null)
       .eq("officer_id", Number(id))
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
