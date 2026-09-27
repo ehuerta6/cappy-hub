@@ -6,3 +6,6 @@ coverage/
 AGENTS.md
 CLAUDE.md
 public/*.svg
+
+# Preserve the supplied product Design Doc without reformatting it.
+/Cappy Hub - Design Doc.md
