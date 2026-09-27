@@ -288,6 +288,14 @@ export type Database = {
       };
     };
     Views: {
+      dashboard_summary: {
+        Row: {
+          active_officer_count: number | null;
+          half_year_points: number | null;
+          upcoming_event_count: number | null;
+        };
+        Relationships: [];
+      };
       officer_point_totals: {
         Row: {
           id: number | null;
