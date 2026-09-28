@@ -2,7 +2,7 @@ import { getAuthorizationContext, canManageEvent } from "@/lib/authorization";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 import EventForm from "../../event-form";
 import { PageHeader } from "@/components/ui";
 export default async function EditEventPage({
@@ -12,6 +12,7 @@ export default async function EditEventPage({
 }) {
   const actor = await getAuthorizationContext();
   await connection();
+  const supabase = await createClient();
   const { id } = await params;
   if (!/^[1-9]\d*$/.test(id)) notFound();
   const [event, branches, eventTypes] = await Promise.all([

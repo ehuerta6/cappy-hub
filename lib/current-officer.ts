@@ -1,7 +1,6 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { createClient } from "./supabase/server";
-import { supabase } from "./supabase";
 
 export async function getCurrentOfficer() {
   const authClient = await createClient();
@@ -19,9 +18,8 @@ export async function getCurrentOfficer() {
   }
   if (!officerId) return null;
 
-  // The existing POC read policies are anon-only until PR 3. This read is
-  // server-side and follows the trusted RPC check on every request.
-  const { data: officer, error } = await supabase
+  // Reuse the authenticated session so final RLS also checks this read.
+  const { data: officer, error } = await authClient
     .from("officers")
     .select(
       "id,name,status,application_role,position_id,positions(name),officer_branches(branch_id)",

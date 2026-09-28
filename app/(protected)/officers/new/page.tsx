@@ -4,7 +4,7 @@ import {
 } from "@/lib/authorization";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 import OfficerForm from "./officer-form";
 import { PageHeader } from "@/components/ui";
 
@@ -12,6 +12,7 @@ export default async function NewOfficerPage() {
   if (!canManageOfficers(await getAuthorizationContext()))
     redirect("/access-denied");
   await connection();
+  const supabase = await createClient();
   const [branches, positions] = await Promise.all([
     supabase.from("branches").select("id, name").order("name"),
     supabase.from("positions").select("id, name").order("id"),
