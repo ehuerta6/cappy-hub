@@ -259,7 +259,8 @@ select lives_ok($$select cancel_event(-402)$$,'Lead can cancel managed event via
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000401',true);
 select is((select count(*) from officer_warnings),4::bigint,'admin reads every warning');
 select is((select count(*) from warning_approvals),1::bigint,'admin reads approval records');
-select is((select count(*) from audit_logs),1::bigint,'admin reads System Log');
+select is((select count(*) from audit_logs where id=-401),1::bigint,
+  'admin reads the fixture System Log record alongside new mutation entries');
 select throws_ok($$update officers set application_role='officer' where id=-401$$,
   '42501',null,'admin cannot bypass role-management safeguards with raw update');
 select throws_ok($$update officers set auth_user_id=null where id=-403$$,

@@ -6,7 +6,7 @@ export default async function ProtectedLayout({ children }: LayoutProps<"/">) {
   const officer = await requireCurrentOfficer();
   return (
     <>
-      <SiteNavigation />
+      <SiteNavigation isAdmin={officer.applicationRole === "admin"} />
       <div className="mx-auto flex w-full max-w-6xl items-center justify-end gap-3 px-4 pt-3 text-sm text-zinc-400 sm:px-6">
         <span>{officer.name}</span>
         <form action={signOut}>
