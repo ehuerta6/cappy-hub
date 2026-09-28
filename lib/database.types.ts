@@ -471,6 +471,10 @@ export type Database = {
         Args: { p_event_id: number; p_officer_id: number; p_remove?: boolean };
         Returns: undefined;
       };
+      claim_current_officer_identity: {
+        Args: Record<PropertyKey, never>;
+        Returns: number;
+      };
       process_completed_events: {
         Args: { p_points_per_hour: number };
         Returns: number;

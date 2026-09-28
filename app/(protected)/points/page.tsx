@@ -1,3 +1,4 @@
+import { requireCurrentOfficer } from "@/lib/current-officer";
 import Link from "next/link";
 import { connection } from "next/server";
 import { supabase } from "@/lib/supabase";
@@ -14,6 +15,7 @@ import {
   TableFrame,
 } from "@/components/ui";
 export default async function PointsPage() {
+  await requireCurrentOfficer();
   await connection();
   await processCompletedEvents();
   const rateUnit = participationPointsPerHour === 1 ? "point" : "points";

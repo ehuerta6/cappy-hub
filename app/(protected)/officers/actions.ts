@@ -1,5 +1,7 @@
 "use server";
 
+import { requireCurrentOfficer } from "@/lib/current-officer";
+
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabase } from "@/lib/supabase";
@@ -8,6 +10,7 @@ export async function saveOfficer(
   _previous: { error: string },
   formData: FormData,
 ) {
+  await requireCurrentOfficer();
   const officerId = formData.get("id");
   const utepEmail = String(formData.get("utep_email") ?? "").trim();
   const personalEmail = String(formData.get("personal_email") ?? "").trim();

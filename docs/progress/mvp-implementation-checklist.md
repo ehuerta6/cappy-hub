@@ -51,7 +51,7 @@
     
 - [ ] Authentication.
     
-- [ ] Account-to-officer linking.
+- [x] Account-to-officer linking (local PostgreSQL identity rules verified; hosted provider configuration pending).
     
 - [ ] Application roles.
     
@@ -133,7 +133,7 @@
     
 - [x] `/points`
     
-- [ ] Authentication/login surface.
+- [x] Authentication/login surface.
     
 - [ ] System Log surface.
     
@@ -166,11 +166,11 @@
     
 - [x] Active navigation route indication exists.
     
-- [ ] Authentication state is represented in global application UI.
+- [x] Authentication state is represented in global application UI.
     
-- [ ] Logged-in officer identity is accessible where needed.
+- [x] Logged-in officer identity is accessible where needed.
     
-- [ ] Application role is accessible where needed.
+- [x] Application role is accessible where needed (identity context only; role enforcement remains PR 3).
     
 - [ ] Role-aware navigation is implemented.
     
@@ -210,15 +210,15 @@
 
 ## Production Supabase integration
 
-- [ ] Add Supabase Auth.
+- [x] Add Supabase Auth application integration (external Google provider setup remains pending).
     
 - [ ] Add session-aware Supabase requests.
     
 - [ ] Replace anonymous application behavior with authenticated behavior.
     
-- [ ] Ensure Server Components can identify the current authenticated user.
+- [x] Ensure Server Components can identify the current authenticated user.
     
-- [ ] Ensure Server Actions can identify the current authenticated user.
+- [x] Ensure Server Actions can identify the current authenticated user.
     
 - [ ] Ensure database requests execute with the proper authenticated identity.
     
@@ -258,15 +258,15 @@
 ## Authentication implementation
 
 - [ ] Configure Google provider in Supabase Auth.
-- [ ] Implement Google sign-in and callback flow.
-- [ ] Persist and restore the Supabase session on page requests.
-- [ ] Protect internal routes and redirect unauthenticated users.
-- [ ] Implement safe first-login matching and linking, including duplicate/ambiguous-match denial.
-- [ ] Resolve the active officer through auth_user_id on each protected request.
-- [ ] Resolve application_role and branch memberships from the linked officer.
-- [ ] Reject unlinked, inactive, or otherwise unapproved users.
-- [ ] Revoke access after an officer is deactivated, even for an existing session.
-- [ ] Display signed-in identity where useful and provide sign-out.
+- [x] Implement Google sign-in and callback flow (repository code; live Google provider verification pending).
+- [x] Persist and restore the Supabase session on page requests (cookie-backed SSR and refresh proxy).
+- [x] Protect internal routes and redirect unauthenticated users.
+- [x] Implement safe first-login matching and linking, including duplicate/ambiguous-match denial.
+- [x] Resolve the active officer through auth_user_id on each protected request.
+- [x] Resolve application_role and branch memberships from the linked officer (without authorization decisions).
+- [x] Reject unlinked, inactive, or otherwise unapproved users at the application entry points.
+- [x] Revoke application-route access after an officer is deactivated, even for an existing session.
+- [x] Display signed-in identity where useful and provide sign-out.
 
 # 4. Application Roles
 
@@ -545,10 +545,10 @@
 
 ## Final MVP identity rules
 
-- [ ] Link at most one auth.users account to an officer.
-- [ ] First-login email matching considers verified email against UTEP or personal email, case-insensitively.
-- [ ] Link only exactly one active, unlinked officer; deny missing or ambiguous matches.
-- [ ] Check current active status on protected requests and deny all app access to inactive officers.
+- [x] Link at most one auth.users account to an officer.
+- [x] First-login email matching considers verified email against UTEP or personal email, case-insensitively.
+- [x] Link only exactly one active, unlinked officer; deny missing or ambiguous matches.
+- [x] Check current active status on protected application requests and deny inactive officers.
 - [ ] Preserve the officer and all historical relationships after deactivation.
 
 ## Officer integrity
@@ -2598,7 +2598,7 @@ PR 1 evidence: [GitHub CI on Node 24](https://github.com/ehuerta6/cappy-hub/acti
     
 - [x] Not-found handling exists for invalid officer/event IDs.
     
-- [ ] Authentication failures have an appropriate user-facing state.
+- [x] Authentication failures have an appropriate user-facing state.
     
 - [ ] Authorization failures have an appropriate user-facing state.
     
@@ -2733,11 +2733,11 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
     
 - [ ] Configure Supabase Auth.
     
-- [ ] Implement login/logout.
+- [x] Implement login/logout (live provider verification pending).
     
-- [ ] Implement session-aware Supabase usage.
+- [x] Implement session-aware Supabase usage for identity; POC data calls remain anonymous until PR 3.
     
-- [ ] Implement auth account → officer mapping.
+- [x] Implement auth account → officer mapping.
     
 - [ ] Implement application roles.
     
@@ -2826,7 +2826,7 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
 
 ## Phase 8 — Finish frontend behavior
 
-- [ ] Auth state/navigation.
+- [x] Auth state/navigation.
     
 - [ ] Role-aware controls.
     

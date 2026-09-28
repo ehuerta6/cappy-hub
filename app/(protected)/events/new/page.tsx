@@ -1,8 +1,10 @@
+import { requireCurrentOfficer } from "@/lib/current-officer";
 import { connection } from "next/server";
 import { supabase } from "@/lib/supabase";
 import EventForm from "../event-form";
 import { PageHeader } from "@/components/ui";
 export default async function NewEventPage() {
+  await requireCurrentOfficer();
   await connection();
   const [branches, eventTypes] = await Promise.all([
     supabase.from("branches").select("id,name").order("name"),

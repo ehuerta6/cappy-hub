@@ -41,7 +41,23 @@ Apply the migrations below to a development Supabase project, then:
 npm run dev
 ```
 
-Open http://localhost:3000. All schedule entry and displayed dates use UTC, explicitly labeled in the forms. Event types are selected from database records; existing custom types remain available. Upcoming/happening/past status is derived from timestamps; cancellation is explicit. Refresh a page to observe a time transition; there is no live timer.
+Open http://localhost:3000. Sign in with a Google account whose verified email matches an existing active officer. All schedule entry and displayed dates use UTC, explicitly labeled in the forms. Event types are selected from database records; existing custom types remain available. Upcoming/happening/past status is derived from timestamps; cancellation is explicit. Refresh a page to observe a time transition; there is no live timer.
+
+## Google authentication setup
+
+The application login flow is:
+
+```text
+Google → Supabase Auth → auth.users → officers.auth_user_id → active Cappy Hub officer
+```
+
+In Google Cloud, create a Web OAuth client and add the **Supabase Auth callback URL** shown in your Supabase project's Google provider settings as an authorized redirect URI. In Supabase Auth, enable Google and enter that client's ID and secret. Set the Supabase site URL and allow both `http://localhost:3000/auth/callback` and the deployed application's `https://YOUR_DOMAIN/auth/callback` as application redirect URLs. Keep the Google secret in the Supabase provider configuration, never in this repository. Use the same Supabase project URL and publishable key in `.env.local` and in deployment environment variables. The app derives the callback origin from the browser, so no production hostname is hardcoded.
+
+The officer directory is the allowlist. First login matches the verified Google email to either officer email field, ignoring case, and atomically links exactly one active, unlinked officer. No officer row is created. Later requests use `auth_user_id`, even if the officer's contact email changes. An inactive officer loses application access immediately while their auth link and history remain. Sign out removes the Supabase session. Unknown, inactive, and conflicting accounts see a generic access-denied page.
+
+Repository code and local database tests do not configure the external Google client or the Supabase provider. Until those settings are applied and a real approved/unapproved login is checked, live Google sign-in is unverified. The local `db:start` test stack excludes Auth and API services and verifies the PostgreSQL identity rules only.
+
+**Security boundary for PR 2:** internal pages and Server Actions check the current active officer before doing work. The older POC data access still uses temporary anonymous policies and an anonymous server client; those direct Data API permissions remain open until the coherent RLS/authorization replacement in PR 3. Do not treat this stage as production security.
 
 ## Database and migrations
 
@@ -49,7 +65,7 @@ Thirteen application tables: `officers`, `positions`, `branches`, `officer_branc
 
 Migrations in `supabase/migrations` capture the original schema and then reconcile PR 1 to the current design. The final position catalog has six generic positions, and the controlled branches are general, intro, icpc, social, and outreach. Legacy detailed titles map to a generic position plus the corresponding branch memberships without changing officer IDs. Lead authorization is deferred.
 
-Foreign keys preserve references; composite primary keys prevent duplicate memberships/signups; constraints require at least one officer email, enforce case-insensitive uniqueness across both contact fields, validate classification/status and nonblank names/reasons, and require timed events to end after they start on the same America/Denver calendar day. Deactivation/cancellation retain history. `created_by`, `removed_by`, warning approvers, and audit actors reference `auth.users`. Officers have a nullable unique auth link and default to the `officer` application role; login/linking and role authorization are deferred.
+Foreign keys preserve references; composite primary keys prevent duplicate memberships/signups; constraints require at least one officer email, enforce case-insensitive uniqueness across both contact fields, validate classification/status and nonblank names/reasons, and require timed events to end after they start on the same America/Denver calendar day. Deactivation/cancellation retain history. `created_by`, `removed_by`, warning approvers, and audit actors reference `auth.users`. Officers have a nullable unique auth link and default to the `officer` application role; role authorization is deferred.
 
 For a **new development project**, use the official Supabase CLI:
 
