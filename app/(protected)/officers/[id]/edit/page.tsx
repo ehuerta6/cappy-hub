@@ -1,4 +1,8 @@
-import { requireCurrentOfficer } from "@/lib/current-officer";
+import {
+  getAuthorizationContext,
+  canManageOfficers,
+} from "@/lib/authorization";
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -9,7 +13,8 @@ export default async function EditOfficerPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireCurrentOfficer();
+  if (!canManageOfficers(await getAuthorizationContext()))
+    redirect("/access-denied");
   await connection();
   const { id } = await params;
   if (!/^[1-9]\d*$/.test(id)) notFound();

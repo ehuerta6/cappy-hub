@@ -1,5 +1,7 @@
-import { requireCurrentOfficer } from "@/lib/current-officer";
-import { processCompletedEvents } from "@/lib/participation";
+import {
+  getAuthorizationContext,
+  canManageOfficers,
+} from "@/lib/authorization";
 import Link from "next/link";
 import { connection } from "next/server";
 import { supabase } from "@/lib/supabase";
@@ -13,9 +15,8 @@ import {
 import { formatLabel } from "@/lib/presentation";
 
 export default async function OfficersPage() {
-  await requireCurrentOfficer();
+  const actor = await getAuthorizationContext();
   await connection();
-  await processCompletedEvents();
   const { data, error } = await supabase
     .from("officers")
     .select("*, positions(name), officer_branches(branches(name))")
@@ -26,7 +27,11 @@ export default async function OfficersPage() {
       <PageHeader
         title="Officers"
         description="Club directory and branch memberships."
-        action={<ActionLink href="/officers/new">+ Add officer</ActionLink>}
+        action={
+          canManageOfficers(actor) ? (
+            <ActionLink href="/officers/new">+ Add officer</ActionLink>
+          ) : undefined
+        }
       />
       <TableFrame>
         <table>

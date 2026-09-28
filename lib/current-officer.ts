@@ -24,7 +24,7 @@ export async function getCurrentOfficer() {
   const { data: officer, error } = await supabase
     .from("officers")
     .select(
-      "id,name,status,application_role,position_id,officer_branches(branch_id)",
+      "id,name,status,application_role,position_id,positions(name),officer_branches(branch_id)",
     )
     .eq("id", officerId)
     .single();
@@ -38,6 +38,7 @@ export async function getCurrentOfficer() {
     authUserId: userData.user.id,
     applicationRole: officer.application_role,
     positionId: officer.position_id,
+    positionName: officer.positions.name,
     branchIds: officer.officer_branches.map((branch) => branch.branch_id),
   };
 }

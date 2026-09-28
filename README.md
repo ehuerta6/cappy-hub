@@ -105,23 +105,24 @@ npx supabase db lint --local --schema public --fail-on error
 
 See [PR 1 schema verification](docs/progress/pr1-schema-verification.md) for the integrity rules, migration choices, and remaining work.
 
-## Automatic participation points
+## Authorization foundation (PR 3)
 
-The centralized configuration is `PARTICIPATION_POINTS_PER_HOUR`, read in `lib/participation.ts`; the reversible prototype default is **1 point per hour**. It must be positive and finite. Restart the app after changing it. A changed rate affects only awards not yet recorded, including old unprocessed events; it does not rewrite existing history. The club's actual rate still needs to be configured.
-
-When Dashboard, Events, Officers, Points, or their relevant detail pages load on the server, `processCompletedEvents()` calls the database function `process_completed_events`. It inserts awards for signed-up officers on noncancelled events whose scheduled end has passed:
+An authenticated user is linked to an active officer. The officer's `application_role` grants global administration; the `Lead` position plus a shared `officer_branches`/`event_branches` membership grants management of a branch-associated event. Position and application role remain independent.
 
 ```text
-points = (ends_at - starts_at in seconds) / 3600 × configured rate
+Admin                     → global officer, event, signup, and manual-point management
+Lead + shared event branch → manage that event and its signups
+Officer                   → manage their own open signups
+Global event (0 branches) → admin-managed only
 ```
 
-A 90-minute event at the default rate awards 1.5 points. PostgreSQL numeric supports fractions; display rounds to at most six decimal places. A partial unique index enforces one `participation` award per officer/event, and processing uses `ON CONFLICT DO NOTHING`. Repeated/concurrent calls cannot duplicate awards. Other manual transactions for the same event remain allowed.
+Server Actions use the cookie-backed Supabase client for writes. Each trusted database mutation resolves the actor from `auth.uid()` and checks permission again. A Lead must already manage an event before replacing its branches, and the resulting branches must still overlap. Generic officer editing cannot set `application_role`; the dedicated `set_officer_application_role` RPC blocks self-demotion and loss of the last active admin. Deactivating an officer transactionally removes their signups for events whose scheduled start is still in the future; past participation and the Auth link remain.
 
-No scheduled job runs while the app is idle. The next relevant server page load catches up ended events. Reload an already-open page after an event ends. Next.js may prefetch server pages, which can also trigger processing. A production MVP needs authenticated trusted processing at scheduled times and a decision about rate changes over time.
+**First admin bootstrap:** After a real officer signs in and links their account, a database administrator must inspect that active officer's `id` and `auth_user_id`, then manually set `application_role = 'admin'` for that single verified row in the Supabase SQL editor. Check that exactly one row was updated. Do not place a person's email or UUID in a migration. Thereafter, admins use the protected role-management RPC; a role-management UI is deferred.
 
-Officer totals use the `officer_point_totals` query view over active transactions (`removed_at IS NULL`). The dashboard uses a query view over records for January–June or July–December in UTC, based on transaction creation time, including negative corrections. History is limited to the latest 50 transactions on Points, 100 on a detail page, and 10 on Dashboard; totals include all active records. Normal history queries also exclude removed rows. Participation uniqueness includes removed rows, so a voided participation award cannot be regenerated. Lists are intended for a small prototype; pagination/search is deferred.
+The prototype `process_completed_events` function is no longer executable by anonymous or ordinary authenticated clients, and pages no longer invoke it. Participation awards are temporarily paused until a trusted scheduled processor is implemented. Existing point history, totals, and manual corrections remain visible. Historical awards are unchanged.
 
-Corrections add a new manual or correction transaction; original transactions remain unchanged. Signups close at the scheduled end or cancellation. Upcoming-event editing prevents changing a completed schedule through the app. There is no early-completion UI or attendance verification in this pass.
+**Security boundary still pending:** Temporary anonymous table policies still allow direct Data API access and some direct writes. PR 4 will replace those policies and test direct table/API bypass as anonymous, officer, Lead, and admin. PR 3 tests prove the trusted RPC boundaries, not production-wide authorization. Use development data until PR 4 passes its security gate.
 
 ## Temporary development security
 
@@ -134,9 +135,9 @@ Corrections add a new manual or correction transaction; original transactions re
 - Event officers: read; insert/delete only for noncancelled events before their scheduled end.
 - Point transactions: read and insert existing POC award types with `created_by` null; no update/delete permissions or anonymous removal writes.
 - Role/auth-link, event snapshot/file, and point removal columns are excluded from prototype write grants.
-- Computed views use `security_invoker`; database functions run as the caller with an empty search path and explicit execute grants.
+- Computed views use `security_invoker`; protected mutation RPCs use caller-facing wrappers and private checked implementations.
 
-These grants allow unauthenticated users with the project URL/key to access prototype data and perform the allowed writes. They support workflow development, **not user identity, admin restrictions, or trusted participation-award configuration**. The server action's configured rate is not a production security boundary: the anonymous RPC remains callable during development. Use development data and replace these policies, grants, and processing access before production. Do not work around RLS with a service-role key in the browser.
+These temporary table grants still allow unauthenticated users with the project URL/key to access prototype data and perform allowed direct writes. The mutation RPCs and prototype processor now have restricted execute grants. Use development data and replace the remaining table policies and grants before production. Do not put a service-role key in the browser.
 
 ## Quality checks
 
@@ -152,21 +153,17 @@ npm run build
 
 `npm test` runs Vitest once with the existing `@/` alias; its database test invokes pgTAP against local Supabase. There is no empty-suite allowance or mock of PostgreSQL constraints. Application behavior tests can still be added as `*.test.ts` or `*.spec.ts` when relevant.
 
-## Try the core flow
+## Try the current flow
 
-1. Create an officer with a seeded position and two branches.
-2. Create an event with two branches. To observe completion quickly, set its start in the past and end a minute or two in the future (UTC).
-3. Add the officer on the event detail page before it ends.
-4. After the scheduled end, reload Events/Points or open the officer profile. Verify one participation award equals scheduled hours × rate.
-5. Reload repeatedly. There should still be one participation award.
-6. Add +2.25 manual points and a -0.75 correction. Verify total, officer history, event history when attached, Points, and Dashboard.
-7. Check an unknown officer/event ID for the not-found page.
-
-Validation data created during implementation is explicitly named “Prototype …” and remains in the development database for inspection.
+1. Have a database administrator bootstrap one verified active officer as admin, as described above.
+2. Sign in as that admin, create or edit officers, and create global or branch events.
+3. Sign in as an ordinary officer and manage only your own signup while the event is open.
+4. Sign in as a Lead with a branch membership and manage a matching branch event and its signups. An unrelated or global event stays outside Lead scope.
+5. Use the admin Points form for a manual transaction or correction. Automatic participation awards remain paused until the scheduled processor is added.
 
 ## Deferred to MVP
 
-Authentication and account linking; admin/officer/branch-lead permissions and final RLS; trusted scheduled processing; early completion; warnings/approvals; System Log/full auditing; award removal with audit history; Google Calendar/Drive/Discord integrations; spreadsheet imports; advanced filtering/search; production error UX and deployment hardening. Untimed events/tasks await product feedback. Identity-aware enforcement remains deferred. No production-ready security is claimed.
+Live authentication-provider verification; final RLS/Data API protection; trusted scheduled processing; early completion; warnings/approvals; System Log/full auditing; award removal with audit history; Google Calendar/Drive/Discord integrations; spreadsheet imports; advanced filtering/search; production error UX and deployment hardening. Untimed events/tasks await product feedback. Trusted mutation authorization is implemented, while direct table access still needs final RLS. No production-ready security is claimed.
 
 ## Git & GitHub Workflow
 

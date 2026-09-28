@@ -467,6 +467,17 @@ export type Database = {
       };
     };
     Functions: {
+      add_manual_transaction: {
+        Args: {
+          p_award_type: string;
+          p_event_id?: number;
+          p_officer_id: number;
+          p_points: number;
+          p_reason: string;
+        };
+        Returns: undefined;
+      };
+      cancel_event: { Args: { p_event_id: number }; Returns: undefined };
       change_event_signup: {
         Args: { p_event_id: number; p_officer_id: number; p_remove?: boolean };
         Returns: undefined;
@@ -504,6 +515,10 @@ export type Database = {
           p_utep_email?: string;
         };
         Returns: number;
+      };
+      set_officer_application_role: {
+        Args: { p_officer_id: number; p_role: string };
+        Returns: undefined;
       };
     };
     Enums: {

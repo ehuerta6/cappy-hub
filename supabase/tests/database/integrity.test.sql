@@ -17,6 +17,12 @@ insert into officers(id,name,position_id,utep_email) values
   (-1,'Schema test officer',(select id from positions where name='President'),'schema-one@example.org');
 insert into officers(id,name,position_id,personal_email) values
   (-2,'Schema test peer',(select id from positions where name='Secretary'),'schema-two@example.org');
+-- The integrity tests exercise trusted RPCs as a linked administrator.
+insert into auth.users(id,email) values
+  ('00000000-0000-4000-8000-000000000201','schema-one@example.org');
+update officers set auth_user_id='00000000-0000-4000-8000-000000000201',
+  application_role='admin' where id=-1;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000201',true);
 select is((select status from officers where id=-1),'active','new officers default active');
 select throws_ok($$insert into officers(name,position_id) values ('No email',(select id from positions where name='Officer'))$$,
   '23514',null,'at least one contact email is required');

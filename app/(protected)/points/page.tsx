@@ -1,11 +1,7 @@
-import { requireCurrentOfficer } from "@/lib/current-officer";
+import { getAuthorizationContext, canManagePoints } from "@/lib/authorization";
 import Link from "next/link";
 import { connection } from "next/server";
 import { supabase } from "@/lib/supabase";
-import {
-  processCompletedEvents,
-  participationPointsPerHour,
-} from "@/lib/participation";
 import TransactionForm from "./transaction-form";
 import TransactionTable from "./transaction-table";
 import {
@@ -15,10 +11,8 @@ import {
   TableFrame,
 } from "@/components/ui";
 export default async function PointsPage() {
-  await requireCurrentOfficer();
+  const actor = await getAuthorizationContext();
   await connection();
-  await processCompletedEvents();
-  const rateUnit = participationPointsPerHour === 1 ? "point" : "points";
   const [transactions, totals, officers, events] = await Promise.all([
     supabase
       .from("point_transactions")
@@ -40,7 +34,7 @@ export default async function PointsPage() {
     <div className="space-y-8">
       <PageHeader
         title="Points"
-        description={`Participation: ${participationPointsPerHour} ${rateUnit} per scheduled hour. Ended events are processed when data is loaded.`}
+        description="Participation awards are paused until the trusted scheduled processor is added."
       />
       <section>
         <SectionHeading title="Officer totals" />
@@ -67,12 +61,14 @@ export default async function PointsPage() {
           </table>
         </TableFrame>
       </section>
-      <section>
-        <SectionHeading title="Add manual transaction or correction" />
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4 sm:p-5">
-          <TransactionForm officers={officers.data} events={events.data} />
-        </div>
-      </section>
+      {canManagePoints(actor) && (
+        <section>
+          <SectionHeading title="Add manual transaction or correction" />
+          <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4 sm:p-5">
+            <TransactionForm officers={officers.data} events={events.data} />
+          </div>
+        </section>
+      )}
       <section>
         <SectionHeading
           title="Recent transactions"

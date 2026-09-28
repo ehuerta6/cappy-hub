@@ -263,7 +263,7 @@
 - [x] Protect internal routes and redirect unauthenticated users.
 - [x] Implement safe first-login matching and linking, including duplicate/ambiguous-match denial.
 - [x] Resolve the active officer through auth_user_id on each protected request.
-- [x] Resolve application_role and branch memberships from the linked officer (without authorization decisions).
+- [x] Resolve application_role and branch memberships from the linked officer; PR 3 adds authorization decisions.
 - [x] Reject unlinked, inactive, or otherwise unapproved users at the application entry points.
 - [x] Revoke application-route access after an officer is deactivated, even for an existing session.
 - [x] Display signed-in identity where useful and provide sign-out.
@@ -280,11 +280,11 @@
 
 ## Role implementation
 
-- [ ] Implement and constrain the application_role officer column.
-- [ ] Support multiple administrators, including President, Vice Presidents, the application owner, and other designated officers as assigned.
-- [ ] Allow existing admins to add/remove admin assignments through backend-protected operations.
-- [ ] Prevent normal officers from promoting themselves or changing another user's role.
-- [ ] Protect admin-management operations on the backend.
+- [x] Implement and constrain the application_role officer column.
+- [x] Support multiple administrators, including President, Vice Presidents, the application owner, and other designated officers as assigned.
+- [x] Allow existing admins to add/remove admin assignments through backend-protected operations.
+- [x] Prevent normal officers from promoting themselves or changing another user's role.
+- [x] Protect admin-management operations on the backend.
 
 ## Officer permissions
 
@@ -310,10 +310,10 @@
 
 ## Implementation
 
-- [ ] Enforce Lead position plus shared branch membership in trusted authorization.
-- [ ] Determine the lead's scope from current officer branch memberships.
-- [ ] Enforce branch scope in RLS/backend functions, not only through hidden buttons.
-- [ ] Prevent a lead from expanding their own permission by changing event/officer branch associations.
+- [x] Enforce Lead position plus shared branch membership in trusted authorization.
+- [x] Determine the lead's scope from current officer branch memberships.
+- [x] Enforce branch scope in RLS/backend functions, not only through hidden buttons.
+- [x] Prevent a lead from expanding their own permission by changing event/officer branch associations.
 
 # 6. Final Row Level Security
 
@@ -2324,13 +2324,13 @@
     
 - [ ] Approved-user check exists.
     
-- [ ] Application role check exists.
+- [x] Application role check exists.
     
-- [ ] Branch-lead check exists.
+- [x] Branch-lead check exists.
     
-- [ ] Branch membership scope check exists.
+- [x] Branch membership scope check exists.
     
-- [ ] Self-signup identity check exists.
+- [x] Self-signup identity check exists.
     
 - [ ] Admin-only point operations enforced.
     
@@ -2340,7 +2340,7 @@
     
 - [ ] Direct Supabase/API access cannot bypass UI restrictions.
     
-- [ ] Server Actions are not treated as trusted merely because they run on the Next.js server.
+- [x] Server Actions are not treated as trusted merely because they run on the Next.js server.
     
 
 ## Production security gate
@@ -2735,11 +2735,11 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
     
 - [x] Implement login/logout (live provider verification pending).
     
-- [x] Implement session-aware Supabase usage for identity; POC data calls remain anonymous until PR 3.
+- [x] Implement session-aware Supabase usage for identity and trusted mutation RPCs; POC reads and temporary direct-table policies remain for PR 4.
     
 - [x] Implement auth account → officer mapping.
     
-- [ ] Implement application roles.
+- [x] Implement application roles.
     
 
 ## Phase 3 — Authorization
@@ -2748,13 +2748,13 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
     
 - [x] Resolved decision: Lead plus shared branch membership defines branch scope.
     
-- [ ] Implement branch-scope permission helpers.
+- [x] Implement branch-scope permission helpers.
     
 - [ ] Replace temporary anon RLS.
     
-- [ ] Protect RPCs.
+- [x] Protect RPCs.
     
-- [ ] Protect Server Actions.
+- [x] Protect Server Actions.
     
 - [ ] Test direct database/API access.
     
@@ -2775,7 +2775,7 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
     
 - [ ] Add actor attribution.
     
-- [ ] Remove page-load processing dependency.
+- [x] Remove page-load processing dependency.
     
 
 ## Phase 5 — Warnings

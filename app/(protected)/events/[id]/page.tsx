@@ -1,6 +1,5 @@
-import { requireCurrentOfficer } from "@/lib/current-officer";
+import { getAuthorizationContext, canManageEvent } from "@/lib/authorization";
 import TransactionTable from "@/app/(protected)/points/transaction-table";
-import { processCompletedEvents } from "@/lib/participation";
 import Link from "next/link";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
@@ -20,16 +19,15 @@ export default async function EventDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireCurrentOfficer();
+  const actor = await getAuthorizationContext();
   await connection();
-  await processCompletedEvents();
   const { id } = await params;
   if (!/^[1-9]\d*$/.test(id)) notFound();
   const [result, officers] = await Promise.all([
     supabase
       .from("events")
       .select(
-        "*,event_types(name),event_branches(branches(name)),event_officers(officers(id,name))",
+        "*,event_types(name),event_branches(branch_id,branches(name)),event_officers(officers(id,name))",
       )
       .eq("id", Number(id))
       .maybeSingle(),
@@ -44,6 +42,10 @@ export default async function EventDetailPage({
   const event = result.data;
   const status = eventStatus(event);
   const signupOpen = status === "upcoming" || status === "happening";
+  const canManage = canManageEvent(
+    actor,
+    event.event_branches.map((x) => x.branch_id),
+  );
   const transactions = await supabase
     .from("point_transactions")
     .select("*,officers(id,name),events(id,name)")
@@ -59,7 +61,7 @@ export default async function EventDetailPage({
         title={event.name}
         description={event.description || "No description"}
         action={
-          status === "upcoming" ? (
+          status === "upcoming" && canManage ? (
             <ActionLink href={`/events/${id}/edit`}>Edit event</ActionLink>
           ) : undefined
         }
@@ -84,7 +86,7 @@ export default async function EventDetailPage({
           />
         </dd>
       </dl>
-      {signupOpen && <CancelForm eventId={event.id} />}
+      {signupOpen && canManage && <CancelForm eventId={event.id} />}
       <section>
         <SectionHeading title="Signed-up officers" />
         <TableFrame>
@@ -102,7 +104,7 @@ export default async function EventDetailPage({
                     <Link href={`/officers/${officer.id}`}>{officer.name}</Link>
                   </td>
                   <td>
-                    {signupOpen ? (
+                    {signupOpen && (canManage || officer.id === actor.id) ? (
                       <SignupForm
                         eventId={event.id}
                         officerId={officer.id}
@@ -121,7 +123,10 @@ export default async function EventDetailPage({
         {signupOpen && (
           <SignupForm
             eventId={event.id}
-            officers={officers.data.filter(
+            officers={(canManage
+              ? officers.data
+              : officers.data.filter((officer) => officer.id === actor.id)
+            ).filter(
               (officer) =>
                 !event.event_officers.some((x) => x.officers.id === officer.id),
             )}

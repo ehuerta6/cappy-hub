@@ -1,11 +1,16 @@
-import { requireCurrentOfficer } from "@/lib/current-officer";
+import {
+  getAuthorizationContext,
+  canManageOfficers,
+} from "@/lib/authorization";
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { supabase } from "@/lib/supabase";
 import OfficerForm from "./officer-form";
 import { PageHeader } from "@/components/ui";
 
 export default async function NewOfficerPage() {
-  await requireCurrentOfficer();
+  if (!canManageOfficers(await getAuthorizationContext()))
+    redirect("/access-denied");
   await connection();
   const [branches, positions] = await Promise.all([
     supabase.from("branches").select("id, name").order("name"),

@@ -1,7 +1,9 @@
-import { requireCurrentOfficer } from "@/lib/current-officer";
+import {
+  getAuthorizationContext,
+  canManageOfficers,
+} from "@/lib/authorization";
 import TransactionTable from "@/app/(protected)/points/transaction-table";
 import { eventStatus, displayDate } from "@/lib/event-status";
-import { processCompletedEvents } from "@/lib/participation";
 import Link from "next/link";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
@@ -22,9 +24,8 @@ export default async function OfficerDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireCurrentOfficer();
+  const actor = await getAuthorizationContext();
   await connection();
-  await processCompletedEvents();
   const { id } = await params;
   if (!/^[1-9]\d*$/.test(id)) notFound();
   const { data: officer, error } = await supabase
@@ -60,7 +61,9 @@ export default async function OfficerDetailPage({
       <PageHeader
         title={officer.name}
         action={
-          <ActionLink href={`/officers/${id}/edit`}>Edit officer</ActionLink>
+          canManageOfficers(actor) ? (
+            <ActionLink href={`/officers/${id}/edit`}>Edit officer</ActionLink>
+          ) : undefined
         }
       />
       <dl className="grid max-w-2xl grid-cols-[7rem_minmax(0,1fr)] gap-x-5 gap-y-3 rounded-lg border border-zinc-800 bg-zinc-900/30 p-4 text-sm">
