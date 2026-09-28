@@ -1,3 +1,4 @@
+import { requireCurrentOfficer } from "@/lib/current-officer";
 import { processCompletedEvents } from "@/lib/participation";
 import Link from "next/link";
 import { connection } from "next/server";
@@ -11,6 +12,7 @@ import {
   TableFrame,
 } from "@/components/ui";
 export default async function EventsPage() {
+  await requireCurrentOfficer();
   await connection();
   await processCompletedEvents();
   const { data, error } = await supabase

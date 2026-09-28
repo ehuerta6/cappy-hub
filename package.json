@@ -18,6 +18,7 @@
     "test:db:upgrade": "node scripts/test-db-upgrade.mjs"
   },
   "dependencies": {
+    "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.117.2",
     "next": "16.3.6",
     "react": "19.2.8",

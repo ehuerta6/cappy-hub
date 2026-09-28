@@ -1,3 +1,4 @@
+import { requireCurrentOfficer } from "@/lib/current-officer";
 import { processCompletedEvents } from "@/lib/participation";
 import Link from "next/link";
 import { connection } from "next/server";
@@ -12,6 +13,7 @@ import {
 import { formatLabel } from "@/lib/presentation";
 
 export default async function OfficersPage() {
+  await requireCurrentOfficer();
   await connection();
   await processCompletedEvents();
   const { data, error } = await supabase

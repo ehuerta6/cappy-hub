@@ -1,3 +1,4 @@
+import { requireCurrentOfficer } from "@/lib/current-officer";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -8,6 +9,7 @@ export default async function EditEventPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireCurrentOfficer();
   await connection();
   const { id } = await params;
   if (!/^[1-9]\d*$/.test(id)) notFound();

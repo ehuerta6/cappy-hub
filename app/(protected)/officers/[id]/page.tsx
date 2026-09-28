@@ -1,4 +1,5 @@
-import TransactionTable from "@/app/points/transaction-table";
+import { requireCurrentOfficer } from "@/lib/current-officer";
+import TransactionTable from "@/app/(protected)/points/transaction-table";
 import { eventStatus, displayDate } from "@/lib/event-status";
 import { processCompletedEvents } from "@/lib/participation";
 import Link from "next/link";
@@ -21,6 +22,7 @@ export default async function OfficerDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireCurrentOfficer();
   await connection();
   await processCompletedEvents();
   const { id } = await params;

@@ -1,4 +1,6 @@
 "use server";
+
+import { requireCurrentOfficer } from "@/lib/current-officer";
 import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -6,6 +8,7 @@ export async function saveEvent(
   _previous: { error: string },
   formData: FormData,
 ) {
+  await requireCurrentOfficer();
   const id = formData.get("id");
   const start = String(formData.get("starts_at") ?? "");
   const end = String(formData.get("ends_at") ?? "");
@@ -33,6 +36,7 @@ export async function changeSignup(
   _previous: { error: string },
   formData: FormData,
 ) {
+  await requireCurrentOfficer();
   const { error } = await supabase.rpc("change_event_signup", {
     p_event_id: Number(formData.get("event_id")),
     p_officer_id: Number(formData.get("officer_id")),
@@ -46,6 +50,7 @@ export async function cancelEvent(
   _previous: { error: string },
   formData: FormData,
 ) {
+  await requireCurrentOfficer();
   const { data, error } = await supabase
     .from("events")
     .update({ status: "cancelled" })

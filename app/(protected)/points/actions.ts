@@ -1,10 +1,13 @@
 "use server";
+
+import { requireCurrentOfficer } from "@/lib/current-officer";
 import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
 export async function addTransaction(
   _previous: { error: string; success: string },
   formData: FormData,
 ) {
+  await requireCurrentOfficer();
   const rawPoints = String(formData.get("points") ?? "");
   const points = Number(rawPoints);
   const awardType = String(formData.get("award_type") ?? "");
