@@ -25,6 +25,7 @@ export default function OfficerForm({
       <label>
         Name <input name="name" required defaultValue={officer?.name} />
       </label>
+      <p>Provide at least one email address.</p>
       <label>
         UTEP email (optional)
         <input
@@ -72,15 +73,17 @@ export default function OfficerForm({
           )}
         </select>
       </label>
-      <label>
-        Status
-        <select name="status" defaultValue={officer?.status ?? "active"}>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-      </label>
+      {officer && (
+        <label>
+          Status
+          <select name="status" defaultValue={officer.status}>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </label>
+      )}
       <fieldset>
-        <legend>Branches</legend>
+        <legend>Branches (optional)</legend>
         {branches.map((branch) => (
           <label key={branch.id}>
             <input

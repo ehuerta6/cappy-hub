@@ -84,7 +84,7 @@ export default function EventForm({
         />
       </label>
       <fieldset>
-        <legend>Branches (at least one)</legend>
+        <legend>Branches (optional; none means a global event)</legend>
         {branches.map((branch) => (
           <label key={branch.id}>
             <input

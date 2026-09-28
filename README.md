@@ -4,8 +4,8 @@ Cappy Hub is an internal administrative application for the Coding Interview Clu
 
 ## Current scope
 
-- Officers: create, list, view, edit, deactivate/reactivate; one controlled position, optional academic classification and separate optional UTEP/personal emails, multiple branches.
-- Events: create, list, view, edit upcoming events, cancel before the scheduled end, multiple branches, add/remove active officers while signup is open.
+- Officers: create, list, view, edit, deactivate/reactivate; one controlled position, optional academic classification, at least one contact email, and zero or more branches.
+- Events: create, list, view, edit upcoming events, cancel before the scheduled end, zero or more branches, add/remove active officers while signup is open.
 - Points: automatic scheduled participation awards, positive/negative fractional manual transactions and corrections, officer totals calculated with SQL `SUM`.
 - Connected profiles: officer events and point history; event participants and related transactions.
 - Dashboard: active officers, upcoming events, signed points this half-year, upcoming schedule and recent point activity. These are queries, not stored statistics.
@@ -47,9 +47,9 @@ Open http://localhost:3000. All schedule entry and displayed dates use UTC, expl
 
 Thirteen application tables: `officers`, `positions`, `branches`, `officer_branches`, `events`, `event_types`, `event_branches`, `event_officers`, `point_transactions`, `officer_warnings`, `warning_approvals`, `application_config`, and `audit_logs`. Supabase manages `auth.users` separately.
 
-Migrations in `supabase/migrations` capture the original schema, migrate text positions to `position_id`, seed the 15 design-doc positions and four branches (intro, social, icpc, general), and add events, points, and computed views. Existing legacy position names are preserved as catalog entries rather than guessed replacements. `can_manage_branch_events` defaults to false; only ICPC Lead, Intro Lead, and Social Media Lead are seeded true. Authorization using that capability is deferred.
+Migrations in `supabase/migrations` capture the original schema and then reconcile PR 1 to the current design. The final position catalog has six generic positions, and the controlled branches are general, intro, icpc, social, and outreach. Legacy detailed titles map to a generic position plus the corresponding branch memberships without changing officer IDs. Lead authorization is deferred.
 
-Foreign keys preserve references; composite primary keys prevent duplicate memberships/signups; constraints enforce classification/status, unique provided UTEP/personal emails and position/branch names, nonblank names/reasons, finite numeric points, and end after start. Deactivation/cancellation retain history. `created_by`, `removed_by`, warning approvers, and audit actors now reference `auth.users`. Nullable actors support system operations without fake users. Officers have a nullable unique auth link and default to the `officer` application role; login/linking and role authorization are deferred.
+Foreign keys preserve references; composite primary keys prevent duplicate memberships/signups; constraints require at least one officer email, enforce case-insensitive uniqueness across both contact fields, validate classification/status and nonblank names/reasons, and require timed events to end after they start on the same America/Denver calendar day. Deactivation/cancellation retain history. `created_by`, `removed_by`, warning approvers, and audit actors reference `auth.users`. Officers have a nullable unique auth link and default to the `officer` application role; login/linking and role authorization are deferred.
 
 For a **new development project**, use the official Supabase CLI:
 
@@ -71,9 +71,9 @@ npm run db:types:check
 
 The pinned CLI generates public-schema types from the local migrated database; CI checks for drift. Auth-schema foreign keys are enforced in PostgreSQL even though public-only type generation omits relationships to that private schema. Local CLI metadata is ignored.
 
-PR 1 converts `events.type` to a required `event_type_id`, seeding the six documented types and preserving custom historical values. Case/outer-whitespace variants share a catalog record. It preserves IDs and relationships and aborts on unknown non-null legacy point actors instead of deleting attribution. Officer saves reject empty branch selections transactionally; direct prototype table writes still require the later authorization hardening.
+PR 1 converts `events.type` to a required `event_type_id`, preserving custom historical values. The corrective migration permits zero officer or event branches; zero event branches means global. Save RPCs still replace associations transactionally. Direct prototype table writes still require later authorization hardening.
 
-`application_config` has one seeded record (`id = 1`), a positive finite participation rate of **1**, and a nonnegative finite flyer amount of **0**. Zero is a neutral migration placeholder because no initial flyer business value is specified. Admin configuration, rate snapshotting, and flyer processing are deferred. Existing page-load processing still uses the prototype environment setting until the processing PR.
+`application_config` has one seeded record (`id = 1`) with a positive finite participation rate of **1**. Admin configuration and trusted rate snapshotting are deferred. Existing page-load processing still uses the prototype environment setting until the processing PR.
 
 For local database verification, start Docker and run:
 
@@ -103,7 +103,7 @@ A 90-minute event at the default rate awards 1.5 points. PostgreSQL numeric supp
 
 No scheduled job runs while the app is idle. The next relevant server page load catches up ended events. Reload an already-open page after an event ends. Next.js may prefetch server pages, which can also trigger processing. A production MVP needs authenticated trusted processing at scheduled times and a decision about rate changes over time.
 
-Officer totals use the `officer_point_totals` query view over active transactions (`removed_at IS NULL`). The dashboard uses a query view over records for January–June or July–December in UTC, based on transaction creation time, including negative corrections. History is limited to the latest 50 transactions on Points, 100 on a detail page, and 10 on Dashboard; totals include all active records. Normal history queries also exclude removed rows. Automatic-award uniqueness includes removed rows, so a voided participation or flyer award cannot be regenerated. Lists are intended for a small prototype; pagination/search is deferred.
+Officer totals use the `officer_point_totals` query view over active transactions (`removed_at IS NULL`). The dashboard uses a query view over records for January–June or July–December in UTC, based on transaction creation time, including negative corrections. History is limited to the latest 50 transactions on Points, 100 on a detail page, and 10 on Dashboard; totals include all active records. Normal history queries also exclude removed rows. Participation uniqueness includes removed rows, so a voided participation award cannot be regenerated. Lists are intended for a small prototype; pagination/search is deferred.
 
 Corrections add a new manual or correction transaction; original transactions remain unchanged. Signups close at the scheduled end or cancellation. Upcoming-event editing prevents changing a completed schedule through the app. There is no early-completion UI or attendance verification in this pass.
 
@@ -116,8 +116,8 @@ Corrections add a new manual or correction transaction; original transactions re
 - Events: read, insert, update while the existing scheduled end is still future.
 - Event branches: read, insert, delete.
 - Event officers: read; insert/delete only for noncancelled events before their scheduled end.
-- Point transactions: read and insert existing POC award types with `created_by` null; no update/delete permissions or anonymous flyer/removal writes.
-- Role/auth-link, event snapshot/file/flyer, and point removal columns are excluded from prototype write grants.
+- Point transactions: read and insert existing POC award types with `created_by` null; no update/delete permissions or anonymous removal writes.
+- Role/auth-link, event snapshot/file, and point removal columns are excluded from prototype write grants.
 - Computed views use `security_invoker`; database functions run as the caller with an empty search path and explicit execute grants.
 
 These grants allow unauthenticated users with the project URL/key to access prototype data and perform the allowed writes. They support workflow development, **not user identity, admin restrictions, or trusted participation-award configuration**. The server action's configured rate is not a production security boundary: the anonymous RPC remains callable during development. Use development data and replace these policies, grants, and processing access before production. Do not work around RLS with a service-role key in the browser.
@@ -150,7 +150,7 @@ Validation data created during implementation is explicitly named “Prototype �
 
 ## Deferred to MVP
 
-Authentication and account linking; admin/officer/branch-lead permissions and final RLS; trusted scheduled processing; early completion; warnings/approvals; System Log/full auditing; award removal with audit history; flyer workflow; recurring events; Google Calendar/Drive/Discord integrations; spreadsheet imports; advanced filtering/search; production error UX and deployment hardening. The actor foreign keys and stored lead capabilities are implemented; identity-aware enforcement remains deferred. No production-ready security is claimed.
+Authentication and account linking; admin/officer/branch-lead permissions and final RLS; trusted scheduled processing; early completion; warnings/approvals; System Log/full auditing; award removal with audit history; Google Calendar/Drive/Discord integrations; spreadsheet imports; advanced filtering/search; production error UX and deployment hardening. Untimed events/tasks await product feedback. Identity-aware enforcement remains deferred. No production-ready security is claimed.
 
 ## Git & GitHub Workflow
 

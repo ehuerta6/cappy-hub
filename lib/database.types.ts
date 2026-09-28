@@ -11,19 +11,16 @@ export type Database = {
     Tables: {
       application_config: {
         Row: {
-          flyer_completion_points: number;
           id: number;
           participation_points_per_hour: number;
           updated_at: string;
         };
         Insert: {
-          flyer_completion_points: number;
           id?: number;
           participation_points_per_hour: number;
           updated_at?: string;
         };
         Update: {
-          flyer_completion_points?: number;
           id?: number;
           participation_points_per_hour?: number;
           updated_at?: string;
@@ -169,8 +166,6 @@ export type Database = {
           description: string;
           ends_at: string;
           event_type_id: number;
-          flyer_assigned_to: number | null;
-          flyer_status: string | null;
           id: number;
           location: string | null;
           meeting_notes_url: string | null;
@@ -185,8 +180,6 @@ export type Database = {
           description?: string;
           ends_at: string;
           event_type_id: number;
-          flyer_assigned_to?: number | null;
-          flyer_status?: string | null;
           id?: number;
           location?: string | null;
           meeting_notes_url?: string | null;
@@ -201,8 +194,6 @@ export type Database = {
           description?: string;
           ends_at?: string;
           event_type_id?: number;
-          flyer_assigned_to?: number | null;
-          flyer_status?: string | null;
           id?: number;
           location?: string | null;
           meeting_notes_url?: string | null;
@@ -218,20 +209,6 @@ export type Database = {
             columns: ["event_type_id"];
             isOneToOne: false;
             referencedRelation: "event_types";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "events_flyer_assigned_to_fkey";
-            columns: ["flyer_assigned_to"];
-            isOneToOne: false;
-            referencedRelation: "officer_point_totals";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "events_flyer_assigned_to_fkey";
-            columns: ["flyer_assigned_to"];
-            isOneToOne: false;
-            referencedRelation: "officers";
             referencedColumns: ["id"];
           },
         ];
@@ -422,19 +399,16 @@ export type Database = {
       };
       positions: {
         Row: {
-          can_manage_branch_events: boolean;
           created_at: string;
           id: number;
           name: string;
         };
         Insert: {
-          can_manage_branch_events?: boolean;
           created_at?: string;
           id?: number;
           name: string;
         };
         Update: {
-          can_manage_branch_events?: boolean;
           created_at?: string;
           id?: number;
           name?: string;

@@ -1,12 +1,14 @@
 -- Used only by scripts/test-db-upgrade.mjs after a local reset to the PR 0 schema.
 insert into auth.users(id) values ('20000000-0000-0000-0000-000000000001');
 insert into officers(id,name,position_id,utep_email,personal_email,classification,status) values
-  (90001,'Historical officer',1,'history@miners.utep.edu','history@example.org','graduate','inactive');
+  (90001,'Historical officer',(select id from positions where name='ICPC Lead'),'history@miners.utep.edu','history@example.org','graduate','inactive'),
+  (90002,'Historical global officer',(select id from positions where name='Secretary'),null,'global@example.org',null,'active'),
+  (90003,'Historical outreach lead',(select id from positions where name='Chief Outreach'),null,'outreach@example.org',null,'active');
 insert into officer_branches(officer_id,branch_id) values (90001,1),(90001,2);
 insert into events(id,name,type,starts_at,ends_at,status) values
-  (90001,'Custom historical event',' Career Fair ',now()-interval '2 days',now()-interval '1 day','past'),
-  (90002,'Same custom type','career fair',now()-interval '2 days',now()-interval '1 day','past'),
-  (90003,'Seeded type variant',' WORKSHOP ',now()+interval '1 day',now()+interval '2 days','upcoming');
+  (90001,'Custom historical event',' Career Fair ','2026-09-20 09:00-06','2026-09-20 10:00-06','past'),
+  (90002,'Same custom type','career fair','2026-09-20 11:00-06','2026-09-20 12:00-06','past'),
+  (90003,'Seeded type variant',' WORKSHOP ','2027-09-20 09:00-06','2027-09-20 10:00-06','upcoming');
 insert into event_branches(event_id,branch_id) values (90001,1),(90001,2);
 insert into event_officers(event_id,officer_id) values (90001,90001);
 insert into point_transactions(id,officer_id,event_id,points,reason,award_type,created_by) values
