@@ -69,9 +69,7 @@
     
 - [ ] Warning approval workflow.
     
-- [ ] Flyer workflow.
     
-- [ ] Recurring events.
     
 - [ ] System/audit log.
     
@@ -300,10 +298,10 @@
 
 # 5. Branch Lead Authorization
 
-## Resolved position capability and scope
+## Resolved lead scope
 
-- [x] positions.can_manage_branch_events exists in the current schema.
-- [x] Only ICPC Lead, Intro Lead, and Social Media Lead positions are designated as branch leads.
+- [x] Position `Lead` is the branch-management position; no separate capability flag is stored.
+- [x] Branch area is represented by membership; Lead + outreach is also supported.
 - [x] Academic Officer titles are descriptive and grant no additional Cappy Hub permission.
 - [x] Admins can manage all events regardless of position or branch.
 - [x] A branch lead may manage an event when the lead's memberships and event branches have at least one branch in common.
@@ -312,10 +310,8 @@
 
 ## Implementation
 
-- [ ] Set can_manage_branch_events = true only for the three designated lead positions; keep other positions false.
-- [ ] Connect the capability to backend authorization.
+- [ ] Enforce Lead position plus shared branch membership in trusted authorization.
 - [ ] Determine the lead's scope from current officer branch memberships.
-- [ ] Enforce the non-empty intersection rule for creating/updating events, assigning/removing signups, cancellation, early completion, and flyer work.
 - [ ] Enforce branch scope in RLS/backend functions, not only through hidden buttons.
 - [ ] Prevent a lead from expanding their own permission by changing event/officer branch associations.
 
@@ -461,9 +457,8 @@
 
 ## Application config RLS
 
-- [ ] Admins can read and change both participation-points-per-hour and flyer-completion-points values.
-    
-- [ ] Normal officers cannot change either value.
+- [ ] Admins can read and change the participation rate.
+- [ ] Normal officers cannot change the participation rate.
     
 - [ ] Rate changes are logged.
     
@@ -483,8 +478,8 @@
 
 # 7. Database — Final MVP Schema
 
-> [!note] PR 1 schema evidence
-> The forward migration and local PostgreSQL tests establish the final table/column model, transactional officer branch validation, controlled event types, actor FKs, and logical-removal-aware totals/uniqueness. See [PR 1 schema verification](pr1-schema-verification.md). Checked schema items refer to checked-in migrations verified locally, not a hosted deployment. Direct prototype table writes, final identity-aware RLS, scheduled processing, warnings, and flyer workflows remain incomplete.
+> [!note] Schema evidence
+> The corrective migration, PostgreSQL integrity tests, and populated upgrade test verify the current final model locally. See [PR 1 schema verification](pr1-schema-verification.md) for the preceding migration. Final Auth/RLS and production workflows remain incomplete.
 
 ## Required MVP tables
 
@@ -542,8 +537,8 @@
 - [x] Primary key exists.
 - [x] Name cannot be blank.
 - [x] UTEP and personal email formats are validated.
-- [x] Each email field is independently case-insensitive unique when provided.
-- [x] Multiple null emails are supported.
+- [x] Email uniqueness is global across both fields and case-insensitive.
+- [x] Either email may be null, but both cannot be null.
 - [x] position_id references a valid position.
 - [x] Classification is nullable and permits freshman, sophomore, junior, senior, and graduate.
 - [x] Status permits active and inactive.
@@ -556,12 +551,12 @@
 - [ ] Check current active status on protected requests and deny all app access to inactive officers.
 - [ ] Preserve the officer and all historical relationships after deactivation.
 
-## Remaining officer integrity rule
+## Officer integrity
 
-- [x] Enforce at least one branch through the transactional save_officer RPC.
-- [ ] Restrict direct officer/membership writes so every permitted mutation preserves that requirement.
-- [x] Creating an officer with zero branches must be rejected transactionally.
-- [x] Editing an officer so they have zero branches must be rejected transactionally.
+- [x] Officer save accepts zero or more branches transactionally.
+- [ ] Restrict direct officer/membership writes under final authorization.
+- [x] Creating an officer with zero branches succeeds.
+- [x] Editing an officer to zero branches succeeds.
 - [x] Do not rely solely on form checkbox validation.
 
 # 9. Database — positions
@@ -570,21 +565,21 @@
 
 - [x] id
 - [x] name
-- [x] can_manage_branch_events
+- [x] No separate branch-management flag exists.
 - [x] created_at
 - [x] Position names are unique controlled data.
 - [x] Officers reference one position by ID.
 
 ## Resolved permission decisions
 
-- [x] Only ICPC Lead, Intro Lead, and Social Media Lead are branch-lead positions.
+- [x] Lead is the generic branch-management position; branch memberships identify the area.
 - [x] Academic Officer titles are descriptive and do not grant branch-management capability.
 - [x] All other catalog positions remain non-leads regardless of title.
 
 ## Remaining work
 
-- [x] Implement can_manage_branch_events = true only for the three designated lead positions and false for all others.
-- [ ] Connect this capability to backend authorization and branch-membership scope.
+- [x] Simplified position catalog contains Lead and Officer; the obsolete flag was removed.
+- [ ] Enforce Lead plus branch intersection in backend authorization.
 
 # 10. Database — `branches`
 
@@ -607,13 +602,14 @@
 - [x] Current `icpc` branch exists.
     
 - [x] Current `social` branch exists.
+- [x] Current `outreach` branch exists.
     
 
 ## Scope rules
 
 - [x] Officers may belong to multiple branches structurally.
     
-- [ ] Officers must belong to at least one branch in final MVP.
+- [x] Officers may belong to zero or more branches.
     
 - [x] Branches are separate from positions.
     
@@ -638,7 +634,7 @@
     
 - [x] Many-to-many relationship works.
     
-- [x] Current officer-save RPC guarantees at least one branch row on success.
+- [x] Current officer-save RPC transactionally replaces zero or more memberships.
 - [ ] Add identity-aware authorization to the final save workflow.
     
 - [ ] Final RLS protects membership mutation.
@@ -671,16 +667,16 @@
 ## Final MVP event columns and constraints
 
 - [x] Implement required event_type_id referencing event_types, replacing the current POC free-text type column.
-- [x] Add nullable participation_points_per_hour_at_end for the scheduled-end rate snapshot.
+- [x] Add nullable participation_points_per_hour_at_end for rate snapshot when trusted processing runs.
 - [x] Add optional slides_url and meeting_notes_url.
-- [x] Add optional flyer_status and flyer_assigned_to for Social flyer workflow.
 - [x] Event name is nonblank and event_type_id is required; referenced type names are nonblank.
 - [x] starts_at and ends_at are required in the current POC.
-- [x] ends_at > starts_at is enforced in the current POC.
+- [x] ends_at > starts_at is enforced.
+- [x] Timed events start and end on the same America/Denver calendar date.
 - [x] Current POC status values are upcoming, happening, past, and cancelled.
 - [x] Resolved decision: early completion sets the existing status to past; it does not record an actual completion timestamp.
 - [x] Resolved decision: preserve scheduled starts_at/ends_at; do not add completed_at or an actual-end-time field.
-- [x] Resolved decision: early completion closes signup/signout, while participation processing waits until scheduled ends_at and uses the scheduled duration.
+- [ ] Clarify whether early completion processes participation immediately or at scheduled end; preserve scheduled duration.
 - [x] Resolved decision: keep timezone-aware timestamps and use America/Denver for event input/display.
 - [x] Resolved decision: event-type names are unique; reject deletion while referenced and never cascade into event history.
 
@@ -700,7 +696,7 @@
     
 - [x] An event can structurally belong to multiple branches.
     
-- [x] Current event-save RPC requires at least one branch.
+- [x] Current event-save RPC permits zero branches, representing a global event.
     
 - [x] Resolved decision: branch-lead scope is based on event branches and requires at least one shared branch.
     
@@ -780,9 +776,9 @@
 - [ ] Implement logical award removal; retain the original transaction as a voided history record.
 - [x] Exclude removed transactions from derived totals and ordinary active history.
 - [x] Resolved decision: retain removed participation awards for idempotency so they are never regenerated.
-- [x] Enforce at most one participation award per officer/event and at most one flyer award per event, including removed awards.
+- [x] Enforce at most one participation award per officer/event, including removed awards.
 - [ ] Preserve removal actor, timestamp, and transaction details in the System Log.
-- [ ] Store the final awarded amount in each transaction; later configuration changes do not recalculate it.
+- [x] Store the awarded amount in each transaction; later configuration changes do not recalculate it.
 
 # 16. Database — `officer_warnings`
 
@@ -864,15 +860,12 @@
 - [x] Create application_config as a single-row table.
 - [x] Add id.
 - [x] Add participation_points_per_hour (resolved design value in application_config).
-- [x] Add flyer_completion_points (resolved design value in application_config).
 - [x] Add updated_at.
-- [x] Validate both configured point values according to the approved numeric constraints.
+- [x] Validate the participation rate as positive and finite.
 - [x] Provide a predictable way to access the single configuration row.
-- [ ] Allow admins to view and change both values.
-- [ ] Prevent normal officers from changing either value.
-- [ ] Log rate and flyer-value changes with the authenticated actor.
-- [ ] Automatic participation processing reads and snapshots the current participation rate at scheduled event end.
-- [ ] Flyer completion reads the current flyer amount and stores the resulting award amount permanently.
+- [ ] Allow admins to view and change the participation rate.
+- [ ] Prevent normal officers from changing the participation rate.
+- [ ] Trusted participation processing reads and snapshots the current rate when processing occurs; clarify early-completion timing.
 
 # 19. Database — audit_logs
 
@@ -999,7 +992,7 @@
     
 - [x] Classification select exists.
     
-- [x] Status input exists.
+- [x] Status input exists only for editing; new officers default active.
     
 - [x] Multiple branch selection exists.
     
@@ -1021,9 +1014,9 @@
     
 - [x] Database validates status.
     
-- [ ] Require at least one branch in UI.
+- [x] Branch selection is optional in the UI.
     
-- [ ] Require at least one branch in trusted backend path.
+- [x] Trusted save accepts an empty branch collection.
     
 - [ ] Only admins can create officers.
     
@@ -1060,7 +1053,7 @@
     
 - [x] Officer + branch changes are transactional.
     
-- [ ] Prevent save with zero branches.
+- [x] Editing an officer to zero branches is supported.
     
 - [ ] Only admins can edit officers.
     
@@ -1271,7 +1264,7 @@
     
 - [x] End time.
     
-- [x] One or more branches.
+- [x] Zero or more branches; zero means global.
     
 - [x] Save is transactional with branch associations.
     
@@ -1282,11 +1275,8 @@
     
 - [ ] Optional meeting notes URL.
     
-- [ ] Social-event flyer status.
     
-- [ ] Social-event flyer assignee.
     
-- [ ] Recurrence configuration.
     
 - [ ] Role/branch authorization.
     
@@ -1396,7 +1386,6 @@
     
 - [x] Editing preserves historical records.
     
-- [ ] Editing recurring occurrences affects only the selected occurrence unless explicitly creating/editing a recurrence set during creation.
     
 - [ ] Event edits are logged in System Log.
     
@@ -1421,16 +1410,12 @@
     
 - [ ] Cancellation logged.
     
-- [ ] Recurring schedule occurrence can be cancelled independently.
     
 
 ---
 
 # 34. Event Deletion Rules
 
-- [ ] Add deletion behavior required for eligible future recurring occurrences.
-    
-- [ ] Future occurrence can be deleted individually.
     
 - [ ] Past-event deletion is not available in normal UI.
     
@@ -1441,48 +1426,6 @@
 - [ ] Deletion does not accidentally cascade historical points.
     
 - [ ] Relevant deletion is represented in System Log where required.
-    
-
----
-
-# 35. Recurring Events
-
-- [ ] Event creation can generate a recurring schedule.
-    
-- [ ] Recurrence is capped at 15 weeks.
-    
-- [ ] Generated occurrences stay within the current half-year:
-    
-    - January–June, or
-        
-    - July–December.
-        
-    
-- [ ] Each generated occurrence is an independent event row.
-    
-- [ ] Each occurrence has its own ID.
-    
-- [ ] Each occurrence has its own schedule.
-    
-- [ ] Each occurrence has its own status.
-    
-- [ ] Each occurrence can be edited independently.
-    
-- [ ] Each occurrence can be cancelled independently.
-    
-- [ ] Eligible future occurrences can be deleted independently.
-    
-- [ ] Past occurrences cannot be deleted through UI.
-    
-- [ ] Copied/generated occurrences do **not** inherit officer signups.
-    
-- [ ] Recurrence generation validates all resulting dates.
-    
-- [ ] Recurrence generation validates half-year boundary.
-    
-- [ ] Recurrence generation validates 15-week limit.
-    
-- [ ] Recurrence actions respect admin/branch-lead authorization.
     
 
 ---
@@ -1522,13 +1465,9 @@
     
 - [ ] Meeting notes link.
     
-- [ ] Social flyer status.
     
-- [ ] Social flyer assignee.
     
-- [ ] Flyer completion control.
     
-- [ ] Flyer award information.
     
 - [ ] Role-aware signup controls.
     
@@ -1562,55 +1501,6 @@
 - [ ] Cappy Hub stores/references URLs only where needed.
     
 - [ ] Validate/handle empty URLs appropriately.
-    
-
----
-
-# 38. Social Event Flyer Workflow
-
-## Data
-
-- [ ] Add `flyer_status`.
-    
-- [ ] Add `flyer_assigned_to`.
-    
-- [ ] `flyer_assigned_to` references an officer.
-    
-- [ ] Flyer fields are relevant for Social events.
-    
-
-## UI
-
-- [ ] Event detail shows flyer status.
-    
-- [ ] Event detail shows assigned officer.
-    
-- [ ] Authorized user can assign flyer work.
-    
-- [ ] Authorized user can change status.
-    
-- [ ] Admin can mark flyer done.
-    
-- [ ] Authorized lead for event branch can mark flyer done.
-    
-
-## Points
-
-- [x] Resolved product decision: the flyer award amount comes from `application_config.flyer_completion_points`.
-    
-- [ ] Implement flyer award using the configured amount and award it to `flyer_assigned_to`.
-    
-- [ ] Completing flyer work creates no more than one flyer award for the event.
-    
-- [ ] Add `flyer` point transaction type.
-    
-- [ ] Add uniqueness rule preventing duplicate flyer award.
-    
-- [ ] Flyer award references event.
-    
-- [ ] Flyer completion is logged.
-    
-- [ ] Flyer award is logged.
     
 
 ---
@@ -1693,7 +1583,6 @@
     
 - [ ] Award deletion workflow exists.
     
-- [ ] Flyer awards exist.
     
 - [ ] All point-changing actions are audited.
     
@@ -1811,11 +1700,10 @@
     
 - [ ] Processing runs even when nobody loads Cappy Hub.
     
-- [x] Resolved decision: process an event only once it reaches its scheduled end (scheduler polling interval is approximately one minute).
+- [ ] Clarify early-completion processing timing before implementing the scheduler.
     
 - [x] Resolved decision: trusted private database processing reads configured values; no anonymous rate parameter is accepted.
     
-- [x] Resolved decision: read participation and flyer amounts from `application_config`.
     
 - [ ] Processing stores that rate in `events.participation_points_per_hour_at_end`.
     
@@ -1838,7 +1726,6 @@
     
 - [ ] Remove environment variable as the authoritative business configuration.
     
-- [ ] Admin can view/change both configured values, participation rate and flyer completion points.
     
 - [ ] Normal officer cannot change rate.
     
@@ -2035,9 +1922,7 @@
     
 - [ ] Point award removal.
     
-- [ ] Flyer completion.
     
-- [ ] Flyer point award.
     
 
 ## Additional operational mutation logging
@@ -2125,7 +2010,6 @@
     
 - [ ] Can manage signups for authorized events.
     
-- [ ] Can manage flyer workflow for authorized events.
     
 - [ ] Cannot manage unrelated branch events.
     
@@ -2171,7 +2055,7 @@
     
 - [x] Status validation.
     
-- [ ] At least one branch required.
+- [x] Branches are optional.
     
 - [ ] Role authorization enforced independently from form.
     
@@ -2188,19 +2072,15 @@
     
 - [x] End-after-start database validation.
     
-- [x] At least one branch required through save RPC.
+- [x] Save RPC accepts zero branch associations.
     
 - [ ] Slides URL field.
     
 - [ ] Meeting notes URL field.
     
-- [ ] Flyer fields where applicable.
     
-- [ ] Recurrence controls.
     
-- [ ] Recurrence limit validation.
     
-- [ ] Half-year recurrence validation.
     
 - [ ] Authorization validation.
     
@@ -2243,7 +2123,6 @@
 
 > Current POC treats event form/display timestamps as UTC.
 
-- [x] Resolved product decision: user-facing event times and recurrence use America/Denver (El Paso local time).
     
 - [x] Resolved decision: PostgreSQL event timestamps remain timezone-aware.
     
@@ -2255,7 +2134,6 @@
     
 - [ ] Ensure Dashboard displays expected America/Denver local time.
     
-- [ ] Ensure recurrence generation uses America/Denver consistently.
     
 - [ ] Ensure DST/timezone changes do not alter scheduled duration unexpectedly.
     
@@ -2379,11 +2257,8 @@
     
 - [ ] Warning decision validation enforced.
     
-- [ ] Flyer award uniqueness enforced.
     
-- [ ] Flyer assignee FK enforced.
     
-- [ ] Flyer status validation enforced.
     
 - [ ] Application config rate validation enforced.
     
@@ -2569,13 +2444,11 @@ PR 1 evidence: [GitHub CI on Node 24](https://github.com/ehuerta6/cappy-hub/acti
 - [x] Run the automated test command in CI.
 - [x] Keep test setup simple; no browser, E2E, snapshot, or mocking stack is added.
 
-PR 1 removes --passWithNoTests. Vitest runs real pgTAP assertions against disposable local Supabase, and CI verifies populated-POC migration preservation, fresh replay, SQL function lint, and generated-type drift. The tests cover schema integrity and prototype compatibility, not final authorization, scheduled processing, warnings workflows, or recurrence.
 
 ## Database integrity tests
 
 - [x] Invalid application roles and invalid/duplicate auth links are rejected.
 - [x] Event type is required/valid; referenced types cannot be deleted.
-- [x] Removed participation and flyer awards still prevent regeneration.
 - [x] Removed awards do not contribute to totals; signed corrections do.
 - [x] Singleton configuration and finite fractional values are validated.
 - [x] Populated POC upgrade preserves IDs, history, custom event types, and relationships.
@@ -2601,7 +2474,6 @@ PR 1 removes --passWithNoTests. Vitest runs real pgTAP assertions against dispos
     
 - [x] Duplicate participation award rejected.
     
-- [x] Duplicate flyer award rejected.
     
 - [x] Warning/approver duplicate rejected.
     
@@ -2690,25 +2562,6 @@ PR 1 removes --passWithNoTests. Vitest runs real pgTAP assertions against dispos
     
 - [ ] Deleted warning leaves audit record.
     
-
-## Recurring event tests
-
-- [ ] Maximum 15-week span.
-    
-- [ ] Current half-year boundary enforced.
-    
-- [ ] Independent rows created.
-    
-- [ ] Signups are not copied.
-    
-- [ ] Editing one occurrence does not mutate others.
-    
-- [ ] Cancelling one occurrence does not cancel others.
-    
-- [ ] Past occurrence cannot be deleted from UI/workflow.
-    
-
----
 
 # 62. Production Processing / Scheduler
 
@@ -2808,21 +2661,23 @@ These are product decisions, not implementation completion. The corresponding im
 
 ## Positions, branches, and event types
 
-- [x] Only ICPC Lead, Intro Lead, and Social Media Lead receive branch-management capability; academic officer titles are descriptive.
+- [x] Lead plus shared branch membership defines branch-management scope; academic officer titles are descriptive.
 - [x] A lead may manage an event only when their branch memberships and the event’s branches have a non-empty intersection.
 - [x] Include `event_types` in the MVP schema (13 application tables). Events use required `event_type_id`; admins manage unique types, and referenced types cannot be deleted.
 
 ## Points, scheduling, and time
 
-- [x] `application_config` stores both participation points per hour and flyer completion points.
-- [x] At scheduled event end, snapshot the participation rate and award using the scheduled duration.
-- [x] Flyer completion awards the configured amount to `flyer_assigned_to`, at most once per event.
-- [x] Use America/Denver for event input, display, recurrence, and half-year boundaries.
-- [x] Early completion sets status to `past`, closes participation, retains scheduled times, and does not start point processing early or add an actual-end timestamp.
+- [x] `application_config` stores the participation points rate only.
+- [x] America/Denver is the official timezone for timed events.
+
+- [x] Participation awards use the scheduled duration; processing timing for early completion needs clarification.
+- [x] Early completion sets status to `past`, closes participation, and retains scheduled times. Processing timing awaits clarification.
 - [x] A logically removed award retains its history and is never regenerated.
 - [x] Trusted Supabase Cron/pg_cron calls a private database function approximately once per minute; processing does not depend on page loads, Vercel Cron, or Edge Functions.
 
 # 66. Explicitly Post-MVP / Not Required Now
+
+Untimed events/tasks await President feedback. Do not treat them as an implemented MVP workflow.
 
 ## Do not block MVP on these
 
@@ -2859,9 +2714,7 @@ These are product decisions, not implementation completion. The corresponding im
     
 - [x] Add participation rate snapshot column to events.
     
-- [x] Add missing event file/flyer columns.
     
-- [ ] Add flyer award type/constraint; configured amount is awarded to the event’s flyer assignee.
     
 - [x] Add `officer_warnings`.
     
@@ -2869,7 +2722,7 @@ These are product decisions, not implementation completion. The corresponding im
     
 - [x] Add `audit_logs`.
     
-- [ ] Enforce at least one branch per officer.
+- [x] Permit zero or more branches per officer.
     
 - [x] Regenerate Supabase TypeScript types.
     
@@ -2893,7 +2746,7 @@ These are product decisions, not implementation completion. The corresponding im
 
 - [ ] Configure officer application_role assignments for admins.
     
-- [x] Resolved decision: ICPC Lead, Intro Lead, and Social Media Lead are the only branch-lead positions.
+- [x] Resolved decision: Lead plus shared branch membership defines branch scope.
     
 - [ ] Implement branch-scope permission helpers.
     
@@ -2950,13 +2803,10 @@ These are product decisions, not implementation completion. The corresponding im
     
 - [ ] Early completion.
     
-- [ ] Recurring schedule generation.
     
-- [ ] Future occurrence deletion.
+
     
-- [ ] Flyer workflow.
     
-- [ ] Flyer points.
     
 - [ ] Implement admin event-type management with reference-protected deletion.
     
@@ -3005,7 +2855,6 @@ These are product decisions, not implementation completion. The corresponding im
     
 - [ ] Warning tests.
     
-- [ ] Recurrence tests.
     
 - [ ] Run security review.
     
@@ -3047,7 +2896,7 @@ These are product decisions, not implementation completion. The corresponding im
     
 - [ ] Officer has one position.
     
-- [ ] Officer has at least one branch.
+- [ ] Officer may have zero or more branches.
     
 - [ ] Admin edits officer.
     
@@ -3062,7 +2911,7 @@ These are product decisions, not implementation completion. The corresponding im
 
 - [ ] Admin creates event.
     
-- [ ] Event has at least one branch.
+- [ ] Event may have zero branches and be global.
     
 - [ ] Event has valid start/end.
     
@@ -3196,42 +3045,6 @@ These are product decisions, not implementation completion. The corresponding im
 - [ ] Warning deletion leaves audit history.
     
 
-## Recurring event workflow
-
-- [ ] Authorized user creates recurrence.
-    
-- [ ] Recurrence is at most 15 weeks.
-    
-- [ ] Recurrence stays in current half-year.
-    
-- [ ] Each occurrence is independent.
-    
-- [ ] No signups are copied.
-    
-- [ ] Individual occurrence can be edited.
-    
-- [ ] Individual occurrence can be cancelled.
-    
-- [ ] Eligible future occurrence can be deleted.
-    
-- [ ] Past occurrence cannot be deleted through UI.
-    
-
-## Social flyer workflow
-
-- [ ] Social event shows flyer state.
-    
-- [ ] Flyer can be assigned.
-    
-- [ ] Authorized user marks flyer complete.
-    
-- [ ] Only one flyer award is created.
-    
-- [ ] Flyer completion is logged.
-    
-- [ ] Flyer award is logged.
-    
-
 ## Dashboard workflow
 
 - [ ] Active officer count is correct.
@@ -3278,7 +3091,7 @@ These are product decisions, not implementation completion. The corresponding im
 
 - [ ] All MVP features above are complete.
     
-- [x] Product decisions in the Design Doc and checklist are resolved.
+- [ ] Untimed events/tasks and early-completion processing timing need product clarification.
 - [ ] Implement the resolved product decisions.
     
 - [ ] No post-MVP feature is accidentally blocking release.
@@ -3338,7 +3151,6 @@ These are product decisions, not implementation completion. The corresponding im
     
 - [ ] Award removal works.
     
-- [ ] Flyer award works.
     
 - [ ] Point totals remain derived.
     
@@ -3412,7 +3224,6 @@ These are product decisions, not implementation completion. The corresponding im
     
 - [ ] **Events are complete**
     
-- [ ] **Recurring events are complete**
     
 - [ ] **Event participation is identity-aware**
     
@@ -3420,7 +3231,6 @@ These are product decisions, not implementation completion. The corresponding im
     
 - [ ] **Trusted automatic participation processing is complete**
     
-- [ ] **Flyer workflow is complete**
     
 - [ ] **Dashboard is complete**
     
