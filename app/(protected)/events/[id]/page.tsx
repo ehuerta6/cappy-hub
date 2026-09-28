@@ -76,6 +76,12 @@ export default async function EventDetailPage({
         <dd>{displayDateTime(event.starts_at)}</dd>
         <dt>End</dt>
         <dd>{displayDateTime(event.ends_at)}</dd>
+        <dt>Participation rate used</dt>
+        <dd>
+          {event.participation_points_per_hour_at_end === null
+            ? "Not processed"
+            : `${event.participation_points_per_hour_at_end} points/hour`}
+        </dd>
         <dt>Status</dt>
         <dd>
           <StatusBadge status={status} />

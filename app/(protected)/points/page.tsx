@@ -102,7 +102,7 @@ export default async function PointsPage({
     <div className="space-y-8">
       <PageHeader
         title="Points"
-        description="Participation awards are paused until the trusted scheduled processor is added."
+        description="Finished events receive participation awards automatically from the scheduled database processor."
       />
       <section className="space-y-3">
         <SectionHeading title="Point configuration" />
