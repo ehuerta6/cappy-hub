@@ -5,7 +5,7 @@ import {
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 import OfficerForm from "../../new/officer-form";
 
 export default async function EditOfficerPage({
@@ -16,6 +16,7 @@ export default async function EditOfficerPage({
   if (!canManageOfficers(await getAuthorizationContext()))
     redirect("/access-denied");
   await connection();
+  const supabase = await createClient();
   const { id } = await params;
   if (!/^[1-9]\d*$/.test(id)) notFound();
   const [officer, branches, positions] = await Promise.all([

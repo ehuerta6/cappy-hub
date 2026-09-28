@@ -1,7 +1,7 @@
 import { getAuthorizationContext, canManagePoints } from "@/lib/authorization";
 import Link from "next/link";
 import { connection } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 import TransactionForm from "./transaction-form";
 import TransactionTable from "./transaction-table";
 import {
@@ -13,6 +13,7 @@ import {
 export default async function PointsPage() {
   const actor = await getAuthorizationContext();
   await connection();
+  const supabase = await createClient();
   const [transactions, totals, officers, events] = await Promise.all([
     supabase
       .from("point_transactions")

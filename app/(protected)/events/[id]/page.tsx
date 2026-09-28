@@ -3,7 +3,7 @@ import TransactionTable from "@/app/(protected)/points/transaction-table";
 import Link from "next/link";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 import { eventStatus, displayDateTime } from "@/lib/event-status";
 import { SignupForm, CancelForm } from "../event-controls";
 import {
@@ -21,6 +21,7 @@ export default async function EventDetailPage({
 }) {
   const actor = await getAuthorizationContext();
   await connection();
+  const supabase = await createClient();
   const { id } = await params;
   if (!/^[1-9]\d*$/.test(id)) notFound();
   const [result, officers] = await Promise.all([

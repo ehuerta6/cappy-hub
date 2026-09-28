@@ -7,7 +7,7 @@ import { eventStatus, displayDate } from "@/lib/event-status";
 import Link from "next/link";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 import {
   ActionLink,
   BranchBadges,
@@ -26,6 +26,7 @@ export default async function OfficerDetailPage({
 }) {
   const actor = await getAuthorizationContext();
   await connection();
+  const supabase = await createClient();
   const { id } = await params;
   if (!/^[1-9]\d*$/.test(id)) notFound();
   const { data: officer, error } = await supabase

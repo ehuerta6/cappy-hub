@@ -212,29 +212,29 @@
 
 - [x] Add Supabase Auth application integration (external Google provider setup remains pending).
     
-- [ ] Add session-aware Supabase requests.
+- [x] Add session-aware Supabase requests.
     
-- [ ] Replace anonymous application behavior with authenticated behavior.
+- [x] Replace anonymous application behavior with authenticated behavior.
     
 - [x] Ensure Server Components can identify the current authenticated user.
     
 - [x] Ensure Server Actions can identify the current authenticated user.
     
-- [ ] Ensure database requests execute with the proper authenticated identity.
+- [x] Ensure database requests execute with the proper authenticated identity.
     
-- [ ] Ensure direct client/database calls receive the same authorization protections as Server Actions.
+- [x] Ensure direct client/database calls receive the same authorization protections as Server Actions.
     
-- [ ] Remove production dependency on anonymous development write access.
+- [x] Remove production dependency on anonymous development write access.
     
-- [ ] Remove anonymous execution access from privileged RPCs.
+- [x] Remove anonymous execution access from privileged RPCs.
     
-- [ ] Review grants for `anon`.
+- [x] Review grants for `anon`.
     
-- [ ] Configure correct grants for `authenticated`.
+- [x] Configure correct grants for `authenticated`.
     
-- [ ] Review grants for views.
+- [x] Review grants for views.
     
-- [ ] Review grants for RPC functions.
+- [x] Review grants for RPC functions.
     
 - [x] Regenerate TypeScript database types after final schema migrations.
     
@@ -319,25 +319,25 @@
 
 ## Replace prototype policies
 
-- [ ] RLS is currently enabled on all existing POC tables.
+- [x] RLS is currently enabled on all existing POC tables.
     
-- [ ] Remove/replace every `TEMPORARY DEVELOPMENT` anonymous policy.
+- [x] Remove/replace every `TEMPORARY DEVELOPMENT` anonymous policy.
     
-- [ ] Remove anonymous broad officer reads/writes as appropriate.
+- [x] Remove anonymous broad officer reads/writes as appropriate.
     
-- [ ] Remove anonymous event writes.
+- [x] Remove anonymous event writes.
     
-- [ ] Remove anonymous signup writes.
+- [x] Remove anonymous signup writes.
     
-- [ ] Remove anonymous point insertion.
+- [x] Remove anonymous point insertion.
     
-- [ ] Remove anonymous privileged RPC execution.
+- [x] Remove anonymous privileged RPC execution.
     
-- [ ] Add final policies for authenticated users.
+- [x] Add final policies for authenticated users.
     
-- [ ] Verify views use authorization-safe access.
+- [x] Verify views use authorization-safe access.
     
-- [ ] Verify functions cannot bypass application permissions unintentionally.
+- [x] Verify functions cannot bypass application permissions unintentionally.
     
 
 ## Officers RLS
@@ -346,111 +346,111 @@
 
 - [x] Resolved warning policy: admins administer warnings; an officer sees only their own approved warnings.
 
-- [ ] Implement these read policies in RLS and the application.
+- [ ] Implement these read policies in RLS and the application (RLS is complete; the warning UI is pending).
     
-- [ ] Admins can create officers.
+- [x] Admins can create officers.
     
-- [ ] Admins can edit officers.
+- [x] Admins can edit officers.
     
-- [ ] Admins can deactivate officers.
+- [x] Admins can deactivate officers.
     
-- [ ] Admins can reactivate officers.
+- [x] Admins can reactivate officers.
     
-- [ ] Normal officers cannot mutate arbitrary officer records.
+- [x] Normal officers cannot mutate arbitrary officer records.
     
 
 ## Officer branch RLS
 
-- [ ] Approved users can read relevant memberships.
+- [x] Approved users can read relevant memberships.
     
-- [ ] Only authorized operations can modify officer memberships.
+- [x] Only authorized operations can modify officer memberships.
     
-- [ ] An officer cannot arbitrarily grant themselves another branch.
+- [x] An officer cannot arbitrarily grant themselves another branch.
     
-- [ ] An officer cannot use branch changes to grant themselves lead access.
+- [x] An officer cannot use branch changes to grant themselves lead access.
     
 
 ## Events RLS
 
-- [ ] Approved users can read permitted events.
+- [x] Approved users can read permitted events.
     
-- [ ] Admins can create any event.
+- [x] Admins can create any event.
     
-- [ ] Admins can modify any event allowed by event-state rules.
+- [x] Admins can modify any event allowed by event-state rules.
     
-- [ ] Branch leads can create/modify events only when their branch memberships intersect the event branches in at least one branch.
+- [x] Branch leads can create/modify events only when their branch memberships intersect the event branches in at least one branch.
     
-- [ ] Normal officers cannot edit arbitrary events.
+- [x] Normal officers cannot edit arbitrary events.
     
-- [ ] Cancellation permissions are enforced.
+- [x] Cancellation permissions are enforced.
     
 - [ ] Early completion permissions are enforced.
     
 
 ## Event branches RLS
 
-- [ ] Admins can assign branches to events.
+- [x] Admins can assign branches to events.
     
-- [ ] Branch-lead changes respect branch membership.
+- [x] Branch-lead changes respect branch membership.
     
-- [ ] A branch lead cannot use `event_branches` mutation to expand their own authorization improperly.
+- [x] A branch lead cannot use `event_branches` mutation to expand their own authorization improperly.
     
 
 ## Event officer/signup RLS
 
-- [ ] Officers can add their own signup.
+- [x] Officers can add their own signup.
     
-- [ ] Officers can remove their own signup.
+- [x] Officers can remove their own signup.
     
-- [ ] Officers cannot add another officer unless authorized.
+- [x] Officers cannot add another officer unless authorized.
     
-- [ ] Officers cannot remove another officer unless authorized.
+- [x] Officers cannot remove another officer unless authorized.
     
-- [ ] Admins can manage all event signups.
+- [x] Admins can manage all event signups.
     
-- [ ] Branch leads can manage signups only when their branch memberships intersect the event branches in at least one branch.
+- [x] Branch leads can manage signups only when their branch memberships intersect the event branches in at least one branch.
     
-- [ ] Signups remain closed after event end.
+- [x] Signups remain closed after event end.
     
-- [ ] Signups remain closed for cancelled events.
+- [x] Signups remain closed for cancelled events.
     
 
 ## Points RLS
 
-- [ ] Approved users can read permitted point information.
+- [x] Approved users can read permitted point information.
     
-- [ ] Only admins can create manual point transactions.
+- [x] Only admins can create manual point transactions.
     
-- [ ] Only admins can create corrections.
+- [x] Only admins can create corrections.
     
 - [ ] Only admins can remove awards.
     
 - [ ] Automated participation awards can only be generated by the trusted processing path.
     
-- [ ] Normal officers cannot directly insert points.
+- [x] Normal officers cannot directly insert points.
     
-- [ ] Normal officers cannot call a privileged award-processing RPC with arbitrary parameters.
+- [x] Normal officers cannot call a privileged award-processing RPC with arbitrary parameters.
     
 
 ## Warnings RLS
 
 - [ ] Admins can create warnings.
     
-- [ ] Admins can view pending warnings.
+- [x] Admins can view pending warnings.
     
-- [ ] Admins can view approved warnings.
+- [x] Admins can view approved warnings.
     
-- [ ] Admins can view rejected warnings.
+- [x] Admins can view rejected warnings.
     
 - [ ] Required President/VP approvers can submit only their own approval decision.
     
 - [ ] Officers cannot approve warnings unless they are a required approver.
     
-- [ ] Assigned officers can see only approved warnings on their own profile.
+- [x] Assigned officers can see only approved warnings on their own profile.
     
-- [ ] Assigned officers cannot see pending warnings.
+- [x] Assigned officers cannot see pending warnings.
     
-- [ ] Assigned officers cannot see rejected warnings.
+- [x] Assigned officers cannot see rejected warnings.
     
 - [ ] Warning deletion is admin-only.
     
@@ -458,18 +458,18 @@
 ## Application config RLS
 
 - [ ] Admins can read and change the participation rate.
-- [ ] Normal officers cannot change the participation rate.
+- [x] Normal officers cannot change the participation rate.
     
 - [ ] Rate changes are logged.
     
 
 ## Audit log RLS
 
-- [ ] Only admins can view System Log records.
+- [x] Only admins can view System Log records.
     
-- [ ] Normal officers cannot query audit logs directly.
+- [x] Normal officers cannot query audit logs directly.
     
-- [ ] Audit records cannot be modified through normal application workflows.
+- [x] Audit records cannot be modified through normal application workflows.
     
 - [ ] Audit records survive deletion of the entity they describe.
     
@@ -479,7 +479,7 @@
 # 7. Database — Final MVP Schema
 
 > [!note] Schema evidence
-> The corrective migration, PostgreSQL integrity tests, and populated upgrade test verify the current final model locally. See [PR 1 schema verification](pr1-schema-verification.md) for the preceding migration. Final Auth/RLS and production workflows remain incomplete.
+> The corrective migration, PostgreSQL integrity tests, and populated upgrade test verify the current final model locally. See [PR 1 schema verification](pr1-schema-verification.md) for the preceding migration. Local Auth/RLS policies and direct-access tests are complete; live provider setup and remaining product workflows are still pending.
 
 ## Required MVP tables
 
@@ -554,7 +554,7 @@
 ## Officer integrity
 
 - [x] Officer save accepts zero or more branches transactionally.
-- [ ] Restrict direct officer/membership writes under final authorization.
+- [x] Restrict direct officer/membership writes under final authorization.
 - [x] Creating an officer with zero branches succeeds.
 - [x] Editing an officer to zero branches succeeds.
 - [x] Do not rely solely on form checkbox validation.
@@ -579,7 +579,7 @@
 ## Remaining work
 
 - [x] Simplified position catalog contains Lead and Officer; the obsolete flag was removed.
-- [ ] Enforce Lead plus branch intersection in backend authorization.
+- [x] Enforce Lead plus branch intersection in backend authorization.
 
 # 10. Database — `branches`
 
@@ -635,9 +635,9 @@
 - [x] Many-to-many relationship works.
     
 - [x] Current officer-save RPC transactionally replaces zero or more memberships.
-- [ ] Add identity-aware authorization to the final save workflow.
+- [x] Add identity-aware authorization to the final save workflow.
     
-- [ ] Final RLS protects membership mutation.
+- [x] Final RLS protects membership mutation.
     
 
 ---
@@ -700,7 +700,7 @@
     
 - [x] Resolved decision: branch-lead scope is based on event branches and requires at least one shared branch.
     
-- [ ] Final RLS prevents unauthorized branch associations.
+- [x] Final RLS prevents unauthorized branch associations.
     
 
 ---
@@ -2322,7 +2322,7 @@
 
 - [ ] Authentication exists.
     
-- [ ] Approved-user check exists.
+- [x] Approved-user check exists.
     
 - [x] Application role check exists.
     
@@ -2334,30 +2334,30 @@
     
 - [ ] Admin-only point operations enforced.
     
-- [ ] Admin-only System Log enforced.
+- [x] Admin-only System Log enforced.
     
 - [ ] Warning approval identity enforced.
     
-- [ ] Direct Supabase/API access cannot bypass UI restrictions.
+- [x] Direct Supabase/API access cannot bypass UI restrictions.
     
 - [x] Server Actions are not treated as trusted merely because they run on the Next.js server.
     
 
 ## Production security gate
 
-- [ ] Zero temporary anonymous development write policies remain.
+- [x] Zero temporary anonymous development write policies remain.
     
-- [ ] Anonymous users cannot modify operational data.
+- [x] Anonymous users cannot modify operational data.
     
-- [ ] Anonymous users cannot call point-processing functions.
+- [x] Anonymous users cannot call point-processing functions.
     
-- [ ] Authenticated normal officers cannot perform admin actions.
+- [x] Authenticated normal officers cannot perform admin actions.
     
-- [ ] Branch leads cannot escape branch scope.
+- [x] Branch leads cannot escape branch scope.
     
-- [ ] Users cannot modify their auth/application role through normal client access.
+- [x] Users cannot modify their auth/application role through normal client access.
     
-- [ ] Security review is performed after final RLS migration.
+- [x] Security review is performed after final RLS migration (local policies, grants, RPCs, views, role/JWT tests, and advisor checked).
     
 
 ---
@@ -2735,7 +2735,7 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
     
 - [x] Implement login/logout (live provider verification pending).
     
-- [x] Implement session-aware Supabase usage for identity and trusted mutation RPCs; POC reads and temporary direct-table policies remain for PR 4.
+- [x] Implement session-aware Supabase usage for identity and trusted mutation RPCs; authenticated reads and final direct-table policies are added in PR 4.
     
 - [x] Implement auth account → officer mapping.
     
@@ -2750,13 +2750,13 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
     
 - [x] Implement branch-scope permission helpers.
     
-- [ ] Replace temporary anon RLS.
+- [x] Replace temporary anon RLS.
     
 - [x] Protect RPCs.
     
 - [x] Protect Server Actions.
     
-- [ ] Test direct database/API access.
+- [x] Test direct database/API access.
     
 
 ## Phase 4 — Points correctness
@@ -3120,19 +3120,19 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
     
 - [ ] Account mapping works.
     
-- [ ] Roles work.
+- [ ] Roles work in the deployed MVP (local authorization tests pass; hosted sign-in is pending).
     
-- [ ] Branch permissions work.
+- [ ] Branch permissions work in the deployed MVP (local authorization tests pass; hosted sign-in is pending).
     
-- [ ] Final RLS enabled.
+- [ ] Final RLS enabled in the hosted MVP (migration and local tests complete; deployment is pending).
     
-- [ ] Temporary anonymous policies removed.
+- [x] Temporary anonymous policies removed.
     
-- [ ] Privileged RPCs are protected.
+- [x] Privileged RPCs are protected.
     
 - [ ] Service credentials are not exposed.
     
-- [ ] Direct API access cannot bypass permissions.
+- [ ] Direct API access cannot bypass permissions in the deployed MVP (local PostgreSQL role/JWT tests pass; hosted verification is pending).
     
 
 ## Points

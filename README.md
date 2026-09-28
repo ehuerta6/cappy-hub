@@ -57,15 +57,15 @@ The officer directory is the allowlist. First login matches the verified Google 
 
 Repository code and local database tests do not configure the external Google client or the Supabase provider. Until those settings are applied and a real approved/unapproved login is checked, live Google sign-in is unverified. The local `db:start` test stack excludes Auth and API services and verifies the PostgreSQL identity rules only.
 
-**Security boundary for PR 2:** internal pages and Server Actions check the current active officer before doing work. The older POC data access still uses temporary anonymous policies and an anonymous server client; those direct Data API permissions remain open until the coherent RLS/authorization replacement in PR 3. Do not treat this stage as production security.
+**Current database boundary:** protected pages and writes use the cookie-backed authenticated Supabase client. PostgreSQL grants and RLS allow application reads only to a linked active officer. Sensitive writes require the checked RPCs; a publishable key alone grants no application data access. Live Google provider setup and end-to-end sign-in verification are still pending.
 
 ## Database and migrations
 
 Thirteen application tables: `officers`, `positions`, `branches`, `officer_branches`, `events`, `event_types`, `event_branches`, `event_officers`, `point_transactions`, `officer_warnings`, `warning_approvals`, `application_config`, and `audit_logs`. Supabase manages `auth.users` separately.
 
-Migrations in `supabase/migrations` capture the original schema and then reconcile PR 1 to the current design. The final position catalog has six generic positions, and the controlled branches are general, intro, icpc, social, and outreach. Legacy detailed titles map to a generic position plus the corresponding branch memberships without changing officer IDs. Lead authorization is deferred.
+Migrations in `supabase/migrations` capture the original schema and then reconcile PR 1 to the current design. The final position catalog has six generic positions, and the controlled branches are general, intro, icpc, social, and outreach. Legacy detailed titles map to a generic position plus the corresponding branch memberships without changing officer IDs. Lead authorization follows the generic Lead position and shared event branches.
 
-Foreign keys preserve references; composite primary keys prevent duplicate memberships/signups; constraints require at least one officer email, enforce case-insensitive uniqueness across both contact fields, validate classification/status and nonblank names/reasons, and require timed events to end after they start on the same America/Denver calendar day. Deactivation/cancellation retain history. `created_by`, `removed_by`, warning approvers, and audit actors reference `auth.users`. Officers have a nullable unique auth link and default to the `officer` application role; role authorization is deferred.
+Foreign keys preserve references; composite primary keys prevent duplicate memberships/signups; constraints require at least one officer email, enforce case-insensitive uniqueness across both contact fields, validate classification/status and nonblank names/reasons, and require timed events to end after they start on the same America/Denver calendar day. Deactivation/cancellation retain history. `created_by`, `removed_by`, warning approvers, and audit actors reference `auth.users`. Officers have a nullable unique auth link and default to the `officer` application role; trusted role assignment is admin-protected.
 
 For a **new development project**, use the official Supabase CLI:
 
@@ -122,22 +122,25 @@ Server Actions use the cookie-backed Supabase client for writes. Each trusted da
 
 The prototype `process_completed_events` function is no longer executable by anonymous or ordinary authenticated clients, and pages no longer invoke it. Participation awards are temporarily paused until a trusted scheduled processor is implemented. Existing point history, totals, and manual corrections remain visible. Historical awards are unchanged.
 
-**Security boundary still pending:** Temporary anonymous table policies still allow direct Data API access and some direct writes. PR 4 will replace those policies and test direct table/API bypass as anonymous, officer, Lead, and admin. PR 3 tests prove the trusted RPC boundaries, not production-wide authorization. Use development data until PR 4 passes its security gate.
+## Database access and RLS (PR 4)
 
-## Temporary development security
+The Data API applies two gates before returning application rows:
 
-**TEMPORARY DEVELOPMENT POLICIES — not production authorization.** RLS is enabled on all thirteen tables. New warning, approval, configuration, and audit tables have no anonymous/authenticated access yet. Event types permit prototype read access only. Existing prototype policies target the anonymous role used by the publishable key:
+```text
+Browser / Data API → PostgreSQL grant → RLS → linked active officer
+```
 
-- Positions and branches: read only.
-- Officers: read, insert, update; officer branches: read, insert, delete.
-- Events: read, insert, update while the existing scheduled end is still future.
-- Event branches: read, insert, delete.
-- Event officers: read; insert/delete only for noncancelled events before their scheduled end.
-- Point transactions: read and insert existing POC award types with `created_by` null; no update/delete permissions or anonymous removal writes.
-- Role/auth-link, event snapshot/file, and point removal columns are excluded from prototype write grants.
-- Computed views use `security_invoker`; protected mutation RPCs use caller-facing wrappers and private checked implementations.
+`anon` has no table, view, sequence, or public-function access to application data. A signed-in account without an active linked officer also sees no application rows. Approved officers may read the shared directory, events, signups, point history, catalogs, and rate configuration. Warning rows are separate: admins see all; the assigned officer sees only approved warnings. Warning approvals and audit logs are admin-readable only.
 
-These temporary table grants still allow unauthenticated users with the project URL/key to access prototype data and perform allowed direct writes. The mutation RPCs and prototype processor now have restricted execute grants. Use development data and replace the remaining table policies and grants before production. Do not put a service-role key in the browser.
+Sensitive raw table writes are denied to every client role, including admins. Officer/branch edits, event/branch edits, signup changes, role assignment, and manual points must use the protected RPCs:
+
+```text
+Client → trusted RPC → auth.uid() → private authorization check → transactional mutation
+```
+
+This prevents a direct table write from skipping the RPC's branch checks, signup closure rules, role invariants, or deactivation cleanup. The exposed views use `security_invoker`; the dashboard view also returns no row to an unapproved account. Prototype anonymous policies and per-column grants are removed. Defaults for objects created by the migration role are closed; Supabase-managed roles have separate defaults, so every future public object still needs an explicit grant and RLS review.
+
+The local test suite exercises direct SELECT/INSERT/UPDATE/DELETE and RPC behavior as `anon`, unlinked, inactive, officer, Lead, and admin. It does not configure the external Google provider or deploy the migration to a hosted Supabase project. Later warning, audit, catalog, points, and scheduler workflows must keep their own trusted write paths.
 
 ## Quality checks
 
@@ -163,7 +166,7 @@ npm run build
 
 ## Deferred to MVP
 
-Live authentication-provider verification; final RLS/Data API protection; trusted scheduled processing; early completion; warnings/approvals; System Log/full auditing; award removal with audit history; Google Calendar/Drive/Discord integrations; spreadsheet imports; advanced filtering/search; production error UX and deployment hardening. Untimed events/tasks await product feedback. Trusted mutation authorization is implemented, while direct table access still needs final RLS. No production-ready security is claimed.
+Live authentication-provider verification; deployment of final RLS to the hosted project; trusted scheduled processing; early completion; warnings/approvals; System Log/full auditing; award removal with audit history; Google Calendar/Drive/Discord integrations; spreadsheet imports; advanced filtering/search; production error UX and deployment hardening. Untimed events/tasks await product feedback. Trusted mutation authorization and direct database access are enforced locally. Live provider setup, deployment, and remaining feature workflows are still pending.
 
 ## Git & GitHub Workflow
 

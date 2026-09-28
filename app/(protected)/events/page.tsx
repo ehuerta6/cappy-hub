@@ -1,7 +1,7 @@
 import { getAuthorizationContext, isAdmin, isLead } from "@/lib/authorization";
 import Link from "next/link";
 import { connection } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 import { eventStatus, displayDate } from "@/lib/event-status";
 import {
   ActionLink,
@@ -13,6 +13,7 @@ import {
 export default async function EventsPage() {
   const actor = await getAuthorizationContext();
   await connection();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("events")
     .select(

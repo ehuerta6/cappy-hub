@@ -1,7 +1,7 @@
 import { requireCurrentOfficer } from "@/lib/current-officer";
 import Link from "next/link";
 import { connection } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 import { displayPoints } from "@/lib/participation";
 import { displayDate } from "@/lib/event-status";
 import TransactionTable from "./points/transaction-table";
@@ -9,6 +9,7 @@ import { PageHeader, SectionHeading, TableFrame } from "@/components/ui";
 export default async function DashboardPage() {
   await requireCurrentOfficer();
   await connection();
+  const supabase = await createClient();
   const [summary, events, transactions] = await Promise.all([
     supabase.from("dashboard_summary").select("*").single(),
     supabase

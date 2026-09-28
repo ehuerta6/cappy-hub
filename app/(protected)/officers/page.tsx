@@ -4,7 +4,7 @@ import {
 } from "@/lib/authorization";
 import Link from "next/link";
 import { connection } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 import {
   ActionLink,
   BranchBadges,
@@ -17,6 +17,7 @@ import { formatLabel } from "@/lib/presentation";
 export default async function OfficersPage() {
   const actor = await getAuthorizationContext();
   await connection();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("officers")
     .select("*, positions(name), officer_branches(branches(name))")
