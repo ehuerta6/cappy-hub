@@ -34,6 +34,11 @@ export default async function OfficersPage() {
           ) : undefined
         }
       />
+      {canManageOfficers(actor) && (
+        <Link href="/officers/catalogs" className="text-sm underline">
+          Manage positions and branches
+        </Link>
+      )}
       <TableFrame>
         <table>
           <thead>

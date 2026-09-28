@@ -486,9 +486,27 @@ export type Database = {
         Args: Record<PropertyKey, never>;
         Returns: number;
       };
+      create_branch: { Args: { p_name: string }; Returns: number };
+      create_event_type: { Args: { p_name: string }; Returns: number };
+      create_position: { Args: { p_name: string }; Returns: number };
+      delete_branch: { Args: { p_id: number }; Returns: undefined };
+      delete_event_type: { Args: { p_id: number }; Returns: undefined };
+      delete_position: { Args: { p_id: number }; Returns: undefined };
       process_completed_events: {
         Args: { p_points_per_hour: number };
         Returns: number;
+      };
+      rename_branch: {
+        Args: { p_id: number; p_name: string };
+        Returns: undefined;
+      };
+      rename_event_type: {
+        Args: { p_id: number; p_name: string };
+        Returns: undefined;
+      };
+      rename_position: {
+        Args: { p_id: number; p_name: string };
+        Returns: undefined;
       };
       save_event: {
         Args: {
