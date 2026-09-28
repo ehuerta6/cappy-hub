@@ -32,6 +32,11 @@ export default async function EventsPage() {
           ) : undefined
         }
       />
+      {isAdmin(actor) && (
+        <Link href="/events/types" className="text-sm underline">
+          Manage event types
+        </Link>
+      )}
       <TableFrame>
         <table>
           <thead>

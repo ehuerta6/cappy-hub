@@ -11,6 +11,19 @@ const safeMessages = new Set([
   "Signups are closed for this event",
   "Target officer is not active",
   "Last active admin cannot be deactivated",
+  "Admins cannot demote themselves",
+  "Last active admin cannot be demoted",
+  "Position name is required",
+  "Branch name is required",
+  "Event type name is required",
+  "Position not found",
+  "Branch not found",
+  "Event type not found",
+  "Required positions cannot be renamed",
+  "Required positions cannot be deleted",
+  "This position cannot be deleted because officers are using it",
+  "This branch cannot be deleted because officers or events are using it",
+  "This event type cannot be deleted because events are using it",
 ]);
 
 export function mutationError(message: string) {

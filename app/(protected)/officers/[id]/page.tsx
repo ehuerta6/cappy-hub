@@ -18,6 +18,7 @@ import {
   TableFrame,
 } from "@/components/ui";
 import { formatLabel } from "@/lib/presentation";
+import RoleForm from "./role-form";
 
 export default async function OfficerDetailPage({
   params,
@@ -78,6 +79,8 @@ export default async function OfficerDetailPage({
         </dd>
         <dt>Position</dt>
         <dd>{officer.positions.name}</dd>
+        <dt>Application role</dt>
+        <dd>{formatLabel(officer.application_role)}</dd>
         <dt>Classification</dt>
         <dd>
           {officer.classification
@@ -97,6 +100,15 @@ export default async function OfficerDetailPage({
           />
         </dd>
       </dl>
+      {canManageOfficers(actor) && actor.id !== officer.id && (
+        <section className="space-y-2">
+          <SectionHeading
+            title="Application access"
+            description="Admin access is assigned separately from club position."
+          />
+          <RoleForm officerId={officer.id} role={officer.application_role} />
+        </section>
+      )}
       <p className="text-lg font-semibold text-zinc-100">
         Total points: <PointValue value={total.data.total_points ?? 0} />
       </p>

@@ -53,7 +53,7 @@
     
 - [x] Account-to-officer linking (local PostgreSQL identity rules verified; hosted provider configuration pending).
     
-- [ ] Application roles.
+- [x] Application roles (local role assignment and backend invariants verified; hosted sign-in remains pending).
     
 - [ ] Branch-scoped authorization.
     
@@ -122,6 +122,8 @@
 - [x] `/officers/[id]`
     
 - [x] `/officers/[id]/edit`
+
+- [x] `/officers/catalogs` admin position and branch management.
     
 - [x] `/events`
     
@@ -130,6 +132,8 @@
 - [x] `/events/[id]`
     
 - [x] `/events/[id]/edit`
+
+- [x] `/events/types` admin event-type management.
     
 - [x] `/points`
     
@@ -141,9 +145,9 @@
     
 - [ ] Participation-rate configuration surface.
     
-- [ ] Administration controls for application admins.
+- [x] Administration controls for application roles and controlled catalogs.
     
-- [ ] Any UI required to manage event types according to the final event-type design.
+- [x] Admin UI to create, rename, and safely delete event types.
     
 
 ## Shared frontend infrastructure
@@ -581,6 +585,8 @@
 - [x] Simplified position catalog contains Lead and Officer; the obsolete flag was removed.
 - [x] Enforce Lead plus branch intersection in backend authorization.
 
+- [x] Admins can create and rename custom positions, and delete only unused custom positions; all six baseline positions remain required.
+
 # 10. Database — `branches`
 
 ## Current schema
@@ -612,6 +618,8 @@
 - [x] Officers may belong to zero or more branches.
     
 - [x] Branches are separate from positions.
+
+- [x] Admins can create and rename branches, and delete only branches without officer or event references.
     
 - [x] Resolved decision: branch-lead authorization uses a non-empty intersection of the lead’s memberships and event branches.
     
@@ -648,8 +656,8 @@
 
 - [x] Create event_types with id, unique name, and created_at.
 - [x] Seed General, Intro, ICPC, Meeting, Social, and Workshop; preserve additional historical values.
-- [ ] Add admin event-type creation workflow.
-- [ ] Allow admins to delete only event types that are not referenced by events.
+- [x] Add admin event-type creation workflow.
+- [x] Allow admins to delete only event types that are not referenced by events.
 - [x] Reject deletion of referenced event types; never cascade deletion into event history.
 
 ## Existing POC event columns
@@ -1100,6 +1108,8 @@
 - [x] Display name.
     
 - [x] Display position.
+
+- [x] Display application role separately and let admins change another officer's role.
     
 - [x] Display status.
     
@@ -1332,7 +1342,7 @@
     
 - [x] Use `event_types` with unique names; admins manage values, and referenced types cannot be deleted.
     
-- [ ] Implement the chosen admin-management behavior.
+- [x] Implement the chosen admin-management behavior.
     
 - [x] Resolved decision: event type changes do not alter branch permissions.
     
@@ -1863,7 +1873,7 @@
 
 # 48. System Log / Audit Trail
 
-> [!note] PR 5 evidence: local migration replay, 291 PostgreSQL assertions, atomic rollback and source-deletion tests, and code review of the admin route/navigation. Hosted Google sign-in and future warning/Cron/catalog/award-removal audit actions remain pending.
+> [!note] PR 5 evidence: local migration replay, 291 PostgreSQL assertions, atomic rollback and source-deletion tests, and code review of the admin route/navigation. PR 6 adds audited catalog mutations, checked by local database and application tests. Hosted Google sign-in and warning/Cron/rate/award-removal audit actions remain pending.
 
 ## Page
 
@@ -1932,6 +1942,8 @@
 - [x] Implement System Log coverage for officer create/edit/deactivate/reactivate actions as specified in the audit requirements.
     
 - [x] Implement System Log coverage for application admin-role changes as specified in the audit requirements.
+
+- [x] Audit successful position, branch, and event-type create/rename/delete operations with actor and useful details.
     
 - [x] Prefer logging security-sensitive/admin mutations for traceability.
     
@@ -1997,7 +2009,7 @@
     
 - [x] Can access System Log.
     
-- [ ] Can manage application admins according to final admin management UI.
+- [x] Can manage application admins according to final admin management UI.
     
 
 ## Branch lead
@@ -2746,7 +2758,7 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
 
 ## Phase 3 — Authorization
 
-- [ ] Configure officer application_role assignments for admins.
+- [x] Configure officer application_role assignments for admins through the protected officer-profile workflow.
     
 - [x] Resolved decision: Lead plus shared branch membership defines branch scope.
     
@@ -2810,7 +2822,7 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
     
     
     
-- [ ] Implement admin event-type management with reference-protected deletion.
+- [x] Implement admin event-type management with reference-protected deletion.
     
 - [ ] Identity-aware signup controls.
     

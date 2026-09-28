@@ -118,7 +118,9 @@ Global event (0 branches) → admin-managed only
 
 Server Actions use the cookie-backed Supabase client for writes. Each trusted database mutation resolves the actor from `auth.uid()` and checks permission again. A Lead must already manage an event before replacing its branches, and the resulting branches must still overlap. Generic officer editing cannot set `application_role`; the dedicated `set_officer_application_role` RPC blocks self-demotion and loss of the last active admin. Deactivating an officer transactionally removes their signups for events whose scheduled start is still in the future; past participation and the Auth link remain.
 
-**First admin bootstrap:** After a real officer signs in and links their account, a database administrator must inspect that active officer's `id` and `auth_user_id`, then manually set `application_role = 'admin'` for that single verified row in the Supabase SQL editor. Check that exactly one row was updated. Do not place a person's email or UUID in a migration. Thereafter, admins use the protected role-management RPC; a role-management UI is deferred.
+**First admin bootstrap:** After a real officer signs in and links their account, a database administrator must inspect that active officer's `id` and `auth_user_id`, then manually set `application_role = 'admin'` for that single verified row in the Supabase SQL editor. Check that exactly one row was updated. Do not place a person's email or UUID in a migration. Thereafter, admins assign or remove admin access on another officer's profile. The form uses the protected role-management RPC and cannot demote the current admin or the last active admin.
+
+Admins manage positions and branches from Officers → Manage positions and branches, and event types from Events → Manage event types. These are database records, so the officer and event forms load new or renamed values without code changes. The six baseline positions are required and cannot be renamed or deleted; this preserves the canonical `Lead` name used by branch authorization. Other positions, branches, and event types can be created or renamed. Deletion is allowed only for unused records, preserving officer memberships and event history. Each successful change is written to System Log in the same database transaction. Catalog RPCs recheck active-admin status; ordinary clients still have no direct catalog write grants.
 
 The prototype `process_completed_events` function is no longer executable by anonymous or ordinary authenticated clients, and pages no longer invoke it. Participation awards are temporarily paused until a trusted scheduled processor is implemented. Existing point history, totals, and manual corrections remain visible. Historical awards are unchanged.
 
@@ -140,7 +142,7 @@ Client → trusted RPC → auth.uid() → private authorization check → transa
 
 This prevents a direct table write from skipping the RPC's branch checks, signup closure rules, role invariants, or deactivation cleanup. The exposed views use `security_invoker`; the dashboard view also returns no row to an unapproved account. Prototype anonymous policies and per-column grants are removed. Defaults for objects created by the migration role are closed; Supabase-managed roles have separate defaults, so every future public object still needs an explicit grant and RLS review.
 
-The local test suite exercises direct SELECT/INSERT/UPDATE/DELETE and RPC behavior as `anon`, unlinked, inactive, officer, Lead, and admin. It does not configure the external Google provider or deploy the migration to a hosted Supabase project. Later warning, catalog, points, and scheduler workflows must keep their own trusted write paths.
+The local test suite exercises direct SELECT/INSERT/UPDATE/DELETE and RPC behavior as `anon`, unlinked, inactive, officer, Lead, and admin. It does not configure the external Google provider or deploy the migration to a hosted Supabase project. Later warning, rate-configuration, point-removal, and scheduler workflows must keep their own trusted write paths.
 
 ## Audit trail and System Log (PR 5)
 
@@ -152,7 +154,7 @@ Trusted RPC → authorization and validation → data mutation → private audit
 
 The writer derives the human actor from `auth.uid()` and stores action, entity reference, time, and concise JSON details. A failed audit insert rolls back the business change. Ordinary clients cannot call the writer or insert, edit, or delete audit rows. A future trusted system operation may write with `actor_id = NULL` without inventing a user.
 
-Current coverage includes officer create/edit/deactivate/reactivate, role changes, first auth linking, event create/edit/cancel, self and manager signup changes, manual points, and corrections. Repeated saves or signup requests with no resulting change do not create another event. Future warning, catalog, rate, scheduled award, point removal, and early-completion workflows must call the same writer when implemented.
+Current coverage includes officer create/edit/deactivate/reactivate, role changes, first auth linking, event create/edit/cancel, self and manager signup changes, manual points, corrections, and position/branch/event-type changes. Repeated saves or signup requests with no resulting change do not create another event. Future warning, rate, scheduled award, point removal, and early-completion workflows must call the same writer when implemented.
 
 Admins can open `/system-log` from their navigation. The page uses the authenticated client and the admin-only audit RLS policy, resolves actor names from the officer directory where possible, and pages newest-first through older history. The page is read-only.
 

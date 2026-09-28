@@ -62,12 +62,18 @@ select ok(not has_function_privilege('authenticated','public.process_completed_e
   and has_function_privilege('authenticated','public.save_event(text,text,bigint,text,timestamptz,timestamptz,bigint[],bigint)','EXECUTE')
   and has_function_privilege('authenticated','public.cancel_event(bigint)','EXECUTE')
   and has_function_privilege('authenticated','public.change_event_signup(bigint,bigint,boolean)','EXECUTE')
-  and has_function_privilege('authenticated','public.add_manual_transaction(bigint,numeric,text,text,bigint)','EXECUTE'),
+  and has_function_privilege('authenticated','public.add_manual_transaction(bigint,numeric,text,text,bigint)','EXECUTE')
+  and (select pg_catalog.bool_and(has_function_privilege('authenticated', signature, 'EXECUTE'))
+    from pg_catalog.unnest(array[
+      'public.create_position(text)','public.rename_position(bigint,text)','public.delete_position(bigint)',
+      'public.create_branch(text)','public.rename_branch(bigint,text)','public.delete_branch(bigint)',
+      'public.create_event_type(text)','public.rename_event_type(bigint,text)','public.delete_event_type(bigint)'
+    ]) as signature),
   'only checked current-user mutation RPCs retain authenticated access');
 select is((select count(*) from pg_catalog.pg_proc p
   join pg_catalog.pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and has_function_privilege('authenticated',p.oid,'EXECUTE')),
-  7::bigint,'authenticated has exactly the seven reviewed public RPC entry points');
+  16::bigint,'authenticated has exactly the sixteen reviewed public RPC entry points');
 
 -- Fixtures are inserted as database owner. Every probe below changes to the
 -- real PostgREST roles with a request JWT sub; all fixture writes roll back.

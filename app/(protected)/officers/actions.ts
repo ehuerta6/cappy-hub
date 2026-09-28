@@ -37,3 +37,30 @@ export async function saveOfficer(
   revalidatePath("/", "layout");
   redirect(`/officers/${data}`);
 }
+
+export async function changeApplicationRole(
+  _previous: { error: string; success: string },
+  formData: FormData,
+) {
+  const actor = await getAuthorizationContext();
+  if (!canManageOfficers(actor))
+    return { error: "Admin required", success: "" };
+  const id = Number(formData.get("officer_id"));
+  const role = String(formData.get("role") ?? "");
+  if (
+    !Number.isSafeInteger(id) ||
+    id <= 0 ||
+    !["admin", "officer"].includes(role)
+  )
+    return { error: "Invalid role assignment", success: "" };
+  if (id === actor.id)
+    return { error: "Admins cannot demote themselves", success: "" };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_officer_application_role", {
+    p_officer_id: id,
+    p_role: role,
+  });
+  if (error) return { error: mutationError(error.message), success: "" };
+  revalidatePath("/", "layout");
+  return { error: "", success: "Role saved" };
+}
