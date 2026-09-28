@@ -1,4 +1,5 @@
-import { requireCurrentOfficer } from "@/lib/current-officer";
+import { getAuthorizationContext, canManageEvent } from "@/lib/authorization";
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -9,7 +10,7 @@ export default async function EditEventPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireCurrentOfficer();
+  const actor = await getAuthorizationContext();
   await connection();
   const { id } = await params;
   if (!/^[1-9]\d*$/.test(id)) notFound();
@@ -25,6 +26,13 @@ export default async function EditEventPage({
   if (event.error || branches.error || eventTypes.error)
     throw new Error("Failed to load event form");
   if (!event.data) notFound();
+  if (
+    !canManageEvent(
+      actor,
+      event.data.event_branches.map((x) => x.branch_id),
+    )
+  )
+    redirect("/access-denied");
   return (
     <div className="space-y-6">
       <PageHeader title="Edit event" />

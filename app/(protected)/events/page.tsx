@@ -1,5 +1,4 @@
-import { requireCurrentOfficer } from "@/lib/current-officer";
-import { processCompletedEvents } from "@/lib/participation";
+import { getAuthorizationContext, isAdmin, isLead } from "@/lib/authorization";
 import Link from "next/link";
 import { connection } from "next/server";
 import { supabase } from "@/lib/supabase";
@@ -12,9 +11,8 @@ import {
   TableFrame,
 } from "@/components/ui";
 export default async function EventsPage() {
-  await requireCurrentOfficer();
+  const actor = await getAuthorizationContext();
   await connection();
-  await processCompletedEvents();
   const { data, error } = await supabase
     .from("events")
     .select(
@@ -27,7 +25,11 @@ export default async function EventsPage() {
       <PageHeader
         title="Events"
         description="Scheduled club events and participation."
-        action={<ActionLink href="/events/new">+ New event</ActionLink>}
+        action={
+          isAdmin(actor) || (isLead(actor) && actor.branchIds.length > 0) ? (
+            <ActionLink href="/events/new">+ New event</ActionLink>
+          ) : undefined
+        }
       />
       <TableFrame>
         <table>
