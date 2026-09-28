@@ -39,8 +39,19 @@ jobs:
       - name: Check TypeScript types
         run: npm run typecheck
 
+      - name: Clean up leftover local Supabase containers
+        run: npx supabase stop --no-backup || true
+
       - name: Start disposable local database and replay migrations
+        id: db_start
         run: npm run db:start
+
+      - name: Diagnose local database startup failure
+        if: ${{ failure() && steps.db_start.outcome == 'failure' }}
+        run: |
+          docker ps -a || true
+          docker network ls || true
+          sudo ss -ltnp | grep -E ':(54321|54322|54323|54324|54327)\b' || true
 
       - name: Run automated tests
         run: npm test
@@ -59,4 +70,4 @@ jobs:
 
       - name: Stop disposable database
         if: always()
-        run: npx supabase stop --no-backup
+        run: npx supabase stop --no-backup || true
