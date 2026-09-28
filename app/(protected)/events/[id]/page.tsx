@@ -142,6 +142,12 @@ export default async function EventDetailPage({
         <TableFrame>
           <TransactionTable transactions={transactions.data} />
         </TableFrame>
+        <Link
+          href={`/points?event=${event.id}`}
+          className="mt-3 inline-block text-sm underline"
+        >
+          View all event point history
+        </Link>
       </section>
     </div>
   );

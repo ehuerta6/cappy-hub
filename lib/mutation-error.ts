@@ -24,6 +24,12 @@ const safeMessages = new Set([
   "This position cannot be deleted because officers are using it",
   "This branch cannot be deleted because officers or events are using it",
   "This event type cannot be deleted because events are using it",
+  "Rate must be a finite positive number",
+  "Participation configuration not found",
+  "Point transaction not found",
+  "Only participation awards can be removed",
+  "Invalid point value",
+  "Reason required",
 ]);
 
 export function mutationError(message: string) {

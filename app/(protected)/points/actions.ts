@@ -22,10 +22,18 @@ export async function addTransaction(
   if (!reason) return { error: "Enter a reason", success: "" };
   if (!["manual", "correction"].includes(awardType))
     return { error: "Select manual or correction", success: "" };
+  const officerId = Number(formData.get("officer_id"));
+  if (!Number.isSafeInteger(officerId) || officerId <= 0)
+    return { error: "Select an officer", success: "" };
   const eventId = formData.get("event_id");
+  if (
+    eventId &&
+    (!Number.isSafeInteger(Number(eventId)) || Number(eventId) <= 0)
+  )
+    return { error: "Select a valid event", success: "" };
   const supabase = await createClient();
   const { error } = await supabase.rpc("add_manual_transaction", {
-    p_officer_id: Number(formData.get("officer_id")),
+    p_officer_id: officerId,
     p_event_id: eventId ? Number(eventId) : undefined,
     p_points: points,
     p_reason: reason,
@@ -34,4 +42,44 @@ export async function addTransaction(
   if (error) return { error: mutationError(error.message), success: "" };
   revalidatePath("/", "layout");
   return { error: "", success: "Transaction added" };
+}
+
+export async function changeParticipationRate(
+  _previous: { error: string; success: string },
+  formData: FormData,
+) {
+  const actor = await getAuthorizationContext();
+  if (!canManagePoints(actor)) return { error: "Admin required", success: "" };
+  const rawRate = String(formData.get("rate") ?? "").trim();
+  const rate = Number(rawRate);
+  if (!rawRate || !Number.isFinite(rate) || rate <= 0)
+    return { error: "Enter a finite positive rate", success: "" };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_participation_rate", {
+    p_rate: rate,
+  });
+  if (error) return { error: mutationError(error.message), success: "" };
+  revalidatePath("/", "layout");
+  return { error: "", success: "Rate saved" };
+}
+
+export async function removeParticipationAward(
+  _previous: { error: string; success: string },
+  formData: FormData,
+) {
+  const actor = await getAuthorizationContext();
+  if (!canManagePoints(actor)) return { error: "Admin required", success: "" };
+  const id = Number(formData.get("transaction_id"));
+  if (!Number.isSafeInteger(id) || id <= 0)
+    return { error: "Invalid transaction", success: "" };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("remove_participation_award", {
+    p_transaction_id: id,
+  });
+  if (error) return { error: mutationError(error.message), success: "" };
+  revalidatePath("/", "layout");
+  return {
+    error: "",
+    success: data ? "Award removed" : "Award was already removed",
+  };
 }

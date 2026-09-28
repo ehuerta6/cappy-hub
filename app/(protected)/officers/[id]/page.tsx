@@ -143,6 +143,12 @@ export default async function OfficerDetailPage({
         <TableFrame>
           <TransactionTable transactions={transactions.data} />
         </TableFrame>
+        <Link
+          href={`/points?officer=${officer.id}`}
+          className="mt-3 inline-block text-sm underline"
+        >
+          View all point history
+        </Link>
       </section>
     </div>
   );
