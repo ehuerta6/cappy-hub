@@ -49,8 +49,10 @@ select ok(not exists(select 1 from pg_catalog.pg_default_acl d
 select ok((select 'security_invoker=true'=any(c.reloptions) from pg_catalog.pg_class c
   where c.oid='public.officer_point_totals'::regclass)
   and (select 'security_invoker=true'=any(c.reloptions) from pg_catalog.pg_class c
-  where c.oid='public.dashboard_summary'::regclass),
-  'both exposed views invoke underlying RLS as the caller');
+  where c.oid='public.dashboard_summary'::regclass)
+  and (select 'security_invoker=true'=any(c.reloptions) from pg_catalog.pg_class c
+  where c.oid='public.point_history'::regclass),
+  'all exposed views invoke underlying RLS as the caller');
 select ok(not exists(select 1 from pg_catalog.pg_proc p
   join pg_catalog.pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and has_function_privilege('anon',p.oid,'EXECUTE')),
@@ -63,6 +65,8 @@ select ok(not has_function_privilege('authenticated','public.process_completed_e
   and has_function_privilege('authenticated','public.cancel_event(bigint)','EXECUTE')
   and has_function_privilege('authenticated','public.change_event_signup(bigint,bigint,boolean)','EXECUTE')
   and has_function_privilege('authenticated','public.add_manual_transaction(bigint,numeric,text,text,bigint)','EXECUTE')
+  and has_function_privilege('authenticated','public.set_participation_rate(numeric)','EXECUTE')
+  and has_function_privilege('authenticated','public.remove_participation_award(bigint)','EXECUTE')
   and (select pg_catalog.bool_and(has_function_privilege('authenticated', signature, 'EXECUTE'))
     from pg_catalog.unnest(array[
       'public.create_position(text)','public.rename_position(bigint,text)','public.delete_position(bigint)',
@@ -73,7 +77,7 @@ select ok(not has_function_privilege('authenticated','public.process_completed_e
 select is((select count(*) from pg_catalog.pg_proc p
   join pg_catalog.pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and has_function_privilege('authenticated',p.oid,'EXECUTE')),
-  16::bigint,'authenticated has exactly the sixteen reviewed public RPC entry points');
+  18::bigint,'authenticated has exactly the eighteen reviewed public RPC entry points');
 
 -- Fixtures are inserted as database owner. Every probe below changes to the
 -- real PostgREST roles with a request JWT sub; all fixture writes roll back.

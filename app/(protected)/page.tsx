@@ -67,8 +67,8 @@ export default async function DashboardPage() {
         ))}
       </section>
       <p className="-mt-5 text-xs text-zinc-500">
-        Half-year periods are January–June and July–December (UTC). Points
-        include signed corrections.
+        Half-year periods are January–June and July–December (America/Denver).
+        Points include signed corrections.
       </p>
       <section>
         <SectionHeading title="Upcoming events" description="Next 10 events" />

@@ -465,6 +465,48 @@ export type Database = {
         };
         Relationships: [];
       };
+      point_history: {
+        Row: {
+          award_type: string | null;
+          created_at: string | null;
+          created_by: string | null;
+          created_by_name: string | null;
+          event_id: number | null;
+          event_name: string | null;
+          id: number | null;
+          officer_id: number | null;
+          officer_name: string | null;
+          points: number | null;
+          reason: string | null;
+          removed_at: string | null;
+          removed_by: string | null;
+          removed_by_name: string | null;
+          search_text: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "point_transactions_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "point_transactions_officer_id_fkey";
+            columns: ["officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "point_transactions_officer_id_fkey";
+            columns: ["officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Functions: {
       add_manual_transaction: {
@@ -495,6 +537,10 @@ export type Database = {
       process_completed_events: {
         Args: { p_points_per_hour: number };
         Returns: number;
+      };
+      remove_participation_award: {
+        Args: { p_transaction_id: number };
+        Returns: boolean;
       };
       rename_branch: {
         Args: { p_id: number; p_name: string };
@@ -538,6 +584,7 @@ export type Database = {
         Args: { p_officer_id: number; p_role: string };
         Returns: undefined;
       };
+      set_participation_rate: { Args: { p_rate: number }; Returns: undefined };
     };
     Enums: {
       [_ in never]: never;
