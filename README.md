@@ -140,7 +140,21 @@ Client → trusted RPC → auth.uid() → private authorization check → transa
 
 This prevents a direct table write from skipping the RPC's branch checks, signup closure rules, role invariants, or deactivation cleanup. The exposed views use `security_invoker`; the dashboard view also returns no row to an unapproved account. Prototype anonymous policies and per-column grants are removed. Defaults for objects created by the migration role are closed; Supabase-managed roles have separate defaults, so every future public object still needs an explicit grant and RLS review.
 
-The local test suite exercises direct SELECT/INSERT/UPDATE/DELETE and RPC behavior as `anon`, unlinked, inactive, officer, Lead, and admin. It does not configure the external Google provider or deploy the migration to a hosted Supabase project. Later warning, audit, catalog, points, and scheduler workflows must keep their own trusted write paths.
+The local test suite exercises direct SELECT/INSERT/UPDATE/DELETE and RPC behavior as `anon`, unlinked, inactive, officer, Lead, and admin. It does not configure the external Google provider or deploy the migration to a hosted Supabase project. Later warning, catalog, points, and scheduler workflows must keep their own trusted write paths.
+
+## Audit trail and System Log (PR 5)
+
+Meaningful mutations use one private audit writer in the same PostgreSQL transaction as their business change:
+
+```text
+Trusted RPC → authorization and validation → data mutation → private audit write → commit
+```
+
+The writer derives the human actor from `auth.uid()` and stores action, entity reference, time, and concise JSON details. A failed audit insert rolls back the business change. Ordinary clients cannot call the writer or insert, edit, or delete audit rows. A future trusted system operation may write with `actor_id = NULL` without inventing a user.
+
+Current coverage includes officer create/edit/deactivate/reactivate, role changes, first auth linking, event create/edit/cancel, self and manager signup changes, manual points, and corrections. Repeated saves or signup requests with no resulting change do not create another event. Future warning, catalog, rate, scheduled award, point removal, and early-completion workflows must call the same writer when implemented.
+
+Admins can open `/system-log` from their navigation. The page uses the authenticated client and the admin-only audit RLS policy, resolves actor names from the officer directory where possible, and pages newest-first through older history. The page is read-only.
 
 ## Quality checks
 
@@ -166,7 +180,7 @@ npm run build
 
 ## Deferred to MVP
 
-Live authentication-provider verification; deployment of final RLS to the hosted project; trusted scheduled processing; early completion; warnings/approvals; System Log/full auditing; award removal with audit history; Google Calendar/Drive/Discord integrations; spreadsheet imports; advanced filtering/search; production error UX and deployment hardening. Untimed events/tasks await product feedback. Trusted mutation authorization and direct database access are enforced locally. Live provider setup, deployment, and remaining feature workflows are still pending.
+Live authentication-provider verification; deployment of final RLS and audit migrations to the hosted project; trusted scheduled processing; early completion; warnings/approvals; audit coverage for future workflows; award removal with audit history; Google Calendar/Drive/Discord integrations; spreadsheet imports; advanced filtering/search; production error UX and deployment hardening. Untimed events/tasks await product feedback. Trusted mutation authorization, direct database access, and current audit operations are enforced locally. Live provider setup, deployment, and remaining feature workflows are still pending.
 
 ## Git & GitHub Workflow
 

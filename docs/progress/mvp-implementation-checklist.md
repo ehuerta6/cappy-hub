@@ -28,7 +28,7 @@
     
 - [x] Points area exists.
     
-- [ ] System Log area exists for administrators.
+- [x] System Log area exists for administrators.
     
 - [ ] Final authenticated internal-user experience exists.
     
@@ -71,9 +71,9 @@
     
     
     
-- [ ] System/audit log.
+- [x] System/audit log for implemented workflows (future mutation coverage remains tracked below).
     
-- [ ] Final actor attribution for protected mutations.
+- [ ] Final actor attribution for protected mutations (current trusted actions are audited; future warning/Cron/config/removal actions are pending).
     
 
 ---
@@ -135,7 +135,7 @@
     
 - [x] Authentication/login surface.
     
-- [ ] System Log surface.
+- [x] System Log surface.
     
 - [ ] Warning administration surface/component.
     
@@ -172,7 +172,7 @@
     
 - [x] Application role is accessible where needed (identity context only; role enforcement remains PR 3).
     
-- [ ] Role-aware navigation is implemented.
+- [x] Role-aware navigation is implemented.
     
 - [ ] Role-aware buttons/actions are implemented.
     
@@ -294,7 +294,7 @@
 - [ ] Normal officers cannot create manual point transactions or corrections.
 - [ ] Normal officers cannot remove point awards or alter configuration.
 - [ ] Normal officers cannot edit other officer records or manage arbitrary events.
-- [ ] Normal officers cannot access the System Log or other officers' warning records.
+- [x] Normal officers cannot access the System Log or other officers' warning records.
 
 # 5. Branch Lead Authorization
 
@@ -471,7 +471,7 @@
     
 - [x] Audit records cannot be modified through normal application workflows.
     
-- [ ] Audit records survive deletion of the entity they describe.
+- [x] Audit records survive deletion of the entity they describe.
     
 
 ---
@@ -742,7 +742,7 @@
     - [ ] authorized branch-lead removal
         
     
-- [ ] Signup/signout actions are written to the System Log.
+- [x] Signup/signout actions are written to the System Log.
     
 
 ---
@@ -873,8 +873,8 @@
 - [x] Resolved actor-FK decision: audit_logs.actor_id references auth.users.id.
 - [ ] Preserve useful before/after data and deletion/removal snapshots where needed.
 - [ ] Retain audit entries after source entities or logical point awards are deleted/removed.
-- [ ] Protect audit records from ordinary application modification.
-- [ ] Allow only admins to read System Log records.
+- [x] Protect audit records from ordinary application modification.
+- [x] Allow only admins to read System Log records.
 
 # 20. Database Views
 
@@ -935,9 +935,9 @@
     
 - [ ] Create participation transactions using the snapshot.
     
-- [ ] Add audit logging to protected mutations.
+- [x] Add audit logging to protected mutations.
     
-- [ ] Keep audit log writes consistent with the actual mutation.
+- [x] Keep audit log writes consistent with the actual mutation.
     
 - [ ] Review `SECURITY INVOKER`/function grants after final auth design.
     
@@ -1020,9 +1020,9 @@
     
 - [ ] Only admins can create officers.
     
-- [ ] Creation records actor identity where needed.
+- [x] Creation records actor identity where needed.
     
-- [ ] Officer creation is recorded in System Log if included in final mutation logging coverage.
+- [x] Officer creation is recorded in System Log if included in final mutation logging coverage.
     
 
 ---
@@ -1059,7 +1059,7 @@
     
 - [ ] Admin authorization is server/database enforced.
     
-- [ ] Relevant officer modifications are represented in System Log.
+- [x] Relevant officer modifications are represented in System Log.
     
 
 ---
@@ -1088,7 +1088,7 @@
     
 - [ ] Admin manually decides whether to deactivate/reactivate after warning review.
     
-- [ ] Deactivation/reactivation is logged.
+- [x] Deactivation/reactivation is logged.
     
 
 ---
@@ -1387,7 +1387,7 @@
 - [x] Editing preserves historical records.
     
     
-- [ ] Event edits are logged in System Log.
+- [x] Event edits are logged in System Log.
     
 
 ---
@@ -1408,7 +1408,7 @@
     
 - [ ] Branch-lead authorization enforced.
     
-- [ ] Cancellation logged.
+- [x] Cancellation logged.
     
     
 
@@ -1546,11 +1546,11 @@
     
 - [ ] Events page clearly shows current officer's signup status.
     
-- [ ] Signup action is logged.
+- [x] Signup action is logged.
     
-- [ ] Signout/removal action is logged.
+- [x] Signout/removal action is logged.
     
-- [ ] Admin/lead officer assignment is logged.
+- [x] Admin/lead officer assignment is logged.
     
 
 ---
@@ -1625,9 +1625,9 @@
 - [ ] Database authorization independently prevents unauthorized direct inserts.
     
 - [x] Resolved decision: created_by references auth.users.id for the authenticated actor.
-- [ ] Implement admin actor attribution.
+- [x] Implement admin actor attribution.
     
-- [ ] Transaction creation is logged.
+- [x] Transaction creation is logged.
     
 - [ ] UI communicates validation errors clearly.
     
@@ -1648,9 +1648,9 @@
     
 - [ ] Only admins can create corrections.
     
-- [ ] Correction stores actor identity.
+- [x] Correction stores actor identity.
     
-- [ ] Correction creation is logged.
+- [x] Correction creation is logged.
     
 - [ ] Correction UI clearly distinguishes correction from ordinary manual award.
     
@@ -1854,59 +1854,61 @@
     
 - [ ] Clearly mark events where current officer is not signed up.
     
-- [ ] Dashboard navigation respects application role.
+- [x] Dashboard navigation respects application role.
     
-- [ ] System Log link is shown only to admins.
+- [x] System Log link is shown only to admins.
     
 
 ---
 
 # 48. System Log / Audit Trail
 
+> [!note] PR 5 evidence: local migration replay, 291 PostgreSQL assertions, atomic rollback and source-deletion tests, and code review of the admin route/navigation. Hosted Google sign-in and future warning/Cron/catalog/award-removal audit actions remain pending.
+
 ## Page
 
-- [ ] Add System Log navigation item.
+- [x] Add System Log navigation item.
     
-- [ ] Show System Log navigation only to admins.
+- [x] Show System Log navigation only to admins.
     
-- [ ] Create System Log page.
+- [x] Create System Log page.
     
-- [ ] Query `audit_logs`.
+- [x] Query `audit_logs`.
     
-- [ ] Show actor.
+- [x] Show actor.
     
-- [ ] Show action.
+- [x] Show action.
     
-- [ ] Show affected entity type.
+- [x] Show affected entity type.
     
-- [ ] Show affected entity/reference.
+- [x] Show affected entity/reference.
     
-- [ ] Show action time.
+- [x] Show action time.
     
-- [ ] Show useful details/snapshot.
+- [x] Show useful details/snapshot.
     
-- [ ] Only admins can access route.
+- [x] Only admins can access route.
     
-- [ ] Direct database query is also admin-only.
+- [x] Direct database query is also admin-only.
     
 
 ## Minimum logged actions from Design Doc
 
-- [ ] Event creation.
+- [x] Event creation.
     
-- [ ] Event changes.
+- [x] Event changes.
     
-- [ ] Event cancellation.
+- [x] Event cancellation.
     
 - [ ] Event early completion.
     
-- [ ] Event signup.
+- [x] Event signup.
     
-- [ ] Event sign-out.
+- [x] Event sign-out.
     
-- [ ] Officer assignment to event.
+- [x] Officer assignment to event.
     
-- [ ] Officer removal from event.
+- [x] Officer removal from event.
     
 - [ ] Warning creation.
     
@@ -1927,11 +1929,11 @@
 
 ## Additional operational mutation logging
 
-- [ ] Implement System Log coverage for officer create/edit/deactivate/reactivate actions as specified in the audit requirements.
+- [x] Implement System Log coverage for officer create/edit/deactivate/reactivate actions as specified in the audit requirements.
     
-- [ ] Implement System Log coverage for application admin-role changes as specified in the audit requirements.
+- [x] Implement System Log coverage for application admin-role changes as specified in the audit requirements.
     
-- [ ] Prefer logging security-sensitive/admin mutations for traceability.
+- [x] Prefer logging security-sensitive/admin mutations for traceability.
     
 
 ---
@@ -1952,15 +1954,15 @@
     
 - [x] Simple visual style exists.
     
-- [ ] System Log admin-only link.
+- [x] System Log admin-only link.
     
 - [ ] Auth/sign-out control.
     
 - [ ] Current identity/role indication if useful.
     
-- [ ] Do not show admin-only navigation to officers.
+- [x] Do not show admin-only navigation to officers.
     
-- [ ] Hidden navigation must not be treated as authorization.
+- [x] Hidden navigation must not be treated as authorization.
     
 
 ---
@@ -1993,7 +1995,7 @@
     
 - [ ] Can view all warning statuses.
     
-- [ ] Can access System Log.
+- [x] Can access System Log.
     
 - [ ] Can manage application admins according to final admin management UI.
     
@@ -2030,7 +2032,7 @@
     
 - [ ] Cannot mutate points.
     
-- [ ] Cannot see System Log.
+- [x] Cannot see System Log.
     
 - [ ] Sees own approved warnings.
     
@@ -2265,9 +2267,9 @@
 - [ ] Participation rate snapshot implemented.
     
 - [x] Actor FKs reference auth.users.id in the verified migration; public-schema types are regenerated.
-- [ ] Protected workflows record the authenticated actor.
+- [x] Protected workflows record the authenticated actor.
     
-- [ ] Audit log survives source deletions.
+- [x] Audit log survives source deletions.
     
 - [ ] Final RLS protects every table appropriately.
     
@@ -2368,31 +2370,31 @@
     
 - [ ] Corrections can remain separate from original awards.
     
-- [ ] Actor identity exists for admin point changes.
+- [x] Actor identity exists for admin point changes.
     
 - [ ] Actor identity exists for warning changes.
     
-- [ ] Actor identity exists for event management actions.
+- [x] Actor identity exists for event management actions.
     
 - [ ] Actor identity exists for rate changes.
     
-- [ ] Actor identity exists for signup management where required.
+- [x] Actor identity exists for signup management where required.
     
 - [ ] Deleted-warning snapshot exists.
     
 - [ ] Deleted-award snapshot exists.
     
-- [ ] Audit records include timestamp.
+- [x] Audit records include timestamp.
     
-- [ ] Audit records include affected entity.
+- [x] Audit records include affected entity.
     
-- [ ] Audit records include action.
+- [x] Audit records include action.
     
-- [ ] Audit records include actor.
+- [x] Audit records include actor.
     
-- [ ] Audit records include useful details.
+- [x] Audit records include useful details.
     
-- [ ] Audit history is admin-readable.
+- [x] Audit history is admin-readable.
     
 
 ---
@@ -2508,7 +2510,7 @@ PR 1 evidence: [GitHub CI on Node 24](https://github.com/ehuerta6/cappy-hub/acti
     
 - [ ] Admin can manage points.
     
-- [ ] Non-admin cannot read System Log.
+- [x] Non-admin cannot read System Log.
     
 - [ ] Required warning approver can vote.
     
@@ -2817,11 +2819,11 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
 
 - [ ] Log all required operations.
     
-- [ ] Build admin System Log page.
+- [x] Build admin System Log page.
     
 - [ ] Verify deletion snapshots.
     
-- [ ] Verify log access controls.
+- [x] Verify log access controls.
     
 
 ## Phase 8 — Finish frontend behavior
@@ -2840,7 +2842,7 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
     
 - [ ] Timezone correctness.
     
-- [ ] Access to older history where needed.
+- [x] Access to older history where needed.
     
 
 ## Phase 9 — Testing and production hardening
@@ -3157,22 +3159,22 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
 
 ## Auditability
 
-- [ ] System Log exists.
+- [x] System Log exists.
     
 - [ ] Required actions are logged.
     
-- [ ] Actors are recorded.
+- [x] Actors are recorded.
     
 - [ ] Deleted-record snapshots are retained.
     
-- [ ] Only admins can view logs.
+- [x] Only admins can view logs.
     
 
 ## Frontend
 
 - [ ] Login flow works.
     
-- [ ] Navigation is role-aware.
+- [x] Navigation is role-aware.
     
 - [ ] Dashboard complete.
     

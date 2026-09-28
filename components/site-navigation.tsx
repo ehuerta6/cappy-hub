@@ -10,8 +10,11 @@ const links = [
   { href: "/points", label: "Points" },
 ];
 
-export default function SiteNavigation() {
+export default function SiteNavigation({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
+  const visibleLinks = isAdmin
+    ? [...links, { href: "/system-log", label: "System Log" }]
+    : links;
 
   return (
     <header className="border-b border-zinc-800 bg-zinc-950">
@@ -26,7 +29,7 @@ export default function SiteNavigation() {
           aria-label="Main navigation"
           className="flex gap-1 overflow-x-auto"
         >
-          {links.map(({ href, label }) => {
+          {visibleLinks.map(({ href, label }) => {
             const active =
               href === "/" ? pathname === href : pathname.startsWith(href);
             return (
