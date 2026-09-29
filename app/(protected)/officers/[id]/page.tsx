@@ -1,6 +1,7 @@
 import {
   getAuthorizationContext,
   canManageOfficers,
+  isAdmin,
 } from "@/lib/authorization";
 import TransactionTable from "@/app/(protected)/points/transaction-table";
 import { eventStatus, displayDate } from "@/lib/event-status";
@@ -19,16 +20,20 @@ import {
 } from "@/components/ui";
 import { formatLabel } from "@/lib/presentation";
 import RoleForm from "./role-form";
+import { CreateWarningForm, DeleteWarningForm } from "../warning-forms";
 
 export default async function OfficerDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ warningStatus?: string }>;
 }) {
   const actor = await getAuthorizationContext();
   await connection();
   const supabase = await createClient();
   const { id } = await params;
+  const { warningStatus } = await searchParams;
   if (!/^[1-9]\d*$/.test(id)) notFound();
   const { data: officer, error } = await supabase
     .from("officers")
@@ -58,6 +63,32 @@ export default async function OfficerDetailPage({
   ]);
   if (total.error || events.error || transactions.error)
     throw new Error("Failed to load officer history");
+  const showWarnings = isAdmin(actor) || actor.id === officer.id;
+  const warnings = showWarnings
+    ? await supabase
+        .from("officer_warnings")
+        .select("*,warning_approvals(*)")
+        .eq("officer_id", officer.id)
+        .order("created_at", { ascending: false })
+    : null;
+  if (warnings?.error) throw new Error("Failed to load warnings");
+  const visibleWarnings = warnings?.data ?? [];
+  const selectedStatus = ["pending", "approved", "rejected"].includes(
+    warningStatus ?? "",
+  )
+    ? warningStatus
+    : undefined;
+  const displayedWarnings =
+    isAdmin(actor) && selectedStatus
+      ? visibleWarnings.filter((warning) => warning.status === selectedStatus)
+      : visibleWarnings;
+  const approvedCount = visibleWarnings.filter(
+    (warning) => warning.status === "approved",
+  ).length;
+  const approverNames = isAdmin(actor)
+    ? await supabase.from("officers").select("auth_user_id,name")
+    : null;
+  if (approverNames?.error) throw new Error("Failed to load approver names");
   return (
     <div className="space-y-8">
       <PageHeader
@@ -112,6 +143,94 @@ export default async function OfficerDetailPage({
       <p className="text-lg font-semibold text-zinc-100">
         Total points: <PointValue value={total.data.total_points ?? 0} />
       </p>
+      {showWarnings && (
+        <section className="space-y-4">
+          <SectionHeading title="Warnings" />
+          <p>Approved warnings: {approvedCount}</p>
+          {isAdmin(actor) && approvedCount >= 3 && (
+            <p role="status" className="font-semibold">
+              Admin Review — three or more approved warnings. Deactivation is a
+              separate manual decision.
+            </p>
+          )}
+          {isAdmin(actor) && (
+            <nav aria-label="Warning status" className="flex gap-4 text-sm">
+              {[
+                ["All", ""],
+                ["Pending", "pending"],
+                ["Approved", "approved"],
+                ["Rejected", "rejected"],
+              ].map(([label, status]) => (
+                <Link
+                  key={label}
+                  href={
+                    status
+                      ? `/officers/${id}?warningStatus=${status}`
+                      : `/officers/${id}`
+                  }
+                  className="underline"
+                  aria-current={
+                    (selectedStatus ?? "") === status ? "page" : undefined
+                  }
+                >
+                  {label}
+                </Link>
+              ))}
+            </nav>
+          )}
+          {displayedWarnings.length === 0 && (
+            <p>
+              {isAdmin(actor)
+                ? "No warnings in this view."
+                : "No approved warnings."}
+            </p>
+          )}
+          {displayedWarnings.map((warning) => (
+            <article
+              key={warning.id}
+              className="space-y-2 rounded-lg border border-zinc-800 p-4"
+            >
+              <div className="flex flex-wrap items-center gap-3">
+                <StatusBadge status={warning.status} />
+                <time dateTime={warning.created_at}>
+                  {displayDate(warning.created_at)}
+                </time>
+              </div>
+              <p className="whitespace-pre-wrap">{warning.reason}</p>
+              {isAdmin(actor) && (
+                <>
+                  <p className="text-sm">
+                    Approvals:{" "}
+                    {
+                      warning.warning_approvals.filter(
+                        (approval) => approval.decision === "approved",
+                      ).length
+                    }
+                    /{warning.warning_approvals.length}
+                  </p>
+                  <ul className="text-sm text-zinc-400">
+                    {warning.warning_approvals.map((approval) => (
+                      <li key={approval.approver_id}>
+                        {approval.approver_role} (
+                        {approverNames?.data?.find(
+                          (person) =>
+                            person.auth_user_id === approval.approver_id,
+                        )?.name ?? approval.approver_id}
+                        ): {approval.decision}
+                      </li>
+                    ))}
+                  </ul>
+                  <DeleteWarningForm
+                    warningId={warning.id}
+                    officerId={officer.id}
+                  />
+                </>
+              )}
+            </article>
+          ))}
+          {isAdmin(actor) && <CreateWarningForm officerId={officer.id} />}
+        </section>
+      )}
       <section>
         <SectionHeading title="Associated events" />
         {!events.data.length && <p>No associated events yet.</p>}

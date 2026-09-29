@@ -67,6 +67,9 @@ select ok(not has_function_privilege('authenticated','private.process_finished_e
   and has_function_privilege('authenticated','public.add_manual_transaction(bigint,numeric,text,text,bigint)','EXECUTE')
   and has_function_privilege('authenticated','public.set_participation_rate(numeric)','EXECUTE')
   and has_function_privilege('authenticated','public.remove_participation_award(bigint)','EXECUTE')
+  and has_function_privilege('authenticated','public.create_warning(bigint,text)','EXECUTE')
+  and has_function_privilege('authenticated','public.decide_warning(bigint,text)','EXECUTE')
+  and has_function_privilege('authenticated','public.delete_warning(bigint)','EXECUTE')
   and (select pg_catalog.bool_and(has_function_privilege('authenticated', signature, 'EXECUTE'))
     from pg_catalog.unnest(array[
       'public.create_position(text)','public.rename_position(bigint,text)','public.delete_position(bigint)',
@@ -77,7 +80,7 @@ select ok(not has_function_privilege('authenticated','private.process_finished_e
 select is((select count(*) from pg_catalog.pg_proc p
   join pg_catalog.pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and has_function_privilege('authenticated',p.oid,'EXECUTE')),
-  18::bigint,'authenticated has exactly the eighteen reviewed public RPC entry points');
+  21::bigint,'authenticated has exactly the twenty-one reviewed public RPC entry points');
 
 -- Fixtures are inserted as database owner. Every probe below changes to the
 -- real PostgREST roles with a request JWT sub; all fixture writes roll back.

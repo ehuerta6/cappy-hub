@@ -7,7 +7,7 @@ Cappy Hub is an internal administrative application for the Coding Interview Clu
 - Officers: create, list, view, edit, deactivate/reactivate; one controlled position, optional academic classification, at least one contact email, and zero or more branches.
 - Events: create, list, view, edit upcoming events, cancel before the scheduled end, zero or more branches, add/remove active officers while signup is open.
 - Points: automatic scheduled participation awards, positive/negative fractional manual transactions and corrections, officer totals calculated with SQL `SUM`.
-- Connected profiles: officer events and point history; event participants and related transactions.
+- Connected profiles: officer events and point history; event participants and related transactions; private warning history for admins and the assigned officer.
 - Dashboard: active officers, upcoming events, signed points this half-year, upcoming schedule and recent point activity. These are queries, not stored statistics.
 
 Stack: Next.js App Router, React, TypeScript, Supabase/PostgreSQL, npm, existing Tailwind CSS. No ORM or component library.
@@ -131,7 +131,7 @@ The Data API applies two gates before returning application rows:
 Browser / Data API → PostgreSQL grant → RLS → linked active officer
 ```
 
-`anon` has no table, view, sequence, or public-function access to application data. A signed-in account without an active linked officer also sees no application rows. Approved officers may read the shared directory, events, signups, point history, catalogs, and rate configuration. Warning rows are separate: admins see all; the assigned officer sees only approved warnings. Warning approvals and audit logs are admin-readable only.
+`anon` has no table, view, sequence, or public-function access to application data. A signed-in account without an active linked officer also sees no application rows. Approved officers may read the shared directory, events, signups, point history, catalogs, and rate configuration. Warning rows are separate: admins see all; the assigned officer sees only their own approved warnings; a required approver sees only a warning awaiting their decision and their own pending approval row. Admins can read all approval rows and the System Log. Direct warning writes remain closed to client roles.
 
 Sensitive raw table writes are denied to every client role, including admins. Officer/branch edits, event/branch edits, signup changes, role assignment, and manual points must use the protected RPCs:
 
@@ -141,7 +141,7 @@ Client → trusted RPC → auth.uid() → private authorization check → transa
 
 This prevents a direct table write from skipping the RPC's branch checks, signup closure rules, role invariants, or deactivation cleanup. The exposed views use `security_invoker`; the dashboard view also returns no row to an unapproved account. Prototype anonymous policies and per-column grants are removed. Defaults for objects created by the migration role are closed; Supabase-managed roles have separate defaults, so every future public object still needs an explicit grant and RLS review.
 
-The local test suite exercises direct SELECT/INSERT/UPDATE/DELETE and RPC behavior as `anon`, unlinked, inactive, officer, Lead, and admin. It does not configure the external Google provider or deploy the migration to a hosted Supabase project. Later warning and scheduler workflows must keep their own trusted write paths.
+The local test suite exercises direct SELECT/INSERT/UPDATE/DELETE and RPC behavior as `anon`, unlinked, inactive, officer, Lead, and admin. It does not configure the external Google provider or deploy the migration to a hosted Supabase project.
 
 ## Audit trail and System Log (PR 5)
 
@@ -153,7 +153,7 @@ Trusted RPC → authorization and validation → data mutation → private audit
 
 The writer derives the human actor from `auth.uid()` and stores action, entity reference, time, and concise JSON details. A failed audit insert rolls back the business change. Ordinary clients cannot call the writer or insert, edit, or delete audit rows. A future trusted system operation may write with `actor_id = NULL` without inventing a user.
 
-Current coverage includes officer create/edit/deactivate/reactivate, role changes, first auth linking, event create/edit/cancel, self and manager signup changes, manual points, corrections, position/branch/event-type changes, participation-rate changes, and logical award removal. Repeated saves or signup requests with no resulting change do not create another audit event. Future warning, scheduled award, and early-completion workflows must call the same writer when implemented.
+Current coverage includes officer create/edit/deactivate/reactivate, role changes, first auth linking, event create/edit/cancel, self and manager signup changes, manual points, corrections, position/branch/event-type changes, participation-rate changes, logical award removal, scheduled awards, and warning creation/decisions/deletion. Repeated saves or signup requests with no resulting change do not create another audit event. The early-completion workflow remains future work.
 
 Admins can open `/system-log` from their navigation. The page uses the authenticated client and the admin-only audit RLS policy, resolves actor names from the officer directory where possible, and pages newest-first through older history. The page is read-only.
 
@@ -193,9 +193,17 @@ npm run build
 4. Sign in as a Lead with a branch membership and manage a matching branch event and its signups. An unrelated or global event stays outside Lead scope.
 5. Use the admin Points form for a manual transaction or correction. Once the Cron migration is applied to the target database, finished timed events receive participation awards automatically.
 
+## Warning workflow
+
+An admin creates a warning on an officer profile with a required reason. The database starts it as `pending` and stores one approval row for each current President and Vice President with an active, linked Auth account, excluding the warned officer. Creation fails if a required leader is inactive or unlinked, or if no eligible approvers remain. The warning's target, reason, creation time, and approver list do not change through normal application workflows. Later position changes do not transfer a vote; an approver who becomes inactive afterward cannot sign in to decide it, so exceptional roster problems require administrative handling outside the normal MVP workflow.
+
+The Officers page shows a leader only the warnings awaiting **their** decision. Each leader approves or rejects once using their own account. One rejection closes the warning as rejected; all required approvals make it approved; otherwise it stays pending. Only approved warnings appear on the warned officer's profile and count toward its total. At three approved warnings, the profile displays an **Admin Review** flag; the officer stays active until an admin separately decides to deactivate them.
+
+Admins see all warning states, approval progress, and status filters on the officer profile. They may delete a warning, which also removes its approval rows. Creation, each decision, and deletion are recorded in the System Log in the same transaction. The deletion entry contains the reason, status, created time, and every snapshotted approver and decision so the history remains understandable after the source rows are gone. No warning edit or vote reassignment workflow is provided.
+
 ## Deferred to MVP
 
-Live authentication-provider verification; deployment of the migrations and Cron job to the hosted project; early-completion UI; warnings/approvals; audit coverage for future workflows; Google Calendar/Drive/Discord integrations; spreadsheet imports; production error UX and deployment hardening. Untimed events/tasks await product feedback. Trusted mutation authorization, direct database access, automatic processing, and current audit operations are verified locally. Live provider setup, deployment, and remaining feature workflows are still pending.
+Live authentication-provider verification; deployment of the migrations and Cron job to the hosted project; early-completion UI; audit coverage for future workflows; Google Calendar/Drive/Discord integrations; spreadsheet imports; production error UX and deployment hardening. Untimed events/tasks await product feedback. Trusted mutation authorization, direct database access, automatic processing, warning workflows, and current audit operations are verified locally. Live provider setup and deployment are still pending.
 
 ## Git & GitHub Workflow
 
