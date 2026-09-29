@@ -613,6 +613,23 @@ export type Database = {
         };
         Returns: number;
       };
+      save_event_with_links: {
+        Args: {
+          p_branch_ids: number[];
+          p_description: string;
+          p_ends_at: string;
+          p_event_date: string;
+          p_event_id?: number;
+          p_event_type_id: number;
+          p_fixed_points: number;
+          p_location: string;
+          p_meeting_notes_url?: string;
+          p_name: string;
+          p_slides_url?: string;
+          p_starts_at: string;
+        };
+        Returns: number;
+      };
       save_officer: {
         Args: {
           p_branch_ids: number[];

@@ -38,6 +38,8 @@ const safeMessages = new Set([
   "Removed events cannot be edited",
   "Cancelled events cannot be edited",
   "Processed event kind cannot change",
+  "Slides link must be an HTTP(S) URL",
+  "Meeting notes link must be an HTTP(S) URL",
   "Event unavailable",
   "Removed transaction cannot be edited",
   "Untimed assignments require an event manager",

@@ -56,6 +56,22 @@ export default function EventForm({
         <input name="location" defaultValue={event?.location ?? ""} />
       </label>
       <label>
+        Slides URL (optional)
+        <input
+          name="slides_url"
+          type="url"
+          defaultValue={event?.slides_url ?? ""}
+        />
+      </label>
+      <label>
+        Meeting notes URL (optional)
+        <input
+          name="meeting_notes_url"
+          type="url"
+          defaultValue={event?.meeting_notes_url ?? ""}
+        />
+      </label>
+      <label>
         Event kind
         <select
           name="kind"

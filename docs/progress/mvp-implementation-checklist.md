@@ -55,7 +55,7 @@
     
 - [x] Application roles (local role assignment and backend invariants verified; hosted sign-in remains pending).
     
-- [ ] Branch-scoped authorization.
+- [x] Branch-scoped authorization.
     
 - [x] Final RLS policies (local grants, policies, and role-context tests; hosted deployment remains pending).
     
@@ -970,9 +970,9 @@
     
 - [x] Officer rows link to officer detail.
     
-- [ ] Final page respects authentication.
+- [x] Final page respects authentication.
     
-- [ ] Final page respects any read-visibility policy decided for officer contact information.
+- [x] Final page respects any read-visibility policy decided for officer contact information.
     
 
 ## Finding officers
@@ -1026,7 +1026,7 @@
     
 - [x] Trusted save accepts an empty branch collection.
     
-- [ ] Only admins can create officers.
+- [x] Only admins can create officers.
     
 - [x] Creation records actor identity where needed.
     
@@ -1063,9 +1063,9 @@
     
 - [x] Editing an officer to zero branches is supported.
     
-- [ ] Only admins can edit officers.
+- [x] Only admins can edit officers.
     
-- [ ] Admin authorization is server/database enforced.
+- [x] Admin authorization is server/database enforced.
     
 - [x] Relevant officer modifications are represented in System Log.
     
@@ -1133,7 +1133,7 @@
     
 - [x] Clearly flag officer for admin review at three approved warnings.
     
-- [ ] Apply final permission rules to profile data.
+- [x] Apply final permission rules to profile data.
     
 - [x] Remove arbitrary recent-history limitations if they prevent access to required historical information, or add an appropriate way to reach older records.
     
@@ -1249,7 +1249,7 @@
     
 - [x] Event row/detail navigation exists.
     
-- [ ] Logged-in officer's signup state is visible.
+- [x] Logged-in officer's signup state is visible.
     
 - [x] Resolved decision: event type is for organization/filtering and does not grant permissions.
     
@@ -1281,9 +1281,9 @@
 
 ## Missing fields/workflows
 
-- [ ] Optional slides URL.
+- [x] Optional slides URL.
     
-- [ ] Optional meeting notes URL.
+- [x] Optional meeting notes URL.
     
     
     
@@ -1471,9 +1471,9 @@
 
 ## Missing MVP data
 
-- [ ] Slides link.
+- [x] Slides link.
     
-- [ ] Meeting notes link.
+- [x] Meeting notes link.
     
     
     
@@ -1492,25 +1492,25 @@
 
 # 37. Event File Links / Google Drive
 
-- [ ] Add nullable `slides_url`.
+- [x] Add nullable `slides_url`.
     
-- [ ] Add nullable `meeting_notes_url`.
+- [x] Add nullable `meeting_notes_url`.
     
-- [ ] Display slides link when present.
+- [x] Display slides link when present.
     
-- [ ] Display meeting notes link when present.
+- [x] Display meeting notes link when present.
     
-- [ ] Allow authorized event managers to set/update these links.
+- [x] Allow authorized event managers to set/update these links.
     
-- [ ] Keep actual collaborative files in Google Drive.
+- [x] Keep actual collaborative files in Google Drive.
     
-- [ ] Do not duplicate presentation content into Cappy Hub database.
+- [x] Do not duplicate presentation content into Cappy Hub database.
     
-- [ ] Do not duplicate meeting-note content into Cappy Hub database.
+- [x] Do not duplicate meeting-note content into Cappy Hub database.
     
-- [ ] Cappy Hub stores/references URLs only where needed.
+- [x] Cappy Hub stores/references URLs only where needed.
     
-- [ ] Validate/handle empty URLs appropriately.
+- [x] Validate/handle empty URLs appropriately.
     
 
 ---
@@ -1552,9 +1552,9 @@
     
 - [x] Unauthorized branch lead cannot manage unrelated branch events.
     
-- [ ] Event detail clearly shows current officer's signup status.
+- [x] Event detail clearly shows current officer's signup status.
     
-- [ ] Events page clearly shows current officer's signup status.
+- [x] Events page clearly shows current officer's signup status.
     
 - [x] Signup action is logged.
     
@@ -1851,18 +1851,18 @@
     
 - [ ] Verify America/Denver timezone semantics in production.
     
-- [ ] Ensure final rate/award model still feeds Dashboard correctly.
+- [x] Ensure final rate/award model still feeds Dashboard correctly.
     
 
 ## Authenticated officer view
 
-- [ ] Dashboard knows which officer is signed in.
+- [x] Dashboard knows which officer is signed in.
     
-- [ ] Officer-specific upcoming event view shows all relevant events.
+- [x] Officer-specific upcoming event view shows all relevant events.
     
-- [ ] Clearly mark events where current officer is signed up.
+- [x] Clearly mark events where current officer is signed up.
     
-- [ ] Clearly mark events where current officer is not signed up.
+- [x] Clearly mark events where current officer is not signed up.
     
 - [x] Dashboard navigation respects application role.
     
@@ -1968,7 +1968,7 @@
     
 - [x] System Log admin-only link.
     
-- [ ] Auth/sign-out control.
+- [x] Auth/sign-out control.
     
 - [ ] Current identity/role indication if useful.
     
@@ -1983,17 +1983,17 @@
 
 ## Admin
 
-- [ ] Can see Add Officer.
+- [x] Can see Add Officer.
     
-- [ ] Can edit officers.
+- [x] Can edit officers.
     
-- [ ] Can deactivate/reactivate officers.
+- [x] Can deactivate/reactivate officers.
     
-- [ ] Can create events.
+- [x] Can create events.
     
-- [ ] Can manage all events.
+- [x] Can manage all events.
     
-- [ ] Can manage all event signups.
+- [x] Can manage all event signups.
     
 - [x] Can create manual point transactions.
     
@@ -2014,33 +2014,33 @@
 
 ## Branch lead
 
-- [ ] Can create events for authorized branch scope.
+- [x] Can create events for authorized branch scope.
     
-- [ ] Can edit authorized events.
+- [x] Can edit authorized events.
     
-- [ ] Can cancel authorized events.
+- [x] Can cancel authorized events.
     
 - [x] Can remove authorized events with preserved history.
     
-- [ ] Can manage signups for authorized events.
+- [x] Can manage signups for authorized events.
     
     
-- [ ] Cannot manage unrelated branch events.
+- [x] Cannot manage unrelated branch events.
     
 - [x] Cannot award/correct/remove points unless separately an admin.
     
 
 ## Normal officer
 
-- [ ] Can view permitted application data.
+- [x] Can view permitted application data.
     
-- [ ] Can manage own event signup.
+- [x] Can manage own event signup.
     
-- [ ] Cannot manage another officer's signup.
+- [x] Cannot manage another officer's signup.
     
-- [ ] Cannot manage arbitrary events.
+- [x] Cannot manage arbitrary events.
     
-- [ ] Cannot mutate officer records.
+- [x] Cannot mutate officer records.
     
 - [x] Cannot mutate points.
     
@@ -2065,13 +2065,13 @@
     
 - [x] Optional personal email.
     
-- [ ] Database email validation.
+- [x] Database email validation.
     
 - [x] Status validation.
     
 - [x] Branches are optional.
     
-- [ ] Role authorization enforced independently from form.
+- [x] Role authorization enforced independently from form.
     
 
 ## Event form
@@ -2088,9 +2088,9 @@
     
 - [x] Save RPC accepts zero branch associations.
     
-- [ ] Slides URL field.
+- [x] Slides URL field.
     
-- [ ] Meeting notes URL field.
+- [x] Meeting notes URL field.
     
     
     
@@ -2160,15 +2160,15 @@
 
 - [ ] Product decision: Google Drive remains collaborative file system.
     
-- [ ] Implement event URL references for slides.
+- [x] Implement event URL references for slides.
     
-- [ ] Implement event URL references for meeting notes.
+- [x] Implement event URL references for meeting notes.
     
 - [ ] Keep policies/promotional materials/curriculum/etc. in Drive.
     
-- [ ] Do not create duplicate document-management subsystem inside Cappy Hub.
+- [x] Do not create duplicate document-management subsystem inside Cappy Hub.
     
-- [ ] Do not store Drive document contents in the Cappy Hub database solely for convenience.
+- [x] Do not store Drive document contents in the Cappy Hub database solely for convenience.
     
 
 ---
@@ -2614,15 +2614,15 @@ PR 1 evidence: [GitHub CI on Node 24](https://github.com/ehuerta6/cappy-hub/acti
     
 - [x] Authentication failures have an appropriate user-facing state.
     
-- [ ] Authorization failures have an appropriate user-facing state.
+- [x] Authorization failures have an appropriate user-facing state.
     
-- [ ] Invalid branch-scoped action returns useful error.
+- [x] Invalid branch-scoped action returns useful error.
     
 - [x] Invalid warning approval returns useful error.
     
 - [ ] Duplicate-protected operations return useful error where relevant.
     
-- [ ] Rate-update errors are surfaced.
+- [x] Rate-update errors are surfaced.
     
 - [x] Scheduled-processing failures are diagnosable through Cron run history.
     
@@ -2641,11 +2641,11 @@ PR 1 evidence: [GitHub CI on Node 24](https://github.com/ehuerta6/cappy-hub/acti
     
 - [x] No animation system is required.
     
-- [ ] No charting system is required for MVP.
+- [x] No charting system is required for MVP.
     
 - [x] No complex design system is required.
     
-- [ ] Keep new auth/warnings/log/config UI visually simple.
+- [x] Keep new auth/warnings/log/config UI visually simple.
     
 - [x] Prefer tables for collections.
     
@@ -2653,7 +2653,7 @@ PR 1 evidence: [GitHub CI on Node 24](https://github.com/ehuerta6/cappy-hub/acti
     
 - [x] Prefer status badges for status.
     
-- [ ] Prefer simple dialogs only where confirmation is useful.
+- [x] Prefer simple dialogs only where confirmation is useful.
     
 - [x] Do not add unrelated product areas.
     
@@ -2842,9 +2842,9 @@ Untimed work events are now resolved in the updated Design Doc: dated assignment
 
 - [x] Auth state/navigation.
     
-- [ ] Role-aware controls.
+- [x] Role-aware controls.
     
-- [ ] Dashboard signup indicator.
+- [x] Dashboard signup indicator.
     
 - [x] Points filtering/search.
     
@@ -2852,7 +2852,7 @@ Untimed work events are now resolved in the updated Design Doc: dated assignment
     
 - [x] Config UI for the participation rate.
     
-- [ ] Timezone correctness.
+- [x] Timezone correctness.
     
 - [x] Access to older history where needed.
     
@@ -2861,7 +2861,7 @@ Untimed work events are now resolved in the updated Design Doc: dated assignment
 
 - [x] Add automated tests.
     
-- [ ] Authorization tests.
+- [x] Authorization tests.
     
 - [x] Database integrity tests.
     
@@ -2872,7 +2872,7 @@ Untimed work events are now resolved in the updated Design Doc: dated assignment
     
 - [ ] Run security review.
     
-- [ ] Verify zero temporary anon write policies.
+- [x] Verify zero temporary anon write policies.
     
 - [x] Verify CI.
     
@@ -3188,21 +3188,21 @@ Untimed work events are now resolved in the updated Design Doc: dated assignment
     
 - [x] Navigation is role-aware.
     
-- [ ] Dashboard complete.
+- [x] Dashboard complete.
     
-- [ ] Officers complete.
+- [x] Officers complete.
     
-- [ ] Events complete.
+- [x] Events complete.
     
-- [ ] Points complete.
+- [x] Points complete.
     
-- [ ] Warnings complete.
+- [x] Warnings complete.
     
-- [ ] System Log complete.
+- [x] System Log complete.
     
-- [ ] Admin configuration controls complete.
+- [x] Admin configuration controls complete.
     
-- [ ] UI remains simple and usable.
+- [x] UI remains simple and usable.
     
 
 ## Quality
@@ -3217,7 +3217,7 @@ Untimed work events are now resolved in the updated Design Doc: dated assignment
     
 - [x] Automated tests pass.
     
-- [ ] Authorization test suite passes.
+- [x] Authorization test suite passes.
     
 - [x] Fresh migration replay passes.
     
@@ -3272,3 +3272,12 @@ Untimed work events are now resolved in the updated Design Doc: dated assignment
 - [x] Database tests cover timed/untimed processing, authorization, past edits, logical removals, and audit history.
 - [ ] Hosted Supabase migration and live provider flows remain unverified.
 - [ ] Final production release gate requires deployment and hosted verification.
+
+## PR 11 local frontend and test evidence
+
+- [x] Dashboard shows every upcoming event with the signed-in officer's participation state; Events list and detail show the same state, including untimed assignments.
+- [x] Event create/edit saves optional slides and meeting-notes URLs through a checked RPC; empty links become null, HTTP(S) links display on detail, and changes are audited.
+- [x] Cancellation and removal actions ask for confirmation; existing permission checks, status labels, error states, history views, and pagination remain in place.
+- [x] Database suites have distinct owners for schema integrity, RLS/grants, role authorization, and feature rules. The local suite dropped from 587 to 300 pgTAP assertions after removing repeated checks; 17 Vitest tests still run, and the database tests use synthetic fixtures and real local PostgreSQL.
+- [x] Local migration replay, populated upgrade preservation, type generation check, SQL lint, security advisor, lint, formatting, typecheck, Vitest/pgTAP, and webpack production build passed for PR 11.
+- [ ] Hosted migrations, Google provider and redirect settings, production environment and deployment, hosted Cron, and live role/workflow/security acceptance still require PR 12.

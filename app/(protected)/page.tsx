@@ -3,10 +3,11 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { displayPoints } from "@/lib/participation";
+import { participationLabel } from "@/lib/event-status";
 import TransactionTable from "./points/transaction-table";
 import { PageHeader, SectionHeading, TableFrame } from "@/components/ui";
 export default async function DashboardPage() {
-  await requireCurrentOfficer();
+  const officer = await requireCurrentOfficer();
   await connection();
   const supabase = await createClient();
   const [summary, events, transactions] = await Promise.all([
@@ -19,8 +20,7 @@ export default async function DashboardPage() {
       .or(
         `starts_at.gt.${new Date().toISOString()},and(starts_at.is.null,event_date.gte.${new Intl.DateTimeFormat("en-CA", { timeZone: "America/Denver", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())})`,
       )
-      .order("event_date")
-      .limit(10),
+      .order("event_date"),
     supabase
       .from("point_transactions")
       .select("*,officers(id,name),events(id,name)")
@@ -73,7 +73,10 @@ export default async function DashboardPage() {
         Points include signed corrections.
       </p>
       <section>
-        <SectionHeading title="Upcoming events" description="Next 10 events" />
+        <SectionHeading
+          title="Upcoming events"
+          description="All upcoming events"
+        />
         {!events.data.length && <p>No upcoming events.</p>}
         <TableFrame>
           <table>
@@ -82,6 +85,7 @@ export default async function DashboardPage() {
                 <th>Event</th>
                 <th>Start</th>
                 <th>Officers</th>
+                <th>Your signup</th>
               </tr>
             </thead>
             <tbody>
@@ -92,6 +96,14 @@ export default async function DashboardPage() {
                   </td>
                   <td>{event.event_date}</td>
                   <td>{event.event_officers.length}</td>
+                  <td>
+                    {participationLabel(
+                      event.event_officers.some(
+                        (signup) => signup.officer_id === officer.id,
+                      ),
+                      event.starts_at === null,
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

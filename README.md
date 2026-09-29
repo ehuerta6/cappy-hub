@@ -193,6 +193,8 @@ npm run build
 
 `npm test` runs Vitest once with the existing `@/` alias; its database test invokes pgTAP against local Supabase. There is no empty-suite allowance or mock of PostgreSQL constraints. Application behavior tests can still be added as `*.test.ts` or `*.spec.ts` when relevant.
 
+Database test ownership: `integrity` checks core constraints; `final_rls` checks grants and representative anonymous, unlinked, inactive, officer, Lead, and admin access; `authorization` checks business permissions. The remaining suites cover their own catalog, identity, audit, scheduled awards, event history and point edits, point configuration, or warning rules. Add a new assertion where its invariant belongs, rather than repeating the same role denial in every feature suite. Fixtures use synthetic local records and each pgTAP file rolls back its changes.
+
 ## Try the current flow
 
 1. Have a database administrator bootstrap one verified active officer as admin, as described above.

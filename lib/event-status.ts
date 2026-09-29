@@ -1,5 +1,9 @@
 import type { Tables } from "./database.types";
 import { formatDate, formatDateTime } from "./presentation";
+export function participationLabel(participating: boolean, untimed: boolean) {
+  if (untimed) return participating ? "Assigned" : "Not assigned";
+  return participating ? "Signed up" : "Not signed up";
+}
 export function eventStatus(
   event: Pick<
     Tables<"events">,
