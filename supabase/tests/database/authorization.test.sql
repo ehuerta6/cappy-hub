@@ -8,10 +8,10 @@ select ok(not has_function_privilege('anon','public.save_officer(text,bigint,tex
   and not has_function_privilege('anon','public.change_event_signup(bigint,bigint,boolean)','EXECUTE')
   and not has_function_privilege('anon','public.cancel_event(bigint)','EXECUTE')
   and not has_function_privilege('anon','public.add_manual_transaction(bigint,numeric,text,text,bigint)','EXECUTE')
-  and not has_function_privilege('anon','public.process_completed_events(numeric)','EXECUTE'),
-  'anonymous role cannot execute protected mutation RPCs or prototype processor');
-select ok(not has_function_privilege('authenticated','public.process_completed_events(numeric)','EXECUTE'),
-  'page loads cannot execute the prototype participation processor');
+  and not has_function_privilege('anon','private.process_finished_events()','EXECUTE'),
+  'anonymous role cannot execute protected mutations or private processor');
+select ok(not has_function_privilege('authenticated','private.process_finished_events()','EXECUTE'),
+  'application users cannot execute scheduled participation processing');
 select ok(not has_function_privilege('anon','private.save_event(text,text,bigint,text,timestamptz,timestamptz,bigint[],bigint)','EXECUTE'),
   'anonymous role cannot execute private implementation');
 

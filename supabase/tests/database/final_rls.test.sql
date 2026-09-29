@@ -57,7 +57,7 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
   join pg_catalog.pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and has_function_privilege('anon',p.oid,'EXECUTE')),
   'anon cannot execute any public application function');
-select ok(not has_function_privilege('authenticated','public.process_completed_events(numeric)','EXECUTE')
+select ok(not has_function_privilege('authenticated','private.process_finished_events()','EXECUTE')
   and has_function_privilege('authenticated','public.claim_current_officer_identity()','EXECUTE')
   and has_function_privilege('authenticated','public.save_officer(text,bigint,text,bigint[],bigint,text,text,text)','EXECUTE')
   and has_function_privilege('authenticated','public.set_officer_application_role(bigint,text)','EXECUTE')
@@ -134,8 +134,8 @@ select throws_ok($$insert into point_transactions(officer_id,points,reason,award
   '42501',null,'anon cannot forge points');
 select throws_ok($$select save_officer('Attack',17,'active',null,null,'attack-anon@example.org')$$,
   '42501',null,'anon cannot invoke trusted mutation');
-select throws_ok($$select process_completed_events(1)$$,
-  '42501',null,'anon cannot invoke obsolete points processor');
+select throws_ok($$select private.process_finished_events()$$,
+  '42501',null,'anon cannot invoke private points processor');
 reset role;
 
 -- A valid authenticated role with no officer, or an inactive linked officer,

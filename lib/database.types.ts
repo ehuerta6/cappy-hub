@@ -534,10 +534,6 @@ export type Database = {
       delete_branch: { Args: { p_id: number }; Returns: undefined };
       delete_event_type: { Args: { p_id: number }; Returns: undefined };
       delete_position: { Args: { p_id: number }; Returns: undefined };
-      process_completed_events: {
-        Args: { p_points_per_hour: number };
-        Returns: number;
-      };
       remove_participation_award: {
         Args: { p_transaction_id: number };
         Returns: boolean;

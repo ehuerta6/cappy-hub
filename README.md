@@ -121,7 +121,7 @@ Server Actions use the cookie-backed Supabase client for writes. Each trusted da
 
 Admins manage positions and branches from Officers → Manage positions and branches, and event types from Events → Manage event types. These are database records, so the officer and event forms load new or renamed values without code changes. The six baseline positions are required and cannot be renamed or deleted; this preserves the canonical `Lead` name used by branch authorization. Other positions, branches, and event types can be created or renamed. Deletion is allowed only for unused records, preserving officer memberships and event history. Each successful change is written to System Log in the same database transaction. Catalog RPCs recheck active-admin status; ordinary clients still have no direct catalog write grants.
 
-The prototype `process_completed_events` function is no longer executable by anonymous or ordinary authenticated clients, and pages no longer invoke it. Participation awards are temporarily paused until a trusted scheduled processor is implemented. Existing point history, totals, and manual corrections remain visible. Historical awards are unchanged.
+The prototype `process_completed_events` function has been removed. Pages never trigger participation processing. A private PostgreSQL function runs through Supabase Cron about once per minute; ordinary application users cannot invoke it.
 
 ## Database access and RLS (PR 4)
 
@@ -159,11 +159,17 @@ Admins can open `/system-log` from their navigation. The page uses the authentic
 
 ## Administrative points (PR 7)
 
-`application_config.participation_points_per_hour` is the current rate. Admins change it on the Points page through a protected, audited RPC; ordinary users may see the current value. Historical transactions and existing event rate snapshots are never recalculated. The trusted processor in PR 8 will read this configuration and snapshot it when future events finish.
+`application_config.participation_points_per_hour` is the current rate. Admins change it on the Points page through a protected, audited RPC; ordinary users may see the current value. Historical transactions and existing event rate snapshots are never recalculated. The trusted scheduled processor reads this configuration and snapshots it when a timed event finishes.
 
 Admins can create signed manual transactions and explicit corrections. A correction is a new row and leaves the original unchanged. An incorrect participation award can be logically removed: the row retains its original amount and reason, receives `removed_at` and the authenticated `removed_by`, and remains in the audit trail. Active totals and ordinary history exclude it. The unique participation-award index still includes removed rows, preventing regeneration.
 
 The Points page searches officer names, reasons, and event names in the database before pagination. It filters by type, officer, event, and, for admins, removal status. Older history is reachable through page links, including from officer profiles and event details. Dashboard half-year totals use January–June and July–December boundaries in `America/Denver`.
+
+## Automatic participation (PR 8)
+
+Supabase Cron runs `private.process_finished_events()` once per minute inside PostgreSQL. It considers a non-cancelled timed event finished at its scheduled end or when its stored status becomes `past` through an authorized early-completion workflow. Processing locks the event, snapshots the current database rate, awards each signup the **full scheduled duration × rate**, and writes System Log entries. A zero-signup event still gets a rate snapshot and an event-level audit entry. The event detail shows the rate used.
+
+The rate snapshot marks the event processed. Later runs skip it, and the participation uniqueness index includes logically removed rows, so an admin-removed award never reappears. Overlapping Cron calls skip event rows locked by another worker. A failed invocation rolls back its changes and appears in `cron.job_run_details`; the next run can retry. The migration registers one named Cron job, but this repository does not verify that a hosted Supabase project has applied or run it. Apply migrations and inspect the hosted Cron job and run history before relying on production awards.
 
 ## Quality checks
 
@@ -185,11 +191,11 @@ npm run build
 2. Sign in as that admin, create or edit officers, and create global or branch events.
 3. Sign in as an ordinary officer and manage only your own signup while the event is open.
 4. Sign in as a Lead with a branch membership and manage a matching branch event and its signups. An unrelated or global event stays outside Lead scope.
-5. Use the admin Points form for a manual transaction or correction. Automatic participation awards remain paused until the scheduled processor is added.
+5. Use the admin Points form for a manual transaction or correction. Once the Cron migration is applied to the target database, finished timed events receive participation awards automatically.
 
 ## Deferred to MVP
 
-Live authentication-provider verification; deployment of final RLS and audit migrations to the hosted project; trusted scheduled processing; early completion; warnings/approvals; audit coverage for future workflows; Google Calendar/Drive/Discord integrations; spreadsheet imports; production error UX and deployment hardening. Untimed events/tasks await product feedback. Trusted mutation authorization, direct database access, and current audit operations are enforced locally. Live provider setup, deployment, and remaining feature workflows are still pending.
+Live authentication-provider verification; deployment of the migrations and Cron job to the hosted project; early-completion UI; warnings/approvals; audit coverage for future workflows; Google Calendar/Drive/Discord integrations; spreadsheet imports; production error UX and deployment hardening. Untimed events/tasks await product feedback. Trusted mutation authorization, direct database access, automatic processing, and current audit operations are verified locally. Live provider setup, deployment, and remaining feature workflows are still pending.
 
 ## Git & GitHub Workflow
 
