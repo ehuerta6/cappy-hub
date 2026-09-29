@@ -58,8 +58,8 @@ select throws_ok($$select private.process_finished_events()$$,'42501',null,
   'authenticated client, including admins and Leads, cannot invoke processor');
 reset role;
 
-select is(private.process_finished_events(),4,
-  'ended, zero-signup, early-completed and previously removed events process together');
+select is(private.process_finished_events(),3,
+  'only scheduled-ended noncancelled events process together');
 select is((select participation_points_per_hour_at_end from events where id=-801),
   1.25::numeric,'ended event snapshots configured fractional rate');
 select is((select participation_points_per_hour_at_end from events where id=-802),
@@ -87,7 +87,7 @@ select is((select created_by from point_transactions where event_id=-801 and off
 select is((select total_points from officer_point_totals where id=-802),
   1.875::numeric,'inactive officer with historical signup receives award in derived total');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000807',true);
-select is((select half_year_points from dashboard_summary),6.25::numeric,
+select is((select half_year_points from dashboard_summary),3.75::numeric,
   'new automatic transactions immediately appear in current half-year Dashboard total');
 select set_config('request.jwt.claim.sub','',true);
 select is((select count(*) from point_transactions where event_id=-806),
@@ -96,9 +96,9 @@ select is((select count(*) from audit_logs where action='points.participation_cr
   and details->>'event_id'='-806'),0::bigint,
   'no new award audit is written for removed award');
 select is((select participation_points_per_hour_at_end from events where id=-805),
-  1.25::numeric,'explicitly early-completed event snapshots current rate');
+  null::numeric,'future manually-past event does not snapshot rate');
 select is((select points from point_transactions where event_id=-805),
-  2.5::numeric,'early completion awards full two scheduled hours');
+  null::numeric,'future manually-past event receives no award');
 select is((select starts_at from events where id=-805),
   '2099-09-21 09:00-06'::timestamptz,'early completion preserves scheduled start');
 select is((select ends_at from events where id=-805),
@@ -113,7 +113,7 @@ select ok((select bool_and(details ?& array['transaction_id','event_id','officer
   where action='points.participation_created' and details->>'event_id'='-801'),
   'award audit retains transaction, event, officer, duration, rate and amount');
 select is((select count(*) from audit_logs where action='event.participation_processed'
-  and entity_id in ('-801','-802','-805','-806')),4::bigint,
+  and entity_id in ('-801','-802','-805','-806')),3::bigint,
   'each processed event has one concise processing audit');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000807',true);
@@ -124,9 +124,9 @@ select is(remove_participation_award((select id from point_transactions
 reset role;
 select set_config('request.jwt.claim.sub','',true);
 select is((select total_points from officer_point_totals where id=-801),
-  2.5::numeric,'logical removal lowers officer total without changing early award');
+  0::numeric,'logical removal lowers officer total');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000807',true);
-select is((select half_year_points from dashboard_summary),4.375::numeric,
+select is((select half_year_points from dashboard_summary),1.875::numeric,
   'logical removal immediately lowers derived Dashboard total');
 select set_config('request.jwt.claim.sub','',true);
 
@@ -146,14 +146,14 @@ select is((select participation_points_per_hour_at_end from events where id=-801
 select is((select points from point_transactions where event_id=-801 and officer_id=-801),
   1.875::numeric,'rate change does not recalculate first award');
 update events set status='past' where id=-804;
-select is(private.process_finished_events(),1,
-  'later early-completed event becomes eligible before scheduled end');
+select is(private.process_finished_events(),0,
+  'manual past status cannot process future event');
 select is((select participation_points_per_hour_at_end from events where id=-804),
-  2::numeric,'later event snapshots the changed rate');
+  null::numeric,'future event has no rate snapshot');
 select is((select points from point_transactions where event_id=-804),
-  2::numeric,'later event award uses the changed rate');
+  null::numeric,'future event has no award');
 select is((select count(*) from audit_logs where action='points.participation_created'
-  and details->>'event_id'='-804'),1::bigint,'later award is audited once');
+  and details->>'event_id'='-804'),0::bigint,'future event has no award audit');
 select ok((select count(*) from point_transactions where award_type='participation'
   and event_id=-801)=2,'unique participation rows remain stable');
 

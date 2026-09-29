@@ -80,7 +80,7 @@ select ok(not has_function_privilege('authenticated','private.process_finished_e
 select is((select count(*) from pg_catalog.pg_proc p
   join pg_catalog.pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and has_function_privilege('authenticated',p.oid,'EXECUTE')),
-  21::bigint,'authenticated has exactly the twenty-one reviewed public RPC entry points');
+  25::bigint,'authenticated has exactly the twenty-five reviewed public RPC entry points');
 
 -- Fixtures are inserted as database owner. Every probe below changes to the
 -- real PostgREST roles with a request JWT sub; all fixture writes roll back.

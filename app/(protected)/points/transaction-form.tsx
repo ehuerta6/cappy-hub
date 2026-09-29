@@ -1,7 +1,7 @@
 "use client";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { Tables } from "@/lib/database.types";
-import { addTransaction } from "./actions";
+import { addTransaction, searchEvents } from "./actions";
 export default function TransactionForm({
   officers,
   events,
@@ -9,6 +9,10 @@ export default function TransactionForm({
   officers: Pick<Tables<"officers">, "id" | "name">[];
   events: Pick<Tables<"events">, "id" | "name">[];
 }) {
+  const [search, setSearch] = useState("");
+  const [older, setOlder] = useState(events);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const [state, action, pending] = useActionState(addTransaction, {
     error: "",
     success: "",
@@ -42,10 +46,38 @@ export default function TransactionForm({
         </select>
       </label>
       <label>
+        Search older events
+        <input
+          type="search"
+          value={search}
+          onChange={(change) => setSearch(change.target.value)}
+          placeholder="At least two letters"
+        />
+      </label>
+      <button
+        type="button"
+        className="button-secondary"
+        disabled={searching || search.trim().length < 2}
+        onClick={async () => {
+          setSearching(true);
+          setSearchError("");
+          try {
+            setOlder(await searchEvents(search));
+          } catch {
+            setSearchError("Could not search events");
+          } finally {
+            setSearching(false);
+          }
+        }}
+      >
+        {searching ? "Searching…" : "Search events"}
+      </button>
+      {searchError && <p role="alert">{searchError}</p>}
+      <label>
         Event (optional)
         <select name="event_id" defaultValue="">
           <option value="">No event</option>
-          {events.map((event) => (
+          {older.map((event) => (
             <option key={event.id} value={event.id}>
               {event.name}
             </option>

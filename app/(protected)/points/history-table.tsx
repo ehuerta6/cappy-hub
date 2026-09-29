@@ -3,7 +3,7 @@ import type { Tables } from "@/lib/database.types";
 import { displayDate } from "@/lib/event-status";
 import { formatLabel } from "@/lib/presentation";
 import { PointValue, StatusBadge } from "@/components/ui";
-import RemoveAwardForm from "./remove-award-form";
+import PointActions from "./point-actions";
 
 export default function HistoryTable({
   transactions,
@@ -78,11 +78,12 @@ export default function HistoryTable({
             )}
             {isAdmin && (
               <td>
-                {transaction.id &&
-                  transaction.award_type === "participation" &&
-                  !transaction.removed_at && (
-                    <RemoveAwardForm transactionId={transaction.id} />
-                  )}
+                {transaction.id && !transaction.removed_at && (
+                  <PointActions
+                    transactionId={transaction.id}
+                    points={transaction.points ?? 0}
+                  />
+                )}
               </td>
             )}
           </tr>

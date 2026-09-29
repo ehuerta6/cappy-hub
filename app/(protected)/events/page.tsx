@@ -2,7 +2,7 @@ import { getAuthorizationContext, isAdmin, isLead } from "@/lib/authorization";
 import Link from "next/link";
 import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { eventStatus, displayDate } from "@/lib/event-status";
+import { eventStatus } from "@/lib/event-status";
 import {
   ActionLink,
   BranchBadges,
@@ -10,28 +10,45 @@ import {
   StatusBadge,
   TableFrame,
 } from "@/components/ui";
-export default async function EventsPage() {
+export default async function EventsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ removed?: string }>;
+}) {
   const actor = await getAuthorizationContext();
   await connection();
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const showRemoved = isAdmin(actor) && (await searchParams).removed === "1";
+  let query = supabase
     .from("events")
     .select(
       "*,event_types(name),event_branches(branches(name)),event_officers(officer_id)",
     )
-    .order("starts_at", { ascending: false });
+    .order("event_date", { ascending: false });
+  query = showRemoved
+    ? query.not("deleted_at", "is", null)
+    : query.is("deleted_at", null);
+  const { data, error } = await query;
   if (error) throw new Error("Failed to load events");
   return (
     <div className="space-y-6">
       <PageHeader
         title="Events"
-        description="Scheduled club events and participation."
+        description="Club events, work assignments and participation."
         action={
           isAdmin(actor) || (isLead(actor) && actor.branchIds.length > 0) ? (
             <ActionLink href="/events/new">+ New event</ActionLink>
           ) : undefined
         }
       />
+      {isAdmin(actor) && (
+        <Link
+          href={showRemoved ? "/events" : "/events?removed=1"}
+          className="text-sm underline"
+        >
+          {showRemoved ? "Active events" : "Removed event history"}
+        </Link>
+      )}
       {isAdmin(actor) && (
         <Link href="/events/types" className="text-sm underline">
           Manage event types
@@ -42,7 +59,7 @@ export default async function EventsPage() {
           <thead>
             <tr>
               <th>Event</th>
-              <th>Start</th>
+              <th>Date</th>
               <th>Type</th>
               <th>Branches</th>
               <th>Officers</th>
@@ -55,7 +72,7 @@ export default async function EventsPage() {
                 <td>
                   <Link href={`/events/${event.id}`}>{event.name}</Link>
                 </td>
-                <td>{displayDate(event.starts_at)}</td>
+                <td>{event.event_date}</td>
                 <td>{event.event_types.name}</td>
                 <td>
                   <BranchBadges

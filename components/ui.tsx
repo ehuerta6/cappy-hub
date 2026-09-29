@@ -87,7 +87,9 @@ export function StatusBadge({ status }: { status: string }) {
       ? "green"
       : status === "upcoming" || status === "pending"
         ? "blue"
-        : status === "cancelled" || status === "rejected"
+        : status === "cancelled" ||
+            status === "rejected" ||
+            status === "removed"
           ? "red"
           : "neutral";
   return <Badge tone={tone}>{formatLabel(status)}</Badge>;

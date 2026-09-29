@@ -14,7 +14,7 @@ const dateOptions: Intl.DateTimeFormatOptions = {
   month: "short",
   day: "numeric",
   year: "numeric",
-  timeZone: "UTC",
+  timeZone: "America/Denver",
 };
 
 export function formatDate(value: string) {

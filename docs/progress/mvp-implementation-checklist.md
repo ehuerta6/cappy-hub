@@ -388,7 +388,7 @@
     
 - [x] Cancellation permissions are enforced.
     
-- [ ] Early completion permissions are enforced.
+- [x] Timed-event processing requires the scheduled end; a future event marked `past` cannot process.
     
 
 ## Event branches RLS
@@ -678,13 +678,13 @@
 - [x] Add nullable participation_points_per_hour_at_end for rate snapshot when trusted processing runs.
 - [x] Add optional slides_url and meeting_notes_url.
 - [x] Event name is nonblank and event_type_id is required; referenced type names are nonblank.
-- [x] starts_at and ends_at are required in the current POC.
+- [x] Timed events require both timestamps; untimed work events require neither and a finite nonzero fixed_points value.
 - [x] ends_at > starts_at is enforced.
 - [x] Timed events start and end on the same America/Denver calendar date.
 - [x] Current POC status values are upcoming, happening, past, and cancelled.
-- [x] Resolved decision: early completion sets the existing status to past; it does not record an actual completion timestamp.
+- [x] Resolved decision: no early-completion action or actual-completion timestamp in the MVP.
 - [x] Resolved decision: preserve scheduled starts_at/ends_at; do not add completed_at or an actual-end-time field.
-- [x] Early completion makes a timed event eligible immediately; awards use the full scheduled duration.
+- [x] Timed events become eligible only after scheduled end; awards use the full scheduled duration.
 - [x] Resolved decision: keep timezone-aware timestamps and use America/Denver for event input/display.
 - [x] Resolved decision: event-type names are unique; reject deletion while referenced and never cascade into event history.
 
@@ -873,7 +873,7 @@
 - [x] Provide a predictable way to access the single configuration row.
 - [x] Allow admins to view and change the participation rate.
 - [x] Prevent normal officers from changing the participation rate.
-- [x] Trusted participation processing reads and snapshots the current rate when a timed event first processes, including early completion.
+- [x] Trusted participation processing reads and snapshots the current rate after scheduled timed-event end.
 
 # 19. Database — audit_logs
 
@@ -927,11 +927,11 @@
     
 - [x] Enforce at least one officer branch in the existing transactional save workflow.
     
-- [ ] Make event-save authorization identity-aware.
+- [x] Make event-save authorization identity-aware.
     
-- [ ] Make signup RPC identity-aware.
+- [x] Make signup RPC identity-aware.
     
-- [ ] Distinguish self-signup from admin/lead assignment.
+- [x] Distinguish timed self-signup from admin/lead assignment.
     
 - [x] Replace arbitrary caller-supplied participation rate behavior.
     
@@ -947,7 +947,7 @@
     
 - [x] Keep audit log writes consistent with the actual mutation.
     
-- [ ] Review `SECURITY INVOKER`/function grants after final auth design.
+- [x] Review `SECURITY INVOKER`/function grants after final auth design (local grant inspection).
     
 
 ---
@@ -1233,27 +1233,27 @@
 
 # 28. Event Management — Event List
 
-- [ ] `/events` exists.
+- [x] `/events` exists.
     
-- [ ] Events are listed.
+- [x] Active events are listed; admins can switch to removed history.
     
-- [ ] Event name is shown.
+- [x] Event name is shown.
     
-- [ ] Schedule is shown.
+- [x] Event date is shown; timed detail displays the local start/end.
     
-- [ ] Type is shown.
+- [x] Type is shown.
     
-- [ ] Signup count is shown.
+- [x] Signup count is shown.
     
-- [ ] Branch associations are available.
+- [x] Branch associations are available.
     
-- [ ] Event row/detail navigation exists.
+- [x] Event row/detail navigation exists.
     
 - [ ] Logged-in officer's signup state is visible.
     
 - [x] Resolved decision: event type is for organization/filtering and does not grant permissions.
     
-- [ ] Apply final access rules to creation/manage actions.
+- [x] Apply final access rules to creation/manage actions.
     
 
 ---
@@ -1262,7 +1262,7 @@
 
 ## Current basic fields
 
-- [ ] Name.
+- [x] Name.
     
 - [x] Description.
     
@@ -1288,18 +1288,18 @@
     
     
     
-- [ ] Role/branch authorization.
+- [x] Role/branch authorization.
     
 
 ## Permissions
 
-- [ ] Admin may create any event.
+- [x] Admin may create any event.
     
-- [ ] Authorized branch lead may create event within their branch scope.
+- [x] Authorized branch lead may create event within their branch scope.
     
-- [ ] Normal officer may not create arbitrary events.
+- [x] Normal officer may not create arbitrary events.
     
-- [ ] Permission is backend enforced.
+- [x] Permission is backend enforced.
     
 
 ---
@@ -1351,9 +1351,9 @@
 
 # 31. Event Scheduling and Status
 
-- [x] Every event has start time.
+- [x] Timed events have start time; untimed events have a date and fixed points.
     
-- [x] Every event has end time.
+- [x] Timed events have end time; untimed events have neither timestamp.
     
 - [x] End must occur after start.
     
@@ -1365,17 +1365,17 @@
     
 - [x] Cancellation is explicit.
     
-- [ ] Implement admin/authorized-lead early completion.
+- [x] Omit early completion from timed event actions.
     
-- [x] Early completion does not shorten participation-point duration.
+- [x] Timed awards use the scheduled duration.
     
 - [x] Participation points still use originally scheduled `starts_at → ends_at` duration.
     
-- [x] Resolved decision: use the existing status value `past`; retain the originally scheduled timestamps and add no completion-time field.
+- [x] Derived past status follows scheduled end or passed untimed date; no completion-time field.
     
-- [ ] Ensure early-completed events cannot continue accepting signups.
+- [x] Timed signups close at scheduled end; untimed assignments close after the event date.
     
-- [ ] Ensure event status displayed in UI is consistent with early completion behavior.
+- [x] Event status display follows schedule/date, cancellation, and logical removal.
     
 
 ---
@@ -1388,11 +1388,11 @@
     
 - [x] Event branch associations update transactionally.
     
-- [ ] Admin has final authorized edit path.
+- [x] Admin has final authorized edit path, including past events.
     
-- [ ] Authorized branch lead has branch-scoped edit path.
+- [x] Authorized branch lead has branch-scoped edit path, including past events.
     
-- [ ] Normal officers cannot edit events.
+- [x] Normal officers cannot edit events.
     
 - [x] Editing preserves historical records.
     
@@ -1414,9 +1414,9 @@
     
 - [x] Signups cannot be changed after cancellation in current POC.
     
-- [ ] Admin authorization enforced.
+- [x] Admin authorization enforced.
     
-- [ ] Branch-lead authorization enforced.
+- [x] Branch-lead authorization enforced.
     
 - [x] Cancellation logged.
     
@@ -1427,15 +1427,15 @@
 # 34. Event Deletion Rules
 
     
-- [ ] Past-event deletion is not available in normal UI.
+- [x] Authorized managers can logically remove past events; physical deletion is not exposed.
     
 - [ ] Historical events remain protected.
     
 - [ ] Only database owner can physically delete historical events outside normal application workflow.
     
-- [ ] Deletion does not accidentally cascade historical points.
+- [x] Logical event removal retains historical point transactions.
     
-- [ ] Relevant deletion is represented in System Log where required.
+- [x] Event removal is represented in System Log with a pre-removal snapshot.
     
 
 ---
@@ -1450,17 +1450,17 @@
     
 - [x] Type.
     
-- [ ] Location.
+- [x] Location.
     
 - [x] Start time.
     
 - [x] End time.
     
-- [ ] Derived/displayed status.
+- [x] Derived/displayed status.
     
-- [ ] Associated branches.
+- [x] Associated branches.
     
-- [ ] Associated officers.
+- [x] Associated officers.
     
 - [x] Related point transactions.
     
@@ -1479,11 +1479,11 @@
     
     
     
-- [ ] Role-aware signup controls.
+- [x] Role-aware signup and assignment controls.
     
-- [ ] Role-aware event management controls.
+- [x] Role-aware event management controls.
     
-- [ ] Early-completion control.
+- [x] Event removal control with confirmation.
     
 - [x] Participation rate snapshot visible on event detail for explaining generated awards.
     
@@ -1534,23 +1534,23 @@
 
 ## Final identity-aware behavior
 
-- [ ] Logged-in officer can sign themselves up.
+- [x] Logged-in officer can sign themselves up for timed events.
     
-- [ ] Logged-in officer can sign themselves out.
+- [x] Logged-in officer can sign themselves out of timed events.
     
-- [ ] Logged-in officer cannot sign another officer up.
+- [x] Logged-in officer cannot sign another officer up.
     
-- [ ] Logged-in officer cannot remove another officer.
+- [x] Logged-in officer cannot remove another officer.
     
-- [ ] Admin can sign up any eligible officer.
+- [x] Admin can sign up or assign any eligible officer.
     
-- [ ] Admin can remove any officer.
+- [x] Admin can remove any eligible signup or assignment.
     
-- [ ] Authorized branch lead can sign up officers for an event in their branch scope.
+- [x] Authorized branch lead can sign up or assign officers for an event in their branch scope.
     
-- [ ] Authorized branch lead can remove officers from an event in their branch scope.
+- [x] Authorized branch lead can remove officers from an event in their branch scope.
     
-- [ ] Unauthorized branch lead cannot manage unrelated branch events.
+- [x] Unauthorized branch lead cannot manage unrelated branch events.
     
 - [ ] Event detail clearly shows current officer's signup status.
     
@@ -1648,7 +1648,7 @@
 
 - [x] Corrections are represented as additional transactions.
     
-- [x] Existing original transaction does not need to be edited.
+- [x] Corrections may use a separate signed transaction or direct audited amount editing.
     
 - [x] Positive correction is possible.
     
@@ -1710,7 +1710,7 @@
     
 - [x] Processing runs even when nobody loads Cappy Hub (local Cron probe verified).
     
-- [x] Early-completed timed events process before scheduled end using full scheduled duration.
+- [x] Timed events process at scheduled end only, using full scheduled duration.
     
 - [x] Resolved decision: trusted private database processing reads configured values; no anonymous rate parameter is accepted.
     
@@ -1910,7 +1910,7 @@
     
 - [x] Event cancellation.
     
-- [ ] Event early completion.
+- [x] Event removal with preserved signup, point, and audit history.
     
 - [x] Event signup.
     
@@ -2020,7 +2020,7 @@
     
 - [ ] Can cancel authorized events.
     
-- [ ] Can complete authorized events early.
+- [x] Can remove authorized events with preserved history.
     
 - [ ] Can manage signups for authorized events.
     
@@ -2080,9 +2080,9 @@
     
 - [x] Type required.
     
-- [x] Start required.
+- [x] Start required for timed events; hidden for untimed work events.
     
-- [x] End required.
+- [x] End required for timed events; hidden for untimed work events.
     
 - [x] End-after-start database validation.
     
@@ -2096,7 +2096,7 @@
     
     
     
-- [ ] Authorization validation.
+- [x] Authorization validation.
     
 
 ## Points form
@@ -2111,11 +2111,11 @@
     
 - [x] Event optional.
     
-- [ ] Manual/correction type selection.
+- [x] Manual/correction type selection.
     
-- [ ] Admin authorization.
+- [x] Admin authorization.
     
-- [ ] Actor attribution.
+- [x] Actor attribution.
     
 
 ## Warning form
@@ -2135,21 +2135,21 @@
 
 # 52. Time and Timezone Correctness
 
-> Current POC treats event form/display timestamps as UTC.
+> PR 10 uses America/Denver for event input and display.
 
     
 - [x] Resolved decision: PostgreSQL event timestamps remain timezone-aware.
     
-- [ ] Ensure datetime inputs are interpreted correctly.
+- [x] Ensure datetime inputs are interpreted correctly in America/Denver.
     
-- [ ] Ensure event detail displays expected local time.
+- [x] Ensure event detail displays expected local time.
     
-- [ ] Ensure event list displays expected local time.
+- [x] Ensure event list displays the El Paso event date.
     
-- [ ] Ensure Dashboard displays expected America/Denver local time.
+- [x] Ensure Dashboard displays the El Paso event date.
     
     
-- [ ] Ensure DST/timezone changes do not alter scheduled duration unexpectedly.
+- [x] Test summer/winter offsets and preserve timezone-aware scheduled duration.
     
 - [x] Ensure trusted event-end processing compares timezone-aware timestamps consistently.
     
@@ -2290,25 +2290,25 @@
 
 # 57. Historical Preservation Rules
 
-- [ ] Officer deactivation does not delete historical officer.
+- [x] Officer deactivation does not delete historical officer.
     
-- [ ] Event cancellation does not delete historical event.
+- [x] Event cancellation does not delete historical event.
     
-- [ ] Existing foreign keys use history-preserving behavior rather than cascaded deletion.
+- [x] Existing event and point foreign keys preserve history through logical removal.
     
-- [ ] Corrections can be represented without rewriting prior point values.
+- [x] Signed correction rows remain an option alongside direct audited edits.
     
-- [ ] Past events remain unavailable for deletion in normal UI.
+- [x] Past events support history-preserving logical removal in the UI.
     
 - [x] Warning deletion leaves audit history.
     
-- [ ] Point-award deletion leaves audit history.
+- [x] Point transaction logical removal leaves audit history.
     
 - [x] Audit log contains deletion snapshot.
     
-- [ ] Participation rate changes do not rewrite past transactions.
+- [x] Participation rate changes do not rewrite past transactions.
     
-- [ ] Participation rate changes do not rewrite event snapshots.
+- [x] Participation rate changes do not rewrite event snapshots.
     
 
 ---
@@ -2684,14 +2684,14 @@ These are product decisions, not implementation completion. The corresponding im
 - [x] `application_config` stores the participation points rate only.
 - [x] America/Denver is the official timezone for timed events.
 
-- [x] Participation awards use scheduled duration; early-completed timed events process before scheduled end.
-- [x] Early completion sets status to `past`, closes participation, retains scheduled times, and permits immediate processing.
+- [x] Timed participation awards use scheduled duration and process only after scheduled end.
+- [x] No early-completion workflow; manually persisted `past` status cannot trigger early processing.
 - [x] A logically removed award retains its history and is never regenerated.
 - [x] Trusted Supabase Cron/pg_cron calls a private database function approximately once per minute; processing does not depend on page loads, Vercel Cron, or Edge Functions.
 
 # 66. Explicitly Post-MVP / Not Required Now
 
-Untimed events/tasks await President feedback. Do not treat them as an implemented MVP workflow.
+Untimed work events are now resolved in the updated Design Doc: dated assignments earn configurable fixed points after the event date passes in America/Denver.
 
 ## Do not block MVP on these
 
@@ -2815,7 +2815,7 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
 
 - [ ] Slides/meeting-note URLs.
     
-- [ ] Early completion.
+- [x] Event removal with preserved history.
     
     
 
@@ -3094,7 +3094,7 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
     
 - [x] Deleted warning snapshot remains.
     
-- [ ] Deleted point award snapshot remains.
+- [x] Removed point transaction snapshot remains in System Log.
     
 
 ---
@@ -3105,7 +3105,7 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
 
 - [ ] All MVP features above are complete.
     
-- [ ] Untimed events/tasks need product clarification; early-completion processing timing is resolved for timed events.
+- [x] Updated Design Doc resolves untimed events as dated work with fixed automatic points; early completion is removed.
 - [ ] Implement the resolved product decisions.
     
 - [ ] No post-MVP feature is accidentally blocking release.
@@ -3257,3 +3257,18 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
 - [ ] **Required automated tests pass**
     
 - [ ] **Cappy Hub MVP is ready for real CIC administrative use**
+
+## PR 10 leadership alignment (local implementation evidence)
+
+- [x] Timed event form uses one America/Denver date and start/end times from 06:00 through 23:59; PostgreSQL enforces date, order, and local hours for new or edited rows.
+- [x] Untimed event form uses date and fixed points; authorized managers assign officers, and the private scheduled processor awards after the local date passes.
+- [x] Timed processing ignores persisted `past` status until `ends_at`; removed and cancelled events are excluded.
+- [x] Past event edits preserve existing award rows and snapshots, with before/after System Log entries.
+- [x] Event removal sets `deleted_at`/`deleted_by`, retains relationships, and records a pre-removal snapshot.
+- [x] Admin point amount edits change derived totals, store `updated_at`/`updated_by`, and log before/after rows.
+- [x] All point transaction types can be logically removed; removed automatic awards remain unique and cannot regenerate.
+- [x] Manual point form initially offers No event and five recent active events, with server-backed older-event search.
+- [x] Protected navigation provides Back/Forward controls using browser history.
+- [x] Database tests cover timed/untimed processing, authorization, past edits, logical removals, and audit history.
+- [ ] Hosted Supabase migration and live provider flows remain unverified.
+- [ ] Final production release gate requires deployment and hosted verification.

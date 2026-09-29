@@ -153,7 +153,7 @@ Trusted RPC → authorization and validation → data mutation → private audit
 
 The writer derives the human actor from `auth.uid()` and stores action, entity reference, time, and concise JSON details. A failed audit insert rolls back the business change. Ordinary clients cannot call the writer or insert, edit, or delete audit rows. A future trusted system operation may write with `actor_id = NULL` without inventing a user.
 
-Current coverage includes officer create/edit/deactivate/reactivate, role changes, first auth linking, event create/edit/cancel, self and manager signup changes, manual points, corrections, position/branch/event-type changes, participation-rate changes, logical award removal, scheduled awards, and warning creation/decisions/deletion. Repeated saves or signup requests with no resulting change do not create another audit event. The early-completion workflow remains future work.
+Current coverage includes officer create/edit/deactivate/reactivate, role changes, first auth linking, event create/edit/cancel/remove, self and manager signup changes, manual points, corrections, point amount edits and removals, position/branch/event-type changes, participation-rate changes, scheduled awards, and warning creation/decisions/deletion. Repeated saves or signup requests with no resulting change do not create another audit event.
 
 Admins can open `/system-log` from their navigation. The page uses the authenticated client and the admin-only audit RLS policy, resolves actor names from the officer directory where possible, and pages newest-first through older history. The page is read-only.
 
@@ -161,15 +161,23 @@ Admins can open `/system-log` from their navigation. The page uses the authentic
 
 `application_config.participation_points_per_hour` is the current rate. Admins change it on the Points page through a protected, audited RPC; ordinary users may see the current value. Historical transactions and existing event rate snapshots are never recalculated. The trusted scheduled processor reads this configuration and snapshots it when a timed event finishes.
 
-Admins can create signed manual transactions and explicit corrections. A correction is a new row and leaves the original unchanged. An incorrect participation award can be logically removed: the row retains its original amount and reason, receives `removed_at` and the authenticated `removed_by`, and remains in the audit trail. Active totals and ordinary history exclude it. The unique participation-award index still includes removed rows, preventing regeneration.
+Admins can create signed manual transactions and explicit corrections. A correction is a new row and leaves the original unchanged. Any transaction may be edited directly or logically removed by an admin. A removed transaction: the row retains its original amount and reason, receives `removed_at` and the authenticated `removed_by`, and remains in the audit trail. Active totals and ordinary history exclude it. The unique participation-award index still includes removed rows, preventing regeneration.
 
 The Points page searches officer names, reasons, and event names in the database before pagination. It filters by type, officer, event, and, for admins, removal status. Older history is reachable through page links, including from officer profiles and event details. Dashboard half-year totals use January–June and July–December boundaries in `America/Denver`.
 
 ## Automatic participation (PR 8)
 
-Supabase Cron runs `private.process_finished_events()` once per minute inside PostgreSQL. It considers a non-cancelled timed event finished at its scheduled end or when its stored status becomes `past` through an authorized early-completion workflow. Processing locks the event, snapshots the current database rate, awards each signup the **full scheduled duration × rate**, and writes System Log entries. A zero-signup event still gets a rate snapshot and an event-level audit entry. The event detail shows the rate used.
+Supabase Cron runs `private.process_finished_events()` once per minute inside PostgreSQL. A timed event becomes eligible only at its scheduled end; a manually persisted `past` status cannot trigger early awards. Processing locks the event, snapshots the current database rate, awards each signup the **full scheduled duration × rate**, and writes System Log entries. An untimed work event becomes eligible after its `event_date` passes in America/Denver and awards its configured `fixed_points` to each assignment. Zero-signup events still receive a processing marker and audit entry. Cancelled or removed events are excluded.
 
-The rate snapshot marks the event processed. Later runs skip it, and the participation uniqueness index includes logically removed rows, so an admin-removed award never reappears. Overlapping Cron calls skip event rows locked by another worker. A failed invocation rolls back its changes and appears in `cron.job_run_details`; the next run can retry. The migration registers one named Cron job, but this repository does not verify that a hosted Supabase project has applied or run it. Apply migrations and inspect the hosted Cron job and run history before relying on production awards.
+The timed rate snapshot or untimed processing timestamp marks the event processed. Later runs skip it, and the participation uniqueness index includes logically removed rows, so an admin-removed award never reappears. Overlapping Cron calls skip event rows locked by another worker. A failed invocation rolls back its changes and appears in `cron.job_run_details`; the next run can retry. The migration registers one named Cron job, but this repository does not verify that a hosted Supabase project has applied or run it. Apply migrations and inspect the hosted Cron job and run history before relying on production awards.
+
+## Leadership alignment (PR 10)
+
+Events now have one required America/Denver date. Timed events have start and end times on that date, from 06:00 through 23:59; untimed work events have no times and require finite nonzero fixed points. The database enforces these rules for new and edited rows. The local-hours constraint is `NOT VALID` so existing historical events outside the new window remain migratable; PostgreSQL still checks all new inserts and updates. The form converts El Paso local times to timezone-aware values before saving.
+
+Authorized managers may edit past events. An edit changes event metadata or scheduling but leaves any existing point transactions and processing snapshot untouched. Explicit Points actions handle corrections. Authorized managers may remove events through a confirmed logical removal; `deleted_at` and `deleted_by` hide them from the normal Events list while retaining signups, points, and System Log history. Admins can view removed events through the historical Events list. Point amount edits and all point removals use admin-only trusted RPCs with before/after or pre-removal audit details. Edited rows retain `updated_at` and `updated_by` (an Auth user ID). The old participation-only removal RPC remains for compatibility.
+
+The protected navigation has browser Back and Forward controls. Untimed work assignments are manager-only and close after the event date passes. There is no early-completion action.
 
 ## Quality checks
 
@@ -191,7 +199,8 @@ npm run build
 2. Sign in as that admin, create or edit officers, and create global or branch events.
 3. Sign in as an ordinary officer and manage only your own signup while the event is open.
 4. Sign in as a Lead with a branch membership and manage a matching branch event and its signups. An unrelated or global event stays outside Lead scope.
-5. Use the admin Points form for a manual transaction or correction. Once the Cron migration is applied to the target database, finished timed events receive participation awards automatically.
+5. Use the admin Points form for a manual transaction or correction. It initially offers No event and five recent events; search finds older events. Admins can edit or remove any active transaction.
+6. Once the Cron migration is applied to the target database, ended timed events and past-date untimed work events receive participation awards automatically.
 
 ## Warning workflow
 
@@ -203,7 +212,7 @@ Admins see all warning states, approval progress, and status filters on the offi
 
 ## Deferred to MVP
 
-Live authentication-provider verification; deployment of the migrations and Cron job to the hosted project; early-completion UI; audit coverage for future workflows; Google Calendar/Drive/Discord integrations; spreadsheet imports; production error UX and deployment hardening. Untimed events/tasks await product feedback. Trusted mutation authorization, direct database access, automatic processing, warning workflows, and current audit operations are verified locally. Live provider setup and deployment are still pending.
+Live authentication-provider verification; deployment of the migrations and Cron job to the hosted project; audit coverage for future workflows; Google Calendar/Drive/Discord integrations; spreadsheet imports; production error UX and deployment hardening. Trusted mutation authorization, direct database access, automatic processing, warning workflows, and current audit operations are verified locally. Live provider setup and deployment are still pending.
 
 ## Git & GitHub Workflow
 

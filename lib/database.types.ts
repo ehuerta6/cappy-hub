@@ -163,45 +163,60 @@ export type Database = {
       events: {
         Row: {
           created_at: string;
+          deleted_at: string | null;
+          deleted_by: string | null;
           description: string;
-          ends_at: string;
+          ends_at: string | null;
+          event_date: string;
           event_type_id: number;
+          fixed_points: number | null;
           id: number;
           location: string | null;
           meeting_notes_url: string | null;
           name: string;
           participation_points_per_hour_at_end: number | null;
           slides_url: string | null;
-          starts_at: string;
+          starts_at: string | null;
           status: string;
+          untimed_processed_at: string | null;
         };
         Insert: {
           created_at?: string;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
           description?: string;
-          ends_at: string;
+          ends_at?: string | null;
+          event_date: string;
           event_type_id: number;
+          fixed_points?: number | null;
           id?: number;
           location?: string | null;
           meeting_notes_url?: string | null;
           name: string;
           participation_points_per_hour_at_end?: number | null;
           slides_url?: string | null;
-          starts_at: string;
+          starts_at?: string | null;
           status?: string;
+          untimed_processed_at?: string | null;
         };
         Update: {
           created_at?: string;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
           description?: string;
-          ends_at?: string;
+          ends_at?: string | null;
+          event_date?: string;
           event_type_id?: number;
+          fixed_points?: number | null;
           id?: number;
           location?: string | null;
           meeting_notes_url?: string | null;
           name?: string;
           participation_points_per_hour_at_end?: number | null;
           slides_url?: string | null;
-          starts_at?: string;
+          starts_at?: string | null;
           status?: string;
+          untimed_processed_at?: string | null;
         };
         Relationships: [
           {
@@ -348,6 +363,8 @@ export type Database = {
           reason: string;
           removed_at: string | null;
           removed_by: string | null;
+          updated_at: string | null;
+          updated_by: string | null;
         };
         Insert: {
           award_type: string;
@@ -360,6 +377,8 @@ export type Database = {
           reason: string;
           removed_at?: string | null;
           removed_by?: string | null;
+          updated_at?: string | null;
+          updated_by?: string | null;
         };
         Update: {
           award_type?: string;
@@ -372,6 +391,8 @@ export type Database = {
           reason?: string;
           removed_at?: string | null;
           removed_by?: string | null;
+          updated_at?: string | null;
+          updated_by?: string | null;
         };
         Relationships: [
           {
@@ -543,7 +564,12 @@ export type Database = {
       delete_event_type: { Args: { p_id: number }; Returns: undefined };
       delete_position: { Args: { p_id: number }; Returns: undefined };
       delete_warning: { Args: { p_warning_id: number }; Returns: undefined };
+      remove_event: { Args: { p_event_id: number }; Returns: boolean };
       remove_participation_award: {
+        Args: { p_transaction_id: number };
+        Returns: boolean;
+      };
+      remove_point_transaction: {
         Args: { p_transaction_id: number };
         Returns: boolean;
       };
@@ -572,6 +598,21 @@ export type Database = {
         };
         Returns: number;
       };
+      save_event_v2: {
+        Args: {
+          p_branch_ids: number[];
+          p_description: string;
+          p_ends_at: string;
+          p_event_date: string;
+          p_event_id?: number;
+          p_event_type_id: number;
+          p_fixed_points: number;
+          p_location: string;
+          p_name: string;
+          p_starts_at: string;
+        };
+        Returns: number;
+      };
       save_officer: {
         Args: {
           p_branch_ids: number[];
@@ -590,6 +631,10 @@ export type Database = {
         Returns: undefined;
       };
       set_participation_rate: { Args: { p_rate: number }; Returns: undefined };
+      update_point_transaction: {
+        Args: { p_points: number; p_transaction_id: number };
+        Returns: undefined;
+      };
     };
     Enums: {
       [_ in never]: never;

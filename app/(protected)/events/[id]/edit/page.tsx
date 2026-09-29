@@ -26,7 +26,7 @@ export default async function EditEventPage({
   ]);
   if (event.error || branches.error || eventTypes.error)
     throw new Error("Failed to load event form");
-  if (!event.data) notFound();
+  if (!event.data || event.data.deleted_at) notFound();
   if (
     !canManageEvent(
       actor,
