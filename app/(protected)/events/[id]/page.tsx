@@ -4,7 +4,11 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { eventStatus, displayDateTime } from "@/lib/event-status";
+import {
+  eventStatus,
+  displayDateTime,
+  participationLabel,
+} from "@/lib/event-status";
 import { SignupForm, CancelForm, RemoveEventForm } from "../event-controls";
 import {
   ActionLink,
@@ -81,6 +85,34 @@ export default async function EventDetailPage({
         <dd>{event.event_types.name}</dd>
         <dt>Location</dt>
         <dd>{event.location || "Not set"}</dd>
+        {event.slides_url && (
+          <>
+            <dt>Slides</dt>
+            <dd>
+              <a
+                href={event.slides_url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open slides
+              </a>
+            </dd>
+          </>
+        )}
+        {event.meeting_notes_url && (
+          <>
+            <dt>Meeting notes</dt>
+            <dd>
+              <a
+                href={event.meeting_notes_url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open notes
+              </a>
+            </dd>
+          </>
+        )}
         <dt>Date</dt>
         <dd>{event.event_date}</dd>
         {event.starts_at && event.ends_at ? (
@@ -129,8 +161,23 @@ export default async function EventDetailPage({
           <RemoveEventForm eventId={event.id} />
         </div>
       )}
+      <p>
+        Your participation:{" "}
+        {participationLabel(
+          event.event_officers.some(
+            ({ officers: officer }) => officer.id === actor.id,
+          ),
+          event.starts_at === null,
+        )}
+      </p>
       <section>
-        <SectionHeading title="Signed-up officers" />
+        <SectionHeading
+          title={
+            event.starts_at === null
+              ? "Assigned officers"
+              : "Signed-up officers"
+          }
+        />
         <TableFrame>
           <table>
             <thead>
@@ -162,7 +209,13 @@ export default async function EventDetailPage({
             </tbody>
           </table>
         </TableFrame>
-        {!event.event_officers.length && <p>No officers signed up.</p>}
+        {!event.event_officers.length && (
+          <p>
+            {event.starts_at === null
+              ? "No officers assigned."
+              : "No officers signed up."}
+          </p>
+        )}
         {(signupOpen || (assignmentOpen && canManage)) && (
           <SignupForm
             eventId={event.id}

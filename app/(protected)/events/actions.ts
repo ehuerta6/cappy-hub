@@ -39,7 +39,7 @@ export async function saveEvent(
   if (!Number.isSafeInteger(eventTypeId) || eventTypeId <= 0)
     return { error: "Select a valid event type" };
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("save_event_v2", {
+  const { data, error } = await supabase.rpc("save_event_with_links", {
     p_event_id: id ? Number(id) : undefined,
     p_name: String(formData.get("name") ?? ""),
     p_description: String(formData.get("description") ?? ""),
@@ -50,6 +50,8 @@ export async function saveEvent(
     p_ends_at: end as string,
     p_fixed_points: fixedPoints as number,
     p_branch_ids: branches,
+    p_slides_url: String(formData.get("slides_url") ?? "").trim(),
+    p_meeting_notes_url: String(formData.get("meeting_notes_url") ?? "").trim(),
   });
   if (error) return { error: mutationError(error.message) };
   revalidatePath("/", "layout");

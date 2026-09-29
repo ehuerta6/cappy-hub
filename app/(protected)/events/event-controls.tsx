@@ -50,7 +50,17 @@ export function CancelForm({ eventId }: { eventId: number }) {
     success: "",
   });
   return (
-    <form action={action}>
+    <form
+      action={action}
+      onSubmit={(event) => {
+        if (
+          !window.confirm(
+            "Cancel this event? Signups will close and no automatic points will be awarded.",
+          )
+        )
+          event.preventDefault();
+      }}
+    >
       <input type="hidden" name="event_id" value={eventId} />
       {state.error && <p role="alert">{state.error}</p>}
       {state.success && <p role="status">{state.success}</p>}

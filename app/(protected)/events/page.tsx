@@ -2,7 +2,7 @@ import { getAuthorizationContext, isAdmin, isLead } from "@/lib/authorization";
 import Link from "next/link";
 import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { eventStatus } from "@/lib/event-status";
+import { eventStatus, participationLabel } from "@/lib/event-status";
 import {
   ActionLink,
   BranchBadges,
@@ -63,6 +63,7 @@ export default async function EventsPage({
               <th>Type</th>
               <th>Branches</th>
               <th>Officers</th>
+              <th>Your participation</th>
               <th>Status</th>
             </tr>
           </thead>
@@ -80,6 +81,14 @@ export default async function EventsPage({
                   />
                 </td>
                 <td className="tabular-nums">{event.event_officers.length}</td>
+                <td>
+                  {participationLabel(
+                    event.event_officers.some(
+                      (signup) => signup.officer_id === actor.id,
+                    ),
+                    event.starts_at === null,
+                  )}
+                </td>
                 <td>
                   <StatusBadge status={eventStatus(event)} />
                 </td>
