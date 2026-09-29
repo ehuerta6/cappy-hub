@@ -9,10 +9,12 @@ import {
   ActionLink,
   BranchBadges,
   PageHeader,
+  SectionHeading,
   StatusBadge,
   TableFrame,
 } from "@/components/ui";
 import { formatLabel } from "@/lib/presentation";
+import { WarningDecisionForm } from "./warning-forms";
 
 export default async function OfficersPage() {
   const actor = await getAuthorizationContext();
@@ -23,6 +25,23 @@ export default async function OfficersPage() {
     .select("*, positions(name), officer_branches(branches(name))")
     .order("name");
   if (error) throw new Error(`Failed to load officers: ${error.message}`);
+  const pendingApprovals = await supabase
+    .from("warning_approvals")
+    .select("warning_id,approver_role")
+    .eq("approver_id", actor.authUserId)
+    .eq("decision", "pending");
+  if (pendingApprovals.error)
+    throw new Error("Failed to load warning approvals");
+  const warningIds = pendingApprovals.data.map((row) => row.warning_id);
+  const pendingWarnings = warningIds.length
+    ? await supabase
+        .from("officer_warnings")
+        .select("id,officer_id,reason,created_at")
+        .in("id", warningIds)
+        .eq("status", "pending")
+    : null;
+  if (pendingWarnings?.error)
+    throw new Error("Failed to load pending warnings");
   return (
     <div className="space-y-6">
       <PageHeader
@@ -38,6 +57,27 @@ export default async function OfficersPage() {
         <Link href="/officers/catalogs" className="text-sm underline">
           Manage positions and branches
         </Link>
+      )}
+      {pendingWarnings?.data && pendingWarnings.data.length > 0 && (
+        <section className="space-y-3">
+          <SectionHeading title="Warnings awaiting your decision" />
+          {pendingWarnings.data.map((warning) => (
+            <article
+              key={warning.id}
+              className="space-y-2 rounded-lg border border-zinc-800 p-4"
+            >
+              <p className="font-semibold">
+                {data.find((officer) => officer.id === warning.officer_id)
+                  ?.name ?? `Officer ${warning.officer_id}`}
+              </p>
+              <p className="whitespace-pre-wrap">{warning.reason}</p>
+              <p className="text-sm text-zinc-400">
+                {new Date(warning.created_at).toLocaleString()}
+              </p>
+              <WarningDecisionForm warningId={warning.id} />
+            </article>
+          ))}
+        </section>
       )}
       <TableFrame>
         <table>

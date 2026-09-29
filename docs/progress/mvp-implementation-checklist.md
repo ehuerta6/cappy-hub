@@ -57,7 +57,7 @@
     
 - [ ] Branch-scoped authorization.
     
-- [ ] Final RLS policies.
+- [x] Final RLS policies (local grants, policies, and role-context tests; hosted deployment remains pending).
     
 - [x] Trusted automatic event-completion processing (migration and local Cron execution verified; hosted deployment pending).
     
@@ -65,15 +65,15 @@
     
 - [x] Participation-rate snapshots.
     
-- [ ] Warning system.
+- [x] Warning system.
     
-- [ ] Warning approval workflow.
+- [x] Warning approval workflow.
     
     
     
 - [x] System/audit log for implemented workflows (future mutation coverage remains tracked below).
     
-- [ ] Final actor attribution for protected mutations (current human and scheduled point actions are audited; future warning actions are pending).
+- [ ] Final actor attribution for protected mutations (current human, warning, and scheduled point actions are audited; future early-completion actions remain pending).
     
 
 ---
@@ -141,7 +141,7 @@
     
 - [x] System Log surface.
     
-- [ ] Warning administration surface/component.
+- [x] Warning administration surface/component.
     
 - [ ] Participation-rate configuration surface.
     
@@ -350,7 +350,7 @@
 
 - [x] Resolved warning policy: admins administer warnings; an officer sees only their own approved warnings.
 
-- [ ] Implement these read policies in RLS and the application (RLS is complete; the warning UI is pending).
+- [x] Implement these read policies in RLS and the application (local RLS and warning UI verified).
     
 - [x] Admins can create officers.
     
@@ -438,7 +438,7 @@
 
 ## Warnings RLS
 
-- [ ] Admins can create warnings.
+- [x] Admins can create warnings.
     
 - [x] Admins can view pending warnings.
     
@@ -446,9 +446,9 @@
     
 - [x] Admins can view rejected warnings.
     
-- [ ] Required President/VP approvers can submit only their own approval decision.
+- [x] Required President/VP approvers can submit only their own approval decision.
     
-- [ ] Officers cannot approve warnings unless they are a required approver.
+- [x] Officers cannot approve warnings unless they are a required approver.
     
 - [x] Assigned officers can see only approved warnings on their own profile.
     
@@ -456,7 +456,7 @@
     
 - [x] Assigned officers cannot see rejected warnings.
     
-- [ ] Warning deletion is admin-only.
+- [x] Warning deletion is admin-only.
     
 
 ## Application config RLS
@@ -813,13 +813,13 @@
     - `rejected`
         
     
-- [ ] Warning reason is retained for audit purposes.
+- [x] Warning reason is retained for audit purposes.
     
-- [ ] Warning is immutable after creation from normal application workflows.
+- [x] Warning is immutable after creation from normal application workflows.
     
-- [ ] Admin physical deletion is supported.
+- [x] Admin physical deletion is supported.
     
-- [ ] Deletion does not erase the corresponding System Log history.
+- [x] Deletion does not erase the corresponding System Log history.
     
 
 ---
@@ -840,9 +840,9 @@
     
 - [x] Resolved decision: warning_approvals.approver_id references auth.users.id; resolve the officer through officers.auth_user_id when needed.
     
-- [ ] Support President approval record.
+- [x] Support President approval record.
     
-- [ ] Support approval records for every Vice President.
+- [x] Support approval records for every Vice President.
     
 - [x] Prevent duplicate warning/approver pairs.
     
@@ -856,9 +856,9 @@
         
     
 - [x] Nullable decided_at can store the decision timestamp.
-- [ ] Voting workflow writes the timestamp when deciding.
+- [x] Voting workflow writes the timestamp when deciding.
     
-- [ ] Prevent unauthorized users from writing approval decisions.
+- [x] Prevent unauthorized users from writing approval decisions.
     
 
 ---
@@ -880,7 +880,7 @@
 - [x] Create audit_logs with id, actor_id, action, entity_type, entity_id, details, and created_at.
 - [x] Resolved actor-FK decision: audit_logs.actor_id references auth.users.id.
 - [ ] Preserve useful before/after data and deletion/removal snapshots where needed.
-- [ ] Retain audit entries after source entities or logical point awards are deleted/removed.
+- [x] Retain audit entries after source entities or logical point awards are deleted/removed.
 - [x] Protect audit records from ordinary application modification.
 - [x] Allow only admins to read System Log records.
 
@@ -897,7 +897,7 @@
 ## Final review
 
 - [x] Verify views work under authenticated RLS.
-- [ ] Ensure peer officer fields match the resolved visibility policy while warnings remain restricted.
+- [x] Ensure peer officer fields match the resolved visibility policy while warnings remain restricted.
 - [x] Ensure officer and Dashboard totals include only point_transactions with removed_at IS NULL.
 - [x] Verify half-year Dashboard calculations use America/Denver local calendar periods.
 - [x] Verify corrections affect active totals and logically removed awards do not.
@@ -1086,15 +1086,15 @@
     
 - [x] Inactive officers are excluded from new signup selection in current event UI.
     
-- [ ] Only admins can deactivate.
+- [x] Only admins can deactivate.
     
-- [ ] Only admins can reactivate.
+- [x] Only admins can reactivate.
     
-- [ ] Three approved warnings visually flag an officer for admin review.
+- [x] Three approved warnings visually flag an officer for admin review.
     
-- [ ] Three warnings do **not** automatically deactivate the officer.
+- [x] Three warnings do **not** automatically deactivate the officer.
     
-- [ ] Admin manually decides whether to deactivate/reactivate after warning review.
+- [x] Admin manually decides whether to deactivate/reactivate after warning review.
     
 - [x] Deactivation/reactivation is logged.
     
@@ -1125,13 +1125,13 @@
     
 - [x] Display point transaction history.
     
-- [ ] Display approved warning count.
+- [x] Display approved warning count.
     
-- [ ] Display approved warnings to the assigned officer.
+- [x] Display approved warnings to the assigned officer.
     
-- [ ] Display warning approval status to admins.
+- [x] Display warning approval status to admins.
     
-- [ ] Clearly flag officer for admin review at three approved warnings.
+- [x] Clearly flag officer for admin review at three approved warnings.
     
 - [ ] Apply final permission rules to profile data.
     
@@ -1144,89 +1144,89 @@
 
 ## Warning creation
 
-- [ ] Admin can create a warning.
+- [x] Admin can create a warning.
     
-- [ ] Warning is assigned to a specific officer.
+- [x] Warning is assigned to a specific officer.
     
-- [ ] Warning requires a reason.
+- [x] Warning requires a reason.
     
-- [ ] Newly created warning begins pending.
+- [x] Newly created warning begins pending.
     
-- [ ] Create approval records for the President and every Vice President according to finalized approver identity rules.
+- [x] Create approval records for the President and every Vice President according to finalized approver identity rules.
     
-- [ ] Warning cannot be edited after creation.
+- [x] Warning cannot be edited after creation.
     
-- [ ] Warning creation is recorded in System Log.
+- [x] Warning creation is recorded in System Log.
     
 
 ## Warning approval
 
-- [ ] President can submit their decision.
+- [x] President can submit their decision.
     
-- [ ] Each Vice President can submit their decision.
+- [x] Each Vice President can submit their decision.
     
-- [ ] Each required approver has one approval record.
+- [x] Each required approver has one approval record.
     
-- [ ] An approver cannot vote twice.
+- [x] An approver cannot vote twice.
     
-- [ ] An approver cannot modify someone else's decision.
+- [x] An approver cannot modify someone else's decision.
     
-- [ ] If any required approver rejects:
+- [x] If any required approver rejects:
     
-    - [ ] warning becomes `rejected`.
+    - [x] warning becomes `rejected`.
         
     
-- [ ] If every required approver approves:
+- [x] If every required approver approves:
     
-    - [ ] warning becomes `approved`.
+    - [x] warning becomes `approved`.
         
     
-- [ ] Otherwise:
+- [x] Otherwise:
     
-    - [ ] warning remains `pending`.
+    - [x] warning remains `pending`.
         
     
-- [ ] Each approval is logged.
+- [x] Each approval is logged.
     
-- [ ] Each rejection is logged.
+- [x] Each rejection is logged.
     
 
 ## Warning visibility
 
-- [ ] Admin warnings component exists.
+- [x] Admin warnings component exists.
     
-- [ ] Admin can view all warnings.
+- [x] Admin can view all warnings.
     
-- [ ] Admin can filter pending warnings.
+- [x] Admin can filter pending warnings.
     
-- [ ] Admin can filter approved warnings.
+- [x] Admin can filter approved warnings.
     
-- [ ] Admin can filter rejected warnings.
+- [x] Admin can filter rejected warnings.
     
-- [ ] Assigned officer sees approved warnings.
+- [x] Assigned officer sees approved warnings.
     
-- [ ] Assigned officer does not see pending warnings.
+- [x] Assigned officer does not see pending warnings.
     
-- [ ] Assigned officer does not see rejected warnings.
+- [x] Assigned officer does not see rejected warnings.
     
-- [ ] Only approved warnings count toward officer warning total.
+- [x] Only approved warnings count toward officer warning total.
     
 
 ## Warning deletion
 
-- [ ] Admin can physically delete a warning.
+- [x] Admin can physically delete a warning.
     
-- [ ] Non-admin cannot delete warnings.
+- [x] Non-admin cannot delete warnings.
     
-- [ ] Deleting the warning also handles associated approval records correctly.
+- [x] Deleting the warning also handles associated approval records correctly.
     
-- [ ] Audit/System Log entry survives deletion.
+- [x] Audit/System Log entry survives deletion.
     
-- [ ] Deletion log contains warning reason.
+- [x] Deletion log contains warning reason.
     
-- [ ] Deletion log contains approval decisions.
+- [x] Deletion log contains approval decisions.
     
-- [ ] Deletion log contains enough details to understand the removed warning.
+- [x] Deletion log contains enough details to understand the removed warning.
     
 
 ---
@@ -1873,7 +1873,7 @@
 
 # 48. System Log / Audit Trail
 
-> [!note] PR 5 evidence: local migration replay, 291 PostgreSQL assertions, atomic rollback and source-deletion tests, and code review of the admin route/navigation. PR 6 adds audited catalog mutations. PRs 7–8 locally verify rate, removal, and scheduled-award audit records. Hosted Google sign-in, Cron deployment, and warning audits remain pending.
+> [!note] PR 5 evidence: local migration replay, 291 PostgreSQL assertions, atomic rollback and source-deletion tests, and code review of the admin route/navigation. PR 6 adds audited catalog mutations. PRs 7–8 locally verify rate, removal, and scheduled-award audit records. Hosted Google sign-in and Cron deployment remain pending; warning audits are verified locally.
 
 ## Page
 
@@ -1920,13 +1920,13 @@
     
 - [x] Officer removal from event.
     
-- [ ] Warning creation.
+- [x] Warning creation.
     
-- [ ] Warning approval.
+- [x] Warning approval.
     
-- [ ] Warning rejection.
+- [x] Warning rejection.
     
-- [ ] Warning deletion.
+- [x] Warning deletion.
     
 - [x] Participation points-per-hour rate change.
     
@@ -2003,9 +2003,9 @@
     
 - [x] Can configure participation rate.
     
-- [ ] Can create/delete warnings.
+- [x] Can create/delete warnings.
     
-- [ ] Can view all warning statuses.
+- [x] Can view all warning statuses.
     
 - [x] Can access System Log.
     
@@ -2046,7 +2046,7 @@
     
 - [x] Cannot see System Log.
     
-- [ ] Sees own approved warnings.
+- [x] Sees own approved warnings.
     
 
 ---
@@ -2124,11 +2124,11 @@
     
 - [x] Reason required.
     
-- [ ] Admin authorization.
+- [x] Admin authorization.
     
 - [ ] Confirmation before immutable warning creation if desired.
     
-- [ ] Required approval records generated.
+- [x] Required approval records generated.
     
 
 ---
@@ -2267,9 +2267,9 @@
     
 - [ ] Minimum one branch per officer enforced.
     
-- [ ] Warning/approver uniqueness enforced.
+- [x] Warning/approver uniqueness enforced.
     
-- [ ] Warning decision validation enforced.
+- [x] Warning decision validation enforced.
     
     
     
@@ -2283,7 +2283,7 @@
     
 - [x] Audit log survives source deletions.
     
-- [ ] Final RLS protects every table appropriately.
+- [x] Final RLS protects every table appropriately in local tests; hosted application remains unchecked below.
     
 
 ---
@@ -2300,11 +2300,11 @@
     
 - [ ] Past events remain unavailable for deletion in normal UI.
     
-- [ ] Warning deletion leaves audit history.
+- [x] Warning deletion leaves audit history.
     
 - [ ] Point-award deletion leaves audit history.
     
-- [ ] Audit log contains deletion snapshot.
+- [x] Audit log contains deletion snapshot.
     
 - [ ] Participation rate changes do not rewrite past transactions.
     
@@ -2350,7 +2350,7 @@
     
 - [x] Admin-only System Log enforced.
     
-- [ ] Warning approval identity enforced.
+- [x] Warning approval identity enforced.
     
 - [x] Direct Supabase/API access cannot bypass UI restrictions.
     
@@ -2384,7 +2384,7 @@
     
 - [x] Actor identity exists for admin point changes.
     
-- [ ] Actor identity exists for warning changes.
+- [x] Actor identity exists for warning changes.
     
 - [x] Actor identity exists for event management actions.
     
@@ -2392,7 +2392,7 @@
     
 - [x] Actor identity exists for signup management where required.
     
-- [ ] Deleted-warning snapshot exists.
+- [x] Deleted-warning snapshot exists.
     
 - [x] Deleted-award snapshot exists.
     
@@ -2524,7 +2524,7 @@ PR 1 evidence: [GitHub CI on Node 24](https://github.com/ehuerta6/cappy-hub/acti
     
 - [x] Non-admin cannot read System Log.
     
-- [ ] Required warning approver can vote.
+- [x] Required warning approver can vote.
     
 - [ ] Unrelated officer cannot vote.
     
@@ -2556,25 +2556,25 @@ PR 1 evidence: [GitHub CI on Node 24](https://github.com/ehuerta6/cappy-hub/acti
 
 ## Warning tests
 
-- [ ] New warning = pending.
+- [x] New warning = pending.
     
-- [ ] One reject = rejected.
+- [x] One reject = rejected.
     
-- [ ] All required approvals = approved.
+- [x] All required approvals = approved.
     
-- [ ] Partial approvals = pending.
+- [x] Partial approvals = pending.
     
-- [ ] Approved warning counts toward total.
+- [x] Approved warning counts toward total.
     
-- [ ] Pending warning does not count.
+- [x] Pending warning does not count.
     
-- [ ] Rejected warning does not count.
+- [x] Rejected warning does not count.
     
-- [ ] Three approved warnings trigger admin-review flag.
+- [x] Three approved warnings trigger admin-review flag.
     
-- [ ] Three warnings do not automatically deactivate officer.
+- [x] Three warnings do not automatically deactivate officer.
     
-- [ ] Deleted warning leaves audit record.
+- [x] Deleted warning leaves audit record.
     
 
 # 62. Production Processing / Scheduler
@@ -2618,7 +2618,7 @@ PR 1 evidence: [GitHub CI on Node 24](https://github.com/ehuerta6/cappy-hub/acti
     
 - [ ] Invalid branch-scoped action returns useful error.
     
-- [ ] Invalid warning approval returns useful error.
+- [x] Invalid warning approval returns useful error.
     
 - [ ] Duplicate-protected operations return useful error where relevant.
     
@@ -2794,21 +2794,21 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
 
 ## Phase 5 — Warnings
 
-- [ ] Warning creation.
+- [x] Warning creation.
     
-- [ ] Required approver generation.
+- [x] Required approver generation.
     
-- [ ] President/VP voting.
+- [x] President/VP voting.
     
-- [ ] Status calculation.
+- [x] Status calculation.
     
-- [ ] Warning visibility.
+- [x] Warning visibility.
     
-- [ ] Three-warning review flag.
+- [x] Three-warning review flag.
     
-- [ ] Warning deletion.
+- [x] Warning deletion.
     
-- [ ] Audit logging.
+- [x] Audit logging.
     
 
 ## Phase 6 — Complete Events
@@ -2848,7 +2848,7 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
     
 - [x] Points filtering/search.
     
-- [ ] Warnings UI.
+- [x] Warnings UI.
     
 - [x] Config UI for the participation rate.
     
@@ -2867,7 +2867,7 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
     
 - [x] Scheduler tests (local registration, execution, and processor invariants).
     
-- [ ] Warning tests.
+- [x] Warning tests.
     
     
 - [ ] Run security review.
@@ -3032,31 +3032,31 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
 
 ## Warning workflow
 
-- [ ] Admin creates warning.
+- [x] Admin creates warning.
     
-- [ ] Warning begins pending.
+- [x] Warning begins pending.
     
-- [ ] President receives/has approval record.
+- [x] President receives/has approval record.
     
-- [ ] Every VP receives/has approval record.
+- [x] Every VP receives/has approval record.
     
-- [ ] Any rejection makes warning rejected.
+- [x] Any rejection makes warning rejected.
     
-- [ ] All approvals make warning approved.
+- [x] All approvals make warning approved.
     
-- [ ] Otherwise warning stays pending.
+- [x] Otherwise warning stays pending.
     
-- [ ] Only approved warnings appear to assigned officer.
+- [x] Only approved warnings appear to assigned officer.
     
-- [ ] Only approved warnings count.
+- [x] Only approved warnings count.
     
-- [ ] Three approved warnings flag admin review.
+- [x] Three approved warnings flag admin review.
     
-- [ ] Admin manually decides deactivation.
+- [x] Admin manually decides deactivation.
     
-- [ ] Warning actions are logged.
+- [x] Warning actions are logged.
     
-- [ ] Warning deletion leaves audit history.
+- [x] Warning deletion leaves audit history.
     
 
 ## Dashboard workflow
@@ -3092,7 +3092,7 @@ Untimed events/tasks await President feedback. Do not treat them as an implement
     
 - [ ] Useful details are visible.
     
-- [ ] Deleted warning snapshot remains.
+- [x] Deleted warning snapshot remains.
     
 - [ ] Deleted point award snapshot remains.
     

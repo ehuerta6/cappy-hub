@@ -83,11 +83,11 @@ export function Badge({
 
 export function StatusBadge({ status }: { status: string }) {
   const tone =
-    status === "active" || status === "happening"
+    status === "active" || status === "happening" || status === "approved"
       ? "green"
-      : status === "upcoming"
+      : status === "upcoming" || status === "pending"
         ? "blue"
-        : status === "cancelled"
+        : status === "cancelled" || status === "rejected"
           ? "red"
           : "neutral";
   return <Badge tone={tone}>{formatLabel(status)}</Badge>;

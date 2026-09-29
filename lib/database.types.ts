@@ -531,9 +531,18 @@ export type Database = {
       create_branch: { Args: { p_name: string }; Returns: number };
       create_event_type: { Args: { p_name: string }; Returns: number };
       create_position: { Args: { p_name: string }; Returns: number };
+      create_warning: {
+        Args: { p_officer_id: number; p_reason: string };
+        Returns: number;
+      };
+      decide_warning: {
+        Args: { p_decision: string; p_warning_id: number };
+        Returns: undefined;
+      };
       delete_branch: { Args: { p_id: number }; Returns: undefined };
       delete_event_type: { Args: { p_id: number }; Returns: undefined };
       delete_position: { Args: { p_id: number }; Returns: undefined };
+      delete_warning: { Args: { p_warning_id: number }; Returns: undefined };
       remove_participation_award: {
         Args: { p_transaction_id: number };
         Returns: boolean;

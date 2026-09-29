@@ -30,6 +30,14 @@ const safeMessages = new Set([
   "Only participation awards can be removed",
   "Invalid point value",
   "Reason required",
+  "Warning reason is required",
+  "Required approvers must have active linked accounts",
+  "No eligible approvers remain",
+  "Invalid warning decision",
+  "Warning not found",
+  "You are not an approver for this warning",
+  "This approval has already been decided",
+  "This warning is already closed",
 ]);
 
 export function mutationError(message: string) {
