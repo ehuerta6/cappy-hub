@@ -167,7 +167,17 @@ select ok((select details ? 'before' from audit_logs
  'event removal audits pre-removal snapshot');
 select is(remove_event(-902),true,'future event can be removed');
 reset role;
-select is(private.process_finished_events(),0,'removed future event never processes');
+insert into events(id,name,event_type_id,starts_at,ends_at) values
+ (-905,'Ended but removed before processing',(select id from event_types where name='General'),
+ '2020-09-25 09:00-06','2020-09-25 10:00-06');
+insert into event_officers(event_id,officer_id) values(-905,-903);
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000901',true);
+set local role authenticated;
+select is(remove_event(-905),true,'admin removes ended event before processing');
+reset role;
+select is(private.process_finished_events(),0,'removed ended event never processes');
+select is((select count(*) from point_transactions where event_id=-905),0::bigint,
+ 'removed unprocessed event creates no automatic award');
 
 select * from finish();
 rollback;
