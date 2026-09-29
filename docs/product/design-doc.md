@@ -146,31 +146,36 @@ Backend authorization and Supabase RLS enforce these rules; hidden controls alon
 
 # **6\. Event Management**
 
-Cappy Hub supports event creation, editing, cancellation, early completion, details, optional branch associations, officer signups, related files, and point history.
+Cappy Hub supports timed events and untimed work events, event creation and editing, cancellation, details, optional branch associations, officer signups or assignments, related files, and point history. Admins may edit events after they are past. Editing a past event never silently recalculates or changes existing point transactions; any needed correction is made explicitly in the Points system. Events may be removed after they are past. If an event has signups, points, or other historical relationships, removal preserves those records and their history.
 
 The final event fields include:
 
 - id, name, description
 - event_type_id (FK to event_types)
 - location (optional)
-- starts_at, ends_at (timezone-aware timestamps; required for timed events; untimed-event support is pending)
+- event_date (required; interpreted in America/Denver)
+- starts_at, ends_at (timezone-aware timestamps; present for timed events and null for untimed events)
+- fixed_points (required for untimed events; configurable per event; null for timed events)
 - status
-- participation_points_per_hour_at_end (nullable until event-finish processing)
+- participation_points_per_hour_at_end (nullable until timed-event processing)
+- deleted_at, deleted_by (nullable; preserve event history when removing an event with related records)
 - slides_url and meeting_notes_url (optional)
 - created_at
 - Branch associations through event_branches
 
-Event names and required event-type references cannot be blank. Normal timed events use one date, a start time, and an end time; they must start and end on the same calendar day, and ends_at must be later than starts_at. Multi-day timed events are not supported. Whether events may omit start and end times remains a pending product decision. Event types are selected from controlled records, not arbitrary text. Branch selection includes an All convenience control to select or deselect all available branches; All is a UI control, not a stored branch. Selecting All associates the event with each available branch.
+Event names and required event-type references cannot be blank. Every event has one event_date. A timed event requires a start and end time on that same calendar day; it cannot start before 6:00 AM or end after 11:59 PM in America/Denver, and ends_at must be later than starts_at. Multi-day timed events are not supported. An untimed event has no start or end time and requires a configurable fixed_points amount. Untimed events are for dated CIC work such as preparing slides or creating flyers. Event types are selected from controlled records, not arbitrary text. Branch selection includes an All convenience control to select or deselect all available branches; All is a UI control, not a stored branch. Selecting All associates the event with each available branch.
+
+The event create/edit form lets the user select one date, then a same-day time range for timed events (for example, 4:00–6:00 PM or 12:30–3:00 PM). The time controls offer only times from 6:00 AM through 11:59 PM. Choosing untimed hides start/end time inputs and requires fixed_points.
 
 Cappy Hub's official user-facing timezone is El Paso, Texas: America/Denver. Timed event creation, editing, and display use El Paso local time. PostgreSQL stores timezone-aware timestamps and compares them using normal timezone-safe semantics.
 
-For timed events, upcoming and happening status normally follow the scheduled times. Cancellation is explicit. An authorized admin or branch lead may mark a running event completed early by setting its existing status to past; do not add an actual-completion timestamp. The scheduled starts_at and ends_at remain unchanged, and early completion closes signup/signout and displays the event as completed. A timed event is finished for participation processing at its scheduled end or when completed early; points use the originally scheduled duration. Status and points behavior for untimed events/tasks remains pending.
+For timed events, upcoming and happening status follow the scheduled times automatically; after ends_at the event is past. For untimed events, status becomes past after event_date has passed in America/Denver. Cancellation is explicit. There is no early-completion action. Timed-event signups close at the scheduled end or on cancellation. Untimed event assignments/signups close when the event date passes or on cancellation. Past events remain editable and removable under the history-preservation rules above.
 
-Admins can manage any event, including global events with no branch. A lead can manage a branch-associated event only when the lead and event share at least one branch. Only admins can manage global events. Normal officers cannot manage arbitrary events. Officers may sign themselves up or out while signup remains open. Signups close at the scheduled end, on cancellation, or when an event is explicitly completed early.
+Admins can manage any event, including global events with no branch. A lead can manage a branch-associated event only when the lead and event share at least one branch. Only admins can manage global events. Normal officers cannot manage arbitrary events. Officers may sign themselves up or out of timed events while signup remains open. Admins or authorized leads may assign officers to untimed work events within their event-management scope.
 
 
 
-At event finish, trusted processing snapshots the current application_config.participation_points_per_hour onto the event and creates one participation award per signup using the originally scheduled duration. Signup counts as participation. The transaction stores the awarded amount. Later rate changes do not alter snapshots or existing transactions. If a signed-up officer did not actually participate, an admin may logically remove the award afterward; the original transaction remains to preserve history and prevent regeneration. Whether untimed events or tasks may exist and how they would earn points remains pending President feedback.
+When a timed event ends, trusted processing snapshots the current application_config.participation_points_per_hour onto the event and creates one participation award per signup using the originally scheduled duration. Signup counts as participation. When an untimed event's date has passed in America/Denver, trusted processing awards that event's fixed_points to each assigned/signed-up officer. The transaction stores its final amount. Later changes to the event or rate do not silently change existing transactions. Admins may edit or logically remove automatic awards explicitly in the Points system; logically removed automatic awards are not regenerated. Flyers, slides, and similar work use this normal untimed event and points path, not a separate hardcoded flyer workflow.
 
 # **7\. Event Types**
 
@@ -180,7 +185,7 @@ Each event stores event_type_id referencing event_types. Do not store an unrestr
 
 # **8\. Officer Participation in Events**
 
-Officers and events have a many-to-many relationship through event_officers. The same officer/event pair cannot occur more than once. For timed events, signup counts as participation and is available until the scheduled end, cancellation, or explicit early completion. Signup behavior for untimed events/tasks remains pending.
+Officers and events have a many-to-many relationship through event_officers. The same officer/event pair cannot occur more than once. For timed events, signup counts as participation and is available until the scheduled end or cancellation. For untimed events, an admin or authorized lead assigns officers to the work event; those assigned officers receive the event's fixed_points after its date passes.
 
 Officers may manage only their own signups. Admins may manage any eligible signup. A lead may assign or remove officers only for a branch-associated event that shares at least one branch with the lead. Only admins may manage signups for global events with no branches. A lead need not belong to every branch associated with a multi-branch event. Backend authorization and RLS enforce the distinction; signup and removal actions are included in the System Log.
 
@@ -201,15 +206,13 @@ The final point_transactions fields include:
 
 A transaction is active while removed_at IS NULL. Officer profile totals are all-time totals across active transactions. Dashboard half-year totals include active transactions whose point_transactions.created_at falls in the current January–June or July–December period in America/Denver. Normal point history shows active transactions. A removal is a logical void: retain the original transaction, set removal metadata, and record enough detail in the System Log to explain the action. This preserves history and unique-award/idempotency behavior.
 
-Participation awards use the scheduled event duration and the rate snapshot captured when the event finishes. Signup counts as participation. If a signed-up officer did not actually participate, an admin may logically remove the resulting award. Point attribution to a half-year uses point_transactions.created_at. Flyers and slides may eventually be represented through the normal event and points model; there is no separate flyer award or fixed flyer amount in the MVP. The product decision about untimed events/tasks and any associated points remains pending President feedback.
+Timed participation awards use scheduled duration and the rate snapshot captured when the event finishes. Untimed work-event awards use the event's fixed_points after its date passes. Point attribution to a half-year uses point_transactions.created_at. Flyers and slides use the normal untimed event and points model; there is no separate hardcoded flyer workflow.
 
-Admins may create manual transactions and corrections. Corrections are additional transactions; the original record remains unchanged. The authenticated actor for point creation/removal is stored by its auth.users.id.
+Admins may create manual transactions and corrections. Admins may directly edit any point transaction, including automatic awards; the edit changes the amount counted in totals and the System Log records before/after values. Admins may logically remove transactions; a removed row no longer counts in totals and remains stored. For example, removing +10 lowers the total by 10, while removing -5 raises it by 5. The authenticated actor for transaction creation, editing, or removal is stored by its auth.users.id.
 
 # **10\. Point Corrections**
 
-Existing point transactions should remain part of the historical record.
-
-When a point total needs to be corrected, the system should create a new positive or negative transaction.
+Point transactions remain auditable records. Admins may correct a transaction either by editing its points amount directly or by adding a separate positive or negative correction transaction.
 
 For example:
 
@@ -233,9 +236,9 @@ This keeps changes understandable and traceable without requiring a separate com
 
 Supabase Cron (pg_cron) runs a private, trusted PostgreSQL database function approximately once per minute. Page loads are not the production processing trigger; no Vercel Cron or Edge Function is required for database-only processing.
 
-For each eligible non-cancelled timed event that has finished, the processor skips events already processed, reads the current application_config.participation_points_per_hour, stores the rate in events.participation_points_per_hour_at_end, and creates at most one participation transaction per signed-up officer. A timed event finishes at its scheduled end or when an authorized user marks it completed early. The points equal the originally scheduled duration in hours multiplied by the snapshotted rate. Signup counts as participation; an admin may logically remove an award afterward if the officer did not participate. The transaction permanently stores the resulting amount. Point attribution to a half-year uses point_transactions.created_at.
+For each eligible non-cancelled timed event whose scheduled end has passed, the processor snapshots the current application_config.participation_points_per_hour and creates at most one participation transaction per signup. Points equal the originally scheduled duration in hours multiplied by the snapshotted rate. For each eligible non-cancelled untimed event whose event_date has passed in America/Denver, the processor creates at most one fixed-points transaction per assigned/signed-up officer using the event's fixed_points. Timed signup or untimed assignment counts for the corresponding award. Transactions permanently store the awarded amount. Editing a past event does not recalculate existing transactions; corrections are explicit Points-system actions. Point attribution to a half-year uses point_transactions.created_at.
 
-Processing is safe to run repeatedly. Existing participation transactions, including logically removed ones, prevent recreation. Later rate changes do not alter event snapshots or transaction amounts. The processor records required audit entries and is not executable by anon or ordinary authenticated users as an unrestricted RPC; revoke public/client grants and keep its execution private to the trusted scheduled path.
+Processing is safe to run repeatedly. Existing automatic event-award transactions, including logically removed ones, prevent recreation. Later rate or event edits do not alter existing transaction amounts. The processor records required audit entries and is not executable by anon or ordinary authenticated users as an unrestricted RPC; revoke public/client grants and keep its execution private to the trusted scheduled path.
 
 
 
@@ -251,7 +254,7 @@ Points
 
 Reason
 
-An event may optionally be attached.
+An event may optionally be attached. The event selector initially shows “No event” and the five most recent events, with search/select available for older events.
 
 Both positive and negative values are supported.
 
@@ -270,6 +273,8 @@ It should support:
 * Viewing transactions associated with events.
 
 * Adding a manual transaction.
+
+* Editing or removing a point transaction (admins only).
 
 * Filtering or searching transactions.
 
@@ -309,11 +314,11 @@ The profile shows:
 
 # **15\. Event Detail View**
 
-An event detail view shows its name, description, related event-type name, location, timed schedule in America/Denver when applicable, status, branches, signup information, associated officers, related files, rate snapshot when useful, and point transactions. An event with no branches is global.
+An event detail view shows its name, description, related event-type name, location, date and timed schedule in America/Denver when applicable, fixed points for untimed events, status, branches, signup/assignment information, associated officers, related files, rate snapshot when useful, and point transactions. An event with no branches is global. Admins may edit or remove past events; changes never silently recalculate existing awards. Removal preserves historical relationships when they exist.
 
-PENDING PRODUCT DECISION — Untimed events/tasks and flyer work: President feedback is needed on whether events or tasks may exist without a start/end time and, if so, how they would earn points. Flyers and slides may eventually be represented through the normal event and points model. The MVP has no separate hardcoded Social-event flyer assignment, completion, fixed-award, or configuration workflow.
+Untimed work events have a required date and configurable fixed_points. When that date passes in America/Denver, assigned/signed-up officers receive those points automatically. Flyers, slides, and similar work use this normal event/points model. Linking a work event such as a flyer or slide task to a related meeting, workshop, or session is post-MVP and optional if implemented.
 
-Meeting notes and presentation files remain in Google Drive; Cappy Hub stores optional URLs only. Past events are not deleted through the UI.
+Meeting notes and presentation files remain in Google Drive; Cappy Hub stores optional URLs only. Past events remain editable and have an admin remove action. When history exists, event removal preserves related records.
 
 # **16\. Database Structure**
 
@@ -357,19 +362,19 @@ warning_approvals: warning_id, approver_id (authenticated account FK to auth.use
 
 event_types: id, unique name, created_at. Activity-category examples include Meeting, Workshop, and Social. Admins may add or rename types; physical deletion is allowed only if never referenced.
 
-events: id, name, description, event_type_id (FK to event_types), optional location, nullable timezone-aware starts_at and ends_at (required for timed events; untimed-event support is pending), status (upcoming, happening, past, cancelled), nullable participation_points_per_hour_at_end, optional slides_url and meeting_notes_url, and created_at. Timed events use one calendar date and start/end times on that date; multi-day timed events are not supported. Do not add completed_at or an actual-end-time column. An early-completed event uses status = past while preserving its scheduled timestamps.
+events: id, name, description, event_type_id (FK to event_types), event_date (required), optional location, nullable timezone-aware starts_at and ends_at (both present for timed events and both null for untimed events), fixed_points (required for untimed events and null for timed events), status (upcoming, happening, past, cancelled), nullable participation_points_per_hour_at_end (timed-event snapshot), optional slides_url and meeting_notes_url, created_at, nullable deleted_at and deleted_by. Timed events use one calendar date with start/end times between 6:00 AM and 11:59 PM America/Denver; multi-day timed events are not supported. Untimed events have a date and fixed_points. State follows schedule/date automatically unless cancelled. Events remain editable after becoming past; editing never silently changes existing transactions. Removal preserves historical relationships.
 
 event_branches: event_id, branch_id, composite primary key; each event may have zero or more branches, and zero branches means global. The UI's All branch selector selects or deselects all available branches; it is not stored as a branch. event_officers: event_id, officer_id, composite primary key.
 
 ## Point transactions
 
-point_transactions: id, officer_id, nullable event_id, points, reason, award_type (participation, manual, correction), nullable created_by referencing auth.users.id, created_at, nullable removed_at, nullable removed_by referencing auth.users.id. Logical removal preserves the row and award uniqueness. Half-year attribution uses created_at; officer profile totals are all-time.
+point_transactions: id, officer_id, nullable event_id, points, reason, award_type (participation, fixed_event, manual, correction), nullable created_by referencing auth.users.id, created_at, nullable updated_at, nullable updated_by referencing auth.users.id, nullable removed_at, nullable removed_by referencing auth.users.id. Admin edits change the amount counted in totals and preserve before/after details in audit_logs. Logical removal preserves the row, excludes it from totals, and prevents automatic regeneration. Half-year attribution uses created_at; officer profile totals are all-time.
 
 ## Application configuration and audit
 
 application_config is a single-row table with id, participation_points_per_hour, and updated_at. The participation rate is configurable by admins only.
 
-audit_logs: id, nullable actor_id referencing auth.users.id, action, entity_type, entity_id, details, and created_at. Only admins can read the System Log. Log meaningful mutations, including officer create/edit/deactivate/reactivate; position, branch, event-type and admin-role changes; event create/edit/cancel/complete/delete; signup/signout; point creation/correction/automatic award/logical removal; warning creation/approval/rejection/deletion; configuration changes; catalog create/rename/delete; and auth-link changes performed through the application. Preserve actor, action, entity type/id, timestamp, and useful before/after or deletion details. Do not log reads, page views, searches, filters, or ordinary navigation.
+audit_logs: id, nullable actor_id referencing auth.users.id, action, entity_type, entity_id, details, and created_at. Only admins can read the System Log. Log meaningful mutations, including officer create/edit/deactivate/reactivate; position, branch, event-type and admin-role changes; event create/edit/cancel/delete including past-event changes; signup/signout/assignment; point creation/edit with before/after values/correction/automatic award/logical removal; warning creation/approval/rejection/deletion; configuration changes; catalog create/rename/delete; and auth-link changes performed through the application. Preserve actor, action, entity type/id, timestamp, and useful before/after or deletion details. Do not log reads, page views, searches, filters, or ordinary navigation.
 
 # **17\. Data Relationships**
 
@@ -379,7 +384,7 @@ Each event references one event_types row through event_type_id. Event-type dele
 
 point_transactions.officer_id references an officer; its optional event_id references an event. created_by, removed_by, warning_approvals.approver_id, and audit_logs.actor_id reference authenticated accounts in auth.users. When the application needs an officer for one of these actors, it resolves the account using officers.auth_user_id.
 
-application_config stores the current participation rate. Each event snapshots the rate used when it finishes. Point transactions store the final awarded amount and, when removed, retain removed_at and removed_by. Half-year totals use transaction created_at; officer profile totals are all-time. Audit entries record meaningful mutations with actor, action, affected entity, timestamp, and useful details.
+application_config stores the current timed-event participation rate. Timed events snapshot the rate used when they finish; untimed events store their own fixed_points. Point transactions store the final awarded amount and, when edited or removed, retain updater/removal metadata. Half-year totals use transaction created_at; officer profile totals are all-time. Audit entries record meaningful mutations with actor, action, affected entity, timestamp, and useful details.
 
 # **18\. Database Constraints**
 
@@ -390,10 +395,10 @@ The database enforces these rules wherever practical:
 - Officer position, event type, event/officer, event/branch, officer/branch, warning, approval, and point references use valid foreign keys. Officers may have zero or more branch memberships.
 - Position, branch, and event-type names are unique. Admins may manage and rename these catalogs in Cappy Hub. A catalog record may be physically deleted only if it has never been used or referenced; preserve historical relationships for used records. Branch-event capability follows position = Lead and matching officer/event branch membership. Admin role assignment is manual and independent from position; President and Vice President positions do not grant admin automatically. Admins may change another admin's role but may not demote themselves or the last remaining admin.
 - event_types.name is unique. events.event_type_id is required and references event_types; deletion of a referenced type is rejected and never cascades into events. Each event has zero or more branch associations; an event with zero branches is global and admin-only for management.
-- Timed events use one calendar date; ends_at must be later than starts_at and both timestamps are timezone-aware. Multi-day timed events are not supported. Whether an event may omit start/end times is pending; when both timed values are present, enforce the end-after-start rule. Status supports upcoming, happening, past, and cancelled. Early completion sets past without changing scheduled timestamps or adding an actual-end-time field. No recurring-event feature or recurrence rules are part of the MVP. Use America/Denver for user-facing times. The All branch selector selects/deselects current branches and is never stored. Events with no event_branches rows are global and may be managed only by admins.
+- Every event has event_date. Timed events require same-day, timezone-aware starts_at and ends_at; the start cannot be before 6:00 AM and the end cannot be after 11:59 PM America/Denver; ends_at must be later than starts_at. Untimed events require null start/end times and a valid fixed_points value. Timed awards use duration × snapshotted participation rate; untimed awards use fixed_points after event_date passes in America/Denver. Event state follows scheduled time/date automatically unless cancelled; there is no early-completion action. Past events remain editable and removable. Editing never silently recalculates transactions. Removing an event with historical relationships preserves those records. No recurring-event feature or recurrence rules are part of the MVP. Use America/Denver for user-facing times. The All branch selector selects/deselects current branches and is never stored. Events with no event_branches rows are global and may be managed only by admins.
 - application_config has one row with a valid participation_points_per_hour; only admins may change it. Rate changes are logged.
-- Participation award uniqueness is enforced per officer/event, including logically removed awards. Signup counts as participation; an admin may logically remove an award if the officer did not participate.
-- Logical removal sets point_transactions.removed_at and removed_by without deleting the transaction. Derived totals and ordinary history include only rows with removed_at IS NULL.
+- Automatic participation and fixed-event award uniqueness is enforced per officer/event, including logically removed awards, so removed automatic awards are never regenerated. Signup counts as participation for timed events; admins or authorized leads assign officers to untimed work events.
+- Admins may edit point_transactions.points directly; totals reflect the edited value and before/after values are logged. Logical removal sets point_transactions.removed_at and removed_by without deleting the transaction. Removed transactions no longer count toward totals; ordinary history shows active transactions. Automatic awards may also be edited or removed.
 - created_by, removed_by, warning_approvals.approver_id, and audit_logs.actor_id reference auth.users.id.
 - Deactivation removes the officer's signups from future events and immediately removes application access while preserving historical participation, points, and audit history. Cancellation preserves event and point history. Warning approvers are snapshotted at creation; exclude the warned officer from that set, and require every remaining snapshotted approver to approve. Meaningful data mutations are logged with actor, action, entity, timestamp, and useful details; reads and navigation are not logged.
 
@@ -411,7 +416,7 @@ RLS and backend authorization enforce the same application access model. Authent
 
 - Active approved officers may read names, positions, branch memberships, UTEP/personal emails, points, point history, and event history for other officers.
 - Warning records are separate: admins administer warnings; an officer sees only their own approved warnings.
-- Admins may manage officers, positions, branches, events, event types, signups, points, the participation-rate configuration, warnings, admin roles subject to self/last-admin protections, and System Log records.
+- Admins may manage officers (including after related activity is past), positions, branches, events (including past events), event types, signups/assignments, points (including editing and logically removing any transaction), the participation-rate configuration, warnings, admin roles subject to self/last-admin protections, and System Log records.
 - Officers with position = Lead may manage branch-associated events and signups only when at least one event branch matches their own memberships. They need not belong to every branch on a multi-branch event. Only admins may manage global events with no branches.
 - Normal officers may manage only their own event signups and cannot create manual/correction points, remove awards, alter roles, or manage events.
 - Point processing and other trusted operations cannot be invoked by anon or normal authenticated accounts as unrestricted privileged functions.
@@ -471,7 +476,7 @@ Dashboard | Events | Officers | Points | System Log (admins only)
 
 Google Sign-In is handled through Supabase Auth. Show the signed-in identity and role where useful; hide admin-only controls from officers while enforcing all access on the backend. Officer directory/profile views may show the permitted officer contact, branch, point, and event-history data. Warning visibility remains restricted to admins and the assigned officer's approved warnings.
 
-A sidebar is not required. Basic black-and-white styling and components such as buttons, inputs, selects, tables, dialogs, tabs, badges, and forms are sufficient. Prioritize speed and readability over visual complexity.
+A sidebar is not required. Include Back and Forward navigation controls on each page using browser history; disable each control when no corresponding history entry exists. Improve usability with clear primary actions, consistent Edit/Remove actions, confirmation before destructive actions, clear success/error feedback, readable forms and labels, disabled buttons while actions are processing, useful empty states, and easy-to-scan tables. Basic black-and-white styling and components such as buttons, inputs, selects, tables, dialogs, tabs, badges, and forms are sufficient. Avoid unnecessary animations or elaborate visual systems.
 
 # **25\. Dashboard Example**
 
@@ -535,6 +540,8 @@ ICPC Practice            Oct 5       Workshop      icpc       3           ✓
 
 Branch selection includes an All control for selecting or deselecting all branches.
 
+Past events retain Edit and Remove actions for admins. Editing does not silently recalculate existing point transactions; removal preserves historical relationships.
+
 Selecting an event opens its detail view.
 
 ---
@@ -555,7 +562,7 @@ Sarah             Secretary    —           72        Active
 
 Alex              Officer      icpc        55        Active
 
-The Add Officer form requires at least one of UTEP email or personal email, creates the officer as active, and does not ask for status.
+The Add Officer form requires at least one of UTEP email or personal email, creates the officer as active, and does not ask for status. Officers and other records remain editable even when related activity is past.
 
 Selecting an officer opens their profile.
 
@@ -576,6 +583,8 @@ Emi        Intro Arrays     Participation      \+5
 Alex       Career Fair      Organizer          \+10
 
 Sarah      —                Correction         \-5
+
+Admins can edit a transaction's points amount directly; totals immediately reflect the edited amount and the System Log records before/after values. Admins can also remove a transaction logically. A removed transaction remains in history and no longer counts toward totals. Automatic participation and fixed-event transactions may also be edited or removed, and removed automatic awards are never regenerated.
 
 ---
 

@@ -83,3 +83,67 @@ export async function removeParticipationAward(
     success: data ? "Award removed" : "Award was already removed",
   };
 }
+
+export async function editPointTransaction(
+  _previous: { error: string; success: string },
+  formData: FormData,
+) {
+  const actor = await getAuthorizationContext();
+  if (!canManagePoints(actor)) return { error: "Admin required", success: "" };
+  const id = Number(formData.get("transaction_id"));
+  const raw = String(formData.get("points") ?? "").trim();
+  const points = Number(raw);
+  if (
+    !Number.isSafeInteger(id) ||
+    id <= 0 ||
+    !raw ||
+    !Number.isFinite(points) ||
+    points === 0
+  )
+    return { error: "Enter a finite nonzero point value", success: "" };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("update_point_transaction", {
+    p_transaction_id: id,
+    p_points: points,
+  });
+  if (error) return { error: mutationError(error.message), success: "" };
+  revalidatePath("/", "layout");
+  return { error: "", success: "Points updated" };
+}
+export async function removePointTransaction(
+  _previous: { error: string; success: string },
+  formData: FormData,
+) {
+  const actor = await getAuthorizationContext();
+  if (!canManagePoints(actor)) return { error: "Admin required", success: "" };
+  const id = Number(formData.get("transaction_id"));
+  if (!Number.isSafeInteger(id) || id <= 0)
+    return { error: "Invalid transaction", success: "" };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("remove_point_transaction", {
+    p_transaction_id: id,
+  });
+  if (error) return { error: mutationError(error.message), success: "" };
+  revalidatePath("/", "layout");
+  return {
+    error: "",
+    success: data ? "Transaction removed" : "Already removed",
+  };
+}
+export async function searchEvents(term: string) {
+  const actor = await getAuthorizationContext();
+  if (!canManagePoints(actor)) return [];
+  const query = term.trim().slice(0, 80);
+  if (query.length < 2) return [];
+  const literal = query.replace(/[\\%_]/g, "\\$&");
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("events")
+    .select("id,name")
+    .is("deleted_at", null)
+    .ilike("name", `%${literal}%`)
+    .order("event_date", { ascending: false })
+    .limit(20);
+  if (error) return [];
+  return data;
+}

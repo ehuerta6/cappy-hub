@@ -5,7 +5,7 @@ import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { eventStatus, displayDateTime } from "@/lib/event-status";
-import { SignupForm, CancelForm } from "../event-controls";
+import { SignupForm, CancelForm, RemoveEventForm } from "../event-controls";
 import {
   ActionLink,
   BranchBadges,
@@ -42,7 +42,16 @@ export default async function EventDetailPage({
   if (!result.data) notFound();
   const event = result.data;
   const status = eventStatus(event);
-  const signupOpen = status === "upcoming" || status === "happening";
+  const signupOpen =
+    !event.deleted_at &&
+    !event.participation_points_per_hour_at_end &&
+    event.starts_at !== null &&
+    (status === "upcoming" || status === "happening");
+  const assignmentOpen =
+    !event.deleted_at &&
+    !event.untimed_processed_at &&
+    status === "upcoming" &&
+    event.starts_at === null;
   const canManage = canManageEvent(
     actor,
     event.event_branches.map((x) => x.branch_id),
@@ -62,7 +71,7 @@ export default async function EventDetailPage({
         title={event.name}
         description={event.description || "No description"}
         action={
-          status === "upcoming" && canManage ? (
+          canManage && !event.deleted_at && status !== "cancelled" ? (
             <ActionLink href={`/events/${id}/edit`}>Edit event</ActionLink>
           ) : undefined
         }
@@ -72,15 +81,36 @@ export default async function EventDetailPage({
         <dd>{event.event_types.name}</dd>
         <dt>Location</dt>
         <dd>{event.location || "Not set"}</dd>
-        <dt>Start</dt>
-        <dd>{displayDateTime(event.starts_at)}</dd>
-        <dt>End</dt>
-        <dd>{displayDateTime(event.ends_at)}</dd>
-        <dt>Participation rate used</dt>
+        <dt>Date</dt>
+        <dd>{event.event_date}</dd>
+        {event.starts_at && event.ends_at ? (
+          <>
+            <dt>Start</dt>
+            <dd>{displayDateTime(event.starts_at)}</dd>
+            <dt>End</dt>
+            <dd>{displayDateTime(event.ends_at)}</dd>
+          </>
+        ) : (
+          <>
+            <dt>Fixed points</dt>
+            <dd>{event.fixed_points}</dd>
+          </>
+        )}
+        {event.deleted_at && (
+          <>
+            <dt>Removed at</dt>
+            <dd>{displayDateTime(event.deleted_at)}</dd>
+          </>
+        )}
+        <dt>Processing</dt>
         <dd>
-          {event.participation_points_per_hour_at_end === null
-            ? "Not processed"
-            : `${event.participation_points_per_hour_at_end} points/hour`}
+          {event.starts_at === null
+            ? event.untimed_processed_at
+              ? "Fixed points awarded"
+              : "Awaiting event date"
+            : event.participation_points_per_hour_at_end === null
+              ? "Not processed"
+              : `${event.participation_points_per_hour_at_end} points/hour`}
         </dd>
         <dt>Status</dt>
         <dd>
@@ -93,7 +123,12 @@ export default async function EventDetailPage({
           />
         </dd>
       </dl>
-      {signupOpen && canManage && <CancelForm eventId={event.id} />}
+      {canManage && !event.deleted_at && (
+        <div className="flex gap-3">
+          {(signupOpen || assignmentOpen) && <CancelForm eventId={event.id} />}
+          <RemoveEventForm eventId={event.id} />
+        </div>
+      )}
       <section>
         <SectionHeading title="Signed-up officers" />
         <TableFrame>
@@ -111,7 +146,8 @@ export default async function EventDetailPage({
                     <Link href={`/officers/${officer.id}`}>{officer.name}</Link>
                   </td>
                   <td>
-                    {signupOpen && (canManage || officer.id === actor.id) ? (
+                    {(signupOpen && (canManage || officer.id === actor.id)) ||
+                    (assignmentOpen && canManage) ? (
                       <SignupForm
                         eventId={event.id}
                         officerId={officer.id}
@@ -127,7 +163,7 @@ export default async function EventDetailPage({
           </table>
         </TableFrame>
         {!event.event_officers.length && <p>No officers signed up.</p>}
-        {signupOpen && (
+        {(signupOpen || (assignmentOpen && canManage)) && (
           <SignupForm
             eventId={event.id}
             officers={(canManage

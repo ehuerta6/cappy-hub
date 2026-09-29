@@ -55,7 +55,7 @@ export default async function PointsPage({
   if (officerId) history = history.eq("officer_id", officerId);
   if (eventId) history = history.eq("event_id", eventId);
 
-  const [transactions, totals, officers, events, configuration] =
+  const [transactions, totals, officers, events, recentEvents, configuration] =
     await Promise.all([
       history
         .order("created_at", { ascending: false })
@@ -66,7 +66,13 @@ export default async function PointsPage({
       supabase
         .from("events")
         .select("id,name")
-        .order("starts_at", { ascending: false }),
+        .order("event_date", { ascending: false }),
+      supabase
+        .from("events")
+        .select("id,name")
+        .is("deleted_at", null)
+        .order("event_date", { ascending: false })
+        .limit(5),
       supabase
         .from("application_config")
         .select("participation_points_per_hour")
@@ -78,6 +84,7 @@ export default async function PointsPage({
     totals.error ||
     officers.error ||
     events.error ||
+    recentEvents.error ||
     configuration.error
   )
     throw new Error("Failed to load points");
@@ -143,7 +150,10 @@ export default async function PointsPage({
         <section>
           <SectionHeading title="Add manual transaction or correction" />
           <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4 sm:p-5">
-            <TransactionForm officers={officers.data} events={events.data} />
+            <TransactionForm
+              officers={officers.data}
+              events={recentEvents.data}
+            />
           </div>
         </section>
       )}

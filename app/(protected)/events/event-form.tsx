@@ -1,6 +1,7 @@
 "use client";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { Tables } from "@/lib/database.types";
+import { denverParts } from "@/lib/event-time";
 import { saveEvent } from "./actions";
 export default function EventForm({
   branches,
@@ -14,7 +15,10 @@ export default function EventForm({
   branchIds?: number[];
 }) {
   const [state, action, pending] = useActionState(saveEvent, { error: "" });
-  // UTC keeps server-rendered defaults and submitted timestamps consistent across computers.
+  const [kind, setKind] = useState(
+    event?.starts_at === null ? "untimed" : "timed",
+  );
+  const [selectedBranches, setSelectedBranches] = useState(branchIds);
   return (
     <form action={action}>
       {event && <input type="hidden" name="id" value={event.id} />}
@@ -51,47 +55,102 @@ export default function EventForm({
         Location
         <input name="location" defaultValue={event?.location ?? ""} />
       </label>
-      <p>
-        Enter start and end in UTC (24-hour time). Times on this prototype are
-        displayed in UTC.
-      </p>
       <label>
-        Start (UTC)
-        <input
-          name="starts_at"
-          type="datetime-local"
-          step="1"
-          required
-          defaultValue={
-            event
-              ? new Date(event.starts_at).toISOString().slice(0, 19)
-              : undefined
-          }
-        />
+        Event kind
+        <select
+          name="kind"
+          value={kind}
+          onChange={(change) => setKind(change.target.value)}
+        >
+          <option value="timed">Timed event</option>
+          <option value="untimed">Untimed work event</option>
+        </select>
       </label>
       <label>
-        End (UTC)
+        Date (El Paso)
         <input
-          name="ends_at"
-          type="datetime-local"
-          step="1"
+          name="event_date"
+          type="date"
           required
-          defaultValue={
-            event
-              ? new Date(event.ends_at).toISOString().slice(0, 19)
-              : undefined
-          }
+          defaultValue={event?.event_date ?? undefined}
         />
       </label>
+      {kind === "timed" ? (
+        <>
+          <p>
+            Choose one El Paso date. The event must start at or after 6:00 AM
+            and end by 11:59 PM.
+          </p>
+          <label>
+            Start time
+            <input
+              name="start_time"
+              type="time"
+              min="06:00"
+              max="23:59"
+              required
+              defaultValue={
+                event?.starts_at ? denverParts(event.starts_at).time : undefined
+              }
+            />
+          </label>
+          <label>
+            End time
+            <input
+              name="end_time"
+              type="time"
+              min="06:00"
+              max="23:59"
+              required
+              defaultValue={
+                event?.ends_at ? denverParts(event.ends_at).time : undefined
+              }
+            />
+          </label>
+        </>
+      ) : (
+        <label>
+          Fixed points
+          <input
+            name="fixed_points"
+            type="number"
+            step="any"
+            required
+            defaultValue={event?.fixed_points ?? undefined}
+          />
+        </label>
+      )}
       <fieldset>
         <legend>Branches (optional; none means a global event)</legend>
+        <button
+          type="button"
+          className="button-secondary"
+          onClick={() =>
+            setSelectedBranches(
+              selectedBranches.length === branches.length
+                ? []
+                : branches.map((branch) => branch.id),
+            )
+          }
+        >
+          {selectedBranches.length === branches.length
+            ? "Clear all"
+            : "Select all"}
+        </button>
         {branches.map((branch) => (
           <label key={branch.id}>
             <input
               type="checkbox"
               name="branches"
               value={branch.id}
-              defaultChecked={branchIds.includes(branch.id)}
+              checked={selectedBranches.includes(branch.id)}
+              onChange={() =>
+                setSelectedBranches(
+                  selectedBranches.includes(branch.id)
+                    ? selectedBranches.filter((id) => id !== branch.id)
+                    : [...selectedBranches, branch.id],
+                )
+              }
             />
             {branch.name}
           </label>

@@ -30,7 +30,7 @@ select results_eq($$select * from event_branches where event_id=90001 order by b
 select results_eq($$select * from event_officers where event_id=90001$$,
   $$select * from upgrade_fixture.event_officers$$,'historical signups survive');
 select results_eq(
-  $$select to_jsonb(p)-'removed_at'-'removed_by' from point_transactions p where id between 90001 and 90002 order by id$$,
+  $$select to_jsonb(p)-'removed_at'-'removed_by'-'updated_at'-'updated_by' from point_transactions p where id between 90001 and 90002 order by id$$,
   $$select original from upgrade_fixture.points order by (original->>'id')::bigint$$,
   'point transaction IDs, values, timestamps and actors survive');
 select is((select total_points from officer_point_totals where id=90001),1.75::numeric,

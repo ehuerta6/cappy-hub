@@ -3,7 +3,6 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { displayPoints } from "@/lib/participation";
-import { displayDate } from "@/lib/event-status";
 import TransactionTable from "./points/transaction-table";
 import { PageHeader, SectionHeading, TableFrame } from "@/components/ui";
 export default async function DashboardPage() {
@@ -16,8 +15,11 @@ export default async function DashboardPage() {
       .from("events")
       .select("*,event_officers(officer_id)")
       .neq("status", "cancelled")
-      .gt("starts_at", new Date().toISOString())
-      .order("starts_at")
+      .is("deleted_at", null)
+      .or(
+        `starts_at.gt.${new Date().toISOString()},and(starts_at.is.null,event_date.gte.${new Intl.DateTimeFormat("en-CA", { timeZone: "America/Denver", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())})`,
+      )
+      .order("event_date")
       .limit(10),
     supabase
       .from("point_transactions")
@@ -88,7 +90,7 @@ export default async function DashboardPage() {
                   <td>
                     <Link href={`/events/${event.id}`}>{event.name}</Link>
                   </td>
-                  <td>{displayDate(event.starts_at)}</td>
+                  <td>{event.event_date}</td>
                   <td>{event.event_officers.length}</td>
                 </tr>
               ))}

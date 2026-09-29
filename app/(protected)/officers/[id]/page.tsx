@@ -246,9 +246,7 @@ export default async function OfficerDetailPage({
               >
                 {event.name}
               </Link>
-              <span className="text-zinc-500">
-                {displayDate(event.starts_at)}
-              </span>
+              <span className="text-zinc-500">{event.event_date}</span>
               <StatusBadge status={eventStatus(event)} />
             </li>
           ))}
