@@ -173,6 +173,26 @@ for (const account of accounts) {
 
   if (error) throw new Error(`Could not create ${account.label}: ${error.message}`);
 
+  const { data: updatedUser, error: metadataError } =
+    await admin.auth.admin.updateUserById(account.id, {
+      app_metadata: {
+        provider: "google",
+        providers: ["email"],
+        local_development: true,
+      },
+    });
+
+  if (metadataError) {
+    throw new Error(
+      `Could not configure ${account.label} metadata: ${metadataError.message}`,
+    );
+  }
+  if (updatedUser.user.app_metadata.provider !== "google") {
+    throw new Error(
+      `Local Auth metadata for ${account.label} did not retain the Google provider marker.`,
+    );
+  }
+
   const { error: linkError } = await admin
     .from("officers")
     .update({ auth_user_id: account.id })
