@@ -48,7 +48,13 @@ Cappy Hub uses a local Supabase stack for development. The database schema is re
 
 No production CIC data is copied into the local environment.
 
-Set up or completely reset the local environment with:
+Set up the local environment for the first time with:
+
+```bash
+npm run local:setup
+```
+
+To completely rebuild the local environment later, use:
 
 ```bash
 npm run local:reset
@@ -79,6 +85,8 @@ When the app is connected to local Supabase, the login page provides one-click t
 
 - Admin
 - President
+- VP Operations
+- VP Academics
 - Intro Lead
 - ICPC Lead
 - Officer
@@ -110,7 +118,7 @@ Use Studio only against the local database. Schema changes that should become pa
 
 ### Environment Variables
 
-For normal local development, `npm run local:reset` manages the two public Supabase values in `.env.local` automatically.
+For normal local development, `npm run local:setup` and `npm run local:reset` manage the two public Supabase values in `.env.local` automatically.
 
 Never commit:
 
