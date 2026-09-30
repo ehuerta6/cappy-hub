@@ -57,9 +57,7 @@ export default function GoogleSignIn() {
     <div className="mt-6">
       {isLocal ? (
         <div className="space-y-3">
-          <p className="text-sm text-zinc-400">
-            Local development accounts
-          </p>
+          <p className="text-sm text-zinc-400">Local development accounts</p>
           <div className="flex flex-wrap gap-2">
             {LOCAL_ACCOUNTS.map((account) => (
               <button
