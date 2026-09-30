@@ -7,6 +7,8 @@ const LOCAL_PASSWORD = "CappyLocal123!";
 const LOCAL_ACCOUNTS = [
   { label: "Admin", email: "admin@cappy.test" },
   { label: "President", email: "president@cappy.test" },
+  { label: "VP Operations", email: "vp-operations@cappy.test" },
+  { label: "VP Academics", email: "vp-academics@cappy.test" },
   { label: "Intro Lead", email: "intro-lead@cappy.test" },
   { label: "ICPC Lead", email: "icpc-lead@cappy.test" },
   { label: "Officer", email: "officer@cappy.test" },
