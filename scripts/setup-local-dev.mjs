@@ -6,50 +6,22 @@ const PROJECT_ID = "cappy-hub";
 const LOCAL_PASSWORD = "CappyLocal123!";
 
 const accounts = [
+  { officerId: -1001, email: "admin@cappy.test", label: "Admin" },
+  { officerId: -1002, email: "president@cappy.test", label: "President" },
   {
-    id: "10000000-0000-4000-8000-000000001001",
-    officerId: -1001,
-    email: "admin@cappy.test",
-    label: "Admin",
-  },
-  {
-    id: "10000000-0000-4000-8000-000000001002",
-    officerId: -1002,
-    email: "president@cappy.test",
-    label: "President",
-  },
-  {
-    id: "10000000-0000-4000-8000-000000001003",
     officerId: -1003,
     email: "vp-operations@cappy.test",
     label: "VP Operations",
   },
   {
-    id: "10000000-0000-4000-8000-000000001004",
     officerId: -1004,
     email: "vp-academics@cappy.test",
     label: "VP Academics",
   },
+  { officerId: -1005, email: "intro-lead@cappy.test", label: "Intro Lead" },
+  { officerId: -1006, email: "icpc-lead@cappy.test", label: "ICPC Lead" },
+  { officerId: -1010, email: "officer@cappy.test", label: "Officer" },
   {
-    id: "10000000-0000-4000-8000-000000001005",
-    officerId: -1005,
-    email: "intro-lead@cappy.test",
-    label: "Intro Lead",
-  },
-  {
-    id: "10000000-0000-4000-8000-000000001006",
-    officerId: -1006,
-    email: "icpc-lead@cappy.test",
-    label: "ICPC Lead",
-  },
-  {
-    id: "10000000-0000-4000-8000-000000001010",
-    officerId: -1010,
-    email: "officer@cappy.test",
-    label: "Officer",
-  },
-  {
-    id: "10000000-0000-4000-8000-000000001011",
     officerId: -1011,
     email: "inactive@cappy.test",
     label: "Inactive Officer",
@@ -114,6 +86,84 @@ async function updateLocalEnv(apiUrl, publishableKey) {
   await writeFile(path, `${generated}\n${kept ? `\n${kept}\n` : ""}`, "utf8");
 }
 
+async function seedWarningApprovals(admin, userIds) {
+  const approvalRows = [];
+
+  const approvers = [
+    [userIds.get("President"), "President"],
+    [userIds.get("VP Operations"), "Vice President"],
+    [userIds.get("VP Academics"), "Vice President"],
+  ];
+
+  for (const warningId of [-3001, -3002, -3004, -3005, -3006]) {
+    const decision = warningId === -3001 ? "pending" : "approved";
+    const decidedAt = decision === "approved" ? new Date().toISOString() : null;
+
+    for (const [approverId, approverRole] of approvers) {
+      approvalRows.push({
+        warning_id: warningId,
+        approver_id: approverId,
+        approver_role: approverRole,
+        decision,
+        decided_at: decidedAt,
+      });
+    }
+  }
+
+  approvalRows.push(
+    {
+      warning_id: -3003,
+      approver_id: userIds.get("President"),
+      approver_role: "President",
+      decision: "approved",
+      decided_at: new Date().toISOString(),
+    },
+    {
+      warning_id: -3003,
+      approver_id: userIds.get("VP Operations"),
+      approver_role: "Vice President",
+      decision: "rejected",
+      decided_at: new Date().toISOString(),
+    },
+    {
+      warning_id: -3003,
+      approver_id: userIds.get("VP Academics"),
+      approver_role: "Vice President",
+      decision: "pending",
+      decided_at: null,
+    },
+  );
+
+  const { error } = await admin.from("warning_approvals").insert(approvalRows);
+  if (error) {
+    throw new Error(`Could not seed warning approvals: ${error.message}`);
+  }
+}
+
+async function verifySeed(admin) {
+  const minimums = [
+    ["officers", 20],
+    ["events", 10],
+    ["point_transactions", 250],
+    ["officer_warnings", 6],
+  ];
+
+  for (const [table, minimum] of minimums) {
+    const { count, error } = await admin
+      .from(table)
+      .select("*", { count: "exact", head: true });
+
+    if (error) {
+      throw new Error(`Could not verify ${table}: ${error.message}`);
+    }
+    if ((count ?? 0) < minimum) {
+      throw new Error(
+        `Expected at least ${minimum} rows in ${table}, found ${count ?? 0}`,
+      );
+    }
+  }
+}
+
 console.log("\nResetting local database from migrations...");
 run("npx", ["supabase", "db", "reset", "--local", "--no-seed"]);
 
@@ -157,9 +207,10 @@ const admin = createClient(apiUrl, serviceRoleKey, {
 });
 
 console.log("\nCreating local Auth accounts...");
+const userIds = new Map();
+
 for (const account of accounts) {
-  const { error } = await admin.auth.admin.createUser({
-    id: account.id,
+  const { data, error } = await admin.auth.admin.createUser({
     email: account.email,
     password: LOCAL_PASSWORD,
     email_confirm: true,
@@ -171,31 +222,37 @@ for (const account of accounts) {
     user_metadata: { name: account.label },
   });
 
-  if (error) throw new Error(`Could not create ${account.label}: ${error.message}`);
+  if (error || !data.user) {
+    throw new Error(
+      `Could not create ${account.label}: ${error?.message ?? "missing user"}`,
+    );
+  }
 
-  const { data: updatedUser, error: metadataError } =
-    await admin.auth.admin.updateUserById(account.id, {
+  // Cappy Hub's production identity resolver intentionally accepts Google
+  // accounts only. The local password accounts are pre-linked test fixtures,
+  // but keep the same verified-provider metadata so they exercise the real
+  // resolver and RLS path instead of a development-only authorization bypass.
+  const { error: metadataError } = await admin.auth.admin.updateUserById(
+    data.user.id,
+    {
       app_metadata: {
         provider: "google",
         providers: ["email"],
         local_development: true,
       },
-    });
-
+    },
+  );
   if (metadataError) {
     throw new Error(
-      `Could not configure ${account.label} metadata: ${metadataError.message}`,
+      `Could not prepare ${account.label} metadata: ${metadataError.message}`,
     );
   }
-  if (updatedUser.user.app_metadata.provider !== "google") {
-    throw new Error(
-      `Local Auth metadata for ${account.label} did not retain the Google provider marker.`,
-    );
-  }
+
+  userIds.set(account.label, data.user.id);
 
   const { error: linkError } = await admin
     .from("officers")
-    .update({ auth_user_id: account.id })
+    .update({ auth_user_id: data.user.id })
     .eq("id", account.officerId);
 
   if (linkError) {
@@ -205,72 +262,42 @@ for (const account of accounts) {
   }
 }
 
-const ids = Object.fromEntries(accounts.map((account) => [account.label, account.id]));
-const approvalRows = [];
+await seedWarningApprovals(admin, userIds);
 
-for (const warningId of [-3001, -3002, -3004, -3005, -3006]) {
-  const decision = warningId === -3001 ? "pending" : "approved";
-  const decidedAt = decision === "approved" ? new Date().toISOString() : null;
-  approvalRows.push(
-    {
-      warning_id: warningId,
-      approver_id: ids.President,
-      approver_role: "President",
-      decision,
-      decided_at: decidedAt,
+const { error: auditError } = await admin.from("audit_logs").insert([
+  {
+    actor_id: userIds.get("Admin"),
+    action: "officer.updated",
+    entity_type: "officer",
+    entity_id: "-1010",
+    details: {
+      source: "local-seed",
+      note: "Synthetic admin-attributed audit entry",
     },
-    {
-      warning_id: warningId,
-      approver_id: ids["VP Operations"],
-      approver_role: "Vice President",
-      decision,
-      decided_at: decidedAt,
+  },
+  {
+    actor_id: userIds.get("Admin"),
+    action: "point.manual_created",
+    entity_type: "point_transaction",
+    entity_id: "-5001",
+    details: {
+      source: "local-seed",
+      note: "Synthetic admin-attributed audit entry",
     },
-    {
-      warning_id: warningId,
-      approver_id: ids["VP Academics"],
-      approver_role: "Vice President",
-      decision,
-      decided_at: decidedAt,
-    },
-  );
+  },
+]);
+if (auditError) {
+  throw new Error(`Could not seed actor audit examples: ${auditError.message}`);
 }
 
-approvalRows.push(
-  {
-    warning_id: -3003,
-    approver_id: ids.President,
-    approver_role: "President",
-    decision: "approved",
-    decided_at: new Date().toISOString(),
-  },
-  {
-    warning_id: -3003,
-    approver_id: ids["VP Operations"],
-    approver_role: "Vice President",
-    decision: "rejected",
-    decided_at: new Date().toISOString(),
-  },
-  {
-    warning_id: -3003,
-    approver_id: ids["VP Academics"],
-    approver_role: "Vice President",
-    decision: "pending",
-    decided_at: null,
-  },
-);
-
-const { error: approvalError } = await admin
-  .from("warning_approvals")
-  .insert(approvalRows);
-if (approvalError) {
-  throw new Error(`Could not seed warning approvals: ${approvalError.message}`);
-}
-
+await verifySeed(admin);
 await updateLocalEnv(apiUrl, publishableKey);
 
 console.log("\nLocal Cappy Hub is ready.");
 console.log(`Supabase: ${apiUrl}`);
 console.log("Next.js env: .env.local updated");
 console.log(`Local test password: ${LOCAL_PASSWORD}`);
-console.log("Run `npm run dev` and use a Local test account on /login.\n");
+for (const account of accounts) {
+  console.log(`- ${account.label}: ${account.email}`);
+}
+console.log("\nRun `npm run dev` and use a Local test account on /login.\n");
