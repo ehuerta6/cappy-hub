@@ -1,0 +1,27 @@
+name: Temporary formatter
+
+on:
+  push:
+    branches: [chore/local-test-environment]
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run format
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prettier-output
+          path: |
+            app/login/sign-in.tsx
+            README.md
+            scripts/setup-local-dev.mjs
