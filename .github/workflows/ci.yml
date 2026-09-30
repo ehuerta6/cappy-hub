@@ -65,6 +65,9 @@ jobs:
       - name: Lint database functions
         run: npx supabase db lint --local --schema public --fail-on error
 
+      - name: Verify synthetic local seed
+        run: npm run test:local-seed
+
       - name: Build for production
         run: npm run build
 
