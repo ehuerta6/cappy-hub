@@ -32,52 +32,96 @@ Install:
 - Node.js 24
 - npm
 - Git
-- Docker Desktop for local database testing
+- Docker Desktop
 
 Clone the repository:
 
 ```bash
 git clone https://github.com/ehuerta6/cappy-hub.git
 cd cappy-hub
-```
-
-Install dependencies:
-
-```bash
 npm ci
 ```
 
-### Environment Variables
+### Local Development
 
-Create a `.env.local` file:
+Cappy Hub uses a local Supabase stack for development. The database schema is rebuilt from the same migrations used by production, then populated with synthetic officers, events, signups, points, warnings, and audit history.
 
-```dotenv
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+No production CIC data is copied into the local environment.
+
+Set up or completely reset the local environment with:
+
+```bash
+npm run local:reset
 ```
 
-Ask a Cappy Hub maintainer for the development environment values if needed.
+This command:
 
-Never commit:
+1. Starts the full local Supabase stack.
+2. Replays every migration from `supabase/migrations/`.
+3. Loads the synthetic dataset from `supabase/seed.sql`.
+4. Creates local Supabase Auth accounts for the main permission roles.
+5. Links those accounts to their synthetic officer records.
+6. Writes the local public Supabase URL and publishable key to `.env.local`.
 
-- `.env.local`
-- passwords
-- API secrets
-- OAuth secrets
-- Supabase service-role keys
-- any other private credentials
-
-### Run the Application
+Then start Next.js:
 
 ```bash
 npm run dev
 ```
 
-Then open:
+Open:
 
 ```text
 http://localhost:3000
 ```
+
+When the app is connected to local Supabase, the login page provides one-click test accounts for:
+
+- Admin
+- President
+- Intro Lead
+- ICPC Lead
+- Officer
+- Inactive Officer
+
+These local password accounts exist only for development. Production continues to use Google Sign-In.
+
+To throw away all local changes and return to the standard synthetic dataset:
+
+```bash
+npm run local:reset
+```
+
+To stop the local Supabase stack:
+
+```bash
+npm run local:stop
+```
+
+### Local Supabase Studio
+
+The full local stack includes Supabase Studio:
+
+```text
+http://localhost:54323
+```
+
+Use Studio only against the local database. Schema changes that should become part of Cappy Hub must still be captured in migration files.
+
+### Environment Variables
+
+For normal local development, `npm run local:reset` manages the two public Supabase values in `.env.local` automatically.
+
+Never commit:
+
+- `.env.local`
+- passwords or private credentials
+- OAuth secrets
+- Supabase service-role/secret keys
+- production database credentials
+
+The local setup script reads its temporary service-role key from the local Supabase CLI and uses it only server-side while creating development accounts. It is never written to browser environment variables.
+
 
 ---
 
@@ -267,19 +311,56 @@ Database migrations live in:
 supabase/migrations/
 ```
 
-Do not manually recreate schema changes outside migrations.
+Synthetic local development data lives in:
 
-When database types change, regenerate them with:
+```text
+supabase/seed.sql
+```
+
+### Schema Changes
+
+Do not change the production schema manually.
+
+Create a migration locally:
+
+```bash
+npx supabase migration new descriptive_name
+```
+
+After editing the migration, rebuild the local environment:
+
+```bash
+npm run local:reset
+```
+
+This proves that the complete migration history can recreate Cappy Hub from scratch before the change reaches production.
+
+When database types change:
 
 ```bash
 npm run db:types
-```
-
-Then verify them with:
-
-```bash
 npm run db:types:check
 ```
+
+### Database Test Stack
+
+The repository keeps a smaller database-only Supabase command for automated PostgreSQL tests and CI:
+
+```bash
+npm run db:start
+npm run db:reset
+npm test
+```
+
+`db:start` is intentionally different from `local:start`: it does not start the full Auth/API/Studio development environment.
+
+### Seed Data Rules
+
+The local seed is intentionally synthetic and should contain enough data to exercise realistic UI and database states.
+
+Do not add real CIC officer emails, event history, points, warnings, Auth accounts, or other production records to the seed.
+
+The production Supabase project receives migrations only. Never deploy the local synthetic seed to production.
 
 ### Security Rules
 
@@ -294,12 +375,16 @@ Never:
 
 If your change affects authentication, authorization, Row Level Security, roles, or protected database operations, mention it clearly in your Pull Request.
 
+
 ---
 
 ## Useful Commands
 
 ```bash
-# Development
+# Full local app environment
+npm run local:start
+npm run local:reset
+npm run local:stop
 npm run dev
 
 # Formatting
@@ -316,7 +401,7 @@ npm test
 # Production build
 npm run build
 
-# Local Supabase database
+# Database-only test/CI stack
 npm run db:start
 npm run db:reset
 
@@ -324,6 +409,7 @@ npm run db:reset
 npm run db:types
 npm run db:types:check
 ```
+
 
 ---
 
