@@ -130,7 +130,6 @@ Never commit:
 
 The local setup script reads its temporary service-role key from the local Supabase CLI and uses it only server-side while creating development accounts. It is never written to browser environment variables.
 
-
 ---
 
 ## Contributing
@@ -383,7 +382,6 @@ Never:
 
 If your change affects authentication, authorization, Row Level Security, roles, or protected database operations, mention it clearly in your Pull Request.
 
-
 ---
 
 ## Useful Commands
@@ -417,7 +415,6 @@ npm run db:reset
 npm run db:types
 npm run db:types:check
 ```
-
 
 ---
 
