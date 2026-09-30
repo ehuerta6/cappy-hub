@@ -30,18 +30,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Format temporary PR output
-        run: npm run format
-
-      - name: Upload formatted files
-        uses: actions/upload-artifact@v4
-        with:
-          name: prettier-output
-          path: |
-            app/login/sign-in.tsx
-            README.md
-            scripts/setup-local-dev.mjs
-
       - name: Check formatting
         run: npm run format:check
 
