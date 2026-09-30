@@ -140,6 +140,43 @@ async function seedWarningApprovals(admin, userIds) {
   }
 }
 
+async function verifyLocalLogins(apiUrl, publishableKey) {
+  for (const account of accounts) {
+    const client = createClient(apiUrl, publishableKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const { error: signInError } = await client.auth.signInWithPassword({
+      email: account.email,
+      password: LOCAL_PASSWORD,
+    });
+    if (signInError) {
+      throw new Error(
+        `Local sign-in verification failed for ${account.label}: ${signInError.message}`,
+      );
+    }
+
+    const { data: officerId, error: identityError } = await client.rpc(
+      "claim_current_officer_identity",
+    );
+    if (identityError) {
+      throw new Error(
+        `Identity verification failed for ${account.label}: ${identityError.message}`,
+      );
+    }
+
+    const expectedOfficerId =
+      account.label === "Inactive Officer" ? null : account.officerId;
+    if (officerId !== expectedOfficerId) {
+      throw new Error(
+        `Unexpected identity for ${account.label}: expected ${expectedOfficerId}, got ${officerId}`,
+      );
+    }
+
+    await client.auth.signOut();
+  }
+}
+
 async function verifySeed(admin) {
   const minimums = [
     ["officers", 20],
@@ -291,6 +328,10 @@ if (auditError) {
 }
 
 await verifySeed(admin);
+
+console.log("\nVerifying local sign-in and officer identity...");
+await verifyLocalLogins(apiUrl, publishableKey);
+
 await updateLocalEnv(apiUrl, publishableKey);
 
 console.log("\nLocal Cappy Hub is ready.");
