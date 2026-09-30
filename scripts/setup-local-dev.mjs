@@ -32,7 +32,11 @@ function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: process.cwd(),
     encoding: "utf8",
-    stdio: options.capture ? "pipe" : "inherit",
+    stdio: options.capture
+      ? "pipe"
+      : options.input
+        ? ["pipe", "inherit", "inherit"]
+        : "inherit",
     input: options.input,
   });
 
