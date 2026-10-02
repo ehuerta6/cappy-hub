@@ -1,3 +1,4 @@
+import ContextualBackLink from "@/components/contextual-back-link";
 import {
   getAuthorizationContext,
   canManageOfficers,
@@ -19,6 +20,7 @@ export default async function NewOfficerPage() {
     throw new Error("Failed to load officer options");
   return (
     <div className="space-y-6">
+      <ContextualBackLink href="/officers">Back to officers</ContextualBackLink>
       <PageHeader title="Add officer" />
       <OfficerForm branches={branches.data} positions={positions.data} />
     </div>

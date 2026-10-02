@@ -1,3 +1,4 @@
+import { formatEventSchedule } from "@/lib/presentation";
 import { requireCurrentOfficer } from "@/lib/current-officer";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
@@ -38,7 +39,7 @@ export default async function DashboardPage() {
   if (summary.error || events.error || transactions.error || total.error)
     throw new Error("Failed to load dashboard");
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Dashboard"
         description="A current view of club activity."
@@ -92,7 +93,7 @@ export default async function DashboardPage() {
           </div>
         ))}
       </section>
-      <p className="-mt-5 text-xs text-zinc-500">
+      <p className="-mt-3 text-xs text-zinc-500">
         Half-year periods are January–June and July–December (America/Denver).
         Points include signed corrections.
       </p>
@@ -107,7 +108,7 @@ export default async function DashboardPage() {
             <thead>
               <tr>
                 <th>Event</th>
-                <th>Start</th>
+                <th>Schedule (El Paso)</th>
                 <th>Officers</th>
                 <th>Your signup</th>
               </tr>
@@ -118,7 +119,7 @@ export default async function DashboardPage() {
                   <td>
                     <Link href={`/events/${event.id}`}>{event.name}</Link>
                   </td>
-                  <td>{event.event_date}</td>
+                  <td>{formatEventSchedule(event.starts_at, event.ends_at)}</td>
                   <td>{event.event_officers.length}</td>
                   <td>
                     {participationLabel(

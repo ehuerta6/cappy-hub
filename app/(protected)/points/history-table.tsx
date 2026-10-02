@@ -44,7 +44,7 @@ export default function HistoryTable({
                   {transaction.event_name}
                 </Link>
               ) : transaction.task_id ? (
-                <Link href={`/tasks#task-${transaction.task_id}`}>
+                <Link href={`/tasks/${transaction.task_id}`}>
                   {transaction.task_title}
                 </Link>
               ) : (

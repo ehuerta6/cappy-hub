@@ -1,3 +1,4 @@
+import ContextualBackLink from "@/components/contextual-back-link";
 import {
   getAuthorizationContext,
   canManageEvent,
@@ -42,6 +43,9 @@ export default async function EditEventPage({
     redirect("/access-denied");
   return (
     <div className="space-y-6">
+      <ContextualBackLink href={`/events/${id}`}>
+        Back to event
+      </ContextualBackLink>
       <PageHeader title="Edit event" />
       <EventForm
         allowGlobal={canSeeAllBranches(actor)}

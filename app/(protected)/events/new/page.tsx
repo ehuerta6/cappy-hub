@@ -1,3 +1,4 @@
+import ContextualBackLink from "@/components/contextual-back-link";
 import {
   getAuthorizationContext,
   canSeeAllBranches,
@@ -27,6 +28,7 @@ export default async function NewEventPage() {
     throw new Error("Failed to load event form");
   return (
     <div className="space-y-6">
+      <ContextualBackLink href="/events">Back to events</ContextualBackLink>
       <PageHeader title="New event" />
       <EventForm
         allowGlobal={canSeeAllBranches(actor)}

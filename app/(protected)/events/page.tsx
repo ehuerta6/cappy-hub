@@ -1,3 +1,4 @@
+import { formatEventSchedule } from "@/lib/presentation";
 import {
   getAuthorizationContext,
   isAdmin,
@@ -87,7 +88,7 @@ export default async function EventsPage({
                 <thead>
                   <tr>
                     <th scope="col">Event</th>
-                    <th scope="col">Date</th>
+                    <th scope="col">Schedule (El Paso)</th>
                     <th scope="col">Type</th>
                     <th scope="col">Branches</th>
                     <th scope="col">Officers</th>
@@ -101,7 +102,9 @@ export default async function EventsPage({
                       <td>
                         <Link href={`/events/${event.id}`}>{event.name}</Link>
                       </td>
-                      <td>{event.event_date}</td>
+                      <td>
+                        {formatEventSchedule(event.starts_at, event.ends_at)}
+                      </td>
                       <td>{event.event_types.name}</td>
                       <td>
                         <BranchBadges

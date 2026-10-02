@@ -1,3 +1,4 @@
+import ContextualBackLink from "@/components/contextual-back-link";
 import {
   getAuthorizationContext,
   canManageOfficers,
@@ -88,7 +89,8 @@ export default async function OfficerDetailPage({
     : null;
   if (approverNames?.error) throw new Error("Failed to load approver names");
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      <ContextualBackLink href="/officers">Back to officers</ContextualBackLink>
       <PageHeader
         title={officer.name}
         action={
@@ -97,54 +99,65 @@ export default async function OfficerDetailPage({
           ) : undefined
         }
       />
-      <dl className="grid max-w-2xl grid-cols-[7rem_minmax(0,1fr)] gap-x-5 gap-y-3 rounded-lg border border-zinc-800 bg-zinc-900/30 p-4 text-sm">
-        <dt>UTEP email</dt>
-        <dd className="min-w-0 break-words">
-          {officer.utep_email ?? "Not provided"}
-        </dd>
-        <dt>Personal email</dt>
-        <dd className="min-w-0 break-words">
-          {officer.personal_email ?? "Not provided"}
-        </dd>
-        <dt>Position</dt>
-        <dd>{officer.positions.name}</dd>
-        <dt>Application role</dt>
-        <dd>{formatLabel(officer.application_role)}</dd>
-        <dt>Classification</dt>
-        <dd>
-          {officer.classification
-            ? formatLabel(officer.classification)
-            : "Not specified"}
-        </dd>
-        <dt>Status</dt>
-        <dd>
-          <StatusBadge status={officer.status} />
-        </dd>
-        <dt>Branches</dt>
-        <dd>
-          <BranchBadges
-            branches={officer.officer_branches.map(
-              (membership) => membership.branches.name,
-            )}
-          />
-        </dd>
-      </dl>
-      {canManageOfficers(actor) && actor.id !== officer.id && (
-        <section className="space-y-2">
-          <SectionHeading
-            title="Application access"
-            description="Admin access is assigned separately from club position."
-          />
-          <RoleForm officerId={officer.id} role={officer.application_role} />
-        </section>
-      )}
-      <p className="text-lg font-semibold text-zinc-100">
-        Total points: <PointValue value={total.data.total_points ?? 0} />
-      </p>
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <div className="min-w-0 space-y-4">
+          <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-5 gap-y-3 rounded-lg border border-zinc-800 bg-zinc-900/30 p-4 text-sm">
+            <dt>UTEP email</dt>
+            <dd className="min-w-0 break-words">
+              {officer.utep_email ?? "Not provided"}
+            </dd>
+            <dt>Personal email</dt>
+            <dd className="min-w-0 break-words">
+              {officer.personal_email ?? "Not provided"}
+            </dd>
+            <dt>Position</dt>
+            <dd>{officer.positions.name}</dd>
+            <dt>Application role</dt>
+            <dd>{formatLabel(officer.application_role)}</dd>
+            <dt>Classification</dt>
+            <dd>
+              {officer.classification
+                ? formatLabel(officer.classification)
+                : "Not specified"}
+            </dd>
+          </dl>
+          <p className="text-lg font-semibold text-zinc-100">
+            Total points: <PointValue value={total.data.total_points ?? 0} />
+          </p>
+        </div>
+        <div className="min-w-0 space-y-4 rounded-lg border border-zinc-800 p-4">
+          <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
+            <dt>Status</dt>
+            <dd>
+              <StatusBadge status={officer.status} />
+            </dd>
+            <dt>Branches</dt>
+            <dd>
+              <BranchBadges
+                branches={officer.officer_branches.map(
+                  (membership) => membership.branches.name,
+                )}
+              />
+            </dd>
+          </dl>
+          {canManageOfficers(actor) && actor.id !== officer.id && (
+            <section className="space-y-2">
+              <SectionHeading
+                title="Application access"
+                description="Admin access is assigned separately from club position."
+              />
+              <RoleForm
+                officerId={officer.id}
+                role={officer.application_role}
+              />
+            </section>
+          )}
+          {showWarnings && <p>Approved warnings: {approvedCount}</p>}
+        </div>
+      </div>
       {showWarnings && (
         <section className="space-y-4">
           <SectionHeading title="Warnings" />
-          <p>Approved warnings: {approvedCount}</p>
           {isAdmin(actor) && approvedCount >= 3 && (
             <p role="status" className="font-semibold">
               Admin Review — three or more approved warnings. Deactivation is a

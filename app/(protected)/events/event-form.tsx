@@ -22,15 +22,15 @@ export default function EventForm({
   const [selectedBranches, setSelectedBranches] = useState(branchIds);
 
   return (
-    <form action={action}>
+    <form action={action} className="sm:grid-cols-2">
       {event && <input type="hidden" name="id" value={event.id} />}
 
-      <label>
+      <label className="sm:col-span-2">
         Name
         <input name="name" required defaultValue={event?.name} />
       </label>
 
-      <label>
+      <label className="sm:col-span-2">
         Description
         <textarea
           name="description"
@@ -81,7 +81,7 @@ export default function EventForm({
         />
       </label>
 
-      <label>
+      <label className="sm:col-span-2">
         Date (El Paso)
         <input
           name="event_date"
@@ -91,7 +91,7 @@ export default function EventForm({
         />
       </label>
 
-      <p>
+      <p className="sm:col-span-2">
         Choose one El Paso date. The event must start at or after 6:00 AM and
         end by 11:59 PM.
       </p>
@@ -124,7 +124,7 @@ export default function EventForm({
         />
       </label>
 
-      <fieldset>
+      <fieldset className="sm:col-span-2">
         <legend>
           {allowGlobal
             ? "Branches (optional; none means a global event)"
@@ -167,7 +167,11 @@ export default function EventForm({
         ))}
       </fieldset>
 
-      {state.error && <p role="alert">{state.error}</p>}
+      {state.error && (
+        <p role="alert" className="sm:col-span-2">
+          {state.error}
+        </p>
+      )}
 
       <button disabled={pending}>{pending ? "Saving…" : "Save event"}</button>
     </form>

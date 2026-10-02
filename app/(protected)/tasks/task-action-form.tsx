@@ -21,11 +21,12 @@ export default function TaskActionForm({
     success: "",
   });
   return (
-    <form action={action} className="inline-flex items-center gap-2">
+    <form action={action} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="task_id" value={taskId} />
       <input type="hidden" name="operation" value={operation} />
       {officers && (
         <select
+          className="min-w-0 flex-1 basis-40"
           name="officer_id"
           aria-label="Assign officer"
           required
@@ -44,7 +45,7 @@ export default function TaskActionForm({
       {officerId !== undefined && (
         <input type="hidden" name="officer_id" value={officerId} />
       )}
-      <button type="submit" disabled={pending}>
+      <button className="shrink-0" type="submit" disabled={pending}>
         {pending ? "Saving…" : label}
       </button>
       {state.error && (

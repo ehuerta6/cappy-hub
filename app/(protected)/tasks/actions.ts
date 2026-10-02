@@ -45,5 +45,6 @@ export async function updateTask(
   if (result.error)
     return { error: mutationError(result.error.message), success: "" };
   revalidatePath("/tasks");
+  revalidatePath(`/tasks/${taskId}`);
   return { error: "", success: "Task updated" };
 }

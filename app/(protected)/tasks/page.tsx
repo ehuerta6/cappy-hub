@@ -6,7 +6,8 @@ import {
 } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import { ActionLink, PageHeader, TableFrame } from "@/components/ui";
-import TaskActionForm from "./task-action-form";
+import { TaskWorkflow, taskStatus } from "./task-workflow";
+import Link from "next/link";
 
 export default async function TasksPage() {
   const actor = await getAuthorizationContext();
@@ -55,20 +56,11 @@ export default async function TasksPage() {
             {tasks.data.map((task) => {
               const assignment = task.task_assignments;
               const canManage = canManageEvent(actor, [task.branch_id]);
-              let status = "Open";
-              if (assignment) {
-                if (!assignment.completed_at) {
-                  status = "Assigned";
-                } else if (task.approval_required && !assignment.approved_at) {
-                  status = "Awaiting approval";
-                } else {
-                  status = "Complete";
-                }
-              }
+              const status = taskStatus(task, assignment);
               return (
                 <tr key={task.id} id={`task-${task.id}`}>
                   <td>
-                    <strong>{task.title}</strong>
+                    <Link href={`/tasks/${task.id}`}>{task.title}</Link>
                     <p className="text-sm text-zinc-400">{task.description}</p>
                   </td>
                   <td>{task.task_type}</td>
@@ -78,44 +70,13 @@ export default async function TasksPage() {
                   <td>{assignment?.officers.name ?? "Unassigned"}</td>
                   <td>{status}</td>
                   <td>
-                    {!assignment && (
-                      <div className="space-y-2">
-                        <TaskActionForm
-                          taskId={task.id}
-                          operation="assign"
-                          officerId={actor.id}
-                          label="Self-assign"
-                        />
-                        {canManage && (
-                          <TaskActionForm
-                            taskId={task.id}
-                            operation="assign"
-                            label="Assign"
-                            officers={officers.data}
-                          />
-                        )}
-                      </div>
-                    )}
-                    {assignment &&
-                      !assignment.completed_at &&
-                      assignment.officer_id === actor.id && (
-                        <TaskActionForm
-                          taskId={task.id}
-                          operation="complete"
-                          label="Mark complete"
-                        />
-                      )}
-                    {assignment?.completed_at &&
-                      task.approval_required &&
-                      !assignment.approved_at &&
-                      canManage &&
-                      assignment.officer_id !== actor.id && (
-                        <TaskActionForm
-                          taskId={task.id}
-                          operation="approve"
-                          label="Approve"
-                        />
-                      )}
+                    <TaskWorkflow
+                      task={task}
+                      assignment={assignment}
+                      actorId={actor.id}
+                      canManage={canManage}
+                      officers={officers.data}
+                    />
                   </td>
                 </tr>
               );

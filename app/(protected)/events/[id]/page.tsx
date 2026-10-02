@@ -1,3 +1,4 @@
+import ContextualBackLink from "@/components/contextual-back-link";
 import { getAuthorizationContext, canManageEvent } from "@/lib/authorization";
 import TransactionTable from "@/app/(protected)/points/transaction-table";
 import Link from "next/link";
@@ -66,163 +67,181 @@ export default async function EventDetailPage({
     .limit(100);
   if (transactions.error) throw new Error("Failed to load event points");
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      <ContextualBackLink href="/events">Back to events</ContextualBackLink>
       <PageHeader
         title={event.name}
-        description={event.description || "No description"}
         action={
           canManage && !event.deleted_at && status !== "cancelled" ? (
             <ActionLink href={`/events/${id}/edit`}>Edit event</ActionLink>
           ) : undefined
         }
       />
-      <dl className="grid max-w-2xl grid-cols-[7rem_1fr] gap-x-5 gap-y-3 rounded-lg border border-zinc-800 bg-zinc-900/30 p-4 text-sm">
-        <dt>Type</dt>
-        <dd>{event.event_types.name}</dd>
-        <dt>Location</dt>
-        <dd>{event.location || "Not set"}</dd>
-        {event.slides_url && (
-          <>
-            <dt>Slides</dt>
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <div className="min-w-0 space-y-4">
+          <p className="whitespace-pre-wrap break-words">
+            {event.description || "No description"}
+          </p>
+          <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-5 gap-y-3 rounded-lg border border-zinc-800 bg-zinc-900/30 p-4 text-sm">
+            <dt>Type</dt>
+            <dd>{event.event_types.name}</dd>
+            <dt>Location</dt>
+            <dd className="break-words">{event.location || "Not set"}</dd>
+            {event.slides_url && (
+              <>
+                <dt>Slides</dt>
+                <dd>
+                  <a
+                    href={event.slides_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Open slides
+                  </a>
+                </dd>
+              </>
+            )}
+            {event.meeting_notes_url && (
+              <>
+                <dt>Meeting notes</dt>
+                <dd>
+                  <a
+                    href={event.meeting_notes_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Open notes
+                  </a>
+                </dd>
+              </>
+            )}
+            <dt>Date</dt>
+            <dd>{event.event_date}</dd>
+            <dt>Start</dt>
+            <dd>{formatDateTime(event.starts_at)}</dd>
+            <dt>End</dt>
+            <dd>{formatDateTime(event.ends_at)}</dd>
+            {event.deleted_at && (
+              <>
+                <dt>Removed at</dt>
+                <dd>{formatDateTime(event.deleted_at)}</dd>
+              </>
+            )}
+            <dt>Processing</dt>
             <dd>
-              <a
-                href={event.slides_url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Open slides
-              </a>
+              {event.participation_points_per_hour_at_end === null
+                ? "Not processed"
+                : `${event.participation_points_per_hour_at_end} points/hour`}
             </dd>
-          </>
-        )}
-        {event.meeting_notes_url && (
-          <>
-            <dt>Meeting notes</dt>
+            <dt>Status</dt>
             <dd>
-              <a
-                href={event.meeting_notes_url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Open notes
-              </a>
+              <StatusBadge status={status} />
             </dd>
-          </>
-        )}
-        <dt>Date</dt>
-        <dd>{event.event_date}</dd>
-        <dt>Start</dt>
-        <dd>{formatDateTime(event.starts_at)}</dd>
-        <dt>End</dt>
-        <dd>{formatDateTime(event.ends_at)}</dd>
-        {event.deleted_at && (
-          <>
-            <dt>Removed at</dt>
-            <dd>{formatDateTime(event.deleted_at)}</dd>
-          </>
-        )}
-        <dt>Processing</dt>
-        <dd>
-          {event.participation_points_per_hour_at_end === null
-            ? "Not processed"
-            : `${event.participation_points_per_hour_at_end} points/hour`}
-        </dd>
-        <dt>Status</dt>
-        <dd>
-          <StatusBadge status={status} />
-        </dd>
-        <dt>Branches</dt>
-        <dd>
-          <BranchBadges
-            branches={event.event_branches.map((x) => x.branches.name)}
-          />
-        </dd>
-      </dl>
-      {canManage && !event.deleted_at && (
-        <div className="flex gap-3">
-          {signupOpen && <CancelForm eventId={event.id} />}
-          <RemoveEventForm eventId={event.id} />
+            <dt>Branches</dt>
+            <dd>
+              <BranchBadges
+                branches={event.event_branches.map((x) => x.branches.name)}
+              />
+            </dd>
+          </dl>
+          {canManage && !event.deleted_at && (
+            <div className="flex flex-wrap gap-3 [&>form]:w-auto">
+              {signupOpen && <CancelForm eventId={event.id} />}
+              <RemoveEventForm eventId={event.id} />
+            </div>
+          )}
         </div>
-      )}
-      <p>
-        Your participation:{" "}
-        {participationLabel(
-          event.event_officers.some(
-            ({ officers: officer }) => officer.id === actor.id,
-          ),
-        )}
-      </p>
-      <section>
-        <SectionHeading title="Signed-up officers" />
-        <TableFrame>
-          <table>
-            <thead>
-              <tr>
-                <th>Officer</th>
-                <th>Signup</th>
-              </tr>
-            </thead>
-            <tbody>
-              {event.event_officers.map(({ officers: officer }) => (
-                <tr key={officer.id}>
-                  <td>
-                    <Link href={`/officers/${officer.id}`}>{officer.name}</Link>
-                  </td>
-                  <td>
-                    {signupOpen && (canManage || officer.id === actor.id) ? (
-                      <SignupForm
-                        eventId={event.id}
-                        officerId={officer.id}
-                        remove
-                      />
-                    ) : (
-                      "Closed"
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TableFrame>
-        {!event.event_officers.length && <p>No officers signed up.</p>}
-        {signupOpen && canManage && (
-          <BulkAddOfficersForm
-            eventId={event.id}
-            officers={officers.data.filter(
-              (officer) =>
-                !event.event_officers.some((x) => x.officers.id === officer.id),
+        <div className="min-w-0 space-y-4">
+          <p>
+            Your participation:{" "}
+            {participationLabel(
+              event.event_officers.some(
+                ({ officers: officer }) => officer.id === actor.id,
+              ),
             )}
-          />
-        )}
-        {signupOpen && !canManage && (
-          <SignupForm
-            eventId={event.id}
-            officers={officers.data.filter(
-              (officer) =>
-                officer.id === actor.id &&
-                !event.event_officers.some((x) => x.officers.id === officer.id),
+          </p>
+          <section>
+            <SectionHeading title="Signed-up officers" />
+            <TableFrame>
+              <table className="min-w-full">
+                <thead>
+                  <tr>
+                    <th>Officer</th>
+                    <th>Signup</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {event.event_officers.map(({ officers: officer }) => (
+                    <tr key={officer.id}>
+                      <td>
+                        <Link href={`/officers/${officer.id}`}>
+                          {officer.name}
+                        </Link>
+                      </td>
+                      <td>
+                        {signupOpen &&
+                        (canManage || officer.id === actor.id) ? (
+                          <SignupForm
+                            eventId={event.id}
+                            officerId={officer.id}
+                            remove
+                          />
+                        ) : (
+                          "Closed"
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableFrame>
+            {!event.event_officers.length && <p>No officers signed up.</p>}
+            {signupOpen && canManage && (
+              <BulkAddOfficersForm
+                eventId={event.id}
+                officers={officers.data.filter(
+                  (officer) =>
+                    !event.event_officers.some(
+                      (x) => x.officers.id === officer.id,
+                    ),
+                )}
+              />
             )}
-          />
-        )}
-        {canManage && past && !event.deleted_at && (
-          <BulkAddOfficersForm
-            eventId={event.id}
-            past
-            pointsPerOfficer={
-              event.participation_points_per_hour_at_end === null
-                ? undefined
-                : ((new Date(event.ends_at).getTime() -
-                    new Date(event.starts_at).getTime()) /
-                    3_600_000) *
-                  event.participation_points_per_hour_at_end
-            }
-            officers={officers.data.filter(
-              (officer) =>
-                !event.event_officers.some((x) => x.officers.id === officer.id),
+            {signupOpen && !canManage && (
+              <SignupForm
+                eventId={event.id}
+                officers={officers.data.filter(
+                  (officer) =>
+                    officer.id === actor.id &&
+                    !event.event_officers.some(
+                      (x) => x.officers.id === officer.id,
+                    ),
+                )}
+              />
             )}
-          />
-        )}
-      </section>
+            {canManage && past && !event.deleted_at && (
+              <BulkAddOfficersForm
+                eventId={event.id}
+                past
+                pointsPerOfficer={
+                  event.participation_points_per_hour_at_end === null
+                    ? undefined
+                    : ((new Date(event.ends_at).getTime() -
+                        new Date(event.starts_at).getTime()) /
+                        3_600_000) *
+                      event.participation_points_per_hour_at_end
+                }
+                officers={officers.data.filter(
+                  (officer) =>
+                    !event.event_officers.some(
+                      (x) => x.officers.id === officer.id,
+                    ),
+                )}
+              />
+            )}
+          </section>
+        </div>
+      </div>
       <section>
         <SectionHeading
           title="Event point history"

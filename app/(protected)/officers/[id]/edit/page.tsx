@@ -1,3 +1,4 @@
+import ContextualBackLink from "@/components/contextual-back-link";
 import {
   getAuthorizationContext,
   canManageOfficers,
@@ -30,7 +31,10 @@ export default async function EditOfficerPage({
     throw new Error("Failed to load officer form");
   if (!officer.data) notFound();
   return (
-    <>
+    <div className="space-y-4">
+      <ContextualBackLink href={`/officers/${id}`}>
+        Back to officer
+      </ContextualBackLink>
       <h1>Edit officer</h1>
       <OfficerForm
         officer={officer.data}
@@ -40,6 +44,6 @@ export default async function EditOfficerPage({
           (membership) => membership.branch_id,
         )}
       />
-    </>
+    </div>
   );
 }

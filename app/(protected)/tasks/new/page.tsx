@@ -1,3 +1,4 @@
+import ContextualBackLink from "@/components/contextual-back-link";
 import {
   getAuthorizationContext,
   canSeeAllBranches,
@@ -20,6 +21,7 @@ export default async function NewTaskPage() {
   if (error) throw new Error("Failed to load branches");
   return (
     <div className="space-y-6">
+      <ContextualBackLink href="/tasks">Back to tasks</ContextualBackLink>
       <PageHeader title="New task" />
       <TaskCreateForm
         branches={

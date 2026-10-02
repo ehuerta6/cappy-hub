@@ -20,12 +20,12 @@ export default function OfficerForm({
 }: OfficerFormProps) {
   const [state, action, pending] = useActionState(saveOfficer, { error: "" });
   return (
-    <form action={action}>
+    <form action={action} className="sm:grid-cols-2">
       {officer && <input type="hidden" name="id" value={officer.id} />}
-      <label>
+      <label className="sm:col-span-2">
         Name <input name="name" required defaultValue={officer?.name} />
       </label>
-      <p>Provide at least one email address.</p>
+      <p className="sm:col-span-2">Provide at least one email address.</p>
       <label>
         UTEP email (optional)
         <input
@@ -82,7 +82,7 @@ export default function OfficerForm({
           </select>
         </label>
       )}
-      <fieldset>
+      <fieldset className="sm:col-span-2">
         <legend>Branches (optional)</legend>
         {branches.map((branch) => (
           <label key={branch.id}>
@@ -96,7 +96,11 @@ export default function OfficerForm({
           </label>
         ))}
       </fieldset>
-      {state.error && <p role="alert">{state.error}</p>}
+      {state.error && (
+        <p role="alert" className="sm:col-span-2">
+          {state.error}
+        </p>
+      )}
       <button disabled={pending}>{pending ? "Saving…" : "Save officer"}</button>
     </form>
   );

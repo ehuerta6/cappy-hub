@@ -39,7 +39,7 @@ export default function TransactionTable({
                   {transaction.events.name}
                 </Link>
               ) : transaction.tasks ? (
-                <Link href={`/tasks#task-${transaction.tasks.id}`}>
+                <Link href={`/tasks/${transaction.tasks.id}`}>
                   {transaction.tasks.title}
                 </Link>
               ) : (

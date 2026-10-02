@@ -194,6 +194,7 @@ it("places the single sign out form and officer context inside the protected hea
     }),
   );
   const header = html.split("</header>")[0];
+  expect(header).not.toContain("Back to");
   expect(header).toContain("Local Officer");
   expect(header).toContain("Sign out");
   expect(html.match(/Sign out/g)).toHaveLength(1);
@@ -257,4 +258,11 @@ it("disables the row button while signup is pending and exposes accessible resul
       }),
     ),
   ).toContain('role="status"');
+});
+
+it("keeps main pages free of contextual navigation and shows the compact upcoming schedule", async () => {
+  expect(await renderEvents()).not.toContain("Back to");
+  const html = renderToStaticMarkup(await DashboardPage());
+  expect(html).not.toContain("Back to");
+  expect(html).toContain("Jan 1 · 5:00–6:00 AM");
 });
