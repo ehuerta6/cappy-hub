@@ -18,12 +18,12 @@ insert into officers(id,name,utep_email,position_id,application_role,auth_user_i
   (-505,'Audit Link','audit-link@example.org',17,'officer',null);
 insert into officer_branches(officer_id,branch_id)
   select -503,id from branches where name='intro';
-insert into events(id,name,event_type_id,starts_at,ends_at) values
-  (-501,'Audit Event',(select id from event_types where name='General'),
+insert into events(id,name,description,location,event_type_id,starts_at,ends_at) values
+  (-501,'Audit Event','Test event','TBA',(select id from event_types where name='Meeting'),
     '2099-09-20 09:00-06','2099-09-20 10:00-06'),
-  (-502,'Audit Global',(select id from event_types where name='General'),
+  (-502,'Audit Global','Test event','TBA',(select id from event_types where name='Meeting'),
     '2099-09-21 09:00-06','2099-09-21 10:00-06'),
-  (-503,'Audit Lead Event',(select id from event_types where name='General'),
+  (-503,'Audit Lead Event','Test event','TBA',(select id from event_types where name='Meeting'),
     '2099-09-22 09:00-06','2099-09-22 10:00-06');
 insert into event_branches(event_id,branch_id)
   select -501,id from branches where name='intro'
@@ -63,15 +63,15 @@ select is((select count(*) from audit_logs where action='officer.role_changed'),
 select lives_ok($$select set_officer_application_role(-502,'officer')$$,
   'admin restores the officer role for the following access tests');
 
-select lives_ok($$select save_event('Audit Created Event','',1,'',
+select lives_ok($$select save_event('Audit Created Event','Test event',(select id from event_types where name='Meeting'),'TBA',
   '2099-09-23 09:00-06','2099-09-23 10:00-06',null)$$,
   'event creation succeeds');
-select lives_ok($$select save_event('Audit Event Edited','',1,'',
+select lives_ok($$select save_event('Audit Event Edited','Test event',(select id from event_types where name='Meeting'),'TBA',
   '2099-09-20 09:00-06','2099-09-20 10:00-06',null,-501)$$,
   'event edit succeeds');
 select is((select details #>> '{before,name}' from audit_logs where action='event.updated'),
   'Audit Event','event edit records previous name');
-select lives_ok($$select save_event('Audit Event Edited','',1,'',
+select lives_ok($$select save_event('Audit Event Edited','Test event',(select id from event_types where name='Meeting'),'TBA',
   '2099-09-20 09:00-06','2099-09-20 10:00-06',null,-501)$$,
   'repeating the event save succeeds');
 select is((select count(*) from audit_logs where action='event.updated'),1::bigint,

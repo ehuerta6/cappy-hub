@@ -35,16 +35,14 @@ select lives_ok($$select rename_branch((select id from branches where name='rese
 select lives_ok($$select delete_branch((select id from branches where name='research-new'))$$,
  'admin deletes unused branch');
 
-select lives_ok($$select create_event_type('  Seminar  ')$$,'admin creates event type');
-select lives_ok($$select rename_event_type((select id from event_types where name='Seminar'),'Colloquium')$$,
- 'admin renames event type');
-select lives_ok($$select delete_event_type((select id from event_types where name='Colloquium'))$$,
- 'admin deletes unused event type');
-
+select throws_ok($$select create_event_type('Seminar')$$,
+ '42501',null,'event type catalog is fixed');
+select throws_ok($$select rename_event_type((select id from event_types where name='Workshop'),'Workshop New')$$,
+ '42501',null,'allowed event types cannot be renamed');
+select throws_ok($$select delete_event_type((select id from event_types where name='Workshop'))$$,
+ '42501',null,'allowed event types cannot be deleted');
 select is((select count(*) from audit_logs where action in ('position.created','position.renamed','position.deleted')),
  3::bigint,'position create, rename and delete audited once each');
-select is((select details ->> 'name' from audit_logs where action='event_type.deleted'),
- 'Colloquium','deletion retains final name snapshot');
 
 reset role;
 insert into positions(name) values('Historian');
@@ -52,8 +50,8 @@ update officers set position_id=(select id from positions where name='Historian'
 insert into branches(name) values('officer-reference'),('event-reference');
 insert into officer_branches(officer_id,branch_id)
  values(-602,(select id from branches where name='officer-reference'));
-insert into events(id,name,event_type_id,starts_at,ends_at)
- values(-601,'PR6 event',(select id from event_types where name='Workshop'),
+insert into events(id,name,description,location,event_type_id,starts_at,ends_at)
+ values(-601,'PR6 event','Test event','TBA',(select id from event_types where name='Workshop'),
  '2099-09-20 09:00-06','2099-09-20 10:00-06');
 insert into event_branches(event_id,branch_id)
  values(-601,(select id from branches where name='event-reference'));
@@ -72,9 +70,5 @@ select lives_ok($$select rename_branch((select id from branches where name='even
  'event branch can be renamed');
 select throws_ok($$select delete_branch((select id from branches where name='event-renamed'))$$,
  'P0001','This branch cannot be deleted because officers or events are using it','event branch cannot be deleted');
-select lives_ok($$select rename_event_type((select id from event_types where name='Workshop'),'Workshop New')$$,
- 'referenced event type can be renamed');
-select throws_ok($$select delete_event_type((select id from event_types where name='Workshop New'))$$,
- 'P0001','This event type cannot be deleted because events are using it','referenced type cannot be deleted');
 select * from finish();
 rollback;

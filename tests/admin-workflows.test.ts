@@ -98,18 +98,13 @@ it("denies a non-admin catalog action before calling the RPC", async () => {
   expect(rpc).not.toHaveBeenCalled();
 });
 
-it("uses the specific catalog RPC and explains a referenced deletion", async () => {
+it("rejects obsolete event type catalog mutations before any RPC", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 601,
     applicationRole: "admin",
   } as never);
-  rpc.mockResolvedValue({
-    error: {
-      message: "This event type cannot be deleted because events are using it",
-    },
-  });
   expect((await changeCatalog(previous, catalogForm("delete"))).error).toBe(
-    "This event type cannot be deleted because events are using it",
+    "Invalid catalog operation",
   );
-  expect(rpc).toHaveBeenCalledWith("delete_event_type", { p_id: 7 });
+  expect(rpc).not.toHaveBeenCalled();
 });

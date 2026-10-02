@@ -15,26 +15,22 @@ export async function saveEvent(
   const branches = formData.getAll("branches").map(Number);
   if (!id && !canManageEvent(actor, branches))
     return { error: "Event outside branch scope" };
-  const kind = String(formData.get("kind") ?? "");
   const date = String(formData.get("event_date") ?? "");
   const startTime = String(formData.get("start_time") ?? "");
   const endTime = String(formData.get("end_time") ?? "");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date))
     return { error: "Choose one event date" };
-  let start: string | null = null;
-  let end: string | null = null;
-  let fixedPoints: number | null = null;
-  if (kind === "timed") {
-    if (startTime < "06:00" || endTime > "23:59" || endTime <= startTime)
-      return { error: "Choose a same-day range from 6:00 AM through 11:59 PM" };
-    start = denverTimestamp(date, startTime);
-    end = denverTimestamp(date, endTime);
-    if (!start || !end) return { error: "Enter valid El Paso times" };
-  } else if (kind === "untimed") {
-    fixedPoints = Number(formData.get("fixed_points"));
-    if (!Number.isFinite(fixedPoints) || fixedPoints === 0)
-      return { error: "Enter finite, nonzero fixed points" };
-  } else return { error: "Choose an event kind" };
+  if (startTime < "06:00" || endTime > "23:59" || endTime <= startTime)
+    return { error: "Choose a same-day range from 6:00 AM through 11:59 PM" };
+  const start = denverTimestamp(date, startTime);
+  const end = denverTimestamp(date, endTime);
+  if (!start || !end) return { error: "Enter valid El Paso times" };
+  if (
+    !String(formData.get("name") ?? "").trim() ||
+    !String(formData.get("description") ?? "").trim() ||
+    !String(formData.get("location") ?? "").trim()
+  )
+    return { error: "Name, description and location are required" };
   const eventTypeId = Number(formData.get("event_type_id"));
   if (!Number.isSafeInteger(eventTypeId) || eventTypeId <= 0)
     return { error: "Select a valid event type" };
@@ -46,9 +42,8 @@ export async function saveEvent(
     p_event_type_id: eventTypeId,
     p_location: String(formData.get("location") ?? ""),
     p_event_date: date,
-    p_starts_at: start as string,
-    p_ends_at: end as string,
-    p_fixed_points: fixedPoints as number,
+    p_starts_at: start,
+    p_ends_at: end,
     p_branch_ids: branches,
     p_slides_url: String(formData.get("slides_url") ?? "").trim(),
     p_meeting_notes_url: String(formData.get("meeting_notes_url") ?? "").trim(),

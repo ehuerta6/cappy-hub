@@ -63,133 +63,24 @@ values
   (-1023, (select id from public.branches where name = 'icpc'));
 
 insert into public.events
-  (id, name, description, event_type_id, location, event_date, starts_at, ends_at, fixed_points,
-   status, participation_points_per_hour_at_end, slides_url, meeting_notes_url, untimed_processed_at,
-   deleted_at)
+  (id,name,description,event_type_id,location,event_date,starts_at,ends_at,status,participation_points_per_hour_at_end,deleted_at)
 values
-  (
-    -2001, 'Mock: Intro Arrays Workshop', 'Past timed workshop with participation awards.',
-    (select id from public.event_types where name = 'Workshop'), 'CCSB G.0208',
-    (now() at time zone 'America/Denver')::date - 20,
-    (((now() at time zone 'America/Denver')::date - 20 + time '17:00') at time zone 'America/Denver'),
-    (((now() at time zone 'America/Denver')::date - 20 + time '19:00') at time zone 'America/Denver'),
-    null, 'past', 2.5, 'https://example.com/cappy/slides/arrays', 'https://example.com/cappy/notes/arrays', null, null
-  ),
-  (
-    -2002, 'Mock: ICPC Practice Contest', 'Past ICPC practice with a longer scheduled duration.',
-    (select id from public.event_types where name = 'ICPC'), 'CCSB 1.0410',
-    (now() at time zone 'America/Denver')::date - 14,
-    (((now() at time zone 'America/Denver')::date - 14 + time '10:00') at time zone 'America/Denver'),
-    (((now() at time zone 'America/Denver')::date - 14 + time '13:00') at time zone 'America/Denver'),
-    null, 'past', 2.5, null, null, null, null
-  ),
-  (
-    -2003, 'Mock: CIC Game Night', 'Past social event.',
-    (select id from public.event_types where name = 'Social'), 'Union East',
-    (now() at time zone 'America/Denver')::date - 7,
-    (((now() at time zone 'America/Denver')::date - 7 + time '18:00') at time zone 'America/Denver'),
-    (((now() at time zone 'America/Denver')::date - 7 + time '20:00') at time zone 'America/Denver'),
-    null, 'past', 2.5, null, null, null, null
-  ),
-  (
-    -2004, 'Mock: Prepare Workshop Slides', 'Past untimed work event with fixed points.',
-    (select id from public.event_types where name = 'Workshop'), null,
-    (now() at time zone 'America/Denver')::date - 5,
-    null, null, 8, 'past', null, 'https://example.com/cappy/slides/workshop-prep', null,
-    now() - interval '4 days', null
-  ),
-  (
-    -2005, 'Mock: Cancelled Meeting', 'Cancelled event used to test cancellation states.',
-    (select id from public.event_types where name = 'Meeting'), 'CCSB 1.0202',
-    (now() at time zone 'America/Denver')::date - 3,
-    (((now() at time zone 'America/Denver')::date - 3 + time '17:00') at time zone 'America/Denver'),
-    (((now() at time zone 'America/Denver')::date - 3 + time '18:00') at time zone 'America/Denver'),
-    null, 'cancelled', null, null, null, null, null
-  ),
-  (
-    -2006, 'Mock: Removed Historical Workshop', 'Logically removed event that keeps history.',
-    (select id from public.event_types where name = 'Workshop'), 'CCSB G.0208',
-    (now() at time zone 'America/Denver')::date - 60,
-    (((now() at time zone 'America/Denver')::date - 60 + time '16:00') at time zone 'America/Denver'),
-    (((now() at time zone 'America/Denver')::date - 60 + time '17:30') at time zone 'America/Denver'),
-    null, 'past', 2.5, null, null, null, now() - interval '50 days'
-  ),
-  (
-    -2010, 'Mock: Intro Hash Maps', 'Upcoming intro workshop.',
-    (select id from public.event_types where name = 'Workshop'), 'CCSB G.0208',
-    (now() at time zone 'America/Denver')::date + 1,
-    (((now() at time zone 'America/Denver')::date + 1 + time '17:00') at time zone 'America/Denver'),
-    (((now() at time zone 'America/Denver')::date + 1 + time '19:00') at time zone 'America/Denver'),
-    null, 'upcoming', null, 'https://example.com/cappy/slides/hash-maps', null, null, null
-  ),
-  (
-    -2011, 'Mock: Officer Meeting', 'Upcoming general officer meeting.',
-    (select id from public.event_types where name = 'Meeting'), 'CCSB 1.0202',
-    (now() at time zone 'America/Denver')::date + 2,
-    (((now() at time zone 'America/Denver')::date + 2 + time '18:00') at time zone 'America/Denver'),
-    (((now() at time zone 'America/Denver')::date + 2 + time '19:00') at time zone 'America/Denver'),
-    null, 'upcoming', null, null, 'https://example.com/cappy/notes/officer-meeting', null, null
-  ),
-  (
-    -2012, 'Mock: Career Fair', 'Global event with no branch associations.',
-    (select id from public.event_types where name = 'General'), 'Union Building',
-    (now() at time zone 'America/Denver')::date + 3,
-    (((now() at time zone 'America/Denver')::date + 3 + time '10:00') at time zone 'America/Denver'),
-    (((now() at time zone 'America/Denver')::date + 3 + time '14:00') at time zone 'America/Denver'),
-    null, 'upcoming', null, null, null, null, null
-  ),
-  (
-    -2013, 'Mock: ICPC Dynamic Programming', 'Upcoming ICPC practice.',
-    (select id from public.event_types where name = 'ICPC'), 'CCSB 1.0410',
-    (now() at time zone 'America/Denver')::date + 4,
-    (((now() at time zone 'America/Denver')::date + 4 + time '16:00') at time zone 'America/Denver'),
-    (((now() at time zone 'America/Denver')::date + 4 + time '18:30') at time zone 'America/Denver'),
-    null, 'upcoming', null, null, null, null, null
-  ),
-  (
-    -2014, 'Mock: Social Flyer', 'Upcoming untimed social work assignment.',
-    (select id from public.event_types where name = 'Social'), null,
-    (now() at time zone 'America/Denver')::date + 5,
-    null, null, 6, 'upcoming', null, null, null, null, null
-  ),
-  (
-    -2015, 'Mock: Outreach Tabling', 'Upcoming outreach event.',
-    (select id from public.event_types where name = 'General'), 'Centennial Plaza',
-    (now() at time zone 'America/Denver')::date + 6,
-    (((now() at time zone 'America/Denver')::date + 6 + time '11:00') at time zone 'America/Denver'),
-    (((now() at time zone 'America/Denver')::date + 6 + time '13:00') at time zone 'America/Denver'),
-    null, 'upcoming', null, null, null, null, null
-  ),
-  (
-    -2016, 'Mock: Intro + General Interview Night', 'Multi-branch event for lead-scope testing.',
-    (select id from public.event_types where name = 'Workshop'), 'CCSB G.0208',
-    (now() at time zone 'America/Denver')::date + 7,
-    (((now() at time zone 'America/Denver')::date + 7 + time '17:30') at time zone 'America/Denver'),
-    (((now() at time zone 'America/Denver')::date + 7 + time '19:30') at time zone 'America/Denver'),
-    null, 'upcoming', null, null, null, null, null
-  ),
-  (
-    -2017, 'Mock: Curriculum Cleanup', 'Future global untimed work event.',
-    (select id from public.event_types where name = 'General'), null,
-    (now() at time zone 'America/Denver')::date + 14,
-    null, null, 10, 'upcoming', null, null, null, null, null
-  ),
-  (
-    -2018, 'Mock: Social Mixer', 'Upcoming social event with several signups.',
-    (select id from public.event_types where name = 'Social'), 'Union East',
-    (now() at time zone 'America/Denver')::date + 9,
-    (((now() at time zone 'America/Denver')::date + 9 + time '18:00') at time zone 'America/Denver'),
-    (((now() at time zone 'America/Denver')::date + 9 + time '20:00') at time zone 'America/Denver'),
-    null, 'upcoming', null, null, null, null, null
-  ),
-  (
-    -2019, 'Mock: Cancelled Future Workshop', 'Future cancelled event.',
-    (select id from public.event_types where name = 'Workshop'), 'CCSB G.0208',
-    (now() at time zone 'America/Denver')::date + 8,
-    (((now() at time zone 'America/Denver')::date + 8 + time '17:00') at time zone 'America/Denver'),
-    (((now() at time zone 'America/Denver')::date + 8 + time '18:00') at time zone 'America/Denver'),
-    null, 'cancelled', null, null, null, null, null
-  );
+  (-2001,'Mock: Intro Arrays Workshop','Past timed workshop with participation awards.',(select id from public.event_types where name='Workshop'),'CCSB G.0208',(now() at time zone 'America/Denver')::date - 20,(((now() at time zone 'America/Denver')::date - 20 + time '17:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date - 20 + time '19:00') at time zone 'America/Denver'),'past',2.5,null),
+  (-2002,'Mock: ICPC Practice Contest','Past ICPC practice.',(select id from public.event_types where name='Workshop'),'CCSB 1.0410',(now() at time zone 'America/Denver')::date - 14,(((now() at time zone 'America/Denver')::date - 14 + time '10:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date - 14 + time '13:00') at time zone 'America/Denver'),'past',2.5,null),
+  (-2003,'Mock: CIC Game Night','Past social event.',(select id from public.event_types where name='Social'),'Union East',(now() at time zone 'America/Denver')::date - 7,(((now() at time zone 'America/Denver')::date - 7 + time '18:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date - 7 + time '20:00') at time zone 'America/Denver'),'past',2.5,null),
+  (-2004,'Mock: Workshop Planning Meeting','Past workshop planning meeting.',(select id from public.event_types where name='Meeting'),'CCSB G.0208',(now() at time zone 'America/Denver')::date - 5,(((now() at time zone 'America/Denver')::date - 5 + time '16:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date - 5 + time '17:00') at time zone 'America/Denver'),'past',2.5,null),
+  (-2005,'Mock: Cancelled Meeting','Cancelled meeting.',(select id from public.event_types where name='Meeting'),'CCSB 1.0202',(now() at time zone 'America/Denver')::date - 3,(((now() at time zone 'America/Denver')::date - 3 + time '17:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date - 3 + time '18:00') at time zone 'America/Denver'),'cancelled',null,null),
+  (-2006,'Mock: Removed Historical Workshop','Logically removed historical event.',(select id from public.event_types where name='Workshop'),'CCSB G.0208',(now() at time zone 'America/Denver')::date - 60,(((now() at time zone 'America/Denver')::date - 60 + time '16:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date - 60 + time '17:30') at time zone 'America/Denver'),'past',2.5,now() - interval '50 days'),
+  (-2010,'Mock: Intro Hash Maps','Upcoming intro workshop.',(select id from public.event_types where name='Workshop'),'CCSB G.0208',(now() at time zone 'America/Denver')::date + 1,(((now() at time zone 'America/Denver')::date + 1 + time '17:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date + 1 + time '19:00') at time zone 'America/Denver'),'upcoming',null,null),
+  (-2011,'Mock: Officer Meeting','Upcoming general meeting.',(select id from public.event_types where name='Meeting'),'CCSB 1.0202',(now() at time zone 'America/Denver')::date + 2,(((now() at time zone 'America/Denver')::date + 2 + time '18:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date + 2 + time '19:00') at time zone 'America/Denver'),'upcoming',null,null),
+  (-2012,'Mock: Career Fair','Global event with no branch associations.',(select id from public.event_types where name='Social'),'Union Building',(now() at time zone 'America/Denver')::date + 3,(((now() at time zone 'America/Denver')::date + 3 + time '10:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date + 3 + time '14:00') at time zone 'America/Denver'),'upcoming',null,null),
+  (-2013,'Mock: ICPC Dynamic Programming','Upcoming ICPC practice.',(select id from public.event_types where name='Workshop'),'CCSB 1.0410',(now() at time zone 'America/Denver')::date + 4,(((now() at time zone 'America/Denver')::date + 4 + time '16:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date + 4 + time '18:30') at time zone 'America/Denver'),'upcoming',null,null),
+  (-2014,'Mock: Social Planning Meeting','Upcoming social planning meeting.',(select id from public.event_types where name='Meeting'),'Union East',(now() at time zone 'America/Denver')::date + 5,(((now() at time zone 'America/Denver')::date + 5 + time '16:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date + 5 + time '17:00') at time zone 'America/Denver'),'upcoming',null,null),
+  (-2015,'Mock: Outreach Tabling','Upcoming outreach event.',(select id from public.event_types where name='Social'),'Centennial Plaza',(now() at time zone 'America/Denver')::date + 6,(((now() at time zone 'America/Denver')::date + 6 + time '11:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date + 6 + time '13:00') at time zone 'America/Denver'),'upcoming',null,null),
+  (-2016,'Mock: Intro and General Interview Night','Multi-branch event for scope testing.',(select id from public.event_types where name='Workshop'),'CCSB G.0208',(now() at time zone 'America/Denver')::date + 7,(((now() at time zone 'America/Denver')::date + 7 + time '17:30') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date + 7 + time '19:30') at time zone 'America/Denver'),'upcoming',null,null),
+  (-2017,'Mock: Curriculum Meeting','Future global meeting.',(select id from public.event_types where name='Meeting'),'CCSB G.0208',(now() at time zone 'America/Denver')::date + 14,(((now() at time zone 'America/Denver')::date + 14 + time '16:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date + 14 + time '17:00') at time zone 'America/Denver'),'upcoming',null,null),
+  (-2018,'Mock: Social Mixer','Upcoming social event.',(select id from public.event_types where name='Social'),'Union East',(now() at time zone 'America/Denver')::date + 9,(((now() at time zone 'America/Denver')::date + 9 + time '18:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date + 9 + time '20:00') at time zone 'America/Denver'),'upcoming',null,null),
+  (-2019,'Mock: Cancelled Future Workshop','Future cancelled event.',(select id from public.event_types where name='Workshop'),'CCSB G.0208',(now() at time zone 'America/Denver')::date + 8,(((now() at time zone 'America/Denver')::date + 8 + time '17:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date + 8 + time '18:00') at time zone 'America/Denver'),'cancelled',null,null);
 
 insert into public.event_branches (event_id, branch_id)
 values
@@ -250,9 +141,9 @@ values
     (((now() at time zone 'America/Denver')::date - 7 + time '20:01') at time zone 'America/Denver'), null),
   (-4010, -1018, -2003, 5, 'Mock timed participation', 'participation',
     (((now() at time zone 'America/Denver')::date - 7 + time '20:01') at time zone 'America/Denver'), null),
-  (-4011, -1004, -2004, 8, 'Mock fixed work-event participation', 'participation', now() - interval '4 days', null),
-  (-4012, -1009, -2004, 8, 'Mock fixed work-event participation', 'participation', now() - interval '4 days', null),
-  (-4013, -1013, -2004, 8, 'Mock fixed work-event participation', 'participation', now() - interval '4 days', null),
+  (-4011, -1004, -2004, 8, 'Mock meeting participation', 'participation', now() - interval '4 days', null),
+  (-4012, -1009, -2004, 8, 'Mock meeting participation', 'participation', now() - interval '4 days', null),
+  (-4013, -1013, -2004, 8, 'Mock meeting participation', 'participation', now() - interval '4 days', null),
   (-4014, -1001, -2006, 3.75, 'Mock historical participation', 'participation', now() - interval '59 days', null),
   (-4015, -1010, -2006, 3.75, 'Mock historical participation', 'participation', now() - interval '59 days', now() - interval '40 days');
 
@@ -302,5 +193,24 @@ values
     '{"source":"local-seed","note":"Synthetic system audit entry"}'::jsonb, now() - interval '14 days'),
   (-7003, null, 'event.removed', 'event', '-2006',
     '{"source":"local-seed","note":"Synthetic removed-event history"}'::jsonb, now() - interval '50 days');
+
+insert into public.tasks (id,title,description,task_type,branch_id,due_date,points,approval_required,created_by)
+values
+  (-8001,'Make intro flyer','Prepare a flyer for the next intro workshop.','Flyer',(select id from public.branches where name='intro'),current_date+7,5,false,-1005),
+  (-8002,'Write LinkedIn recap','Draft a recap for the club page.','LinkedIn',(select id from public.branches where name='general'),current_date+8,4,true,-1002),
+  (-8003,'Update ICPC roster','Update the practice roster.','Airtable',(select id from public.branches where name='icpc'),current_date+3,3,false,-1006),
+  (-8004,'Post social story','Create a story for the mixer.','Story',(select id from public.branches where name='social'),current_date+2,2,true,-1007),
+  (-8005,'Publish workshop post','Prepare a post about the workshop.','Post',(select id from public.branches where name='intro'),current_date-2,6,false,-1005),
+  (-8006,'Prepare outreach flyer','Design a flyer for outreach tabling.','Flyer',(select id from public.branches where name='outreach'),current_date+5,5,true,-1008);
+insert into public.task_assignments(task_id,officer_id,assigned_by,completed_at,approved_at,approved_by)
+values
+  (-8003,-1016,-1006,null,null,null),
+  (-8004,-1017,-1007,now()-interval '1 day',null,null),
+  (-8005,-1013,-1013,now()-interval '2 days',null,null),
+  (-8006,-1019,-1008,now()-interval '1 day',now(),-1008);
+insert into public.point_transactions(officer_id,task_id,points,reason,award_type)
+values
+  (-1013,-8005,6,'Task completion: Publish workshop post','task'),
+  (-1019,-8006,5,'Task completion: Prepare outreach flyer','task');
 
 commit;

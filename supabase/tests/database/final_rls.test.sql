@@ -49,7 +49,7 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
 -- Required entry points are checked separately; private processing stays closed.
 select ok(not has_function_privilege('authenticated','private.process_finished_events()','EXECUTE')
   and has_function_privilege('authenticated','public.claim_current_officer_identity()','EXECUTE')
-  and has_function_privilege('authenticated','public.save_event_with_links(text,text,bigint,text,date,timestamptz,timestamptz,numeric,bigint[],bigint,text,text)','EXECUTE')
+  and has_function_privilege('authenticated','public.save_event_with_links(text,text,bigint,text,date,timestamptz,timestamptz,bigint[],bigint,text,text)','EXECUTE')
   and has_function_privilege('authenticated','public.change_event_signup(bigint,bigint,boolean)','EXECUTE'),
   'essential checked RPCs remain callable and private processing stays closed');
 select ok(not exists(select 1 from pg_catalog.pg_proc p
@@ -77,11 +77,14 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       'public.create_warning(bigint,text)'::regprocedure,
       'public.decide_warning(bigint,text)'::regprocedure,
       'public.delete_warning(bigint)'::regprocedure,
-      'public.save_event_v2(text,text,bigint,text,date,timestamptz,timestamptz,numeric,bigint[],bigint)'::regprocedure,
       'public.remove_event(bigint)'::regprocedure,
       'public.update_point_transaction(bigint,numeric)'::regprocedure,
       'public.remove_point_transaction(bigint)'::regprocedure,
-      'public.save_event_with_links(text,text,bigint,text,date,timestamptz,timestamptz,numeric,bigint[],bigint,text,text)'::regprocedure
+      'public.save_event_with_links(text,text,bigint,text,date,timestamptz,timestamptz,bigint[],bigint,text,text)'::regprocedure,
+      'public.save_task(text,text,text,bigint,date,numeric,boolean)'::regprocedure,
+      'public.assign_task(bigint,bigint)'::regprocedure,
+      'public.complete_task(bigint)'::regprocedure,
+      'public.approve_task(bigint)'::regprocedure
     )), 'authenticated has no unreviewed public RPC entry point');
 
 -- Fixtures are inserted as database owner. Every probe below changes to the
@@ -99,10 +102,10 @@ insert into officers(id,name,utep_email,position_id,application_role,status,auth
   (-404,'RLS Inactive','rls-inactive@example.org',(select id from positions where name='Officer'),'officer','inactive','00000000-0000-4000-8000-000000000404');
 insert into officer_branches(officer_id,branch_id)
   select -402,id from branches where name='intro';
-insert into events(id,name,event_type_id,starts_at,ends_at) values
-  (-401,'RLS Global',(select id from event_types where name='General'),'2099-09-20 09:00-06','2099-09-20 10:00-06'),
-  (-402,'RLS Intro',(select id from event_types where name='General'),'2099-09-20 09:00-06','2099-09-20 10:00-06'),
-  (-403,'RLS ICPC',(select id from event_types where name='General'),'2099-09-20 09:00-06','2099-09-20 10:00-06');
+insert into events(id,name,description,location,event_type_id,starts_at,ends_at) values
+  (-401,'RLS Global','Test event','TBA',(select id from event_types where name='Meeting'),'2099-09-20 09:00-06','2099-09-20 10:00-06'),
+  (-402,'RLS Intro','Test event','TBA',(select id from event_types where name='Meeting'),'2099-09-20 09:00-06','2099-09-20 10:00-06'),
+  (-403,'RLS ICPC','Test event','TBA',(select id from event_types where name='Meeting'),'2099-09-20 09:00-06','2099-09-20 10:00-06');
 insert into event_branches(event_id,branch_id)
   select -402,id from branches where name='intro'
   union all select -403,id from branches where name='icpc';
@@ -166,7 +169,7 @@ select is((select count(*) from warning_approvals),0::bigint,'normal officer can
 select is((select count(*) from audit_logs),0::bigint,'normal officer cannot read System Log');
 select throws_ok($$insert into officers(name,utep_email,position_id) values('Attack','attack-officer@example.org',17)$$,
   '42501',null,'normal officer cannot insert officer');
-select throws_ok($$insert into events(name,event_type_id,starts_at,ends_at) values('Attack',1,'2099-09-20 09:00-06','2099-09-20 10:00-06')$$,
+select throws_ok($$insert into events(name,description,location,event_type_id,starts_at,ends_at) values('Attack','Test event','TBA',1,'2099-09-20 09:00-06','2099-09-20 10:00-06')$$,
   '42501',null,'normal officer cannot create event directly');
 select throws_ok($$insert into event_officers(event_id,officer_id) values(-402,-403)$$,
   '42501',null,'self-signup direct insert is denied in favor of trusted RPC');
@@ -208,7 +211,7 @@ select throws_ok($$delete from audit_logs where id=-401$$,
   '42501',null,'admin cannot delete audit history directly');
 select lives_ok($$select save_officer('RLS created',17,'active',null,null,'rls-created@example.org')$$,
   'admin officer-save RPC still works after raw writes are revoked');
-select lives_ok($$select save_event('RLS admin event','',1,'','2099-09-22 09:00-06','2099-09-22 10:00-06',null)$$,
+select lives_ok($$select save_event('RLS admin event','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-22 09:00-06','2099-09-22 10:00-06',null)$$,
   'admin event-save RPC still creates global events');
 select lives_ok($$select add_manual_transaction(-403,1,'RLS admin correction','correction')$$,
   'admin points RPC still works');

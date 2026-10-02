@@ -6,6 +6,7 @@ import { PointValue } from "@/components/ui";
 type Transaction = Tables<"point_transactions"> & {
   officers: Pick<Tables<"officers">, "id" | "name">;
   events: Pick<Tables<"events">, "id" | "name"> | null;
+  tasks: Pick<Tables<"tasks">, "id" | "title"> | null;
 };
 export default function TransactionTable({
   transactions,
@@ -18,7 +19,7 @@ export default function TransactionTable({
       <thead>
         <tr>
           <th>Officer</th>
-          <th>Event</th>
+          <th>Event / task</th>
           <th>Reason</th>
           <th>Points</th>
           <th>Award type</th>
@@ -37,6 +38,10 @@ export default function TransactionTable({
               {transaction.events ? (
                 <Link href={`/events/${transaction.events.id}`}>
                   {transaction.events.name}
+                </Link>
+              ) : transaction.tasks ? (
+                <Link href={`/tasks#task-${transaction.tasks.id}`}>
+                  {transaction.tasks.title}
                 </Link>
               ) : (
                 "—"

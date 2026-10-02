@@ -18,7 +18,7 @@ export default function HistoryTable({
       <thead>
         <tr>
           <th>Officer</th>
-          <th>Event</th>
+          <th>Event / task</th>
           <th>Reason</th>
           <th>Points</th>
           <th>Type</th>
@@ -43,6 +43,10 @@ export default function HistoryTable({
               {transaction.event_id ? (
                 <Link href={`/events/${transaction.event_id}`}>
                   {transaction.event_name}
+                </Link>
+              ) : transaction.task_id ? (
+                <Link href={`/tasks#task-${transaction.task_id}`}>
+                  {transaction.task_title}
                 </Link>
               ) : (
                 "—"

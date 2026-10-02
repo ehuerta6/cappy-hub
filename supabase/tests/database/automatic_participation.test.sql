@@ -22,18 +22,18 @@ insert into officers(id,name,utep_email,position_id,status,application_role,auth
   values(-807,'PR8 Admin','pr8-admin@example.org',
     (select id from positions where name='Officer'),'active','admin',
     '00000000-0000-4000-8000-000000000807');
-insert into events(id,name,event_type_id,starts_at,ends_at,status) values
-  (-801,'Ended 90 minutes',(select id from event_types where name='General'),
+insert into events(id,name,description,location,event_type_id,starts_at,ends_at,status) values
+  (-801,'Ended 90 minutes','Test event','TBA',(select id from event_types where name='Meeting'),
     '2020-09-20 09:00-06','2020-09-20 10:30-06','upcoming'),
-  (-802,'Ended no signups',(select id from event_types where name='General'),
+  (-802,'Ended no signups','Test event','TBA',(select id from event_types where name='Meeting'),
     '2020-09-21 09:00-06','2020-09-21 10:00-06','upcoming'),
-  (-803,'Cancelled',(select id from event_types where name='General'),
+  (-803,'Cancelled','Test event','TBA',(select id from event_types where name='Meeting'),
     '2020-09-22 09:00-06','2020-09-22 10:00-06','cancelled'),
-  (-804,'Future',(select id from event_types where name='General'),
+  (-804,'Future','Test event','TBA',(select id from event_types where name='Meeting'),
     '2099-09-20 09:00-06','2099-09-20 10:00-06','upcoming'),
-  (-805,'Completed early',(select id from event_types where name='General'),
+  (-805,'Completed early','Test event','TBA',(select id from event_types where name='Meeting'),
     '2099-09-21 09:00-06','2099-09-21 11:00-06','past'),
-  (-806,'Removed award history',(select id from event_types where name='General'),
+  (-806,'Removed award history','Test event','TBA',(select id from event_types where name='Meeting'),
     '2020-09-23 09:00-06','2020-09-23 10:00-06','upcoming');
 insert into event_officers(event_id,officer_id) values
   (-801,-801),(-801,-802),(-803,-801),(-804,-801),(-805,-801),(-806,-801);
@@ -100,8 +100,8 @@ select ok((select count(*) from point_transactions where award_type='participati
   and event_id=-801)=2,'unique participation rows remain stable');
 
 -- An audit failure must roll back the event snapshot and award together.
-insert into events(id,name,event_type_id,starts_at,ends_at) values
-  (-807,'Atomicity probe',(select id from event_types where name='General'),
+insert into events(id,name,description,location,event_type_id,starts_at,ends_at) values
+  (-807,'Atomicity probe','Test event','TBA',(select id from event_types where name='Meeting'),
     '2020-09-24 09:00-06','2020-09-24 10:00-06');
 insert into event_officers(event_id,officer_id) values(-807,-801);
 alter table audit_logs add constraint reject_new_participation_audit

@@ -5,7 +5,7 @@ import { mutationError } from "@/lib/mutation-error";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-type Catalog = "position" | "branch" | "event_type";
+type Catalog = "position" | "branch";
 type Operation = "create" | "rename" | "delete";
 
 export async function changeCatalog(
@@ -20,7 +20,7 @@ export async function changeCatalog(
   const name = String(formData.get("name") ?? "").trim();
   const id = Number(formData.get("id"));
   if (
-    !["position", "branch", "event_type"].includes(catalog) ||
+    !["position", "branch"].includes(catalog) ||
     !["create", "rename", "delete"].includes(operation)
   )
     return { error: "Invalid catalog operation", success: "" };
@@ -51,16 +51,6 @@ export async function changeCatalog(
       }));
     if (operation === "delete")
       ({ error } = await supabase.rpc("delete_branch", { p_id: id }));
-  } else {
-    if (operation === "create")
-      ({ error } = await supabase.rpc("create_event_type", { p_name: name }));
-    if (operation === "rename")
-      ({ error } = await supabase.rpc("rename_event_type", {
-        p_id: id,
-        p_name: name,
-      }));
-    if (operation === "delete")
-      ({ error } = await supabase.rpc("delete_event_type", { p_id: id }));
   }
   if (error)
     return {

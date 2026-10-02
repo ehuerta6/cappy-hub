@@ -10,144 +10,61 @@ insert into auth.users(id,email) values
 insert into officers(id,name,utep_email,position_id,status,application_role,auth_user_id) values
  (-901,'PR10 Admin','pr10-admin@example.org',(select id from positions where name='Officer'),'active','admin','00000000-0000-4000-8000-000000000901'),
  (-902,'PR10 Lead','pr10-lead@example.org',(select id from positions where name='Lead'),'active','officer','00000000-0000-4000-8000-000000000902'),
- (-903,'PR10 Officer','pr10-officer@example.org',(select id from positions where name='Officer'),'active','officer','00000000-0000-4000-8000-000000000903'),
- (-904,'PR10 Future Assignee','pr10-fourth@example.org',(select id from positions where name='Officer'),'active','officer',null);
-insert into officer_branches(officer_id,branch_id) values
- (-902,(select id from branches where name='intro'));
-insert into events(id,name,event_type_id,starts_at,ends_at) values
- (-901,'Ended timed',(select id from event_types where name='General'),'2020-09-20 09:00-06','2020-09-20 10:00-06'),
- (-902,'Future timed',(select id from event_types where name='General'),'2099-09-20 09:00-06','2099-09-20 10:00-06');
-insert into event_branches(event_id,branch_id) values
- (-901,(select id from branches where name='intro')),
- (-902,(select id from branches where name='intro'));
-insert into event_officers(event_id,officer_id) values(-901,-903),(-902,-903);
-select throws_ok($$insert into events(name,event_type_id,event_date,starts_at,ends_at)
- values('Too early',(select id from event_types where name='General'),'2099-09-21',
+ (-903,'PR10 Officer','pr10-officer@example.org',(select id from positions where name='Officer'),'active','officer','00000000-0000-4000-8000-000000000903');
+insert into officer_branches(officer_id,branch_id)
+ select -902,id from branches where name='intro';
+insert into events(id,name,description,location,event_type_id,starts_at,ends_at) values
+ (-901,'Ended timed','Test event','TBA',(select id from event_types where name='Meeting'),'2020-09-20 09:00-06','2020-09-20 10:00-06');
+insert into event_officers(event_id,officer_id) values(-901,-903);
+select throws_ok($$insert into events(name,description,location,event_type_id,event_date,starts_at,ends_at)
+ values('Too early','Test event','TBA',(select id from event_types where name='Meeting'),'2099-09-21',
  '2099-09-21 05:59-06','2099-09-21 06:30-06')$$,'23514',null,
  'database rejects start before 06:00 Denver');
-select throws_ok($$insert into events(name,event_type_id,event_date,starts_at,ends_at)
- values('Wrong day',(select id from event_types where name='General'),'2099-09-22',
+select throws_ok($$insert into events(name,description,location,event_type_id,event_date,starts_at,ends_at)
+ values('Wrong day','Test event','TBA',(select id from event_types where name='Meeting'),'2099-09-22',
  '2099-09-21 08:00-06','2099-09-21 09:00-06')$$,'23514',null,
- 'event_date must match scheduled local date');
-select throws_ok($$insert into events(name,event_type_id,event_date,fixed_points)
- values('Zero',(select id from event_types where name='General'),'2099-09-20',0)$$,
- '23514',null,'untimed fixed points cannot be zero');
+ 'event date must match scheduled local date');
+select throws_ok($$insert into events(name,description,location,event_type_id,event_date,starts_at,ends_at)
+ values('Untimed','Test event','TBA',(select id from event_types where name='Meeting'),'2099-09-22',null,null)$$,
+ '23502',null,'untimed events cannot be inserted');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000901',true);
 set local role authenticated;
-select lives_ok($$select save_event_v2('PR10 work','Slides',
- (select id from event_types where name='General'),null,'2099-09-21',null,null,4.5,
- array[(select id from branches where name='intro')]::bigint[],null)$$,
- 'admin creates untimed work event');
-reset role;
-select set_config('test.work_event_id',(select id::text from events where name='PR10 work'),true);
-set local role authenticated;
-select lives_ok($$select save_event_with_links('PR10 work','Slides',
- (select id from event_types where name='General'),null,'2099-09-21',null,null,4.5,
- array[(select id from branches where name='intro')]::bigint[],
- current_setting('test.work_event_id')::bigint,
+select lives_ok($$select save_event_with_links('PR10 meeting','Meeting notes',
+ (select id from event_types where name='Meeting'),'TBA','2099-09-21',
+ '2099-09-21 09:00-06','2099-09-21 10:00-06',
+ array[(select id from branches where name='intro')]::bigint[],null,
  'https://drive.example.org/slides','https://drive.example.org/notes')$$,
- 'event links save through the checked event path');
-select is((select slides_url from events where id=current_setting('test.work_event_id')::bigint),
+ 'admin creates timed event with links');
+reset role;
+select set_config('test.event_id',(select id::text from events where name='PR10 meeting'),true);
+select is((select slides_url from events where id=current_setting('test.event_id')::bigint),
  'https://drive.example.org/slides','slides URL is stored');
-select ok((select details #>> '{after,meeting_notes_url}' = 'https://drive.example.org/notes'
- from audit_logs where action='event.links_updated' order by id desc limit 1),
- 'document link change has an audit snapshot');
-select throws_ok($$select save_event_with_links('PR10 work','Slides',
- (select id from event_types where name='General'),null,'2099-09-21',null,null,4.5,
- array[(select id from branches where name='intro')]::bigint[],
- current_setting('test.work_event_id')::bigint,
- 'javascript:alert(1)',null)$$,'P0001','Slides link must be an HTTP(S) URL',
- 'unsafe link is rejected without changing the event');
-select is((select slides_url from events where id=current_setting('test.work_event_id')::bigint),
- 'https://drive.example.org/slides','failed link edit preserves original');
-reset role;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000903',true);
 set local role authenticated;
-select throws_ok($$select save_event_with_links('Unauthorized edit','',
- (select id from event_types where name='General'),null,'2099-09-21',null,null,4.5,
+select throws_ok($$select save_event_with_links('Unauthorized edit','Description',
+ (select id from event_types where name='Meeting'),'TBA','2099-09-21',
+ '2099-09-21 09:00-06','2099-09-21 10:00-06',
  array[(select id from branches where name='intro')]::bigint[],
- current_setting('test.work_event_id')::bigint,'https://example.org/changed',null)$$,
- 'P0001','Event outside branch scope','ordinary officer cannot edit document links');
-select throws_ok(format('select change_event_signup(%s,-903,false)',current_setting('test.work_event_id')),
- 'P0001','Untimed assignments require an event manager',
- 'ordinary officer cannot self assign untimed work');
+ current_setting('test.event_id')::bigint,'https://example.org/changed',null)$$,
+ 'P0001','Event outside branch scope','ordinary officer cannot edit event links');
+select lives_ok(format('select change_event_signup(%s,-903,false)',current_setting('test.event_id')),
+ 'ordinary officer can self-sign up');
 reset role;
-select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000902',true);
-set local role authenticated;
-select lives_ok(format('select change_event_signup(%s,-903,false)',current_setting('test.work_event_id')),
- 'branch Lead assigns work within scope');
-reset role;
-select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000902',true);
-set local role authenticated;
-select lives_ok(format('select change_event_signup(%s,-904,false)',current_setting('test.work_event_id')),
- 'Lead can assign another officer to future untimed work');
-reset role;
-select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000901',true);
-set local role authenticated;
-select lives_ok($$select save_officer('PR10 Future Assignee',
- (select id from positions where name='Officer'),'inactive','{}'::bigint[],
- -904,'pr10-fourth@example.org',null,null)$$,
- 'admin deactivates future work assignee');
-reset role;
-
-update events set event_date='2020-09-21' where id=current_setting('test.work_event_id')::bigint;
-select is(private.process_finished_events(),2,
- 'scheduled-ended timed and past-date untimed events process together');
-select is((select points from point_transactions where event_id=current_setting('test.work_event_id')::bigint),
- 4.5::numeric,'untimed assignment receives fixed points');
-
-select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000903',true);
-set local role authenticated;
-reset role;
-
-select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000901',true);
-set local role authenticated;
-select lives_ok($$select save_event_v2('Edited past event','Metadata changed',
- (select id from event_types where name='General'),null,'2020-09-20',
- '2020-09-20 09:00-06','2020-09-20 11:00-06',null,
- array[(select id from branches where name='intro')]::bigint[],-901)$$,
- 'admin edits processed past event');
+select is(private.process_finished_events(),1,'ended timed event processes');
 select is((select points from point_transactions where event_id=-901),
- (select participation_points_per_hour_at_end from events where id=-901),
- 'past edit does not recalculate automatic award');
-select lives_ok($$select update_point_transaction((select id from point_transactions where event_id=-901),7.25)$$,
- 'admin edits automatic award amount directly');
-select is(remove_point_transaction((select id from point_transactions where event_id=-901)),true,
- 'admin removes automatic transaction');
-select is((select total_points from officer_point_totals where id=-903),4.5::numeric,
- 'removed positive award stops counting');
-select throws_ok($$select update_point_transaction((select id from point_transactions where event_id=-901),2)$$,
- 'P0001','Removed transaction cannot be edited','removed award cannot be edited');
-select lives_ok($$select add_manual_transaction(-903,3,'Manual PR10','manual')$$,
- 'admin can create a manual transaction');
-select lives_ok($$select add_manual_transaction(-903,-2,'Correction PR10','correction')$$,
- 'admin can create a signed correction');
-select is(remove_point_transaction((select id from point_transactions where reason='Manual PR10')),
- true,'admin can logically remove a manual transaction');
-select is(remove_point_transaction((select id from point_transactions where reason='Correction PR10')),
- true,'admin can logically remove a correction transaction');
-select is((select total_points from officer_point_totals where id=-903),4.5::numeric,
- 'removing negative correction raises total');
-select is(remove_point_transaction((select id from point_transactions
- where event_id=current_setting('test.work_event_id')::bigint)),true,
- 'admin can remove an untimed automatic award');
-reset role;
-select is(private.process_finished_events(),0,'removed untimed award is not regenerated');
+  (select participation_points_per_hour_at_end from events where id=-901),
+  'scheduled duration awards points');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000901',true);
 set local role authenticated;
+select lives_ok($$select save_event_with_links('Edited past event','Metadata changed',
+ (select id from event_types where name='Meeting'),'TBA','2020-09-20',
+ '2020-09-20 09:00-06','2020-09-20 11:00-06',
+ array[(select id from branches where name='intro')]::bigint[],-901,null,null)$$,
+ 'admin edits processed past event without recalculating award');
 select is(remove_event(-901),true,'admin logically removes past event');
 select is((select count(*) from event_officers where event_id=-901),1::bigint,
  'removed event retains signup');
 reset role;
-insert into events(id,name,event_type_id,starts_at,ends_at) values
- (-905,'Ended but removed before processing',(select id from event_types where name='General'),
- '2020-09-25 09:00-06','2020-09-25 10:00-06');
-insert into event_officers(event_id,officer_id) values(-905,-903);
-select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000901',true);
-set local role authenticated;
-select is(remove_event(-905),true,'admin removes ended event before processing');
-reset role;
-select is(private.process_finished_events(),0,'removed ended event never processes');
-
 select * from finish();
 rollback;

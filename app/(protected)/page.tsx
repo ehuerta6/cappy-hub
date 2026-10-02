@@ -17,13 +17,11 @@ export default async function DashboardPage() {
       .select("*,event_officers(officer_id)")
       .neq("status", "cancelled")
       .is("deleted_at", null)
-      .or(
-        `starts_at.gt.${new Date().toISOString()},and(starts_at.is.null,event_date.gte.${new Intl.DateTimeFormat("en-CA", { timeZone: "America/Denver", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())})`,
-      )
+      .gt("starts_at", new Date().toISOString())
       .order("event_date"),
     supabase
       .from("point_transactions")
-      .select("*,officers(id,name),events(id,name)")
+      .select("*,officers(id,name),events(id,name),tasks(id,title)")
       .is("removed_at", null)
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
@@ -101,7 +99,6 @@ export default async function DashboardPage() {
                       event.event_officers.some(
                         (signup) => signup.officer_id === officer.id,
                       ),
-                      event.starts_at === null,
                     )}
                   </td>
                 </tr>

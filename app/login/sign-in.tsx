@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 
 const LOCAL_PASSWORD = "CappyLocal123!";
@@ -11,11 +12,16 @@ const LOCAL_ACCOUNTS = [
   { label: "VP Academics", email: "vp-academics@cappy.test" },
   { label: "Intro Lead", email: "intro-lead@cappy.test" },
   { label: "ICPC Lead", email: "icpc-lead@cappy.test" },
+  { label: "Social Lead", email: "social-lead@cappy.test" },
+  { label: "Outreach Lead", email: "outreach-lead@cappy.test" },
+  { label: "Multi Branch Lead", email: "multi-lead@cappy.test" },
+  { label: "Secretary", email: "secretary@cappy.test" },
   { label: "Officer", email: "officer@cappy.test" },
   { label: "Inactive Officer", email: "inactive@cappy.test" },
 ] as const;
 
 export default function GoogleSignIn() {
+  const router = useRouter();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -50,7 +56,8 @@ export default function GoogleSignIn() {
       return;
     }
 
-    window.location.assign("/");
+    router.push("/");
+    router.refresh();
   }
 
   return (

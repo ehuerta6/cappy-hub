@@ -1,4 +1,9 @@
-import { getAuthorizationContext, isAdmin, isLead } from "@/lib/authorization";
+import {
+  getAuthorizationContext,
+  isAdmin,
+  isLead,
+  canSeeAllBranches,
+} from "@/lib/authorization";
 import Link from "next/link";
 import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -34,9 +39,10 @@ export default async function EventsPage({
     <div className="space-y-6">
       <PageHeader
         title="Events"
-        description="Club events, work assignments and participation."
+        description="Club events and participation."
         action={
-          isAdmin(actor) || (isLead(actor) && actor.branchIds.length > 0) ? (
+          canSeeAllBranches(actor) ||
+          (isLead(actor) && actor.branchIds.length > 0) ? (
             <ActionLink href="/events/new">+ New event</ActionLink>
           ) : undefined
         }
@@ -47,11 +53,6 @@ export default async function EventsPage({
           className="text-sm underline"
         >
           {showRemoved ? "Active events" : "Removed event history"}
-        </Link>
-      )}
-      {isAdmin(actor) && (
-        <Link href="/events/types" className="text-sm underline">
-          Manage event types
         </Link>
       )}
       <TableFrame>
@@ -86,7 +87,6 @@ export default async function EventsPage({
                     event.event_officers.some(
                       (signup) => signup.officer_id === actor.id,
                     ),
-                    event.starts_at === null,
                   )}
                 </td>
                 <td>

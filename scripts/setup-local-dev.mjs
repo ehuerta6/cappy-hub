@@ -20,6 +20,18 @@ const accounts = [
   },
   { officerId: -1005, email: "intro-lead@cappy.test", label: "Intro Lead" },
   { officerId: -1006, email: "icpc-lead@cappy.test", label: "ICPC Lead" },
+  { officerId: -1007, email: "social-lead@cappy.test", label: "Social Lead" },
+  {
+    officerId: -1008,
+    email: "outreach-lead@cappy.test",
+    label: "Outreach Lead",
+  },
+  {
+    officerId: -1009,
+    email: "multi-lead@cappy.test",
+    label: "Multi Branch Lead",
+  },
+  { officerId: -1012, email: "secretary@cappy.test", label: "Secretary" },
   { officerId: -1010, email: "officer@cappy.test", label: "Officer" },
   {
     officerId: -1011,
@@ -187,6 +199,7 @@ async function verifySeed(admin) {
     ["events", 10],
     ["point_transactions", 250],
     ["officer_warnings", 6],
+    ["tasks", 6],
   ];
 
   for (const [table, minimum] of minimums) {

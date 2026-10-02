@@ -11,8 +11,8 @@ insert into officers(id,name,utep_email,position_id,application_role,auth_user_i
  (-701,'Admin PR7','admin-pr7@example.org',(select id from positions where name='Officer'),'admin','00000000-0000-4000-8000-000000000701'),
  (-702,'Officer PR7','officer-pr7@example.org',(select id from positions where name='Officer'),'officer','00000000-0000-4000-8000-000000000702'),
  (-703,'Lead PR7','lead-pr7@example.org',(select id from positions where name='Lead'),'officer','00000000-0000-4000-8000-000000000703');
-insert into events(id,name,event_type_id,starts_at,ends_at,participation_points_per_hour_at_end)
- values(-701,'PR7 Event',(select id from event_types where name='General'),
+insert into events(id,name,description,location,event_type_id,starts_at,ends_at,participation_points_per_hour_at_end)
+ values(-701,'PR7 Event','Test event','TBA',(select id from event_types where name='Meeting'),
  '2099-09-20 09:00-06','2099-09-20 10:00-06',2);
 insert into point_transactions(id,officer_id,event_id,points,reason,award_type,created_at)
  values(-701,-702,-701,10,'Scheduled participation','participation',

@@ -16,9 +16,9 @@ const PAGE_SIZE = 25;
 type Params = Record<string, string | string[] | undefined>;
 const first = (value: Params[string]) =>
   typeof value === "string" ? value : "";
-const positiveId = (value: string) => {
+const signedId = (value: string) => {
   const id = Number(value);
-  return Number.isSafeInteger(id) && id > 0 ? id : null;
+  return Number.isSafeInteger(id) && id !== 0 ? id : null;
 };
 
 export default async function PointsPage({
@@ -32,14 +32,14 @@ export default async function PointsPage({
   const params = await searchParams;
   const search = first(params.q).trim().slice(0, 100);
   const awardType = first(params.type);
-  const officerId = positiveId(first(params.officer));
-  const eventId = positiveId(first(params.event));
+  const officerId = signedId(first(params.officer));
+  const eventId = signedId(first(params.event));
   const requestedStatus = first(params.status);
   const status =
     admin && ["active", "removed", "all"].includes(requestedStatus)
       ? requestedStatus
       : "active";
-  const requestedPage = positiveId(first(params.page)) ?? 1;
+  const requestedPage = Math.max(signedId(first(params.page)) ?? 1, 1);
   const page = Math.min(requestedPage, 100000);
 
   const supabase = await createClient();
@@ -50,7 +50,7 @@ export default async function PointsPage({
     const literal = search.replace(/[\\%_]/g, "\\$&");
     history = history.ilike("search_text", `%${literal}%`);
   }
-  if (["participation", "manual", "correction"].includes(awardType))
+  if (["participation", "task", "manual", "correction"].includes(awardType))
     history = history.eq("award_type", awardType);
   if (officerId) history = history.eq("officer_id", officerId);
   if (eventId) history = history.eq("event_id", eventId);
@@ -96,7 +96,7 @@ export default async function PointsPage({
   const pageUrl = (nextPage: number) => {
     const next = new URLSearchParams();
     if (search) next.set("q", search);
-    if (["participation", "manual", "correction"].includes(awardType))
+    if (["participation", "task", "manual", "correction"].includes(awardType))
       next.set("type", awardType);
     if (officerId) next.set("officer", String(officerId));
     if (eventId) next.set("event", String(eventId));
@@ -164,7 +164,7 @@ export default async function PointsPage({
         />
         <form method="get" className="flex flex-wrap items-end gap-3">
           <label>
-            Search officer, reason, or event
+            Search officer, reason, event, or task
             <input name="q" type="search" defaultValue={search} />
           </label>
           <label>
@@ -172,6 +172,7 @@ export default async function PointsPage({
             <select name="type" defaultValue={awardType}>
               <option value="">All types</option>
               <option value="participation">Participation</option>
+              <option value="task">Task</option>
               <option value="manual">Manual</option>
               <option value="correction">Correction</option>
             </select>

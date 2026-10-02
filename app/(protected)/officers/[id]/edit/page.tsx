@@ -18,7 +18,7 @@ export default async function EditOfficerPage({
   await connection();
   const supabase = await createClient();
   const { id } = await params;
-  if (!/^[1-9]\d*$/.test(id)) notFound();
+  if (!/^-?[1-9]\d*$/.test(id)) notFound();
   const [officer, branches, positions] = await Promise.all([
     supabase
       .from("officers")

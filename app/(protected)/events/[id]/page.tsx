@@ -27,7 +27,7 @@ export default async function EventDetailPage({
   await connection();
   const supabase = await createClient();
   const { id } = await params;
-  if (!/^[1-9]\d*$/.test(id)) notFound();
+  if (!/^-?[1-9]\d*$/.test(id)) notFound();
   const [result, officers] = await Promise.all([
     supabase
       .from("events")
@@ -49,20 +49,14 @@ export default async function EventDetailPage({
   const signupOpen =
     !event.deleted_at &&
     !event.participation_points_per_hour_at_end &&
-    event.starts_at !== null &&
     (status === "upcoming" || status === "happening");
-  const assignmentOpen =
-    !event.deleted_at &&
-    !event.untimed_processed_at &&
-    status === "upcoming" &&
-    event.starts_at === null;
   const canManage = canManageEvent(
     actor,
     event.event_branches.map((x) => x.branch_id),
   );
   const transactions = await supabase
     .from("point_transactions")
-    .select("*,officers(id,name),events(id,name)")
+    .select("*,officers(id,name),events(id,name),tasks(id,title)")
     .is("removed_at", null)
     .eq("event_id", event.id)
     .order("created_at", { ascending: false })
@@ -115,19 +109,10 @@ export default async function EventDetailPage({
         )}
         <dt>Date</dt>
         <dd>{event.event_date}</dd>
-        {event.starts_at && event.ends_at ? (
-          <>
-            <dt>Start</dt>
-            <dd>{displayDateTime(event.starts_at)}</dd>
-            <dt>End</dt>
-            <dd>{displayDateTime(event.ends_at)}</dd>
-          </>
-        ) : (
-          <>
-            <dt>Fixed points</dt>
-            <dd>{event.fixed_points}</dd>
-          </>
-        )}
+        <dt>Start</dt>
+        <dd>{displayDateTime(event.starts_at)}</dd>
+        <dt>End</dt>
+        <dd>{displayDateTime(event.ends_at)}</dd>
         {event.deleted_at && (
           <>
             <dt>Removed at</dt>
@@ -136,13 +121,9 @@ export default async function EventDetailPage({
         )}
         <dt>Processing</dt>
         <dd>
-          {event.starts_at === null
-            ? event.untimed_processed_at
-              ? "Fixed points awarded"
-              : "Awaiting event date"
-            : event.participation_points_per_hour_at_end === null
-              ? "Not processed"
-              : `${event.participation_points_per_hour_at_end} points/hour`}
+          {event.participation_points_per_hour_at_end === null
+            ? "Not processed"
+            : `${event.participation_points_per_hour_at_end} points/hour`}
         </dd>
         <dt>Status</dt>
         <dd>
@@ -157,7 +138,7 @@ export default async function EventDetailPage({
       </dl>
       {canManage && !event.deleted_at && (
         <div className="flex gap-3">
-          {(signupOpen || assignmentOpen) && <CancelForm eventId={event.id} />}
+          {signupOpen && <CancelForm eventId={event.id} />}
           <RemoveEventForm eventId={event.id} />
         </div>
       )}
@@ -167,17 +148,10 @@ export default async function EventDetailPage({
           event.event_officers.some(
             ({ officers: officer }) => officer.id === actor.id,
           ),
-          event.starts_at === null,
         )}
       </p>
       <section>
-        <SectionHeading
-          title={
-            event.starts_at === null
-              ? "Assigned officers"
-              : "Signed-up officers"
-          }
-        />
+        <SectionHeading title="Signed-up officers" />
         <TableFrame>
           <table>
             <thead>
@@ -193,8 +167,7 @@ export default async function EventDetailPage({
                     <Link href={`/officers/${officer.id}`}>{officer.name}</Link>
                   </td>
                   <td>
-                    {(signupOpen && (canManage || officer.id === actor.id)) ||
-                    (assignmentOpen && canManage) ? (
+                    {signupOpen && (canManage || officer.id === actor.id) ? (
                       <SignupForm
                         eventId={event.id}
                         officerId={officer.id}
@@ -209,14 +182,8 @@ export default async function EventDetailPage({
             </tbody>
           </table>
         </TableFrame>
-        {!event.event_officers.length && (
-          <p>
-            {event.starts_at === null
-              ? "No officers assigned."
-              : "No officers signed up."}
-          </p>
-        )}
-        {(signupOpen || (assignmentOpen && canManage)) && (
+        {!event.event_officers.length && <p>No officers signed up.</p>}
+        {signupOpen && (
           <SignupForm
             eventId={event.id}
             officers={(canManage

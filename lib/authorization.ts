@@ -13,14 +13,22 @@ export const isAdmin = (actor: AuthorizationContext) =>
   actor.applicationRole === "admin";
 export const isLead = (actor: AuthorizationContext) =>
   actor.positionName === "Lead";
-export const sharesAnyBranch = (
-  actor: AuthorizationContext,
-  branches: number[],
-) => actor.branchIds.some((id) => branches.includes(id));
+export const isEventExecutive = (actor: AuthorizationContext) =>
+  [
+    "President",
+    "Vice President of Operations",
+    "Vice President of Academics",
+  ].includes(actor.positionName);
+export const canSeeAllBranches = (actor: AuthorizationContext) =>
+  isAdmin(actor) || isEventExecutive(actor);
 export const canManageEvent = (
   actor: AuthorizationContext,
   branches: number[],
-) => isAdmin(actor) || (isLead(actor) && sharesAnyBranch(actor, branches));
+) =>
+  canSeeAllBranches(actor) ||
+  (isLead(actor) &&
+    branches.length > 0 &&
+    branches.every((id) => actor.branchIds.includes(id)));
 export const canManageSignupForEvent = canManageEvent;
 export const canManageOfficers = isAdmin;
 export const canManagePoints = isAdmin;

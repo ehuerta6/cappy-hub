@@ -7,6 +7,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 const links = [
   { href: "/", label: "Dashboard" },
   { href: "/events", label: "Events" },
+  { href: "/tasks", label: "Tasks" },
   { href: "/officers", label: "Officers" },
   { href: "/points", label: "Points" },
 ];
@@ -16,6 +17,7 @@ function HistoryControls() {
   const params = useSearchParams();
   const query = params.toString();
   const [position, setPosition] = useState({ index: 0, length: 1 });
+  const [browserHasBack, setBrowserHasBack] = useState(false);
   const trail = useRef<string[]>([]);
   const cursor = useRef(0);
   const pending = useRef<"back" | "forward" | null>(null);
@@ -38,9 +40,8 @@ function HistoryControls() {
     }
     pending.current = null;
     setPosition({ index: cursor.current, length: trail.current.length });
+    setBrowserHasBack(window.history.length > 1);
   }, [pathname, query]);
-  const browserHasBack =
-    typeof window !== "undefined" && window.history.length > 1;
   return (
     <div className="flex gap-2">
       <button

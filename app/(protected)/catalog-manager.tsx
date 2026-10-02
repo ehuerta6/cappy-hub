@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { changeCatalog } from "./catalog-actions";
 
-type Catalog = "position" | "branch" | "event_type";
+type Catalog = "position" | "branch";
 type Record = { id: number; name: string };
 
 function CatalogForm({

@@ -1,4 +1,8 @@
-import { getAuthorizationContext, canManageEvent } from "@/lib/authorization";
+import {
+  getAuthorizationContext,
+  canManageEvent,
+  canSeeAllBranches,
+} from "@/lib/authorization";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
@@ -14,7 +18,7 @@ export default async function EditEventPage({
   await connection();
   const supabase = await createClient();
   const { id } = await params;
-  if (!/^[1-9]\d*$/.test(id)) notFound();
+  if (!/^-?[1-9]\d*$/.test(id)) notFound();
   const [event, branches, eventTypes] = await Promise.all([
     supabase
       .from("events")
@@ -22,7 +26,11 @@ export default async function EditEventPage({
       .eq("id", Number(id))
       .maybeSingle(),
     supabase.from("branches").select("id,name").order("name"),
-    supabase.from("event_types").select("id,name").order("name"),
+    supabase
+      .from("event_types")
+      .select("id,name")
+      .in("name", ["Meeting", "Social", "Workshop"])
+      .order("name"),
   ]);
   if (event.error || branches.error || eventTypes.error)
     throw new Error("Failed to load event form");
@@ -38,8 +46,15 @@ export default async function EditEventPage({
     <div className="space-y-6">
       <PageHeader title="Edit event" />
       <EventForm
+        allowGlobal={canSeeAllBranches(actor)}
         event={event.data}
-        branches={branches.data}
+        branches={
+          canSeeAllBranches(actor)
+            ? branches.data
+            : branches.data.filter((branch) =>
+                actor.branchIds.includes(branch.id),
+              )
+        }
         eventTypes={eventTypes.data}
         branchIds={event.data.event_branches.map((x) => x.branch_id)}
       />

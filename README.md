@@ -44,7 +44,7 @@ npm ci
 
 ### Local Development
 
-Cappy Hub uses a local Supabase stack for development. The database schema is rebuilt from the same migrations used by production, then populated with synthetic officers, events, signups, points, warnings, and audit history.
+Cappy Hub uses a local Supabase stack for development. The database schema is rebuilt from the same migrations used by production, then populated with synthetic officers, events, Tasks, signups, points, warnings, and audit history.
 
 No production CIC data is copied into the local environment.
 
@@ -89,6 +89,10 @@ When the app is connected to local Supabase, the login page provides one-click t
 - VP Academics
 - Intro Lead
 - ICPC Lead
+- Social Lead
+- Outreach Lead
+- Multi Branch Lead
+- Secretary
 - Officer
 - Inactive Officer
 

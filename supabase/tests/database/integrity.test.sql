@@ -41,19 +41,19 @@ select throws_ok($$select save_officer('Should roll back',1,'active',array[-999:
 select throws_ok($$insert into officer_branches select -1,id from branches where name='general'$$,
   '23505',null,'duplicate officer membership is impossible');
 
-insert into events(id,name,event_type_id,starts_at,ends_at) values
-  (-1,'Ended',(select id from event_types where name='General'),'2020-09-20 09:00-06','2020-09-20 10:00-06'),
-  (-2,'Future',(select id from event_types where name='Workshop'),'2099-09-20 09:00-06','2099-09-20 10:00-06');
-select lives_ok($$select save_event('Global','','1','','2099-09-20 11:00-06','2099-09-20 12:00-06',null)$$,
+insert into events(id,name,description,location,event_type_id,starts_at,ends_at) values
+  (-1,'Ended','Test event','TBA',(select id from event_types where name='Meeting'),'2020-09-20 09:00-06','2020-09-20 10:00-06'),
+  (-2,'Future','Test event','TBA',(select id from event_types where name='Workshop'),'2099-09-20 09:00-06','2099-09-20 10:00-06');
+select lives_ok($$select save_event('Global','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20 11:00-06','2099-09-20 12:00-06',null)$$,
   'event save accepts null branches');
-select lives_ok($$select save_event('Associated','',1,'','2099-09-20 11:00-06','2099-09-20 12:00-06',array[(select id from branches where name='intro'),(select id from branches where name='social')])$$,
+select lives_ok($$select save_event('Associated','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20 11:00-06','2099-09-20 12:00-06',array[(select id from branches where name='intro'),(select id from branches where name='social')])$$,
   'event save accepts multiple branches');
 insert into event_branches values (-2,(select id from branches where name='general'));
-select lives_ok($$select save_event('Global edit','',1,'','2099-09-20 09:00-06','2099-09-20 10:00-06','{}'::bigint[],-2)$$,
+select lives_ok($$select save_event('Global edit','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20 09:00-06','2099-09-20 10:00-06','{}'::bigint[],-2)$$,
   'event can change from branches to global');
-select lives_ok($$select save_event('Branch edit','',1,'','2099-09-20 09:00-06','2099-09-20 10:00-06',array[(select id from branches where name='icpc')],-2)$$,
+select lives_ok($$select save_event('Branch edit','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20 09:00-06','2099-09-20 10:00-06',array[(select id from branches where name='icpc')],-2)$$,
   'global event can become branch associated');
-select throws_ok($$select save_event('Failed branch edit','',1,'','2099-09-20 09:00-06','2099-09-20 10:00-06',array[-999::bigint],-2)$$,
+select throws_ok($$select save_event('Failed branch edit','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20 09:00-06','2099-09-20 10:00-06',array[-999::bigint],-2)$$,
   '23503',null,'event replacement rejects an invalid branch');
 select is((select name from events where id=-2),'Branch edit','failed event replacement rolls back row change');
 select throws_ok($$insert into event_branches select -2,id from branches where name='icpc'$$,

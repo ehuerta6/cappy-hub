@@ -34,7 +34,7 @@ export default async function OfficerDetailPage({
   const supabase = await createClient();
   const { id } = await params;
   const { warningStatus } = await searchParams;
-  if (!/^[1-9]\d*$/.test(id)) notFound();
+  if (!/^-?[1-9]\d*$/.test(id)) notFound();
   const { data: officer, error } = await supabase
     .from("officers")
     .select("*, positions(name), officer_branches(branches(name))")
@@ -54,7 +54,7 @@ export default async function OfficerDetailPage({
       .eq("officer_id", Number(id)),
     supabase
       .from("point_transactions")
-      .select("*,officers(id,name),events(id,name)")
+      .select("*,officers(id,name),events(id,name),tasks(id,title)")
       .is("removed_at", null)
       .eq("officer_id", Number(id))
       .order("created_at", { ascending: false })
