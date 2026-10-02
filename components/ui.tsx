@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { displayPoints } from "@/lib/participation";
 import { formatLabel } from "@/lib/presentation";
 
 export function PageHeader({
@@ -115,8 +116,7 @@ export function PointValue({ value }: { value: number }) {
         : "text-zinc-300";
   return (
     <span className={`tabular-nums font-medium ${tone}`}>
-      {value > 0 ? "+" : ""}
-      {value.toLocaleString("en-US", { maximumFractionDigits: 6 })}
+      {displayPoints(value)}
     </span>
   );
 }

@@ -55,13 +55,16 @@ export default async function TasksPage() {
             {tasks.data.map((task) => {
               const assignment = task.task_assignments;
               const canManage = canManageEvent(actor, [task.branch_id]);
-              const status = !assignment
-                ? "Open"
-                : !assignment.completed_at
-                  ? "Assigned"
-                  : task.approval_required && !assignment.approved_at
-                    ? "Awaiting approval"
-                    : "Complete";
+              let status = "Open";
+              if (assignment) {
+                if (!assignment.completed_at) {
+                  status = "Assigned";
+                } else if (task.approval_required && !assignment.approved_at) {
+                  status = "Awaiting approval";
+                } else {
+                  status = "Complete";
+                }
+              }
               return (
                 <tr key={task.id} id={`task-${task.id}`}>
                   <td>

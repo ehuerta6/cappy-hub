@@ -1,14 +1,12 @@
 import { getAuthorizationContext, isAdmin } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
-import { connection } from "next/server";
 import CatalogManager from "../../catalog-manager";
 import { PageHeader } from "@/components/ui";
 
 export default async function OfficerCatalogsPage() {
   const actor = await getAuthorizationContext();
   if (!isAdmin(actor)) notFound();
-  await connection();
   const supabase = await createClient();
   const [positions, branches] = await Promise.all([
     supabase.from("positions").select("id,name").order("name"),

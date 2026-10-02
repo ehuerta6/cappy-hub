@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { changeCatalog } from "./catalog-actions";
 
 type Catalog = "position" | "branch";
-type Record = { id: number; name: string };
+type CatalogRecord = { id: number; name: string };
 
 function CatalogForm({
   catalog,
@@ -13,7 +13,7 @@ function CatalogForm({
 }: {
   catalog: Catalog;
   operation: "create" | "rename" | "delete";
-  record?: Record;
+  record?: CatalogRecord;
 }) {
   const [state, action, pending] = useActionState(changeCatalog, {
     error: "",
@@ -74,7 +74,7 @@ export default function CatalogManager({
 }: {
   catalog: Catalog;
   title: string;
-  records: Record[];
+  records: CatalogRecord[];
 }) {
   return (
     <section className="space-y-4">

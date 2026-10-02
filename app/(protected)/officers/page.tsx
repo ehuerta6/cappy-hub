@@ -3,7 +3,6 @@ import {
   canManageOfficers,
 } from "@/lib/authorization";
 import Link from "next/link";
-import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import {
   ActionLink,
@@ -18,7 +17,6 @@ import { WarningDecisionForm } from "./warning-forms";
 
 export default async function OfficersPage() {
   const actor = await getAuthorizationContext();
-  await connection();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("officers")

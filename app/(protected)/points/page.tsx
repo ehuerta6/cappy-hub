@@ -1,6 +1,5 @@
 import { getAuthorizationContext, canManagePoints } from "@/lib/authorization";
 import Link from "next/link";
-import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import TransactionForm from "./transaction-form";
 import HistoryTable from "./history-table";
@@ -14,7 +13,7 @@ import {
 
 const PAGE_SIZE = 25;
 type Params = Record<string, string | string[] | undefined>;
-const first = (value: Params[string]) =>
+const readStringParam = (value: Params[string]) =>
   typeof value === "string" ? value : "";
 const signedId = (value: string) => {
   const id = Number(value);
@@ -27,19 +26,21 @@ export default async function PointsPage({
   searchParams: Promise<Params>;
 }) {
   const actor = await getAuthorizationContext();
-  await connection();
   const admin = canManagePoints(actor);
   const params = await searchParams;
-  const search = first(params.q).trim().slice(0, 100);
-  const awardType = first(params.type);
-  const officerId = signedId(first(params.officer));
-  const eventId = signedId(first(params.event));
-  const requestedStatus = first(params.status);
+  const search = readStringParam(params.q).trim().slice(0, 100);
+  const awardType = readStringParam(params.type);
+  const officerId = signedId(readStringParam(params.officer));
+  const eventId = signedId(readStringParam(params.event));
+  const requestedStatus = readStringParam(params.status);
   const status =
     admin && ["active", "removed", "all"].includes(requestedStatus)
       ? requestedStatus
       : "active";
-  const requestedPage = Math.max(signedId(first(params.page)) ?? 1, 1);
+  const requestedPage = Math.max(
+    signedId(readStringParam(params.page)) ?? 1,
+    1,
+  );
   const page = Math.min(requestedPage, 100000);
 
   const supabase = await createClient();

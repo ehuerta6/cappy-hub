@@ -4,7 +4,6 @@ import {
   isLead,
 } from "@/lib/authorization";
 import { redirect } from "next/navigation";
-import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import EventForm from "../event-form";
 import { PageHeader } from "@/components/ui";
@@ -15,7 +14,6 @@ export default async function NewEventPage() {
     (!isLead(actor) || actor.branchIds.length === 0)
   )
     redirect("/access-denied");
-  await connection();
   const supabase = await createClient();
   const [branches, eventTypes] = await Promise.all([
     supabase.from("branches").select("id,name").order("name"),

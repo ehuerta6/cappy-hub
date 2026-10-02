@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { Tables } from "@/lib/database.types";
-import { displayDate } from "@/lib/event-status";
-import { formatLabel } from "@/lib/presentation";
+import { formatDate, formatLabel } from "@/lib/presentation";
 import { PointValue, StatusBadge } from "@/components/ui";
 import PointActions from "./point-actions";
 
@@ -59,7 +58,7 @@ export default function HistoryTable({
             <td>{formatLabel(transaction.award_type ?? "")}</td>
             <td>
               {transaction.created_at
-                ? displayDate(transaction.created_at)
+                ? formatDate(transaction.created_at)
                 : "—"}
             </td>
             {isAdmin && (
@@ -75,7 +74,7 @@ export default function HistoryTable({
                       Removed by{" "}
                       {transaction.removed_by_name ?? "Unlinked account"}
                     </div>
-                    <div>{displayDate(transaction.removed_at)}</div>
+                    <div>{formatDate(transaction.removed_at)}</div>
                   </div>
                 )}
               </td>

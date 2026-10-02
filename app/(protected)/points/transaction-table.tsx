@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { Tables } from "@/lib/database.types";
-import { displayDate } from "@/lib/event-status";
-import { formatLabel } from "@/lib/presentation";
+import { formatDate, formatLabel } from "@/lib/presentation";
 import { PointValue } from "@/components/ui";
 type Transaction = Tables<"point_transactions"> & {
   officers: Pick<Tables<"officers">, "id" | "name">;
@@ -52,7 +51,7 @@ export default function TransactionTable({
               <PointValue value={transaction.points} />
             </td>
             <td>{formatLabel(transaction.award_type)}</td>
-            <td>{displayDate(transaction.created_at)}</td>
+            <td>{formatDate(transaction.created_at)}</td>
           </tr>
         ))}
       </tbody>

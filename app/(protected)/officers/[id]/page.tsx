@@ -4,9 +4,8 @@ import {
   isAdmin,
 } from "@/lib/authorization";
 import TransactionTable from "@/app/(protected)/points/transaction-table";
-import { eventStatus, displayDate } from "@/lib/event-status";
+import { eventStatus } from "@/lib/event-status";
 import Link from "next/link";
-import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -18,7 +17,7 @@ import {
   StatusBadge,
   TableFrame,
 } from "@/components/ui";
-import { formatLabel } from "@/lib/presentation";
+import { formatDate, formatLabel } from "@/lib/presentation";
 import RoleForm from "./role-form";
 import { CreateWarningForm, DeleteWarningForm } from "../warning-forms";
 
@@ -30,7 +29,6 @@ export default async function OfficerDetailPage({
   searchParams: Promise<{ warningStatus?: string }>;
 }) {
   const actor = await getAuthorizationContext();
-  await connection();
   const supabase = await createClient();
   const { id } = await params;
   const { warningStatus } = await searchParams;
@@ -193,7 +191,7 @@ export default async function OfficerDetailPage({
               <div className="flex flex-wrap items-center gap-3">
                 <StatusBadge status={warning.status} />
                 <time dateTime={warning.created_at}>
-                  {displayDate(warning.created_at)}
+                  {formatDate(warning.created_at)}
                 </time>
               </div>
               <p className="whitespace-pre-wrap">{warning.reason}</p>

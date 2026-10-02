@@ -1,14 +1,10 @@
 import { getAuthorizationContext, canManageEvent } from "@/lib/authorization";
 import TransactionTable from "@/app/(protected)/points/transaction-table";
 import Link from "next/link";
-import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import {
-  eventStatus,
-  displayDateTime,
-  participationLabel,
-} from "@/lib/event-status";
+import { eventStatus, participationLabel } from "@/lib/event-status";
+import { formatDateTime } from "@/lib/presentation";
 import { SignupForm, CancelForm, RemoveEventForm } from "../event-controls";
 import {
   ActionLink,
@@ -24,7 +20,6 @@ export default async function EventDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const actor = await getAuthorizationContext();
-  await connection();
   const supabase = await createClient();
   const { id } = await params;
   if (!/^-?[1-9]\d*$/.test(id)) notFound();
@@ -110,13 +105,13 @@ export default async function EventDetailPage({
         <dt>Date</dt>
         <dd>{event.event_date}</dd>
         <dt>Start</dt>
-        <dd>{displayDateTime(event.starts_at)}</dd>
+        <dd>{formatDateTime(event.starts_at)}</dd>
         <dt>End</dt>
-        <dd>{displayDateTime(event.ends_at)}</dd>
+        <dd>{formatDateTime(event.ends_at)}</dd>
         {event.deleted_at && (
           <>
             <dt>Removed at</dt>
-            <dd>{displayDateTime(event.deleted_at)}</dd>
+            <dd>{formatDateTime(event.deleted_at)}</dd>
           </>
         )}
         <dt>Processing</dt>

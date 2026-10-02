@@ -4,7 +4,6 @@ import {
   canSeeAllBranches,
 } from "@/lib/authorization";
 import { redirect } from "next/navigation";
-import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import EventForm from "../../event-form";
@@ -15,7 +14,6 @@ export default async function EditEventPage({
   params: Promise<{ id: string }>;
 }) {
   const actor = await getAuthorizationContext();
-  await connection();
   const supabase = await createClient();
   const { id } = await params;
   if (!/^-?[1-9]\d*$/.test(id)) notFound();

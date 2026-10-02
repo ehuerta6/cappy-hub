@@ -5,7 +5,6 @@ import type { Database } from "@/lib/database.types";
 import { formatLabel } from "@/lib/presentation";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { connection } from "next/server";
 
 type AuditDetails =
   Database["public"]["Tables"]["audit_logs"]["Row"]["details"];
@@ -47,7 +46,6 @@ export default async function SystemLogPage({
 }: PageProps<"/system-log">) {
   const actor = await getAuthorizationContext();
   if (!canViewSystemLog(actor)) redirect("/access-denied");
-  await connection();
   const rawPage = (await searchParams).page;
   const requestedPage = typeof rawPage === "string" ? Number(rawPage) : 1;
   const page =

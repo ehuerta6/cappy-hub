@@ -29,8 +29,6 @@ export const canManageEvent = (
   (isLead(actor) &&
     branches.length > 0 &&
     branches.every((id) => actor.branchIds.includes(id)));
-export const canManageSignupForEvent = canManageEvent;
 export const canManageOfficers = isAdmin;
 export const canManagePoints = isAdmin;
-export const canManageCatalogs = isAdmin;
 export const canViewSystemLog = isAdmin;

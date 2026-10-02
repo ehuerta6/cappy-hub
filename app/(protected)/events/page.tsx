@@ -5,7 +5,6 @@ import {
   canSeeAllBranches,
 } from "@/lib/authorization";
 import Link from "next/link";
-import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { eventStatus, participationLabel } from "@/lib/event-status";
 import {
@@ -21,7 +20,6 @@ export default async function EventsPage({
   searchParams: Promise<{ removed?: string }>;
 }) {
   const actor = await getAuthorizationContext();
-  await connection();
   const supabase = await createClient();
   const showRemoved = isAdmin(actor) && (await searchParams).removed === "1";
   let query = supabase

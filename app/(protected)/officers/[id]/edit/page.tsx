@@ -3,7 +3,6 @@ import {
   canManageOfficers,
 } from "@/lib/authorization";
 import { redirect } from "next/navigation";
-import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import OfficerForm from "../../new/officer-form";
@@ -15,7 +14,6 @@ export default async function EditOfficerPage({
 }) {
   if (!canManageOfficers(await getAuthorizationContext()))
     redirect("/access-denied");
-  await connection();
   const supabase = await createClient();
   const { id } = await params;
   if (!/^-?[1-9]\d*$/.test(id)) notFound();
