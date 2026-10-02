@@ -50,13 +50,15 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
 select ok(not has_function_privilege('authenticated','private.process_finished_events()','EXECUTE')
   and has_function_privilege('authenticated','public.claim_current_officer_identity()','EXECUTE')
   and has_function_privilege('authenticated','public.save_event_with_links(text,text,bigint,text,date,timestamptz,timestamptz,bigint[],bigint,text,text)','EXECUTE')
-  and has_function_privilege('authenticated','public.change_event_signup(bigint,bigint,boolean)','EXECUTE'),
+  and has_function_privilege('authenticated','public.change_event_signup(bigint,bigint,boolean)','EXECUTE')
+  and has_function_privilege('authenticated','public.bulk_add_event_officers(bigint,bigint[])','EXECUTE'),
   'essential checked RPCs remain callable and private processing stays closed');
 select ok(not exists(select 1 from pg_catalog.pg_proc p
   join pg_catalog.pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and has_function_privilege('authenticated',p.oid,'EXECUTE')
     and p.oid not in (
       'public.change_event_signup(bigint,bigint,boolean)'::regprocedure,
+      'public.bulk_add_event_officers(bigint,bigint[])'::regprocedure,
       'public.save_officer(text,bigint,text,bigint[],bigint,text,text,text)'::regprocedure,
       'public.save_event(text,text,bigint,text,timestamptz,timestamptz,bigint[],bigint)'::regprocedure,
       'public.claim_current_officer_identity()'::regprocedure,

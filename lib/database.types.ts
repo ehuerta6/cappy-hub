@@ -701,6 +701,10 @@ export type Database = {
         Args: { p_officer_id: number; p_task_id: number };
         Returns: undefined;
       };
+      bulk_add_event_officers: {
+        Args: { p_event_id: number; p_officer_ids: number[] };
+        Returns: Json;
+      };
       cancel_event: { Args: { p_event_id: number }; Returns: undefined };
       change_event_signup: {
         Args: { p_event_id: number; p_officer_id: number; p_remove?: boolean };

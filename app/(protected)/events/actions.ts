@@ -71,6 +71,45 @@ export async function changeSignup(
       formData.get("remove") === "true" ? "Signup removed" : "Officer added",
   };
 }
+export async function bulkAddEventOfficers(
+  _previous: { error: string; success: string },
+  formData: FormData,
+) {
+  await getAuthorizationContext();
+  const eventId = Number(formData.get("event_id"));
+  const rawIds = formData.getAll("officer_ids");
+  if (!Number.isSafeInteger(eventId) || eventId === 0 || rawIds.length === 0)
+    return { error: "Select at least one officer", success: "" };
+  const officerIds = rawIds.map((value) => String(value));
+  if (
+    officerIds.some((value) => !/^-?[1-9]\d*$/.test(value)) ||
+    officerIds.some((value) => !Number.isSafeInteger(Number(value)))
+  )
+    return { error: "Select valid officers", success: "" };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("bulk_add_event_officers", {
+    p_event_id: eventId,
+    p_officer_ids: officerIds.map(Number),
+  });
+  if (error) return { error: mutationError(error.message), success: "" };
+  revalidatePath("/", "layout");
+  const result = data as {
+    added_officer_ids?: number[];
+    awarded_officer_ids?: number[];
+    points_per_officer?: number | null;
+  };
+  const count = result.added_officer_ids?.length ?? 0;
+  const awards = result.awarded_officer_ids?.length ?? 0;
+  return {
+    error: "",
+    success:
+      awards > 0
+        ? `Added ${count} attendee${count === 1 ? "" : "s"}; awarded ${awards} officer${awards === 1 ? "" : "s"} ${result.points_per_officer} points each`
+        : count > 0
+          ? `Added ${count} officer${count === 1 ? "" : "s"}`
+          : "No changes were needed; selected officers were already added.",
+  };
+}
 export async function cancelEvent(
   _previous: { error: string; success: string },
   formData: FormData,

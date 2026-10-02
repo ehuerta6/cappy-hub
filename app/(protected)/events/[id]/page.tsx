@@ -5,7 +5,12 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { eventStatus, participationLabel } from "@/lib/event-status";
 import { formatDateTime } from "@/lib/presentation";
-import { SignupForm, CancelForm, RemoveEventForm } from "../event-controls";
+import {
+  BulkAddOfficersForm,
+  SignupForm,
+  CancelForm,
+  RemoveEventForm,
+} from "../event-controls";
 import {
   ActionLink,
   BranchBadges,
@@ -45,6 +50,7 @@ export default async function EventDetailPage({
     !event.deleted_at &&
     !event.participation_points_per_hour_at_end &&
     (status === "upcoming" || status === "happening");
+  const past = status === "past";
   const canManage = canManageEvent(
     actor,
     event.event_branches.map((x) => x.branch_id),
@@ -178,13 +184,38 @@ export default async function EventDetailPage({
           </table>
         </TableFrame>
         {!event.event_officers.length && <p>No officers signed up.</p>}
-        {signupOpen && (
+        {signupOpen && canManage && (
+          <BulkAddOfficersForm
+            eventId={event.id}
+            officers={officers.data.filter(
+              (officer) =>
+                !event.event_officers.some((x) => x.officers.id === officer.id),
+            )}
+          />
+        )}
+        {signupOpen && !canManage && (
           <SignupForm
             eventId={event.id}
-            officers={(canManage
-              ? officers.data
-              : officers.data.filter((officer) => officer.id === actor.id)
-            ).filter(
+            officers={officers.data.filter(
+              (officer) =>
+                officer.id === actor.id &&
+                !event.event_officers.some((x) => x.officers.id === officer.id),
+            )}
+          />
+        )}
+        {canManage && past && !event.deleted_at && (
+          <BulkAddOfficersForm
+            eventId={event.id}
+            past
+            pointsPerOfficer={
+              event.participation_points_per_hour_at_end === null
+                ? undefined
+                : ((new Date(event.ends_at).getTime() -
+                    new Date(event.starts_at).getTime()) /
+                    3_600_000) *
+                  event.participation_points_per_hour_at_end
+            }
+            officers={officers.data.filter(
               (officer) =>
                 !event.event_officers.some((x) => x.officers.id === officer.id),
             )}

@@ -1,7 +1,12 @@
 "use client";
 import { useActionState } from "react";
 import type { Tables } from "@/lib/database.types";
-import { changeSignup, cancelEvent, removeEvent } from "./actions";
+import {
+  bulkAddEventOfficers,
+  changeSignup,
+  cancelEvent,
+  removeEvent,
+} from "./actions";
 export function SignupForm({
   eventId,
   officers,
@@ -40,6 +45,62 @@ export function SignupForm({
       {state.success && <p role="status">{state.success}</p>}
       <button disabled={pending} className={remove ? "button-secondary" : ""}>
         {remove ? "Remove signup" : "Add officer"}
+      </button>
+    </form>
+  );
+}
+export function BulkAddOfficersForm({
+  eventId,
+  officers,
+  past = false,
+  pointsPerOfficer,
+}: {
+  eventId: number;
+  officers: Pick<Tables<"officers">, "id" | "name">[];
+  past?: boolean;
+  pointsPerOfficer?: number;
+}) {
+  const [state, action, pending] = useActionState(bulkAddEventOfficers, {
+    error: "",
+    success: "",
+  });
+  return (
+    <form action={action} className="mt-4 space-y-3">
+      <input type="hidden" name="event_id" value={eventId} />
+      <fieldset>
+        <legend>{past ? "Select attendees" : "Select officers to add"}</legend>
+        {officers.length ? (
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {officers.map((officer) => (
+              <label key={officer.id} className="flex items-center gap-2">
+                <input type="checkbox" name="officer_ids" value={officer.id} />
+                {officer.name}
+              </label>
+            ))}
+          </div>
+        ) : (
+          <p>No active officers are available to add.</p>
+        )}
+      </fieldset>
+      {past && pointsPerOfficer !== undefined && (
+        <p className="text-sm text-zinc-400">
+          Each new award: {pointsPerOfficer} points from this event’s saved
+          participation rate.
+        </p>
+      )}
+      {past && pointsPerOfficer === undefined && (
+        <p className="text-sm text-zinc-400">
+          The participation rate will be saved when attendees are added.
+        </p>
+      )}
+      {state.error && <p role="alert">{state.error}</p>}
+      {state.success && <p role="status">{state.success}</p>}
+      <button disabled={pending || officers.length === 0}>
+        {pending
+          ? "Adding…"
+          : past
+            ? "Add attendees and award points"
+            : "Add selected officers"}
       </button>
     </form>
   );
