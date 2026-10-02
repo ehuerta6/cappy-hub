@@ -15,3 +15,15 @@ export function eventStatus(
   if (now >= new Date(event.starts_at).getTime()) return "happening";
   return "upcoming";
 }
+
+export function eventSignupOpen(
+  event: Parameters<typeof eventStatus>[0] &
+    Pick<Tables<"events">, "participation_points_per_hour_at_end">,
+  now = Date.now(),
+) {
+  const status = eventStatus(event, now);
+  return (
+    event.participation_points_per_hour_at_end === null &&
+    (status === "upcoming" || status === "happening")
+  );
+}

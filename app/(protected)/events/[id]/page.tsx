@@ -3,7 +3,11 @@ import TransactionTable from "@/app/(protected)/points/transaction-table";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { eventStatus, participationLabel } from "@/lib/event-status";
+import {
+  eventStatus,
+  eventSignupOpen,
+  participationLabel,
+} from "@/lib/event-status";
 import { formatDateTime } from "@/lib/presentation";
 import {
   BulkAddOfficersForm,
@@ -46,10 +50,7 @@ export default async function EventDetailPage({
   if (!result.data) notFound();
   const event = result.data;
   const status = eventStatus(event);
-  const signupOpen =
-    !event.deleted_at &&
-    !event.participation_points_per_hour_at_end &&
-    (status === "upcoming" || status === "happening");
+  const signupOpen = eventSignupOpen(event);
   const past = status === "past";
   const canManage = canManageEvent(
     actor,

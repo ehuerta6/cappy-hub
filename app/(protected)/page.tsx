@@ -4,11 +4,16 @@ import { createClient } from "@/lib/supabase/server";
 import { displayPoints } from "@/lib/participation";
 import { participationLabel } from "@/lib/event-status";
 import TransactionTable from "./points/transaction-table";
-import { PageHeader, SectionHeading, TableFrame } from "@/components/ui";
+import {
+  ActionLink,
+  PageHeader,
+  SectionHeading,
+  TableFrame,
+} from "@/components/ui";
 export default async function DashboardPage() {
   const officer = await requireCurrentOfficer();
   const supabase = await createClient();
-  const [summary, events, transactions] = await Promise.all([
+  const [summary, events, transactions, total] = await Promise.all([
     supabase.from("dashboard_summary").select("*").single(),
     supabase
       .from("events")
@@ -24,8 +29,13 @@ export default async function DashboardPage() {
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
       .limit(10),
+    supabase
+      .from("officer_point_totals")
+      .select("total_points")
+      .eq("id", officer.id)
+      .single(),
   ]);
-  if (summary.error || events.error || transactions.error)
+  if (summary.error || events.error || transactions.error || total.error)
     throw new Error("Failed to load dashboard");
   return (
     <div className="space-y-8">
@@ -33,6 +43,24 @@ export default async function DashboardPage() {
         title="Dashboard"
         description="A current view of club activity."
       />
+      <section
+        aria-label="Your profile"
+        className="flex flex-col gap-4 rounded-lg border border-zinc-800 bg-zinc-900/40 p-4 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div className="min-w-0 space-y-1">
+          <h2 className="break-words">{officer.name}</h2>
+          <p>{officer.positionName}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-5">
+          <div>
+            <p className="text-sm">Your total points</p>
+            <p className="text-2xl font-semibold tabular-nums text-zinc-100">
+              {displayPoints(total.data.total_points ?? 0)}
+            </p>
+          </div>
+          <ActionLink href={`/officers/${officer.id}`}>View profile</ActionLink>
+        </div>
+      </section>
       <section
         aria-label="Summary"
         className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"

@@ -71,6 +71,16 @@ export async function changeSignup(
       formData.get("remove") === "true" ? "Signup removed" : "Officer added",
   };
 }
+export async function selfSignup(
+  previous: { error: string; success: string },
+  formData: FormData,
+) {
+  const actor = await getAuthorizationContext();
+  const signup = new FormData();
+  signup.set("event_id", String(formData.get("event_id") ?? ""));
+  signup.set("officer_id", String(actor.id));
+  return changeSignup(previous, signup);
+}
 export async function bulkAddEventOfficers(
   _previous: { error: string; success: string },
   formData: FormData,

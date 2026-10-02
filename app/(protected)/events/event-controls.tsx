@@ -4,9 +4,36 @@ import type { Tables } from "@/lib/database.types";
 import {
   bulkAddEventOfficers,
   changeSignup,
+  selfSignup,
   cancelEvent,
   removeEvent,
 } from "./actions";
+export function SelfSignupForm({
+  eventId,
+  eventName,
+}: {
+  eventId: number;
+  eventName: string;
+}) {
+  const [state, action, pending] = useActionState(selfSignup, {
+    error: "",
+    success: "",
+  });
+  return (
+    <form action={action} className="gap-2">
+      <input type="hidden" name="event_id" value={eventId} />
+      <button
+        disabled={pending}
+        aria-label={`Sign up for ${eventName}`}
+        className="whitespace-nowrap px-3 py-1.5"
+      >
+        {pending ? "Signing up…" : "Sign up"}
+      </button>
+      {state.error && <p role="alert">{state.error}</p>}
+      {state.success && <p role="status">{state.success}</p>}
+    </form>
+  );
+}
 export function SignupForm({
   eventId,
   officers,

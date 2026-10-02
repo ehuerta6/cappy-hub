@@ -9,7 +9,11 @@ vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 
 import { getAuthorizationContext } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
-import { bulkAddEventOfficers } from "@/app/(protected)/events/actions";
+import { revalidatePath } from "next/cache";
+import {
+  bulkAddEventOfficers,
+  selfSignup,
+} from "@/app/(protected)/events/actions";
 
 const rpc = vi.fn();
 const form = (...ids: string[]) => {
@@ -65,4 +69,30 @@ it("surfaces trusted database authorization and validation errors", async () => 
     form("3"),
   );
   expect(result.error).toBe("Event outside branch scope");
+});
+
+it("self signup derives identity on the server and revalidates the grouped page", async () => {
+  const data = form();
+  data.set("officer_id", "999");
+  data.set("remove", "true");
+  const result = await selfSignup({ error: "", success: "" }, data);
+  expect(rpc).toHaveBeenCalledWith("change_event_signup", {
+    p_event_id: 12,
+    p_officer_id: 8,
+    p_remove: false,
+  });
+  expect(result.error).toBe("");
+  expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+});
+
+it("self signup reports closed-event RPC errors without claiming success or revalidating", async () => {
+  rpc.mockResolvedValueOnce({
+    error: { message: "Signups are closed for this event" },
+  });
+  const result = await selfSignup({ error: "", success: "" }, form());
+  expect(result).toEqual({
+    error: "Signups are closed for this event",
+    success: "",
+  });
+  expect(revalidatePath).not.toHaveBeenCalled();
 });
