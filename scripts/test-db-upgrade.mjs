@@ -1,11 +1,12 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+
+process.env.SUPABASE_TELEMETRY_DISABLED = "true";
 
 // Deliberately no URL/linked-project option: resets ONLY the local development DB.
 const cli = (args) =>
   execFileSync("node_modules/.bin/supabase", args, { stdio: "inherit" });
-try {
-  cli(["db", "reset", "--local", "--no-seed", "--version", "20260927170954"]);
+const psql = (sql) =>
   execFileSync(
     "docker",
     [
@@ -20,12 +21,27 @@ try {
       "-v",
       "ON_ERROR_STOP=1",
     ],
-    {
-      input: readFileSync("supabase/fixtures/pr1-poc.sql"),
-      stdio: ["pipe", "inherit", "inherit"],
-    },
+    { input: sql, stdio: ["pipe", "inherit", "inherit"] },
   );
-  cli(["migration", "up", "--local"]);
+try {
+  // Build the recorded old schema with live data, then replay each migration
+  // to the production predecessor before adding data that requires untimed
+  // Events. Apply the exact candidate migration last to test the real upgrade.
+  cli(["db", "reset", "--local", "--no-seed", "--version", "20260927170954"]);
+  psql(readFileSync("supabase/fixtures/pr1-poc.sql"));
+  const migrations = readdirSync("supabase/migrations")
+    .filter(
+      (file) =>
+        file.endsWith(".sql") &&
+        file.slice(0, 14) > "20260927170954" &&
+        file.slice(0, 14) < "20261001060843",
+    )
+    .sort();
+  for (const migration of migrations) {
+    psql(readFileSync(`supabase/migrations/${migration}`));
+  }
+  psql(readFileSync("supabase/fixtures/pre-simplify-untimed.sql"));
+  psql(readFileSync("supabase/migrations/20261001060843_simplify_events.sql"));
   cli([
     "test",
     "db",

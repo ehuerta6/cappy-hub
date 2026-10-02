@@ -1,23 +1,24 @@
--- Issue #31: preserve timed history; remove synthetic-style work events and
--- obsolete type rows only after their dependent participation data is removed.
+-- Issue #31: preserve all timed history, including rows whose former Event
+-- Types are no longer offered for new Events. Remove only truly untimed work.
 with removed as (
-  select e.id from public.events e join public.event_types t on t.id=e.event_type_id
-  where e.starts_at is null or t.name in ('General','Intro','ICPC')
+  select e.id from public.events e where e.starts_at is null
 )
 delete from public.point_transactions where event_id in (select id from removed);
 with removed as (
-  select e.id from public.events e join public.event_types t on t.id=e.event_type_id
-  where e.starts_at is null or t.name in ('General','Intro','ICPC')
+  select e.id from public.events e where e.starts_at is null
 )
 delete from public.event_officers where event_id in (select id from removed);
 with removed as (
-  select e.id from public.events e join public.event_types t on t.id=e.event_type_id
-  where e.starts_at is null or t.name in ('General','Intro','ICPC')
+  select e.id from public.events e where e.starts_at is null
 )
 delete from public.event_branches where event_id in (select id from removed);
-delete from public.events e using public.event_types t
-  where e.event_type_id=t.id and (e.starts_at is null or t.name in ('General','Intro','ICPC'));
-delete from public.event_types where name in ('General','Intro','ICPC');
+delete from public.events where starts_at is null;
+-- Keep legacy type values while timed Events still reference them. Removing
+-- unreferenced catalog rows is safe because the trusted save RPC allowlists
+-- only Meeting, Social, and Workshop below.
+delete from public.event_types t
+  where t.name in ('General','Intro','ICPC')
+    and not exists(select 1 from public.events e where e.event_type_id=t.id);
 
 -- Drop the old callable signatures before removing the obsolete columns.
 drop function public.save_event_with_links(text,text,bigint,text,date,timestamptz,timestamptz,numeric,bigint[],bigint,text,text);

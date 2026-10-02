@@ -9,8 +9,15 @@ insert into events(id,name,type,starts_at,ends_at,status) values
   (90001,'Custom historical event',' Career Fair ','2026-09-20 09:00-06','2026-09-20 10:00-06','past'),
   (90002,'Same custom type','career fair','2026-09-20 11:00-06','2026-09-20 12:00-06','past'),
   (90003,'Seeded type variant',' WORKSHOP ','2027-09-20 09:00-06','2027-09-20 10:00-06','upcoming');
-insert into event_branches(event_id,branch_id) values (90001,1),(90001,2);
-insert into event_officers(event_id,officer_id) values (90001,90001);
+-- Legacy type labels do not make a timed historical Event disposable.
+insert into events(id,name,type,starts_at,ends_at,status) values
+  (90004,'Timed General history','General','2026-09-21 09:00-06','2026-09-21 10:00-06','past'),
+  (90005,'Timed Intro history','Intro','2026-09-22 09:00-06','2026-09-22 10:00-06','past'),
+  (90006,'Timed ICPC history','ICPC','2026-09-23 09:00-06','2026-09-23 10:00-06','past');
+insert into event_branches(event_id,branch_id) values
+  (90001,1),(90001,2),(90004,1),(90004,2),(90005,1),(90006,2);
+insert into event_officers(event_id,officer_id) values
+  (90001,90001),(90004,90001),(90005,90001),(90006,90001);
 insert into point_transactions(id,officer_id,event_id,points,reason,award_type,created_by) values
   (90001,90001,90001,2.5,'Historical participation','participation',null),
   (90002,90001,90001,-0.75,'Historical correction','correction','20000000-0000-0000-0000-000000000001');
