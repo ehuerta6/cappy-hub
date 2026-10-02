@@ -1,6 +1,10 @@
 import Link from "next/link";
 import type { Tables } from "@/lib/database.types";
-import { formatDate, formatLabel } from "@/lib/presentation";
+import {
+  formatCalendarDate,
+  formatDate,
+  formatLabel,
+} from "@/lib/presentation";
 import { PointValue, StatusBadge } from "@/components/ui";
 import PointActions from "./point-actions";
 
@@ -21,7 +25,7 @@ export default function HistoryTable({
           <th>Reason</th>
           <th>Points</th>
           <th>Type</th>
-          <th>Date</th>
+          <th>Activity date</th>
           {isAdmin && <th>Actor / status</th>}
           {isAdmin && <th>Action</th>}
         </tr>
@@ -57,8 +61,8 @@ export default function HistoryTable({
             </td>
             <td>{formatLabel(transaction.award_type ?? "")}</td>
             <td>
-              {transaction.created_at
-                ? formatDate(transaction.created_at)
+              {transaction.activity_date
+                ? formatCalendarDate(transaction.activity_date)
                 : "—"}
             </td>
             {isAdmin && (

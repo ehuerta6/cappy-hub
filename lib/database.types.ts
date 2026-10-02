@@ -633,10 +633,12 @@ export type Database = {
       };
       point_history: {
         Row: {
+          activity_date: string | null;
           award_type: string | null;
           created_at: string | null;
           created_by: string | null;
           created_by_name: string | null;
+          event_date: string | null;
           event_id: number | null;
           event_name: string | null;
           id: number | null;

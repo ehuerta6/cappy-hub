@@ -23,6 +23,19 @@ export function formatDate(value: string) {
   return new Date(value).toLocaleDateString("en-US", dateOptions);
 }
 
+/** Format a SQL date without shifting it across a timezone boundary. */
+export function formatCalendarDate(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day, 12)).toLocaleDateString(
+    "en-US",
+    { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" },
+  );
+}
+
+export function formatEventFilterOption(name: string, eventDate: string) {
+  return `${name} — ${formatCalendarDate(eventDate)}`;
+}
+
 export function formatDateTime(value: string) {
   return new Date(value).toLocaleString("en-US", {
     ...dateOptions,

@@ -5,6 +5,8 @@ import {
   editPointTransactionInputSchema,
   manualPointTransactionInputSchema,
   participationRateInputSchema,
+  pointHistoryFiltersSchema,
+  resolvePointHistoryStatus,
 } from "@/app/(protected)/points/validation";
 import {
   createTaskInputSchema,
@@ -112,6 +114,68 @@ it("requires finite nonzero points and a positive participation rate", () => {
       points: "Infinity",
     }).success,
   ).toBe(false);
+});
+
+it("validates Point History filters, dates, signed local IDs, and page fallback", () => {
+  const validatedPointHistoryFilters = pointHistoryFiltersSchema.parse({
+    q: " Emi ",
+    type: "participation",
+    officer: "-1013",
+    event: "-2001",
+    status: "removed",
+    from: "2026-09-01",
+    to: "2026-10-01",
+    page: "8",
+  });
+  expect(validatedPointHistoryFilters).toMatchObject({
+    q: "Emi",
+    type: "participation",
+    officer: -1013,
+    event: -2001,
+    status: "removed",
+    from: "2026-09-01",
+    to: "2026-10-01",
+    page: 8,
+    dateRangeIsReversed: false,
+  });
+
+  expect(pointHistoryFiltersSchema.parse({ from: "2026-09-01" }).from).toBe(
+    "2026-09-01",
+  );
+  expect(pointHistoryFiltersSchema.parse({ to: "2026-10-01" }).to).toBe(
+    "2026-10-01",
+  );
+
+  const malformedPointHistoryFilters = pointHistoryFiltersSchema.parse({
+    from: "2026-02-30",
+    to: "yesterday",
+    type: "not-a-type",
+    officer: "9007199254740992",
+    event: "bad-id",
+    page: "-2",
+  });
+  expect(malformedPointHistoryFilters).toMatchObject({
+    from: undefined,
+    to: undefined,
+    type: undefined,
+    officer: undefined,
+    event: undefined,
+    page: 1,
+  });
+
+  expect(
+    pointHistoryFiltersSchema.parse({
+      from: "2026-10-02",
+      to: "2026-10-01",
+    }).dateRangeIsReversed,
+  ).toBe(true);
+});
+
+it("keeps removed/all Point History status available only to admins", () => {
+  expect(resolvePointHistoryStatus("removed", false)).toBe("active");
+  expect(resolvePointHistoryStatus("all", false)).toBe("active");
+  expect(resolvePointHistoryStatus("removed", true)).toBe("removed");
+  expect(resolvePointHistoryStatus(undefined, true)).toBe("active");
 });
 
 it("models only valid catalog operation combinations", () => {
