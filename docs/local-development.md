@@ -13,6 +13,27 @@ npm run dev
 
 `local:setup` runs the full local reset. It starts Supabase, replays migrations, loads the synthetic `supabase/seed.sql`, creates local Auth test accounts, links those accounts to synthetic officers, and writes the local public URL and publishable key to `.env.local`.
 
+## Local test accounts
+
+Use these emails on the local login page. Every account uses the same local-only password: `CappyLocal123!`.
+
+| Role              | Local email                |
+| ----------------- | -------------------------- |
+| Admin             | `admin@cappy.test`         |
+| President         | `president@cappy.test`     |
+| VP Operations     | `vp-operations@cappy.test` |
+| VP Academics      | `vp-academics@cappy.test`  |
+| Intro Lead        | `intro-lead@cappy.test`    |
+| ICPC Lead         | `icpc-lead@cappy.test`     |
+| Social Lead       | `social-lead@cappy.test`   |
+| Outreach Lead     | `outreach-lead@cappy.test` |
+| Multi Branch Lead | `multi-lead@cappy.test`    |
+| Secretary         | `secretary@cappy.test`     |
+| Officer           | `officer@cappy.test`       |
+| Inactive Officer  | `inactive@cappy.test`      |
+
+These synthetic accounts are created only by the local setup/reset workflow. Never use this password or these accounts in production.
+
 ## Daily development
 
 After pulling the latest code:
@@ -34,25 +55,6 @@ npx supabase migration up --local
 `npm run local:reset` is destructive to the local database. It stops and starts the local stack, rebuilds the database from migrations, loads the synthetic seed, recreates Auth test accounts, and updates `.env.local`.
 
 Use it when you intentionally want to discard local changes and return to the synthetic development dataset. It does not affect production.
-
-## Test accounts
-
-The local login page has test accounts for these roles:
-
-- Admin
-- President
-- VP Operations
-- VP Academics
-- Intro Lead
-- ICPC Lead
-- Social Lead
-- Outreach Lead
-- Multi Branch Lead
-- Secretary
-- Officer
-- Inactive Officer
-
-These password accounts exist only for local development. Production uses Google Sign-In.
 
 ## Local Supabase Studio
 
