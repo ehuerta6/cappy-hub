@@ -13,7 +13,10 @@ vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 
 import { getAuthorizationContext } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
-import { changeApplicationRole } from "@/app/(protected)/officers/actions";
+import {
+  changeApplicationRole,
+  saveOfficer,
+} from "@/app/(protected)/officers/actions";
 import { changeCatalog } from "@/app/(protected)/catalog-actions";
 
 const rpc = vi.fn().mockResolvedValue({ error: null });
@@ -49,6 +52,44 @@ it("uses the existing audited role RPC for another officer", async () => {
   expect(rpc).toHaveBeenCalledWith("set_officer_application_role", {
     p_officer_id: 602,
     p_role: "admin",
+  });
+});
+
+it("rejects a malformed role ID before calling the audited RPC", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 601,
+    applicationRole: "admin",
+  } as never);
+  const malformedRoleForm = roleForm("admin");
+  malformedRoleForm.set("officer_id", "602x");
+  expect((await changeApplicationRole(previous, malformedRoleForm)).error).toBe(
+    "Invalid role assignment",
+  );
+  expect(rpc).not.toHaveBeenCalled();
+});
+
+it("validates officer input and preserves the save RPC arguments", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 601,
+    applicationRole: "admin",
+  } as never);
+  const officerForm = new FormData();
+  officerForm.set("name", " Alex Example ");
+  officerForm.set("utep_email", " alex@example.edu ");
+  officerForm.set("personal_email", "");
+  officerForm.set("position_id", "4");
+  officerForm.set("classification", "");
+  officerForm.append("branches", "-2");
+  await saveOfficer({ error: "" }, officerForm);
+  expect(rpc).toHaveBeenCalledWith("save_officer", {
+    p_officer_id: undefined,
+    p_name: " Alex Example ",
+    p_utep_email: "alex@example.edu",
+    p_personal_email: undefined,
+    p_position_id: 4,
+    p_classification: undefined,
+    p_status: "active",
+    p_branch_ids: [-2],
   });
 });
 
@@ -107,4 +148,17 @@ it("rejects obsolete event type catalog mutations before any RPC", async () => {
     "Invalid catalog operation",
   );
   expect(rpc).not.toHaveBeenCalled();
+});
+
+it("routes a valid catalog create through the existing branch RPC", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 601,
+    applicationRole: "admin",
+  } as never);
+  const branchForm = new FormData();
+  branchForm.set("catalog", "branch");
+  branchForm.set("operation", "create");
+  branchForm.set("name", "Denver");
+  expect((await changeCatalog(previous, branchForm)).success).toBe("Saved");
+  expect(rpc).toHaveBeenCalledWith("create_branch", { p_name: "Denver" });
 });

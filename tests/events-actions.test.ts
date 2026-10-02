@@ -2,6 +2,14 @@ import { beforeEach, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/authorization", () => ({
   getAuthorizationContext: vi.fn(),
+  canManageEvent: (
+    actor: { positionName?: string; branchIds?: number[] },
+    branches: number[],
+  ) =>
+    actor.positionName === "President" ||
+    (actor.positionName === "Lead" &&
+      branches.length > 0 &&
+      branches.every((branchId) => actor.branchIds?.includes(branchId))),
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -12,14 +20,31 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import {
   bulkAddEventOfficers,
+  saveEvent,
   selfSignup,
 } from "@/app/(protected)/events/actions";
+import { denverTimestamp } from "@/lib/event-time";
 
 const rpc = vi.fn();
 const form = (...ids: string[]) => {
   const data = new FormData();
   data.set("event_id", "12");
   for (const id of ids) data.append("officer_ids", id);
+  return data;
+};
+
+const eventForm = () => {
+  const data = new FormData();
+  data.set("name", " CIC meeting ");
+  data.set("description", " Agenda ");
+  data.set("event_type_id", "2");
+  data.set("location", "Campus");
+  data.set("event_date", "2026-10-12");
+  data.set("start_time", "10:00");
+  data.set("end_time", "11:00");
+  data.append("branches", "-4");
+  data.set("slides_url", " https://example.com/slides ");
+  data.set("meeting_notes_url", "");
   return data;
 };
 
@@ -47,6 +72,39 @@ it("submits a selected officer group to the trusted RPC", async () => {
   expect(rpc).toHaveBeenCalledWith("bulk_add_event_officers", {
     p_event_id: 12,
     p_officer_ids: [3, 4, 3],
+  });
+});
+
+it("rejects malformed Event input before calling the RPC", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 8,
+    positionName: "President",
+  } as never);
+  const invalidEventForm = eventForm();
+  invalidEventForm.set("event_date", "October 12");
+  const result = await saveEvent({ error: "" }, invalidEventForm);
+  expect(result).toEqual({ error: "Choose one event date" });
+  expect(rpc).not.toHaveBeenCalled();
+});
+
+it("sends validated Event fields to the existing RPC", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 8,
+    positionName: "President",
+  } as never);
+  await saveEvent({ error: "" }, eventForm());
+  expect(rpc).toHaveBeenCalledWith("save_event_with_links", {
+    p_event_id: undefined,
+    p_name: " CIC meeting ",
+    p_description: " Agenda ",
+    p_event_type_id: 2,
+    p_location: "Campus",
+    p_event_date: "2026-10-12",
+    p_starts_at: denverTimestamp("2026-10-12", "10:00"),
+    p_ends_at: denverTimestamp("2026-10-12", "11:00"),
+    p_branch_ids: [-4],
+    p_slides_url: "https://example.com/slides",
+    p_meeting_notes_url: "",
   });
 });
 

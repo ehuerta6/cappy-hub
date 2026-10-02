@@ -6,47 +6,67 @@ import { mutationError } from "@/lib/mutation-error";
 import { denverTimestamp } from "@/lib/event-time";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import {
+  bulkAddEventOfficersInputSchema,
+  changeSignupInputSchema,
+  eventBranchIdsInputSchema,
+  eventRecordInputSchema,
+  saveEventInputSchema,
+} from "./validation";
 export async function saveEvent(
   _previous: { error: string },
   formData: FormData,
 ) {
   const actor = await getAuthorizationContext();
-  const id = formData.get("id");
-  const branches = formData.getAll("branches").map(Number);
-  if (!id && !canManageEvent(actor, branches))
+  const rawBranchIds = formData.getAll("branches");
+  const branchValidationResult =
+    eventBranchIdsInputSchema.safeParse(rawBranchIds);
+  const branchIdsForAuthorization = branchValidationResult.success
+    ? branchValidationResult.data
+    : [];
+  if (!formData.get("id") && !canManageEvent(actor, branchIdsForAuthorization))
     return { error: "Event outside branch scope" };
-  const date = String(formData.get("event_date") ?? "");
-  const startTime = String(formData.get("start_time") ?? "");
-  const endTime = String(formData.get("end_time") ?? "");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date))
-    return { error: "Choose one event date" };
-  if (startTime < "06:00" || endTime > "23:59" || endTime <= startTime)
-    return { error: "Choose a same-day range from 6:00 AM through 11:59 PM" };
-  const start = denverTimestamp(date, startTime);
-  const end = denverTimestamp(date, endTime);
+
+  const rawEventInput = {
+    id: formData.get("id") ?? "",
+    name: formData.get("name") ?? "",
+    description: formData.get("description") ?? "",
+    event_type_id: formData.get("event_type_id") ?? "",
+    location: formData.get("location") ?? "",
+    event_date: formData.get("event_date") ?? "",
+    start_time: formData.get("start_time") ?? "",
+    end_time: formData.get("end_time") ?? "",
+    branches: formData.getAll("branches"),
+    slides_url: formData.get("slides_url") ?? "",
+    meeting_notes_url: formData.get("meeting_notes_url") ?? "",
+  };
+  const validationResult = saveEventInputSchema.safeParse(rawEventInput);
+  if (!validationResult.success)
+    return { error: validationResult.error.issues[0].message };
+  const validatedEventInput = validationResult.data;
+
+  const start = denverTimestamp(
+    validatedEventInput.event_date,
+    validatedEventInput.start_time,
+  );
+  const end = denverTimestamp(
+    validatedEventInput.event_date,
+    validatedEventInput.end_time,
+  );
   if (!start || !end) return { error: "Enter valid El Paso times" };
-  if (
-    !String(formData.get("name") ?? "").trim() ||
-    !String(formData.get("description") ?? "").trim() ||
-    !String(formData.get("location") ?? "").trim()
-  )
-    return { error: "Name, description and location are required" };
-  const eventTypeId = Number(formData.get("event_type_id"));
-  if (!Number.isSafeInteger(eventTypeId) || eventTypeId <= 0)
-    return { error: "Select a valid event type" };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("save_event_with_links", {
-    p_event_id: id ? Number(id) : undefined,
-    p_name: String(formData.get("name") ?? ""),
-    p_description: String(formData.get("description") ?? ""),
-    p_event_type_id: eventTypeId,
-    p_location: String(formData.get("location") ?? ""),
-    p_event_date: date,
+    p_event_id: validatedEventInput.id,
+    p_name: validatedEventInput.name,
+    p_description: validatedEventInput.description,
+    p_event_type_id: validatedEventInput.event_type_id,
+    p_location: validatedEventInput.location,
+    p_event_date: validatedEventInput.event_date,
     p_starts_at: start,
     p_ends_at: end,
-    p_branch_ids: branches,
-    p_slides_url: String(formData.get("slides_url") ?? "").trim(),
-    p_meeting_notes_url: String(formData.get("meeting_notes_url") ?? "").trim(),
+    p_branch_ids: validatedEventInput.branches,
+    p_slides_url: validatedEventInput.slides_url,
+    p_meeting_notes_url: validatedEventInput.meeting_notes_url,
   });
   if (error) return { error: mutationError(error.message) };
   revalidatePath("/", "layout");
@@ -57,18 +77,29 @@ export async function changeSignup(
   formData: FormData,
 ) {
   await getAuthorizationContext();
+  const rawSignupInput = {
+    event_id: formData.get("event_id") ?? "",
+    officer_id: formData.get("officer_id") ?? "",
+    remove: formData.get("remove") ?? "",
+  };
+  const validationResult = changeSignupInputSchema.safeParse(rawSignupInput);
+  if (!validationResult.success)
+    return {
+      error: validationResult.error.issues[0].message,
+      success: "",
+    };
+  const validatedSignupInput = validationResult.data;
   const supabase = await createClient();
   const { error } = await supabase.rpc("change_event_signup", {
-    p_event_id: Number(formData.get("event_id")),
-    p_officer_id: Number(formData.get("officer_id")),
-    p_remove: formData.get("remove") === "true",
+    p_event_id: validatedSignupInput.event_id,
+    p_officer_id: validatedSignupInput.officer_id,
+    p_remove: validatedSignupInput.remove,
   });
   if (error) return { error: mutationError(error.message), success: "" };
   revalidatePath("/", "layout");
   return {
     error: "",
-    success:
-      formData.get("remove") === "true" ? "Signup removed" : "Officer added",
+    success: validatedSignupInput.remove ? "Signup removed" : "Officer added",
   };
 }
 export async function selfSignup(
@@ -86,20 +117,23 @@ export async function bulkAddEventOfficers(
   formData: FormData,
 ) {
   await getAuthorizationContext();
-  const eventId = Number(formData.get("event_id"));
-  const rawIds = formData.getAll("officer_ids");
-  if (!Number.isSafeInteger(eventId) || eventId === 0 || rawIds.length === 0)
-    return { error: "Select at least one officer", success: "" };
-  const officerIds = rawIds.map((value) => String(value));
-  if (
-    officerIds.some((value) => !/^-?[1-9]\d*$/.test(value)) ||
-    officerIds.some((value) => !Number.isSafeInteger(Number(value)))
-  )
-    return { error: "Select valid officers", success: "" };
+  const rawBulkAddEventOfficersInput = {
+    event_id: formData.get("event_id") ?? "",
+    officer_ids: formData.getAll("officer_ids"),
+  };
+  const validationResult = bulkAddEventOfficersInputSchema.safeParse(
+    rawBulkAddEventOfficersInput,
+  );
+  if (!validationResult.success)
+    return {
+      error: validationResult.error.issues[0].message,
+      success: "",
+    };
+  const validatedBulkAddEventOfficersInput = validationResult.data;
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("bulk_add_event_officers", {
-    p_event_id: eventId,
-    p_officer_ids: officerIds.map(Number),
+    p_event_id: validatedBulkAddEventOfficersInput.event_id,
+    p_officer_ids: validatedBulkAddEventOfficersInput.officer_ids,
   });
   if (error) return { error: mutationError(error.message), success: "" };
   revalidatePath("/", "layout");
@@ -125,9 +159,14 @@ export async function cancelEvent(
   formData: FormData,
 ) {
   await getAuthorizationContext();
+  const validationResult = eventRecordInputSchema.safeParse({
+    event_id: formData.get("event_id") ?? "",
+  });
+  if (!validationResult.success)
+    return { error: validationResult.error.issues[0].message, success: "" };
   const supabase = await createClient();
   const { error } = await supabase.rpc("cancel_event", {
-    p_event_id: Number(formData.get("event_id")),
+    p_event_id: validationResult.data.event_id,
   });
   if (error) return { error: mutationError(error.message), success: "" };
   revalidatePath("/", "layout");
@@ -139,9 +178,14 @@ export async function removeEvent(
   formData: FormData,
 ) {
   await getAuthorizationContext();
+  const validationResult = eventRecordInputSchema.safeParse({
+    event_id: formData.get("event_id") ?? "",
+  });
+  if (!validationResult.success)
+    return { error: validationResult.error.issues[0].message, success: "" };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("remove_event", {
-    p_event_id: Number(formData.get("event_id")),
+    p_event_id: validationResult.data.event_id,
   });
   if (error) return { error: mutationError(error.message), success: "" };
   revalidatePath("/", "layout");

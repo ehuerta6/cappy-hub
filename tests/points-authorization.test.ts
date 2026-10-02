@@ -59,6 +59,18 @@ it("submits an admin correction with an authenticated client", async () => {
   });
 });
 
+it("rejects zero point changes before the admin correction RPC", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    applicationRole: "admin",
+  } as never);
+  const zeroPointForm = form();
+  zeroPointForm.set("points", "0");
+  expect(
+    (await addTransaction({ error: "", success: "" }, zeroPointForm)).error,
+  ).toBe("Enter a nonzero positive or negative point value");
+  expect(rpc).not.toHaveBeenCalled();
+});
+
 it("rejects non-admin rate and removal actions before reaching Supabase", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     applicationRole: "officer",
