@@ -1,4 +1,17 @@
 import type { EventInput } from "@fullcalendar/react";
+import { formatCalendarDate, formatEventSchedule } from "@/lib/presentation";
+
+export type CalendarEntryKind = "event" | "task";
+export type CalendarEntry = EventInput & {
+  extendedProps: { kind: CalendarEntryKind; description: string };
+};
+
+export function filterCalendarEntries(
+  entries: CalendarEntry[],
+  visible: Record<CalendarEntryKind, boolean>,
+) {
+  return entries.filter((entry) => visible[entry.extendedProps.kind]);
+}
 
 export type CalendarEventOccurrence = {
   id: number;
@@ -16,7 +29,7 @@ export type CalendarTaskOccurrence = {
 /** Maps canonical Events (or future event occurrences) into calendar entries. */
 export function mapEventOccurrences(
   events: CalendarEventOccurrence[],
-): EventInput[] {
+): CalendarEntry[] {
   return events.map((event) => ({
     id: `event-${event.id}-${event.starts_at}`,
     title: event.name,
@@ -24,24 +37,32 @@ export function mapEventOccurrences(
     end: event.ends_at,
     allDay: false,
     url: `/events/${event.id}`,
-    classNames: ["calendar-entry-event"],
-    backgroundColor: "#2563eb",
-    borderColor: "#2563eb",
+    className: "calendar-entry-event",
+    color: "var(--info-bg)",
+    contrastColor: "var(--info)",
+    extendedProps: {
+      kind: "event",
+      description: `Event: ${event.name}, ${formatEventSchedule(event.starts_at, event.ends_at)} (America/Denver)`,
+    },
   }));
 }
 
 /** Maps canonical Tasks (or future task occurrences) without parsing SQL dates. */
 export function mapTaskOccurrences(
   tasks: CalendarTaskOccurrence[],
-): EventInput[] {
+): CalendarEntry[] {
   return tasks.map((task) => ({
     id: `task-${task.id}-${task.due_date}`,
     title: task.title,
     start: task.due_date,
     allDay: true,
     url: `/tasks/${task.id}`,
-    classNames: ["calendar-entry-task"],
-    backgroundColor: "#b45309",
-    borderColor: "#b45309",
+    className: "calendar-entry-task",
+    color: "var(--surface-muted)",
+    contrastColor: "var(--foreground)",
+    extendedProps: {
+      kind: "task",
+      description: `Task: ${task.title}, due ${formatCalendarDate(task.due_date)}`,
+    },
   }));
 }

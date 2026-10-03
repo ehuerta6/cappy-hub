@@ -31,21 +31,8 @@ export default async function CalendarPage() {
     <div className="space-y-6">
       <PageHeader
         title="Calendar"
-        description="Events and Task due dates in one view."
+        description="Events and Task due dates. Select an entry to open its record."
       />
-      <ul
-        aria-label="Calendar entry types"
-        className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted"
-      >
-        <li className="flex items-center gap-2">
-          <span aria-hidden="true" className="calendar-legend-event" />
-          Events
-        </li>
-        <li className="flex items-center gap-2">
-          <span aria-hidden="true" className="calendar-legend-task" />
-          Task due dates
-        </li>
-      </ul>
       <CalendarView entries={entries} />
     </div>
   );
