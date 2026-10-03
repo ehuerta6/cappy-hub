@@ -31,4 +31,4 @@ npm run db:types
 npm run db:types:check
 ```
 
-For the production migration sequence (`migration list`, `link`, dry run, then push), follow [Manual production database update](database-development.md#manual-production-database-update). Do not use those production commands before the approved PR is merged to `main`.
+Production migrations and application deployment run automatically after a successful CI run for `main`. See [Production deployment](database-development.md#production-deployment) for its required GitHub and Vercel configuration and failure behavior. Do not run production migration commands manually.

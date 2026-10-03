@@ -1,0 +1,77 @@
+name: Production deployment
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Migrate and deploy production
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Check out the successful main commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Link Supabase production project
+        run: >-
+          npx supabase link
+          --project-ref "$SUPABASE_PROJECT_REF"
+          --password "$SUPABASE_DB_PASSWORD"
+          --yes
+
+      - name: Verify production migration history before push
+        run: node scripts/verify-production-migrations.mjs
+
+      - name: Preview pending production migrations
+        run: npx supabase db push --linked --dry-run
+
+      - name: Apply production migrations
+        run: npx supabase db push --linked
+
+      - name: Verify production migration history is aligned
+        run: node scripts/verify-production-migrations.mjs --require-aligned
+
+      - name: Pull Vercel production settings
+        run: >-
+          npx vercel@latest pull --yes --environment=production
+          --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID"
+
+      - name: Build Vercel production application
+        run: npx vercel@latest build --prod --token="$VERCEL_TOKEN"
+
+      - name: Deploy Vercel production application
+        run: >-
+          npx vercel@latest deploy --prebuilt --prod --yes
+          --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID"
