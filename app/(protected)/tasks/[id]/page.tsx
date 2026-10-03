@@ -47,7 +47,7 @@ export default async function TaskDetailPage({
       <ContextualBackLink href="/tasks">Back to tasks</ContextualBackLink>
       <PageHeader title={task.title} />
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <section className="min-w-0 space-y-4 rounded-lg border border-zinc-800 p-4">
+        <section className="min-w-0 space-y-4 rounded-lg border border-border p-4">
           <SectionHeading title="Task details" />
           <p className="whitespace-pre-wrap break-words">
             {task.description || "No description"}
@@ -65,7 +65,7 @@ export default async function TaskDetailPage({
             </dd>
           </dl>
         </section>
-        <section className="min-w-0 space-y-4 rounded-lg border border-zinc-800 p-4">
+        <section className="min-w-0 space-y-4 rounded-lg border border-border p-4">
           <SectionHeading title="Assignment and progress" />
           <p>Assignee: {assignment?.officers.name ?? "Unassigned"}</p>
           <StatusBadge status={taskStatus(task, assignment)} />
@@ -75,7 +75,7 @@ export default async function TaskDetailPage({
               : "No approval required"}
           </p>
           {task.recurrence_series_id !== null && (
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-muted">
               Recurring occurrence. Its due date, assignment, completion,
               approval and points belong to this Task only. Series editing is
               not supported.

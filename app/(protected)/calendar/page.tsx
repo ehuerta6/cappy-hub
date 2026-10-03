@@ -35,7 +35,7 @@ export default async function CalendarPage() {
       />
       <ul
         aria-label="Calendar entry types"
-        className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-zinc-400"
+        className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted"
       >
         <li className="flex items-center gap-2">
           <span aria-hidden="true" className="calendar-legend-event" />

@@ -65,7 +65,7 @@ export default function TaskCreateForm({
       </label>
       <RecurrenceFields recordType="Task" />
       {state.error && (
-        <p role="alert" className="text-red-300">
+        <p role="alert" className="text-danger">
           {state.error}
         </p>
       )}

@@ -28,7 +28,7 @@ export default function RoleForm({
         Save role
       </button>
       {state.error && (
-        <span role="alert" className="text-red-300">
+        <span role="alert" className="text-danger">
           {state.error}
         </span>
       )}

@@ -111,7 +111,7 @@ export default async function SystemLogPage({
           <tbody>
             {entries.map((entry) => (
               <tr key={entry.id}>
-                <td className="whitespace-nowrap text-zinc-400">
+                <td className="whitespace-nowrap text-muted">
                   {new Date(entry.created_at).toLocaleString("en-US", {
                     dateStyle: "medium",
                     timeStyle: "short",
@@ -133,7 +133,7 @@ export default async function SystemLogPage({
                     <summary className="cursor-pointer">
                       {describeDetails(entry.details)}
                     </summary>
-                    <pre className="mt-2 max-w-md overflow-x-auto whitespace-pre-wrap text-xs text-zinc-400">
+                    <pre className="mt-2 max-w-md overflow-x-auto whitespace-pre-wrap text-xs text-muted">
                       {JSON.stringify(entry.details, null, 2)}
                     </pre>
                   </details>
@@ -144,7 +144,7 @@ export default async function SystemLogPage({
         </table>
       </TableFrame>
       {entries.length === 0 && <p>No audit entries on this page.</p>}
-      <div className="flex items-center justify-between text-sm text-zinc-400">
+      <div className="flex items-center justify-between text-sm text-muted">
         <span>
           Page {page} · {total} entries
         </span>

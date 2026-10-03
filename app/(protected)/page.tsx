@@ -46,7 +46,7 @@ export default async function DashboardPage() {
       />
       <section
         aria-label="Your profile"
-        className="flex flex-col gap-4 rounded-lg border border-zinc-800 bg-zinc-900/40 p-4 sm:flex-row sm:items-center sm:justify-between"
+        className="flex flex-col gap-4 rounded-lg border border-border bg-surface/40 p-4 sm:flex-row sm:items-center sm:justify-between"
       >
         <div className="min-w-0 space-y-1">
           <h2 className="break-words">{officer.name}</h2>
@@ -55,7 +55,7 @@ export default async function DashboardPage() {
         <div className="flex flex-wrap items-center gap-5">
           <div>
             <p className="text-sm">Your total points</p>
-            <p className="text-2xl font-semibold tabular-nums text-zinc-100">
+            <p className="text-2xl font-semibold tabular-nums text-foreground">
               {displayPoints(total.data.total_points ?? 0)}
             </p>
           </div>
@@ -82,18 +82,18 @@ export default async function DashboardPage() {
         ].map((stat) => (
           <div
             key={stat.label}
-            className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4"
+            className="rounded-lg border border-border bg-surface/40 p-4"
           >
-            <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+            <p className="text-xs font-medium uppercase tracking-wider text-subtle">
               {stat.label}
             </p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums text-zinc-100">
+            <p className="mt-2 text-2xl font-semibold tabular-nums text-foreground">
               {stat.value}
             </p>
           </div>
         ))}
       </section>
-      <p className="-mt-3 text-xs text-zinc-500">
+      <p className="-mt-3 text-xs text-subtle">
         Half-year periods are January–June and July–December (America/Denver).
         Points include signed corrections.
       </p>

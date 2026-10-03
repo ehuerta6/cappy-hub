@@ -15,10 +15,10 @@ export function PageHeader({
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-50 sm:text-3xl">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           {title}
         </h1>
-        {description && <p className="text-sm text-zinc-400">{description}</p>}
+        {description && <p className="text-sm text-muted">{description}</p>}
       </div>
       {action}
     </div>
@@ -34,10 +34,10 @@ export function SectionHeading({
 }) {
   return (
     <div className="mb-3 space-y-1">
-      <h2 className="text-lg font-semibold tracking-tight text-zinc-100">
+      <h2 className="text-lg font-semibold tracking-tight text-foreground">
         {title}
       </h2>
-      {description && <p className="text-sm text-zinc-400">{description}</p>}
+      {description && <p className="text-sm text-muted">{description}</p>}
     </div>
   );
 }
@@ -52,7 +52,7 @@ export function ActionLink({
   return (
     <Link
       href={href}
-      className="inline-flex w-fit items-center justify-center rounded-md bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-950 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300"
+      className="inline-flex w-fit items-center justify-center rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-foreground hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted"
     >
       {children}
     </Link>
@@ -60,10 +60,10 @@ export function ActionLink({
 }
 
 const badgeTone = {
-  neutral: "border-zinc-700 bg-zinc-800/70 text-zinc-300",
-  green: "border-emerald-900/80 bg-emerald-950/60 text-emerald-300",
-  blue: "border-blue-900/80 bg-blue-950/60 text-blue-300",
-  red: "border-red-900/80 bg-red-950/60 text-red-300",
+  neutral: "border-border-strong bg-surface-muted text-secondary",
+  green: "border-success-border bg-success-bg text-success",
+  blue: "border-info-border bg-info-bg text-info",
+  red: "border-danger-border bg-danger-bg text-danger",
 };
 
 export function Badge({
@@ -97,7 +97,7 @@ export function StatusBadge({ status }: { status: string }) {
 }
 
 export function BranchBadges({ branches }: { branches: string[] }) {
-  if (!branches.length) return <span className="text-zinc-500">None</span>;
+  if (!branches.length) return <span className="text-subtle">None</span>;
   return (
     <span className="flex flex-wrap gap-1.5">
       {branches.map((branch) => (
@@ -109,11 +109,7 @@ export function BranchBadges({ branches }: { branches: string[] }) {
 
 export function PointValue({ value }: { value: number }) {
   const tone =
-    value > 0
-      ? "text-emerald-300"
-      : value < 0
-        ? "text-red-300"
-        : "text-zinc-300";
+    value > 0 ? "text-success" : value < 0 ? "text-danger" : "text-secondary";
   return (
     <span className={`tabular-nums font-medium ${tone}`}>
       {displayPoints(value)}
@@ -123,7 +119,7 @@ export function PointValue({ value }: { value: number }) {
 
 export function TableFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-zinc-800">
+    <div className="overflow-x-auto rounded-lg border border-border">
       {children}
     </div>
   );

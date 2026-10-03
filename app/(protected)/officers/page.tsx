@@ -64,14 +64,14 @@ export default async function OfficersPage() {
           {pendingWarnings.data.map((warning) => (
             <article
               key={warning.id}
-              className="space-y-2 rounded-lg border border-zinc-800 p-4"
+              className="space-y-2 rounded-lg border border-border p-4"
             >
               <p className="font-semibold">
                 {officers.find((officer) => officer.id === warning.officer_id)
                   ?.name ?? `Officer ${warning.officer_id}`}
               </p>
               <p className="whitespace-pre-wrap">{warning.reason}</p>
-              <p className="text-sm text-zinc-400">
+              <p className="text-sm text-muted">
                 {new Date(warning.created_at).toLocaleString()}
               </p>
               <WarningDecisionForm warningId={warning.id} />
@@ -98,10 +98,8 @@ export default async function OfficersPage() {
                 <td>
                   <Link href={`/officers/${officer.id}`}>{officer.name}</Link>
                 </td>
-                <td className="text-zinc-400">{officer.utep_email ?? "—"}</td>
-                <td className="text-zinc-400">
-                  {officer.personal_email ?? "—"}
-                </td>
+                <td className="text-muted">{officer.utep_email ?? "—"}</td>
+                <td className="text-muted">{officer.personal_email ?? "—"}</td>
                 <td>{officer.positions.name}</td>
                 <td>
                   {officer.classification

@@ -49,7 +49,7 @@ export default function TaskActionForm({
         {pending ? "Saving…" : label}
       </button>
       {state.error && (
-        <span role="alert" className="text-red-300">
+        <span role="alert" className="text-danger">
           {state.error}
         </span>
       )}

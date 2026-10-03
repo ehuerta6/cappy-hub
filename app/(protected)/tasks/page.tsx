@@ -62,7 +62,7 @@ export default async function TasksPage() {
                 <tr key={task.id} id={`task-${task.id}`}>
                   <td>
                     <Link href={`/tasks/${task.id}`}>{task.title}</Link>
-                    <p className="text-sm text-zinc-400">{task.description}</p>
+                    <p className="text-sm text-muted">{task.description}</p>
                   </td>
                   <td>{task.task_type}</td>
                   <td>{task.branches.name}</td>
