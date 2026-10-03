@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 18257)
-Total output lines: 586
-
 # Cappy Hub Design System
 
 **Status key**
@@ -220,7 +217,164 @@ Do not turn every action into a filled button. Keep control text specific to the
 **CURRENT statuses:**
 
 - Events: Upcoming, Happening, Past, Cancelled, and (for admins) Removed. Event status is computed from cancellation/removal and the event's start/end times.
-- Officers: Acti…6257 tokens truncated…fic; do not hide assignment or approval state to reduce width. Distinguish task points from event participation points.
+- Officers: Active and Inactive.
+- Warnings: Pending, Approved, and Rejected.
+- Tasks: Open, Assigned, Awaiting approval, and Complete.
+- Points history: Active, Removed, or All is an admin filter state; award types are Participation, Task, Manual, and Correction, not statuses.
+- Calendar: Events and Task due dates are entry categories, not workflow statuses.
+
+`StatusBadge` currently maps lowercase `active`, `happening`, and `approved` to green; `upcoming` and `pending` to blue; `cancelled`, `rejected`, and `removed` to red; unrecognized values to neutral. Task list statuses are plain text, and title-cased task statuses passed to `StatusBadge` on detail currently render neutral. Preserve the words even if the tone is refined later.
+
+Use neutral badges for branches. Keep officer position and classification as plain text. Do not turn every field, award type, or ordinary metadata into a colored pill. If a table contains many branches, an optional compact display such as “General · ICPC · Intro +2” is acceptable only when the full branch list remains discoverable and the count is accessible.
+
+## 13. Dates and times
+
+**CURRENT:** `lib/presentation.ts` provides US English human-readable date, date-time, calendar-date, event schedule, and event-filter-option formatting. Event schedule/date-time helpers use `America/Denver`, the application's El Paso time zone. Compact same-day event schedules omit a repeated date and, where possible, a repeated AM/PM marker. System Log times also use `America/Denver`. Points history date-only values use a helper that avoids shifting a SQL date across time zones.
+
+**OPTIONAL REFINEMENT:** Prefer “Oct 3, 2026,” “Oct 3 · 6:00–7:00 PM,” or “Oct 3, 2026 · 6:00 PM” over ISO strings or raw timestamps. Some current screens still show date-only values as `YYYY-MM-DD` (for example task due dates and event detail dates); render those through the existing presentation helpers when visually refining those screens. Do not change the product's timezone or business rules in a design-only refinement. Avoid seconds and repeated timezone abbreviations unless they are needed to disambiguate a time.
+
+## 14. Tables
+
+Tables are a core pattern for directory, event, point, and audit work. **CURRENT:** Global table styling uses a subtly distinct header, muted uppercase labels, 1px horizontal separators, 12px vertical / 16px horizontal cell padding, no vertical gridlines, a light row hover, and links that inherit the neutral theme rather than browser blue. Tables have a 38rem minimum width inside a horizontal overflow frame.
+
+**DESIGN DECISION:** Keep tables task-oriented and horizontally efficient. Use compact but readable rows, muted labels, subtle separators and hover, no heavy grid, no vertical borders, and tabular numerals for points, counts, and dates where useful. Give record names and important values enough room; allow horizontal scroll instead of truncating every column. Do not expose database columns just because they exist, and do not remove useful existing information without an explicit product decision. On narrow screens retain headers and horizontal scroll so a user can understand which value belongs to which column.
+
+## 15. Filters and search
+
+**CURRENT:** Events, Officers, Tasks, Points history, and System Log have real filtering/search behavior. Their shared `ListFilterBar` uses a compact bordered surface, horizontally aligned/wrapping controls, labeled inputs, an Apply filters button, and Clear filters when a filter is active. Calendar also has its own Event/Task visibility toggles; these are not a `ListFilterBar`. Keep these real controls; do not present them as hypothetical.
+
+| List           | Existing search and filters                                                                                               |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Events         | Search name, description, or location; status (including Removed for admins); event type; branch.                         |
+| Officers       | Search name or either email; status; position; branch.                                                                    |
+| Tasks          | Search title or description; status; branch; assignee.                                                                    |
+| Points history | Search officer/reason/event/task; award type; officer; event; activity-date range; admins also filter Active/Removed/All. |
+| System Log     | Search action or record ID; actor (including System); action text; entity type; date range.                               |
+| Calendar       | Toggle Events and Tasks visibility independently.                                                                         |
+
+**DESIGN DECISION:** Keep filters visually secondary to results, compact, and aligned on desktop; wrap them at narrower widths. Labels stay visible and accessible. Show Apply for server-driven filters and Clear only when filters are active. Keep date validation feedback near the filter area. Do not invent filters, hide a current filter to reduce height, or create a giant always-open filter panel.
+
+**CURRENT pagination:** Points history shows 25 entries per page. System Log shows 50. Their Previous/Next links preserve active filters and show the current page; those pages are not a basis for adding pagination to lists that do not currently have it. Record navigation from supported lists carries the safe originating list URL through detail and edit screens, and successful saves return through that context.
+
+## 16. Forms and dialogs
+
+Long workflows belong on dedicated pages, with a contextual return link. Small, focused actions can stay inline beside the record they affect. The current application does not use a reusable modal-dialog system; do not convert existing workflows into dialogs for visual novelty. **CURRENT:** Recurrence-scope changes, point-transaction removal, and warning approval/rejection/deletion use the browser's native confirmation dialog. Other operations should be described according to their actual behavior, not assumed to share that confirmation pattern.
+
+**DESIGN DECISION:** Group long forms into clear sections using the field names and relationships already present. Use two columns on desktop only for natural pairs; collapse to one column on narrow screens. Prefer existing constrained choices over unnecessary free typing. Keep labels explicit and optional/required status faithful to current validation. Validate close to the relevant field or action. Do not infer required fields or change validation rules for a proposed layout. Any dialog used for a future focused action must have a clear name and exit, work by keyboard, and avoid stacking with another dialog.
+
+| Existing form                       | Current fields and constraints to preserve                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Event create/edit                   | Required name, description, event type, location, one El Paso date, start/end times, and branches unless an authorized global event may have none. Slides URL and meeting-notes URL are optional. Event type options currently include Meeting, Social, and Workshop; location suggestions come from the location catalog. Creation supports recurrence. Editing a recurring event includes occurrence/following/all-scope controls and changed-field behavior. |
+| Task create/edit                    | Required title, description, task type (Flyer, LinkedIn, Airtable, Story, or Post), branch, due date, and points; lead approval before points is a checkbox. Creation can repeat daily or weekly, with interval and end options. The edit route is only for recurring tasks and supports recurrence scope.                                                                                                                                                      |
+| Officer add/edit                    | Required name and position; at least one email address must be provided, though each UTEP/personal email field is individually optional. Classification and branches are optional. Status appears on edit only. Application role is managed separately on the officer detail.                                                                                                                                                                                   |
+| Point configuration                 | Admin-only edit of participation points per hour; current rate remains visible to other users.                                                                                                                                                                                                                                                                                                                                                                  |
+| Manual point transaction/correction | Admin-only officer, points, reason, manual/correction type, and optional event link. Older events can be searched before choosing an event.                                                                                                                                                                                                                                                                                                                     |
+| Officer catalogs                    | Add, rename, and delete controls for positions, branches, and event locations. Required baseline positions are shown as required and are not editable in the current UI; referenced-record deletion is rejected.                                                                                                                                                                                                                                                |
+
+For recurring Events and Tasks, the current choices include this occurrence, this and following occurrences, and all occurrences. Keep scope, changed fields, and workflow-history implications clear. Do not add form fields or recurrence options not shown by the application.
+
+## 17. Feedback, empty states, and UI states
+
+**CURRENT:** Server-action forms show inline errors with `role="alert"`, successes with `role="status"`, and pending button labels such as “Saving…” or “Adding…”. Pending controls are disabled. Filtered zero-results messages differ from an actually empty list. The confirmed operations listed in §16 use explicit browser confirmation. The root error screen offers Try again.
+
+**DESIGN DECISION:** Keep loading/saving feedback near the operation, state what happened in plain language, disable repeat submission while pending where appropriate, and confirm success only after the trusted server action finishes. Do not assume optimistic updates for administrative records. Disabled controls should still read as controls and should explain unavailable states where needed. Destructive actions should explain their consequences and use confirmation for meaningful destructive operations; offer recovery only where the product permits it. Errors must be legible in both themes, explain what went wrong, and tell the user what they can do when there is a useful next step. Do not surface raw API/database errors, implementation jargon, apologies, or filler.
+
+Empty states should be short and useful: “No tasks match these filters,” “No upcoming events,” or “No point transactions yet.” Where an existing action naturally resolves the empty state, a small action may be shown. Do not add illustrations to routine empty results, mascot jokes, or giant empty-state cards.
+
+Distinguish truly empty data from zero results caused by active filters. Use terms officers recognize from club work rather than backend terminology. Keep capitalization and action names consistent across a workflow.
+
+## 18. Responsive behavior
+
+Desktop/laptop is the primary target. Keep the navigation usable as it wraps, let grids collapse naturally, change paired form columns to one column, and let filter bars wrap. Data-heavy tables may scroll horizontally. Calendar currently switches from a desktop month grid to a month list at compact widths (767px and below), keeping the browsed month when the view changes. Keep labels and table headings visible, preserve content order, and avoid replacing the product with a separate mobile feature model. Do not attempt to fit every page above the fold.
+
+## 19. Accessibility
+
+Accessibility is part of the design system:
+
+- Meet WCAG AA contrast: at least **4.5:1** for normal text and **3:1** for large or bold text. Check both light and dark themes with actual token combinations, including muted text, borders, focus indicators, and status surfaces.
+- Use semantic page/section headings in order and a single clear page-level heading.
+- Provide visible keyboard focus on links, buttons, fields, and other controls.
+- Keep a logical focus order and make navigation, forms, filters, dialogs, and actions usable by keyboard.
+- Use real labels for every input; placeholders are examples, not labels.
+- Make all actions keyboard-accessible, including navigation, filters, recurrence choices, and inline workflow controls.
+- Any future custom dialog must keep focus and keyboard interaction usable, expose a clear name, and allow its supported dismissal path.
+- Maintain sufficient text, border, and focus contrast in both themes.
+- Never communicate status by color alone; show understandable status text.
+- Use practical click/touch targets, roughly 40px high where appropriate, especially for navigation and inline actions. Do not use tiny icon-only targets merely to save space.
+- Keep tables semantic, with headers correctly associated with data cells; preserve horizontal-scroll context for assistive technology.
+- Give links and buttons names that describe their destination or operation. Retain contextual names such as “Sign up for [event]” where repeated actions appear.
+- Any future animation must respect `prefers-reduced-motion`; motion cannot be the only way to convey state.
+
+## 20. Icons and motion
+
+**CURRENT:** Lucide icons are used in limited shared navigation details: the theme toggle and contextual return link. Icons are not the primary visual language of page headings, tables, or actions.
+
+**DESIGN DECISION:** Keep one consistent icon language. Use an icon only when it improves recognition or saves meaningful space; retain text on important administrative actions. An icon-only control needs an accessible name and a practical hit target. Match the icon's size and visual weight to adjacent text. Icons are functional cues, not decoration; do not add one to every heading, card, or button.
+
+Keep decorative motion rare. Motion must serve an interaction, be brief, and never compete with the task. Do not animate routine tables, badges, headings, metrics, or cards for personality. Clear loading and saving state changes matter more than transitions. Respect reduced-motion preferences for any future animation. Do not introduce glass, blur, or transparency as an application-wide style.
+
+## 21. Screen specifications
+
+The following sections describe the actual product workflows and the design direction for improving their presentation. Preserve all behavior identified as **CURRENT**.
+
+### Dashboard
+
+- **Purpose:** Give each signed-in officer a useful current view and direct access to work that needs attention.
+- **Existing functionality that MUST be preserved — CURRENT:** Shows the current officer's name, club position, personal total points, and View profile link; three club summary metrics (active officers, upcoming events, points this half-year); a note defining January–June/July–December in America/Denver and that points include signed corrections; up to five personal action items from assigned tasks, task approvals, and pending warning decisions; all upcoming non-cancelled/non-removed events with schedule, signup status, and officer count; and the latest ten active point transactions with officer, related event/task or reason, points, and date. Links lead to the full owning area. The action-item list reports when more than five items exist.
+- **Information hierarchy:** Page title/profile access; compact summary metrics and their explanation; action items; then upcoming events and recent point activity.
+- **Recommended layout:** Keep the metrics in one modest row, action items as a simple divided list, and the two recent-activity sections side by side on wide screens. Let them stack on narrow screens.
+- **Primary action:** No single global action; each action-item row is a direct link to its task or warning decision.
+- **Secondary actions:** View profile; View all Tasks; View warning decisions; View all Events; View all Points.
+- **Data presentation:** Small metric blocks, divided list rows, compact event list, compact point activity list. Use existing schedule and point formatters.
+- **Minimalism notes:** Keep the current sections but distinguish metrics from actionable work; do not turn each section into a KPI card. Keep profile access small and the explanatory half-year note close to the metrics.
+- **Do not add:** Attendance percentages, charts, notifications, unsupported KPIs, action items beyond the real workflow, or an analytics dashboard.
+
+### Events list
+
+- **Purpose:** Find events, see which ones the current officer joined, and sign up for open events.
+- **Existing functionality that MUST be preserved — CURRENT:** Search name/description/location; filter by Upcoming, Happening, Past, Cancelled, and admin-only Removed, plus event type and branch. Results are intentionally split into “Your events” and “Other events.” Rows show event name, El Paso schedule, type, branches, signup count, status, and—only for Other events when signup is open—a signup action. Opening an event preserves the current filter context for the contextual return link. New event is shown to users allowed to create for their branch scope.
+- **Information hierarchy:** Title and authorized New event action; filter bar; Your events; Other events.
+- **Recommended layout:** Keep the two named table groups after filters. Do not add a participation column because the groups already communicate participation.
+- **Primary action:** Sign up in an eligible Other events row; New event for authorized users.
+- **Secondary actions:** Open an event by selecting its name; apply or clear filters.
+- **Data presentation:** Two compact tables using the shared table, neutral branch labels, readable schedule text, and semantic status.
+- **Minimalism notes:** Keep signup concise and visible in the Action column. Preserve a clear empty group message and differentiate no matches from an empty event catalog.
+- **Do not add:** Duplicate participation indicators, invented event filters, a separate “my events” feature, or an event-type management destination (the old `/events/types` route redirects).
+
+### Event detail
+
+- **Purpose:** Understand an event, manage its participation, and review event-related points.
+- **Existing functionality that MUST be preserved — CURRENT:** Contextual link to Events that returns to the originating filtered list when opened from one; event description, type, location, date, start/end, processing rate state, status, branches, and optional slides/meeting-notes links; current officer's signup state; signed-up officer table; eligible signup removal/self-signup/manager add actions; manager past-event attendee addition and saved-rate point award information; manager edit, cancel, restore, and remove actions according to event state; latest 100 point transactions and link to all event history. Event management is branch-permission dependent.
+- **Information hierarchy:** Event name/status and return link; event details and participation; event point history.
+- **Recommended layout:** Two aligned detail sections on desktop (event information, participation/progress), with point history below. Keep descriptions and links easy to scan.
+- **Primary action:** Edit event when the manager and event state allow it; otherwise show only the relevant signup/participation action.
+- **Secondary actions:** Cancel, restore, remove, manage signups/attendees, open slides/notes, view all point history, and follow officer/event links where currently available.
+- **Data presentation:** Definition-list metadata, compact signup table, point transaction table, status badge, neutral branches.
+- **Minimalism notes:** Group related management controls and keep destructive actions visually subordinate. Preserve the distinction between an open signup and a past attendee/points operation.
+- **Do not add:** New event statistics, duplicate signup counts, unrelated staff controls, or actions that bypass current branch permissions.
+
+### Create/edit Event
+
+- **Purpose:** Create an event or edit a selected event, including supported changes to a recurring series.
+- **Existing functionality that MUST be preserved — CURRENT:** Dedicated New event and Edit event pages with contextual return links. When edit starts from an event opened in a filtered list, the originating list context survives the edit form and save. Form fields and recurrence scope are specified in §16. Branch options are scoped to the actor; an authorized global event may have no branch. New event is available to admins/all-branch executives and Leads with branch membership. Existing event editing follows branch permissions.
+- **Information hierarchy:** Return link and page title; event identity/description; type/location and resource links; date/time; branch selection; optional recurrence; inline validation and save.
+- **Recommended layout:** Keep name/description full width, pair Type with Location and Start with End, group schedule help beside Date/time, and keep branch checkboxes and recurrence in clearly labeled fieldsets. One-column form on narrow screens.
+- **Primary action:** Save event; show pending “Saving…” feedback.
+- **Secondary actions:** Select all/Clear all branches; return to Events or the edited Event.
+- **Data presentation:** Labeled form controls, checkboxes for branches, optional URL fields, recurrence choices and scope.
+- **Minimalism notes:** Group fields without changing validation. Preserve the schedule restriction/help text and distinguish creation recurrence from series editing.
+- **Do not add:** Publish/draft states, new event types, an RSVP capacity workflow, required fields not present in validation, or a modal replacement.
+
+### Tasks list
+
+- **Purpose:** Assign, complete, and approve officer work.
+- **Existing functionality that MUST be preserved — CURRENT:** Search title/description; filter by Open, Assigned, Awaiting approval, Complete, branch, and assignee. Non-removed tasks are listed in due-date order. Table columns are Task/title and description, Type, Branch, Due, Points, Assignee, Status, and Actions. Available actions vary by assignment, current officer, approval requirement, and branch-management permission: self-assign, manager assign, mark own task complete, or manager approve another officer's completed task. Opening a task from this list preserves its filter context through detail and recurring-task edit. New task follows current branch permissions.
+- **Information hierarchy:** Page title/New task; filters; task table with status and immediately available action.
+- **Recommended layout:** Keep the table wide enough for task, due date, points, assignee, status, and action without forcing rows into cards. On narrow screens allow horizontal scroll.
+- **Primary action:** New task for authorized users; otherwise the row's current self-assign/complete/approve action when applicable.
+- **Secondary actions:** Open the task detail from its title; apply/clear filters; assign to an officer when permitted.
+- **Data presentation:** Table with task description subordinate to title, type/branch metadata, due date, points, assignee, status text, and compact workflow controls.
+- **Minimalism notes:** Keep action controls compact and row-specific; do not hide assignment or approval state to reduce width. Distinguish task points from event participation points.
 - **Do not add:** Event signup controls, event statuses, recurring schedule filters not present, fake task ownership metrics, or list pagination (none currently exists).
 
 ### Task detail
