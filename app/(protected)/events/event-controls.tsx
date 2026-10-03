@@ -1,4 +1,10 @@
 "use client";
+import { ActionFeedback, FieldError } from "@/components/ui";
+import {
+  initialFormActionState,
+  submittedValue,
+  submittedValues,
+} from "@/lib/form-feedback";
 import {
   RecurrenceScope,
   confirmRecurrenceMutation,
@@ -22,8 +28,7 @@ export function SelfSignupForm({
   eventName: string;
 }) {
   const [state, action, pending] = useActionState(selfSignup, {
-    error: "",
-    success: "",
+    ...initialFormActionState,
   });
   return (
     <form action={action} className="gap-2">
@@ -35,8 +40,7 @@ export function SelfSignupForm({
       >
         {pending ? "Signing up…" : "Sign up"}
       </button>
-      {state.error && <p role="alert">{state.error}</p>}
-      {state.success && <p role="status">{state.success}</p>}
+      <ActionFeedback state={state} />
     </form>
   );
 }
@@ -52,9 +56,9 @@ export function SignupForm({
   officerId?: number;
 }) {
   const [state, action, pending] = useActionState(changeSignup, {
-    error: "",
-    success: "",
+    ...initialFormActionState,
   });
+  const fieldErrors = state.fieldErrors ?? {};
   return (
     <form action={action}>
       <input type="hidden" name="event_id" value={eventId} />
@@ -64,7 +68,15 @@ export function SignupForm({
       ) : (
         <label>
           Officer
-          <select name="officer_id" required defaultValue="">
+          <select
+            name="officer_id"
+            required
+            aria-invalid={Boolean(fieldErrors.officer_id)}
+            aria-describedby={
+              fieldErrors.officer_id ? "signup-officer-error" : undefined
+            }
+            defaultValue={submittedValue(state.values, "officer_id")}
+          >
             <option value="">Select officer</option>
             {officers?.map((officer) => (
               <option key={officer.id} value={officer.id}>
@@ -72,12 +84,20 @@ export function SignupForm({
               </option>
             ))}
           </select>
+          <FieldError id="signup-officer-error">
+            {fieldErrors.officer_id}
+          </FieldError>
         </label>
       )}
-      {state.error && <p role="alert">{state.error}</p>}
-      {state.success && <p role="status">{state.success}</p>}
+      <ActionFeedback state={state} />
       <button disabled={pending} className={remove ? "button-secondary" : ""}>
-        {remove ? "Remove signup" : "Add officer"}
+        {pending
+          ? remove
+            ? "Removing…"
+            : "Adding…"
+          : remove
+            ? "Remove signup"
+            : "Add officer"}
       </button>
     </form>
   );
@@ -94,19 +114,30 @@ export function BulkAddOfficersForm({
   pointsPerOfficer?: number;
 }) {
   const [state, action, pending] = useActionState(bulkAddEventOfficers, {
-    error: "",
-    success: "",
+    ...initialFormActionState,
   });
+  const selectedOfficers = submittedValues(state.values, "officer_ids");
+  const fieldErrors = state.fieldErrors ?? {};
   return (
     <form action={action} className="mt-4 space-y-3">
       <input type="hidden" name="event_id" value={eventId} />
-      <fieldset>
+      <fieldset
+        aria-invalid={Boolean(fieldErrors.officer_ids)}
+        aria-describedby={
+          fieldErrors.officer_ids ? "bulk-officers-error" : undefined
+        }
+      >
         <legend>{past ? "Select attendees" : "Select officers to add"}</legend>
         {officers.length ? (
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {officers.map((officer) => (
               <label key={officer.id} className="flex items-center gap-2">
-                <input type="checkbox" name="officer_ids" value={officer.id} />
+                <input
+                  type="checkbox"
+                  name="officer_ids"
+                  value={officer.id}
+                  defaultChecked={selectedOfficers.includes(String(officer.id))}
+                />
                 {officer.name}
               </label>
             ))}
@@ -114,6 +145,9 @@ export function BulkAddOfficersForm({
         ) : (
           <p>No active officers are available to add.</p>
         )}
+        <FieldError id="bulk-officers-error">
+          {fieldErrors.officer_ids}
+        </FieldError>
       </fieldset>
       {past && pointsPerOfficer !== undefined && (
         <p className="text-sm text-muted">
@@ -126,8 +160,7 @@ export function BulkAddOfficersForm({
           The participation rate will be saved when attendees are added.
         </p>
       )}
-      {state.error && <p role="alert">{state.error}</p>}
-      {state.success && <p role="status">{state.success}</p>}
+      <ActionFeedback state={state} />
       <button disabled={pending || officers.length === 0}>
         {pending
           ? "Adding…"
@@ -148,8 +181,7 @@ export function CancelForm({
   requestKey?: string;
 }) {
   const [state, action, pending] = useActionState(cancelEvent, {
-    error: "",
-    success: "",
+    ...initialFormActionState,
   });
   return (
     <form
@@ -167,10 +199,9 @@ export function CancelForm({
           recordType="Event"
         />
       )}
-      {state.error && <p role="alert">{state.error}</p>}
-      {state.success && <p role="status">{state.success}</p>}
+      <ActionFeedback state={state} />
       <button disabled={pending} className="button-secondary">
-        Cancel event
+        {pending ? "Cancelling…" : "Cancel event"}
       </button>
     </form>
   );
@@ -178,14 +209,12 @@ export function CancelForm({
 
 export function RestoreEventForm({ eventId }: { eventId: number }) {
   const [state, action, pending] = useActionState(restoreEvent, {
-    error: "",
-    success: "",
+    ...initialFormActionState,
   });
   return (
     <form action={action}>
       <input type="hidden" name="event_id" value={eventId} />
-      {state.error && <p role="alert">{state.error}</p>}
-      {state.success && <p role="status">{state.success}</p>}
+      <ActionFeedback state={state} />
       <button disabled={pending} className="button-secondary">
         {pending ? "Restoring…" : "Restore event"}
       </button>
@@ -203,8 +232,7 @@ export function RemoveEventForm({
   requestKey?: string;
 }) {
   const [state, action, pending] = useActionState(removeEvent, {
-    error: "",
-    success: "",
+    ...initialFormActionState,
   });
   return (
     <form
@@ -222,8 +250,7 @@ export function RemoveEventForm({
           recordType="Event"
         />
       )}
-      {state.error && <p role="alert">{state.error}</p>}
-      {state.success && <p role="status">{state.success}</p>}
+      <ActionFeedback state={state} />
       <button disabled={pending} className="button-secondary">
         {pending ? "Removing…" : "Remove event"}
       </button>

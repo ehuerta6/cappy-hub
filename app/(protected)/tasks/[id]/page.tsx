@@ -12,6 +12,7 @@ import {
   SectionHeading,
   PointValue,
   StatusBadge,
+  SuccessNotice,
 } from "@/components/ui";
 import { formatLabel } from "@/lib/presentation";
 import { TaskWorkflow, taskStatus } from "../task-workflow";
@@ -24,7 +25,7 @@ export default async function TaskDetailPage({
   params: Promise<{ id: string }>;
   searchParams?: Promise<NavigationSearchParams>;
 }) {
-  const { returnTo } = (await searchParams) ?? {};
+  const { returnTo, feedback } = (await searchParams) ?? {};
   const actor = await getAuthorizationContext();
   const { id: taskIdParam } = await params;
   if (!/^-?[1-9]\d*$/.test(taskIdParam)) notFound();
@@ -74,6 +75,7 @@ export default async function TaskDetailPage({
           ) : undefined
         }
       />
+      <SuccessNotice status={feedback} />
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <section className="min-w-0 space-y-4 rounded-lg border border-border p-4">
           <SectionHeading title="Task details" />

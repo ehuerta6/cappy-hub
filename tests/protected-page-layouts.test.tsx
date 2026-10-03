@@ -39,6 +39,7 @@ import {
   TaskWorkflow,
   taskStatus,
 } from "@/app/(protected)/tasks/task-workflow";
+import TaskActionForm from "@/app/(protected)/tasks/task-action-form";
 import { formatEventSchedule } from "@/lib/presentation";
 
 const officer = {
@@ -90,6 +91,7 @@ beforeEach(() => {
         is: () => query,
         order: () => query,
         limit: () => query,
+        or: () => query,
         single: async () => ({
           data:
             table === "tasks"
@@ -136,6 +138,60 @@ it.each([
     expect(html).toContain('aria-hidden="true"');
   },
 );
+
+it.each([
+  [OfficerDetail, "officer-saved", "Officer saved", "/officers"],
+  [EventDetail, "event-saved", "Event saved", "/events"],
+  [TaskDetail, "task-updated", "Task updated", "/tasks"],
+] as const)(
+  "shows an allowlisted post-save notice on %s detail",
+  async (Page, feedback, message, route) => {
+    const html = renderToStaticMarkup(
+      await Page({
+        params: Promise.resolve({ id: "7" }),
+        searchParams: Promise.resolve({
+          returnTo: `${route}?q=workshop&branch=2`,
+          feedback,
+        }),
+      }),
+    );
+    expect(html).toContain('role="status"');
+    expect(html).toContain(message);
+    expect(html).toContain(`href="${route}?q=workshop&amp;branch=2"`);
+  },
+);
+
+it("shows a controlled Task created notice on the filtered Task list", async () => {
+  const html = renderToStaticMarkup(
+    await TasksPage({
+      searchParams: Promise.resolve({
+        q: "workshop",
+        branch: "2",
+        feedback: "task-created",
+      }),
+    }),
+  );
+  expect(html).toContain('role="status"');
+  expect(html).toContain("Task created");
+  expect(html).toContain('name="q" value="workshop"');
+});
+
+it("disables a Task action while it is running and names the pending action", () => {
+  vi.mocked(useActionState).mockReturnValue([
+    { error: "", success: "" },
+    vi.fn(),
+    true,
+  ] as never);
+  const html = renderToStaticMarkup(
+    createElement(TaskActionForm, {
+      taskId: 7,
+      operation: "approve",
+      label: "Approve",
+    }),
+  );
+  expect(html).toContain("disabled");
+  expect(html).toContain("Approving…");
+});
 
 it("formats compact schedules in El Paso time including the correct local date", () => {
   expect(

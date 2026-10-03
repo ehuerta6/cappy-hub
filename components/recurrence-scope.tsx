@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { RecurrenceFields } from "./recurrence-fields";
 import { recurrenceFromRule } from "@/lib/recurrence";
+import type { FormFieldErrors, FormValues } from "@/lib/form-feedback";
 
 export const recurrenceScopeLabels = {
   occurrence: "This occurrence",
@@ -21,11 +22,15 @@ export function RecurrenceScope({
   requestKey,
   recordType,
   editing = false,
+  values,
+  fieldErrors,
 }: {
   series: RecurrenceSeries;
   requestKey: string;
   recordType: "Event" | "Task";
   editing?: boolean;
+  values?: FormValues;
+  fieldErrors?: FormFieldErrors;
 }) {
   const [scope, setScope] = useState("occurrence");
   const [changeRecurrence, setChangeRecurrence] = useState(false);
@@ -88,6 +93,8 @@ export function RecurrenceScope({
               <RecurrenceFields
                 recordType={recordType}
                 initial={recurrenceFromRule(series.recurrence_rule)}
+                values={values}
+                fieldErrors={fieldErrors}
               />
             </>
           )}

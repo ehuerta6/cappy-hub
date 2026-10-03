@@ -49,7 +49,7 @@ it("submits an admin correction with an authenticated client", async () => {
     applicationRole: "admin",
   } as never);
   const result = await addTransaction({ error: "", success: "" }, form());
-  expect(result.success).toBe("Transaction added");
+  expect(result.success).toBe("Point transaction added");
   expect(rpc).toHaveBeenCalledWith("add_manual_transaction", {
     p_officer_id: 3,
     p_event_id: undefined,
@@ -66,8 +66,14 @@ it("rejects zero point changes before the admin correction RPC", async () => {
   const zeroPointForm = form();
   zeroPointForm.set("points", "0");
   expect(
-    (await addTransaction({ error: "", success: "" }, zeroPointForm)).error,
-  ).toBe("Enter a nonzero positive or negative point value");
+    await addTransaction({ error: "", success: "" }, zeroPointForm),
+  ).toMatchObject({
+    error: "Enter a nonzero positive or negative point value",
+    fieldErrors: {
+      points: "Enter a nonzero positive or negative point value",
+    },
+    values: { points: "0" },
+  });
   expect(rpc).not.toHaveBeenCalled();
 });
 
@@ -97,7 +103,7 @@ it("sends a valid fractional rate to the protected RPC", async () => {
   rate.set("rate", "1.25");
   expect(
     (await changeParticipationRate({ error: "", success: "" }, rate)).success,
-  ).toBe("Rate saved");
+  ).toBe("Participation rate saved");
   expect(rpc).toHaveBeenCalledWith("set_participation_rate", { p_rate: 1.25 });
 });
 

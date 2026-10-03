@@ -21,16 +21,10 @@ const eventTimeInputSchema = zod
 export const saveEventInputSchema = zod
   .object({
     id: optionalSafeIntegerStringSchema("Select a valid event"),
-    name: requiredTrimmedStringSchema(
-      "Name, description and location are required",
-    ),
-    description: requiredTrimmedStringSchema(
-      "Name, description and location are required",
-    ),
-    event_type_id: positiveSafeIntegerStringSchema("Select a valid event type"),
-    location: requiredTrimmedStringSchema(
-      "Name, description and location are required",
-    ).trim(),
+    name: requiredTrimmedStringSchema("Enter an event name"),
+    description: requiredTrimmedStringSchema("Enter an event description"),
+    event_type_id: positiveSafeIntegerStringSchema("Select an event type"),
+    location: requiredTrimmedStringSchema("Enter an event location").trim(),
     event_date: eventDateInputSchema,
     start_time: eventTimeInputSchema,
     end_time: eventTimeInputSchema,

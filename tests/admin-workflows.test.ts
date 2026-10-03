@@ -49,7 +49,7 @@ it("uses the existing audited role RPC for another officer", async () => {
     applicationRole: "admin",
   } as never);
   const result = await changeApplicationRole(previous, roleForm("admin"));
-  expect(result.success).toBe("Role saved");
+  expect(result.success).toBe("Application role saved");
   expect(rpc).toHaveBeenCalledWith("set_officer_application_role", {
     p_officer_id: 602,
     p_role: "admin",
@@ -81,7 +81,7 @@ it("validates officer input and preserves the save RPC arguments", async () => {
   officerForm.set("position_id", "4");
   officerForm.set("classification", "");
   officerForm.append("branches", "-2");
-  await saveOfficer({ error: "" }, officerForm);
+  await saveOfficer({ error: "", success: "" }, officerForm);
   expect(rpc).toHaveBeenCalledWith("save_officer", {
     p_officer_id: undefined,
     p_name: " Alex Example ",
@@ -92,6 +92,28 @@ it("validates officer input and preserves the save RPC arguments", async () => {
     p_status: "active",
     p_branch_ids: [-2],
   });
+});
+
+it("returns a field error and keeps entered values when an Officer name is blank", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 601,
+    applicationRole: "admin",
+  } as never);
+  const data = new FormData();
+  data.set("name", "   ");
+  data.set("utep_email", "alex@example.edu");
+  data.set("personal_email", "");
+  data.set("position_id", "4");
+  data.set("classification", "");
+  data.set("status", "active");
+  const result = await saveOfficer(previous, data);
+
+  expect(result).toMatchObject({
+    error: "Name is required",
+    fieldErrors: { name: "Name is required" },
+    values: { name: "   ", utep_email: "alex@example.edu" },
+  });
+  expect(rpc).not.toHaveBeenCalled();
 });
 
 it("denies a non-admin role action before calling the RPC", async () => {
@@ -160,7 +182,9 @@ it("routes a valid catalog create through the existing branch RPC", async () => 
   branchForm.set("catalog", "branch");
   branchForm.set("operation", "create");
   branchForm.set("name", "Denver");
-  expect((await changeCatalog(previous, branchForm)).success).toBe("Saved");
+  expect((await changeCatalog(previous, branchForm)).success).toBe(
+    "Branch added",
+  );
   expect(rpc).toHaveBeenCalledWith("create_branch", { p_name: "Denver" });
 });
 
@@ -178,7 +202,7 @@ it("validates and routes Event location catalog mutations", async () => {
     return data;
   };
   expect((await changeCatalog(previous, locationForm("create"))).success).toBe(
-    "Saved",
+    "Event location added",
   );
   expect(rpc).toHaveBeenCalledWith("create_event_location", {
     p_name: "CCSB 1.032",
@@ -243,11 +267,11 @@ it.each([
   }))
     data.set(key, value);
   if (returnTo) data.set("returnTo", returnTo);
-  await saveOfficer({ error: "" }, data);
+  await saveOfficer({ error: "", success: "" }, data);
   expect(redirect).toHaveBeenCalledWith(
     returnTo?.startsWith("/officers?q=alex")
-      ? "/officers/602?returnTo=%2Fofficers%3Fq%3Dalex%26branch%3D2"
-      : "/officers/602",
+      ? "/officers/602?returnTo=%2Fofficers%3Fq%3Dalex%26branch%3D2&feedback=officer-saved"
+      : "/officers/602?feedback=officer-saved",
   );
 });
 
@@ -258,9 +282,9 @@ it("return context grants no Officer save permission", async () => {
   } as never);
   const data = new FormData();
   data.set("returnTo", "/officers?status=active");
-  expect(await saveOfficer({ error: "" }, data)).toEqual({
-    error: "Admin required",
-  });
+  expect((await saveOfficer({ error: "", success: "" }, data)).error).toBe(
+    "Admin required",
+  );
   expect(rpc).not.toHaveBeenCalled();
   expect(redirect).not.toHaveBeenCalled();
 });

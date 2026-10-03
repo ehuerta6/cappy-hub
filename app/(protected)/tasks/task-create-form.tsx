@@ -2,6 +2,8 @@
 
 import { useActionState, useState } from "react";
 import type { Tables } from "@/lib/database.types";
+import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
+import { ActionFeedback, FieldError } from "@/components/ui";
 import {
   RecurrenceScope,
   changedFormFields,
@@ -25,8 +27,9 @@ export default function TaskCreateForm({
 }) {
   const [state, action, pending] = useActionState(
     task ? editRecurringTask : createTask,
-    { error: "" },
+    initialFormActionState,
   );
+  const fieldErrors = state.fieldErrors ?? {};
   const [editedFields, setEditedFields] = useState<string[]>([]);
   const original: Record<string, string | string[]> = task
     ? {
@@ -73,6 +76,8 @@ export default function TaskCreateForm({
           requestKey={recurrenceRequestKey}
           recordType="Task"
           editing
+          values={state.values}
+          fieldErrors={fieldErrors}
         />
       )}
       <input
@@ -82,19 +87,53 @@ export default function TaskCreateForm({
       />
       <label>
         Title
-        <input name="title" required defaultValue={task?.title} />
+        <input
+          name="title"
+          required
+          aria-invalid={Boolean(fieldErrors.title)}
+          aria-describedby={fieldErrors.title ? "task-title-error" : undefined}
+          defaultValue={submittedValue(
+            state.values,
+            "title",
+            task?.title ?? "",
+          )}
+        />
+        <FieldError id="task-title-error">{fieldErrors.title}</FieldError>
       </label>
       <label>
         Description
         <textarea
           name="description"
           required
-          defaultValue={task?.description}
+          aria-invalid={Boolean(fieldErrors.description)}
+          aria-describedby={
+            fieldErrors.description ? "task-description-error" : undefined
+          }
+          defaultValue={submittedValue(
+            state.values,
+            "description",
+            task?.description ?? "",
+          )}
         />
+        <FieldError id="task-description-error">
+          {fieldErrors.description}
+        </FieldError>
       </label>
       <label>
         Type
-        <select name="task_type" required defaultValue={task?.task_type ?? ""}>
+        <select
+          name="task_type"
+          required
+          aria-invalid={Boolean(fieldErrors.task_type)}
+          aria-describedby={
+            fieldErrors.task_type ? "task-type-error" : undefined
+          }
+          defaultValue={submittedValue(
+            state.values,
+            "task_type",
+            task?.task_type ?? "",
+          )}
+        >
           <option value="" disabled>
             Select task type
           </option>
@@ -102,10 +141,23 @@ export default function TaskCreateForm({
             <option key={type}>{type}</option>
           ))}
         </select>
+        <FieldError id="task-type-error">{fieldErrors.task_type}</FieldError>
       </label>
       <label>
         Branch
-        <select name="branch_id" required defaultValue={task?.branch_id ?? ""}>
+        <select
+          name="branch_id"
+          required
+          aria-invalid={Boolean(fieldErrors.branch_id)}
+          aria-describedby={
+            fieldErrors.branch_id ? "task-branch-error" : undefined
+          }
+          defaultValue={submittedValue(
+            state.values,
+            "branch_id",
+            String(task?.branch_id ?? ""),
+          )}
+        >
           <option value="" disabled>
             Select branch
           </option>
@@ -115,6 +167,7 @@ export default function TaskCreateForm({
             </option>
           ))}
         </select>
+        <FieldError id="task-branch-error">{fieldErrors.branch_id}</FieldError>
       </label>
       <label>
         Due date
@@ -122,36 +175,68 @@ export default function TaskCreateForm({
           name="due_date"
           type="date"
           required
-          defaultValue={task?.due_date}
+          aria-invalid={Boolean(fieldErrors.due_date)}
+          aria-describedby={
+            fieldErrors.due_date ? "task-due-date-error" : undefined
+          }
+          defaultValue={submittedValue(
+            state.values,
+            "due_date",
+            task?.due_date ?? "",
+          )}
         />
+        <FieldError id="task-due-date-error">{fieldErrors.due_date}</FieldError>
       </label>
       <label>
         Points
         <input
           name="points"
-          defaultValue={task?.points}
           type="number"
-          min="0.01"
-          step="0.01"
+          min="0"
+          step="any"
           required
+          aria-invalid={Boolean(fieldErrors.points)}
+          aria-describedby={
+            fieldErrors.points ? "task-points-error" : undefined
+          }
+          defaultValue={submittedValue(
+            state.values,
+            "points",
+            task ? String(task.points) : "",
+          )}
         />
+        <FieldError id="task-points-error">{fieldErrors.points}</FieldError>
       </label>
       <label>
         <input
           name="approval_required"
           type="checkbox"
-          defaultChecked={task?.approval_required}
+          defaultChecked={
+            submittedValue(
+              state.values,
+              "approval_required",
+              task?.approval_required ? "on" : "",
+            ) === "on"
+          }
         />{" "}
         Require lead approval before points are awarded
       </label>
-      {!task && <RecurrenceFields recordType="Task" />}
-      {state.error && (
-        <p role="alert" className="text-danger">
-          {state.error}
-        </p>
+      {!task && (
+        <RecurrenceFields
+          recordType="Task"
+          values={state.values}
+          fieldErrors={fieldErrors}
+        />
       )}
+      <ActionFeedback state={state} />
       <button disabled={pending}>
-        {pending ? "Saving…" : task ? "Save task" : "Create task"}
+        {pending
+          ? task
+            ? "Saving…"
+            : "Creating…"
+          : task
+            ? "Save task"
+            : "Create task"}
       </button>
     </form>
   );

@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
+import { ActionFeedback, FieldError } from "@/components/ui";
+import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { changeCatalog } from "./actions";
 
 type Catalog = "position" | "branch" | "event_location";
@@ -15,10 +17,13 @@ function CatalogForm({
   operation: "create" | "rename" | "delete";
   record?: CatalogRecord;
 }) {
-  const [state, action, pending] = useActionState(changeCatalog, {
-    error: "",
-    success: "",
-  });
+  const [state, action, pending] = useActionState(
+    changeCatalog,
+    initialFormActionState,
+  );
+  const fieldErrors = state.fieldErrors ?? {};
+  const fieldId = `${catalog}-${operation}-${record?.id ?? "new"}`;
+  const errorId = `${fieldId}-error`;
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="catalog" value={catalog} />
@@ -33,27 +38,37 @@ function CatalogForm({
         </label>
       )}
       {operation !== "delete" && (
-        <input
-          id={`${catalog}-${operation}-${record?.id ?? "new"}`}
-          name="name"
-          required
-          defaultValue={operation === "rename" ? record?.name : ""}
-          placeholder="Name"
-        />
+        <>
+          <input
+            id={fieldId}
+            name="name"
+            required
+            aria-invalid={Boolean(fieldErrors.name)}
+            aria-describedby={fieldErrors.name ? errorId : undefined}
+            defaultValue={submittedValue(
+              state.values,
+              "name",
+              operation === "rename" ? (record?.name ?? "") : "",
+            )}
+            placeholder="Name"
+          />
+          <FieldError id={errorId}>{fieldErrors.name}</FieldError>
+        </>
       )}
       <button type="submit" disabled={pending} className="button-secondary">
-        {operation === "create"
-          ? "Add"
-          : operation === "rename"
-            ? "Rename"
-            : "Delete"}
+        {pending
+          ? operation === "create"
+            ? "Adding…"
+            : operation === "rename"
+              ? "Saving…"
+              : "Deleting…"
+          : operation === "create"
+            ? "Add"
+            : operation === "rename"
+              ? "Rename"
+              : "Delete"}
       </button>
-      {state.error && (
-        <span role="alert" className="text-danger">
-          {state.error}
-        </span>
-      )}
-      {state.success && <span role="status">{state.success}</span>}
+      <ActionFeedback state={state} />
     </form>
   );
 }

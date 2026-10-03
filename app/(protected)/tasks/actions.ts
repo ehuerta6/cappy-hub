@@ -2,10 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { safeReturnTo, withReturnTo } from "@/lib/return-context";
+import { withSuccessNotice } from "@/lib/mutation-feedback";
 import { redirect } from "next/navigation";
 import { getAuthorizationContext } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import { mutationError } from "@/lib/mutation-error";
+import {
+  formFailure,
+  validationFailure,
+  type FormActionState,
+} from "@/lib/form-feedback";
 import {
   canonicalRecurrenceRule,
   expandRecurrenceDates,
@@ -21,8 +27,26 @@ import {
   taskRecordInputSchema,
 } from "./validation";
 
+const taskFormFields = [
+  "title",
+  "description",
+  "task_type",
+  "branch_id",
+  "due_date",
+  "points",
+  "approval_required",
+  "recurrence_frequency",
+  "recurrence_interval",
+  "recurrence_weekdays",
+  "recurrence_end_mode",
+  "recurrence_count",
+  "recurrence_until",
+] as const;
+const taskFieldErrors = taskFormFields;
+const taskMultipleFields = ["recurrence_weekdays"] as const;
+
 export async function createTask(
-  _previous: { error: string },
+  _previous: FormActionState,
   formData: FormData,
 ) {
   await getAuthorizationContext();
@@ -45,7 +69,12 @@ export async function createTask(
   };
   const validationResult = createTaskInputSchema.safeParse(rawTaskInput);
   if (!validationResult.success)
-    return { error: validationResult.error.issues[0].message };
+    return validationFailure(
+      validationResult.error,
+      formData,
+      taskFieldErrors,
+      taskMultipleFields,
+    );
   const validatedTaskInput = validationResult.data;
   const supabase = await createClient();
   const recurrence = recurrenceInput(validatedTaskInput);
@@ -54,9 +83,13 @@ export async function createTask(
     try {
       dates = expandRecurrenceDates(validatedTaskInput.due_date, recurrence);
     } catch (error) {
-      return {
-        error: error instanceof Error ? error.message : "Invalid recurrence",
-      };
+      return formFailure(
+        error instanceof Error ? error.message : "Invalid recurrence",
+        formData,
+        taskFormFields,
+        undefined,
+        taskMultipleFields,
+      );
     }
     const { data, error } = await supabase.rpc("create_recurring_task", {
       p_title: validatedTaskInput.title,
@@ -69,9 +102,16 @@ export async function createTask(
       p_recurrence_rule: canonicalRecurrenceRule(recurrence),
       p_due_dates: dates,
     });
-    if (error) return { error: mutationError(error.message) };
+    if (error)
+      return formFailure(
+        mutationError(error.message),
+        formData,
+        taskFormFields,
+        undefined,
+        taskMultipleFields,
+      );
     revalidatePath("/tasks");
-    redirect(`/tasks#task-${data}`);
+    redirect(withSuccessNotice(`/tasks#task-${data}`, "task-created"));
   }
   const { data, error } = await supabase.rpc("save_task", {
     p_title: validatedTaskInput.title,
@@ -82,15 +122,19 @@ export async function createTask(
     p_points: validatedTaskInput.points,
     p_approval_required: validatedTaskInput.approval_required,
   });
-  if (error) return { error: mutationError(error.message) };
+  if (error)
+    return formFailure(
+      mutationError(error.message),
+      formData,
+      taskFormFields,
+      undefined,
+      taskMultipleFields,
+    );
   revalidatePath("/tasks");
-  redirect(`/tasks#task-${data}`);
+  redirect(withSuccessNotice(`/tasks#task-${data}`, "task-created"));
 }
 
-export async function updateTask(
-  _previous: { error: string; success: string },
-  form: FormData,
-) {
+export async function updateTask(_previous: FormActionState, form: FormData) {
   await getAuthorizationContext();
   const rawTaskActionInput = {
     task_id: form.get("task_id") ?? "",
@@ -99,10 +143,11 @@ export async function updateTask(
   };
   const validationResult = taskActionInputSchema.safeParse(rawTaskActionInput);
   if (!validationResult.success)
-    return {
-      error: validationResult.error.issues[0].message,
-      success: "",
-    };
+    return validationFailure(validationResult.error, form, [
+      "task_id",
+      "operation",
+      "officer_id",
+    ]);
   const validatedTaskActionInput = validationResult.data;
   const supabase = await createClient();
   let mutationResponse;
@@ -121,20 +166,24 @@ export async function updateTask(
     });
   }
   if (mutationResponse.error)
-    return {
-      error: mutationError(mutationResponse.error.message),
-      success: "",
-    };
+    return formFailure(mutationError(mutationResponse.error.message), form, [
+      "task_id",
+      "operation",
+      "officer_id",
+    ]);
   const taskId = validatedTaskActionInput.task_id;
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);
-  return { error: "", success: "Task updated" };
+  const success =
+    validatedTaskActionInput.operation === "assign"
+      ? "Task assigned"
+      : validatedTaskActionInput.operation === "complete"
+        ? "Task completed"
+        : "Task approved";
+  return { error: "", success };
 }
 
-export async function removeTask(
-  _previous: { error: string; success: string },
-  form: FormData,
-) {
+export async function removeTask(_previous: FormActionState, form: FormData) {
   await getAuthorizationContext();
   const validation = taskRecordInputSchema.safeParse({
     task_id: form.get("task_id") ?? "",
@@ -169,7 +218,7 @@ export async function removeTask(
 }
 
 export async function editRecurringTask(
-  _previous: { error: string },
+  _previous: FormActionState,
   form: FormData,
 ) {
   await getAuthorizationContext();
@@ -179,8 +228,21 @@ export async function editRecurringTask(
     approval_required: form.get("approval_required") ?? "",
     recurrence_weekdays: form.getAll("recurrence_weekdays"),
   });
-  if (!id.success) return { error: id.error.issues[0].message };
-  if (!validation.success) return { error: validation.error.issues[0].message };
+  if (!id.success)
+    return formFailure(
+      id.error.issues[0].message,
+      form,
+      ["task_id", ...taskFormFields],
+      undefined,
+      taskMultipleFields,
+    );
+  if (!validation.success)
+    return validationFailure(
+      validation.error,
+      form,
+      ["task_id", ...taskFieldErrors],
+      taskMultipleFields,
+    );
   try {
     const args = await recurrenceMutation(
       "task",
@@ -191,15 +253,27 @@ export async function editRecurringTask(
     );
     const supabase = await createClient();
     const { error } = await supabase.rpc("mutate_recurring_task", args);
-    if (error) return { error: mutationError(error.message) };
+    if (error)
+      return formFailure(
+        mutationError(error.message),
+        form,
+        ["task_id", ...taskFormFields],
+        undefined,
+        taskMultipleFields,
+      );
   } catch (error) {
-    return { error: recurrenceMutationError(error) };
+    return formFailure(
+      recurrenceMutationError(error),
+      form,
+      ["task_id", ...taskFormFields],
+      undefined,
+      taskMultipleFields,
+    );
   }
   revalidatePath("/", "layout");
-  redirect(
+  const destination =
     form.get("scope") === "series"
       ? (safeReturnTo(form.get("returnTo")) ?? "/tasks")
-      : withReturnTo(`/tasks/${id.data.task_id}`, form.get("returnTo")),
-  );
-  return { error: "" };
+      : withReturnTo(`/tasks/${id.data.task_id}`, form.get("returnTo"));
+  redirect(withSuccessNotice(destination, "task-updated"));
 }

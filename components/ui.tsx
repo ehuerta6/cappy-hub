@@ -2,6 +2,63 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { displayPoints } from "@/lib/participation";
 import { formatLabel } from "@/lib/presentation";
+import type { FormActionState } from "@/lib/form-feedback";
+import { successNotice } from "@/lib/mutation-feedback";
+
+export function FormMessage({
+  kind,
+  children,
+  className = "",
+}: {
+  kind: "error" | "success";
+  children: ReactNode;
+  className?: string;
+}) {
+  if (!children) return null;
+  const tone =
+    kind === "error"
+      ? "border-danger-border bg-danger-bg text-danger"
+      : "border-success-border bg-success-bg text-success";
+  return (
+    <p
+      role={kind === "error" ? "alert" : "status"}
+      className={`rounded-md border px-3 py-2 text-sm ${tone} ${className}`}
+    >
+      {children}
+    </p>
+  );
+}
+
+export function FieldError({
+  id,
+  children,
+}: {
+  id: string;
+  children?: string;
+}) {
+  if (!children) return null;
+  return (
+    <span id={id} className="text-sm text-danger">
+      {children}
+    </span>
+  );
+}
+
+export function ActionFeedback({
+  state,
+}: {
+  state: Pick<FormActionState, "error" | "success">;
+}) {
+  if (state.error) return <FormMessage kind="error">{state.error}</FormMessage>;
+  if (state.success)
+    return <FormMessage kind="success">{state.success}</FormMessage>;
+  return null;
+}
+
+export function SuccessNotice({ status }: { status: unknown }) {
+  const message = successNotice(status);
+  return message ? <FormMessage kind="success">{message}</FormMessage> : null;
+}
 
 export function PageHeader({
   title,

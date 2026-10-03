@@ -33,9 +33,13 @@ it("rejects a blank warning reason before calling the RPC", async () => {
   const warningForm = new FormData();
   warningForm.set("officer_id", "3");
   warningForm.set("reason", "   ");
-  expect(await createWarning({ error: "", success: "" }, warningForm)).toEqual({
+  expect(
+    await createWarning({ error: "", success: "" }, warningForm),
+  ).toMatchObject({
     error: "Warning reason is required",
     success: "",
+    fieldErrors: { reason: "Warning reason is required" },
+    values: { reason: "   " },
   });
   expect(rpc).not.toHaveBeenCalled();
 });

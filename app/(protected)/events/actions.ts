@@ -3,6 +3,11 @@
 import { getAuthorizationContext, canManageEvent } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import { mutationError } from "@/lib/mutation-error";
+import {
+  formFailure,
+  validationFailure,
+  type FormActionState,
+} from "@/lib/form-feedback";
 import { denverTimestamp } from "@/lib/event-time";
 import {
   canonicalRecurrenceRule,
@@ -15,6 +20,7 @@ import {
 import { recurrenceInput } from "@/lib/recurrence-validation";
 import { revalidatePath } from "next/cache";
 import { withReturnTo } from "@/lib/return-context";
+import { withSuccessNotice } from "@/lib/mutation-feedback";
 import { redirect } from "next/navigation";
 import {
   bulkAddEventOfficersInputSchema,
@@ -24,8 +30,28 @@ import {
   restoreEventInputSchema,
   saveEventInputSchema,
 } from "./validation";
+
+const eventFormFields = [
+  "name",
+  "description",
+  "event_type_id",
+  "location",
+  "event_date",
+  "start_time",
+  "end_time",
+  "branches",
+  "slides_url",
+  "meeting_notes_url",
+  "recurrence_frequency",
+  "recurrence_interval",
+  "recurrence_weekdays",
+  "recurrence_end_mode",
+  "recurrence_count",
+  "recurrence_until",
+] as const;
+const eventFieldErrors = eventFormFields;
 export async function saveEvent(
-  _previous: { error: string },
+  _previous: FormActionState,
   formData: FormData,
 ) {
   const actor = await getAuthorizationContext();
@@ -36,7 +62,13 @@ export async function saveEvent(
     ? branchValidationResult.data
     : [];
   if (!formData.get("id") && !canManageEvent(actor, branchIdsForAuthorization))
-    return { error: "Event outside branch scope" };
+    return formFailure(
+      "Event outside branch scope",
+      formData,
+      eventFormFields,
+      undefined,
+      ["branches", "recurrence_weekdays"],
+    );
 
   const rawEventInput = {
     id: formData.get("id") ?? "",
@@ -61,7 +93,12 @@ export async function saveEvent(
   };
   const validationResult = saveEventInputSchema.safeParse(rawEventInput);
   if (!validationResult.success)
-    return { error: validationResult.error.issues[0].message };
+    return validationFailure(
+      validationResult.error,
+      formData,
+      eventFieldErrors,
+      ["branches", "recurrence_weekdays"],
+    );
   const validatedEventInput = validationResult.data;
 
   const start = denverTimestamp(
@@ -72,7 +109,14 @@ export async function saveEvent(
     validatedEventInput.event_date,
     validatedEventInput.end_time,
   );
-  if (!start || !end) return { error: "Enter valid El Paso times" };
+  if (!start || !end)
+    return formFailure(
+      "Enter valid El Paso times",
+      formData,
+      eventFormFields,
+      undefined,
+      ["branches", "recurrence_weekdays"],
+    );
   const supabase = await createClient();
   if (validatedEventInput.id && formData.has("recurrence_series_id")) {
     try {
@@ -95,30 +139,56 @@ export async function saveEvent(
         },
       );
       const { error } = await supabase.rpc("mutate_recurring_event", args);
-      if (error) return { error: mutationError(error.message) };
+      if (error)
+        return formFailure(
+          mutationError(error.message),
+          formData,
+          eventFormFields,
+          undefined,
+          ["branches", "recurrence_weekdays"],
+        );
     } catch (error) {
-      return { error: recurrenceMutationError(error) };
+      return formFailure(
+        recurrenceMutationError(error),
+        formData,
+        eventFormFields,
+        undefined,
+        ["branches", "recurrence_weekdays"],
+      );
     }
     revalidatePath("/", "layout");
     redirect(
-      withReturnTo(
-        `/events/${validatedEventInput.id}`,
-        formData.get("returnTo"),
+      withSuccessNotice(
+        withReturnTo(
+          `/events/${validatedEventInput.id}`,
+          formData.get("returnTo"),
+        ),
+        "event-saved",
       ),
     );
-    return { error: "" };
+    return { error: "", success: "" };
   }
   const recurrence = recurrenceInput(validatedEventInput);
   if (recurrence && validatedEventInput.id)
-    return { error: "Recurrence can only be set when creating a new event" };
+    return formFailure(
+      "Recurrence can only be set when creating a new event",
+      formData,
+      eventFormFields,
+      undefined,
+      ["branches", "recurrence_weekdays"],
+    );
   if (recurrence) {
     let dates: string[];
     try {
       dates = expandRecurrenceDates(validatedEventInput.event_date, recurrence);
     } catch (error) {
-      return {
-        error: error instanceof Error ? error.message : "Invalid recurrence",
-      };
+      return formFailure(
+        error instanceof Error ? error.message : "Invalid recurrence",
+        formData,
+        eventFormFields,
+        undefined,
+        ["branches", "recurrence_weekdays"],
+      );
     }
     const starts = dates.map((date) =>
       denverTimestamp(date, validatedEventInput.start_time),
@@ -127,9 +197,13 @@ export async function saveEvent(
       denverTimestamp(date, validatedEventInput.end_time),
     );
     if (starts.some((value) => !value) || ends.some((value) => !value))
-      return {
-        error: "A recurring occurrence falls on an invalid El Paso time",
-      };
+      return formFailure(
+        "A recurring occurrence falls on an invalid El Paso time",
+        formData,
+        eventFormFields,
+        undefined,
+        ["branches", "recurrence_weekdays"],
+      );
     const { data, error } = await supabase.rpc("create_recurring_event", {
       p_name: validatedEventInput.name,
       p_description: validatedEventInput.description,
@@ -144,9 +218,21 @@ export async function saveEvent(
       p_starts_at: starts as string[],
       p_ends_at: ends as string[],
     });
-    if (error) return { error: mutationError(error.message) };
+    if (error)
+      return formFailure(
+        mutationError(error.message),
+        formData,
+        eventFormFields,
+        undefined,
+        ["branches", "recurrence_weekdays"],
+      );
     revalidatePath("/", "layout");
-    redirect(withReturnTo(`/events/${data}`, formData.get("returnTo")));
+    redirect(
+      withSuccessNotice(
+        withReturnTo(`/events/${data}`, formData.get("returnTo")),
+        "event-saved",
+      ),
+    );
   }
   const { data, error } = await supabase.rpc("save_event_with_links", {
     p_event_id: validatedEventInput.id,
@@ -161,12 +247,24 @@ export async function saveEvent(
     p_slides_url: validatedEventInput.slides_url,
     p_meeting_notes_url: validatedEventInput.meeting_notes_url,
   });
-  if (error) return { error: mutationError(error.message) };
+  if (error)
+    return formFailure(
+      mutationError(error.message),
+      formData,
+      eventFormFields,
+      undefined,
+      ["branches", "recurrence_weekdays"],
+    );
   revalidatePath("/", "layout");
-  redirect(withReturnTo(`/events/${data}`, formData.get("returnTo")));
+  redirect(
+    withSuccessNotice(
+      withReturnTo(`/events/${data}`, formData.get("returnTo")),
+      "event-saved",
+    ),
+  );
 }
 export async function changeSignup(
-  _previous: { error: string; success: string },
+  _previous: FormActionState,
   formData: FormData,
 ) {
   await getAuthorizationContext();
@@ -177,10 +275,11 @@ export async function changeSignup(
   };
   const validationResult = changeSignupInputSchema.safeParse(rawSignupInput);
   if (!validationResult.success)
-    return {
-      error: validationResult.error.issues[0].message,
-      success: "",
-    };
+    return validationFailure(validationResult.error, formData, [
+      "event_id",
+      "officer_id",
+      "remove",
+    ]);
   const validatedSignupInput = validationResult.data;
   const supabase = await createClient();
   const { error } = await supabase.rpc("change_event_signup", {
@@ -188,7 +287,13 @@ export async function changeSignup(
     p_officer_id: validatedSignupInput.officer_id,
     p_remove: validatedSignupInput.remove,
   });
-  if (error) return { error: mutationError(error.message), success: "" };
+  if (error)
+    return formFailure(
+      mutationError(error.message),
+      formData,
+      ["event_id", "officer_id", "remove"],
+      undefined,
+    );
   revalidatePath("/", "layout");
   return {
     error: "",
@@ -196,17 +301,18 @@ export async function changeSignup(
   };
 }
 export async function selfSignup(
-  previous: { error: string; success: string },
+  previous: FormActionState,
   formData: FormData,
 ) {
   const actor = await getAuthorizationContext();
   const signup = new FormData();
   signup.set("event_id", String(formData.get("event_id") ?? ""));
   signup.set("officer_id", String(actor.id));
-  return changeSignup(previous, signup);
+  const result = await changeSignup(previous, signup);
+  return result.error ? result : { ...result, success: "Signed up for event" };
 }
 export async function bulkAddEventOfficers(
-  _previous: { error: string; success: string },
+  _previous: FormActionState,
   formData: FormData,
 ) {
   await getAuthorizationContext();
@@ -218,17 +324,26 @@ export async function bulkAddEventOfficers(
     rawBulkAddEventOfficersInput,
   );
   if (!validationResult.success)
-    return {
-      error: validationResult.error.issues[0].message,
-      success: "",
-    };
+    return validationFailure(
+      validationResult.error,
+      formData,
+      ["event_id", "officer_ids"],
+      ["officer_ids"],
+    );
   const validatedBulkAddEventOfficersInput = validationResult.data;
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("bulk_add_event_officers", {
     p_event_id: validatedBulkAddEventOfficersInput.event_id,
     p_officer_ids: validatedBulkAddEventOfficersInput.officer_ids,
   });
-  if (error) return { error: mutationError(error.message), success: "" };
+  if (error)
+    return formFailure(
+      mutationError(error.message),
+      formData,
+      ["event_id", "officer_ids"],
+      undefined,
+      ["officer_ids"],
+    );
   revalidatePath("/", "layout");
   const result = data as {
     added_officer_ids?: number[];
@@ -248,7 +363,7 @@ export async function bulkAddEventOfficers(
   };
 }
 export async function cancelEvent(
-  _previous: { error: string; success: string },
+  _previous: FormActionState,
   formData: FormData,
 ) {
   await getAuthorizationContext();
@@ -283,7 +398,7 @@ export async function cancelEvent(
 }
 
 export async function restoreEvent(
-  _previous: { error: string; success: string },
+  _previous: FormActionState,
   formData: FormData,
 ) {
   await getAuthorizationContext();
@@ -305,7 +420,7 @@ export async function restoreEvent(
 }
 
 export async function removeEvent(
-  _previous: { error: string; success: string },
+  _previous: FormActionState,
   formData: FormData,
 ) {
   await getAuthorizationContext();

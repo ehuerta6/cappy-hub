@@ -3,6 +3,11 @@
 import { getAuthorizationContext, canManagePoints } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import { mutationError } from "@/lib/mutation-error";
+import {
+  formFailure,
+  validationFailure,
+  type FormActionState,
+} from "@/lib/form-feedback";
 import { revalidatePath } from "next/cache";
 import {
   editPointTransactionInputSchema,
@@ -12,11 +17,18 @@ import {
   pointTransactionInputSchema,
 } from "./validation";
 export async function addTransaction(
-  _previous: { error: string; success: string },
+  _previous: FormActionState,
   formData: FormData,
 ) {
   const actor = await getAuthorizationContext();
-  if (!canManagePoints(actor)) return { error: "Admin required", success: "" };
+  if (!canManagePoints(actor))
+    return formFailure("Admin required", formData, [
+      "points",
+      "reason",
+      "officer_id",
+      "event_id",
+      "award_type",
+    ]);
   const rawPointTransactionInput = {
     points: formData.get("points") ?? "",
     award_type: formData.get("award_type") ?? "",
@@ -28,7 +40,13 @@ export async function addTransaction(
     rawPointTransactionInput,
   );
   if (!validationResult.success)
-    return { error: validationResult.error.issues[0].message, success: "" };
+    return validationFailure(validationResult.error, formData, [
+      "points",
+      "reason",
+      "officer_id",
+      "event_id",
+      "award_type",
+    ]);
   const validatedPointTransactionInput = validationResult.data;
   const supabase = await createClient();
   const { error } = await supabase.rpc("add_manual_transaction", {
@@ -38,33 +56,42 @@ export async function addTransaction(
     p_reason: validatedPointTransactionInput.reason,
     p_award_type: validatedPointTransactionInput.award_type,
   });
-  if (error) return { error: mutationError(error.message), success: "" };
+  if (error)
+    return formFailure(mutationError(error.message), formData, [
+      "points",
+      "reason",
+      "officer_id",
+      "event_id",
+      "award_type",
+    ]);
   revalidatePath("/", "layout");
-  return { error: "", success: "Transaction added" };
+  return { error: "", success: "Point transaction added" };
 }
 
 export async function changeParticipationRate(
-  _previous: { error: string; success: string },
+  _previous: FormActionState,
   formData: FormData,
 ) {
   const actor = await getAuthorizationContext();
-  if (!canManagePoints(actor)) return { error: "Admin required", success: "" };
+  if (!canManagePoints(actor))
+    return formFailure("Admin required", formData, ["rate"]);
   const validationResult = participationRateInputSchema.safeParse({
     rate: formData.get("rate") ?? "",
   });
   if (!validationResult.success)
-    return { error: validationResult.error.issues[0].message, success: "" };
+    return validationFailure(validationResult.error, formData, ["rate"]);
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_participation_rate", {
     p_rate: validationResult.data.rate,
   });
-  if (error) return { error: mutationError(error.message), success: "" };
+  if (error)
+    return formFailure(mutationError(error.message), formData, ["rate"]);
   revalidatePath("/", "layout");
-  return { error: "", success: "Rate saved" };
+  return { error: "", success: "Participation rate saved" };
 }
 
 export async function removeParticipationAward(
-  _previous: { error: string; success: string },
+  _previous: FormActionState,
   formData: FormData,
 ) {
   const actor = await getAuthorizationContext();
@@ -87,11 +114,12 @@ export async function removeParticipationAward(
 }
 
 export async function editPointTransaction(
-  _previous: { error: string; success: string },
+  _previous: FormActionState,
   formData: FormData,
 ) {
   const actor = await getAuthorizationContext();
-  if (!canManagePoints(actor)) return { error: "Admin required", success: "" };
+  if (!canManagePoints(actor))
+    return formFailure("Admin required", formData, ["points"]);
   const rawPointTransactionEditInput = {
     transaction_id: formData.get("transaction_id") ?? "",
     points: formData.get("points") ?? "",
@@ -100,19 +128,20 @@ export async function editPointTransaction(
     rawPointTransactionEditInput,
   );
   if (!validationResult.success)
-    return { error: validationResult.error.issues[0].message, success: "" };
+    return validationFailure(validationResult.error, formData, ["points"]);
   const validatedPointTransactionEdit = validationResult.data;
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_point_transaction", {
     p_transaction_id: validatedPointTransactionEdit.transaction_id,
     p_points: validatedPointTransactionEdit.points,
   });
-  if (error) return { error: mutationError(error.message), success: "" };
+  if (error)
+    return formFailure(mutationError(error.message), formData, ["points"]);
   revalidatePath("/", "layout");
-  return { error: "", success: "Points updated" };
+  return { error: "", success: "Point transaction updated" };
 }
 export async function removePointTransaction(
-  _previous: { error: string; success: string },
+  _previous: FormActionState,
   formData: FormData,
 ) {
   const actor = await getAuthorizationContext();
@@ -130,7 +159,9 @@ export async function removePointTransaction(
   revalidatePath("/", "layout");
   return {
     error: "",
-    success: data ? "Transaction removed" : "Already removed",
+    success: data
+      ? "Point transaction removed"
+      : "Point transaction already removed",
   };
 }
 export async function searchEvents(term: string) {

@@ -9,21 +9,21 @@ export const createTaskInputSchema = zod
   .object({
     title: zod
       .string()
-      .refine((title) => title.trim().length > 0, "Invalid task fields"),
+      .refine((title) => title.trim().length > 0, "Enter a Task title"),
     description: zod
       .string()
       .refine(
         (description) => description.trim().length > 0,
-        "Invalid task fields",
+        "Enter a Task description",
       ),
     task_type: zod.enum(["Flyer", "LinkedIn", "Airtable", "Story", "Post"], {
-      error: "Invalid task fields",
+      error: "Select a Task type",
     }),
-    branch_id: safeIntegerStringSchema("Invalid task fields"),
-    due_date: zod.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid task fields"),
-    points: finiteNumberStringSchema("Invalid task fields").refine(
+    branch_id: safeIntegerStringSchema("Select a branch"),
+    due_date: zod.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a due date"),
+    points: finiteNumberStringSchema("Enter a positive point value").refine(
       (points) => points > 0,
-      "Invalid task fields",
+      "Enter a positive point value",
     ),
     approval_required: zod
       .string()

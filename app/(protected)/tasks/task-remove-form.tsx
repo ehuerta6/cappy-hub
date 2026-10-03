@@ -6,6 +6,8 @@ import {
   type RecurrenceSeries,
 } from "@/components/recurrence-scope";
 import { useActionState } from "react";
+import { ActionFeedback } from "@/components/ui";
+import { initialFormActionState } from "@/lib/form-feedback";
 import { removeTask } from "./actions";
 
 export function TaskRemoveForm({
@@ -17,10 +19,10 @@ export function TaskRemoveForm({
   series: RecurrenceSeries;
   requestKey: string;
 }) {
-  const [state, action, pending] = useActionState(removeTask, {
-    error: "",
-    success: "",
-  });
+  const [state, action, pending] = useActionState(
+    removeTask,
+    initialFormActionState,
+  );
   return (
     <form
       action={action}
@@ -35,8 +37,7 @@ export function TaskRemoveForm({
         recordType="Task"
       />
       <input type="hidden" name="task_id" value={taskId} />
-      {state.error && <p role="alert">{state.error}</p>}
-      {state.success && <p role="status">{state.success}</p>}
+      <ActionFeedback state={state} />
       <button className="button-secondary" disabled={pending}>
         {pending ? "Removing…" : "Remove task"}
       </button>

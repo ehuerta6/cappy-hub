@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
+import { ActionFeedback } from "@/components/ui";
+import { initialFormActionState } from "@/lib/form-feedback";
 import { removeParticipationAward } from "./actions";
 
 export default function RemoveAwardForm({
@@ -8,18 +10,17 @@ export default function RemoveAwardForm({
 }: {
   transactionId: number;
 }) {
-  const [state, action, pending] = useActionState(removeParticipationAward, {
-    error: "",
-    success: "",
-  });
+  const [state, action, pending] = useActionState(
+    removeParticipationAward,
+    initialFormActionState,
+  );
   return (
     <form action={action}>
       <input type="hidden" name="transaction_id" value={transactionId} />
       <button disabled={pending} className="button-secondary">
-        Remove award
+        {pending ? "Removing…" : "Remove award"}
       </button>
-      {state.error && <span role="alert">{state.error}</span>}
-      {state.success && <span role="status">{state.success}</span>}
+      <ActionFeedback state={state} />
     </form>
   );
 }

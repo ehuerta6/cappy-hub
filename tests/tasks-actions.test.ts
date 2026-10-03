@@ -37,13 +37,17 @@ beforeEach(() => {
 it("rejects malformed task points before calling the RPC", async () => {
   const invalidTaskForm = taskForm();
   invalidTaskForm.set("points", "Infinity");
-  const result = await createTask({ error: "" }, invalidTaskForm);
-  expect(result).toEqual({ error: "Invalid task fields" });
+  const result = await createTask({ error: "", success: "" }, invalidTaskForm);
+  expect(result).toMatchObject({
+    error: "Enter a positive point value",
+    fieldErrors: { points: "Enter a positive point value" },
+    values: { points: "Infinity" },
+  });
   expect(rpc).not.toHaveBeenCalled();
 });
 
 it("submits task creation values to the existing RPC", async () => {
-  await createTask({ error: "" }, taskForm());
+  await createTask({ error: "", success: "" }, taskForm());
   expect(rpc).toHaveBeenCalledWith("save_task", {
     p_title: " Flyer ",
     p_description: " Prepare the flyer ",
@@ -54,6 +58,7 @@ it("submits task creation values to the existing RPC", async () => {
     p_approval_required: true,
   });
   expect(revalidatePath).toHaveBeenCalledWith("/tasks");
+  expect(redirect).toHaveBeenCalledWith("/tasks?feedback=task-created#task-9");
 });
 
 it("creates separate recurring Task due-date rows", async () => {
@@ -62,7 +67,7 @@ it("creates separate recurring Task due-date rows", async () => {
   recurring.set("recurrence_interval", "2");
   recurring.set("recurrence_end_mode", "count");
   recurring.set("recurrence_count", "3");
-  await createTask({ error: "" }, recurring);
+  await createTask({ error: "", success: "" }, recurring);
   expect(rpc).toHaveBeenCalledWith("create_recurring_task", {
     p_title: " Flyer ",
     p_description: " Prepare the flyer ",
@@ -82,7 +87,11 @@ it("requires an assigned officer only for the assign task action", async () => {
   invalidAssignment.set("operation", "assign");
   expect(
     await updateTask({ error: "", success: "" }, invalidAssignment),
-  ).toEqual({ error: "Officer not found", success: "" });
+  ).toMatchObject({
+    error: "Officer not found",
+    fieldErrors: { officer_id: "Officer not found" },
+    values: { task_id: "-9", operation: "assign", officer_id: "" },
+  });
   expect(rpc).not.toHaveBeenCalled();
 
   const completion = new FormData();
@@ -90,7 +99,7 @@ it("requires an assigned officer only for the assign task action", async () => {
   completion.set("operation", "complete");
   expect(await updateTask({ error: "", success: "" }, completion)).toEqual({
     error: "",
-    success: "Task updated",
+    success: "Task completed",
   });
   expect(rpc).toHaveBeenCalledWith("complete_task", { p_task_id: -9 });
 });
@@ -102,7 +111,7 @@ it("preserves assignment and approval RPC arguments", async () => {
   assignmentForm.set("officer_id", "-10");
   expect(await updateTask({ error: "", success: "" }, assignmentForm)).toEqual({
     error: "",
-    success: "Task updated",
+    success: "Task assigned",
   });
   expect(rpc).toHaveBeenCalledWith("assign_task", {
     p_task_id: -9,
@@ -116,7 +125,7 @@ it("preserves assignment and approval RPC arguments", async () => {
   approvalForm.set("operation", "approve");
   expect(await updateTask({ error: "", success: "" }, approvalForm)).toEqual({
     error: "",
-    success: "Task updated",
+    success: "Task approved",
   });
   expect(rpc).toHaveBeenCalledWith("approve_task", { p_task_id: -9 });
   expect(revalidatePath).toHaveBeenCalledWith("/tasks/-9");
@@ -126,9 +135,12 @@ it("returns a controlled message for an unknown task action", async () => {
   const invalidAction = new FormData();
   invalidAction.set("task_id", "1");
   invalidAction.set("operation", "unknown");
-  expect(await updateTask({ error: "", success: "" }, invalidAction)).toEqual({
+  expect(
+    await updateTask({ error: "", success: "" }, invalidAction),
+  ).toMatchObject({
     error: "Unknown task action",
-    success: "",
+    fieldErrors: { operation: "Unknown task action" },
+    values: { task_id: "1", operation: "unknown", officer_id: "" },
   });
   expect(rpc).not.toHaveBeenCalled();
 });
@@ -142,7 +154,7 @@ it("recurring Task editing submits only changed fields to its trusted RPC", asyn
   data.set("recurrence_revision", "2");
   data.set("mutation_request_key", "00000000-0000-4000-8000-000000000068");
   data.append("edited_fields", "title");
-  await editRecurringTask({ error: "" }, data);
+  await editRecurringTask({ error: "", success: "" }, data);
   expect(rpc).toHaveBeenCalledWith("mutate_recurring_task", {
     p_selected_id: 9,
     p_scope: "series",
@@ -168,11 +180,11 @@ it.each(["occurrence", "following", "series"])(
     data.set("mutation_request_key", "00000000-0000-4000-8000-000000000068");
     data.append("edited_fields", "title");
     data.set("returnTo", "/tasks?q=flyer&branch=2&assignee=7");
-    await editRecurringTask({ error: "" }, data);
+    await editRecurringTask({ error: "", success: "" }, data);
     expect(redirect).toHaveBeenCalledWith(
       scope === "series"
-        ? "/tasks?q=flyer&branch=2&assignee=7"
-        : "/tasks/9?returnTo=%2Ftasks%3Fq%3Dflyer%26branch%3D2%26assignee%3D7",
+        ? "/tasks?q=flyer&branch=2&assignee=7&feedback=task-updated"
+        : "/tasks/9?returnTo=%2Ftasks%3Fq%3Dflyer%26branch%3D2%26assignee%3D7&feedback=task-updated",
     );
     expect(rpc).toHaveBeenCalledWith(
       "mutate_recurring_task",
@@ -203,9 +215,11 @@ it.each(["occurrence", "series"])(
       data.set("recurrence_revision", "2");
       data.set("mutation_request_key", "00000000-0000-4000-8000-000000000068");
       if (returnTo) data.set("returnTo", returnTo);
-      await editRecurringTask({ error: "" }, data);
+      await editRecurringTask({ error: "", success: "" }, data);
       expect(redirect).toHaveBeenCalledWith(
-        scope === "series" ? "/tasks" : "/tasks/9",
+        scope === "series"
+          ? "/tasks?feedback=task-updated"
+          : "/tasks/9?feedback=task-updated",
       );
     }
   },
@@ -221,6 +235,8 @@ it("return context does not bypass trusted recurring Task authorization", async 
   data.set("mutation_request_key", "00000000-0000-4000-8000-000000000068");
   data.set("returnTo", "/points?page=3");
   rpc.mockResolvedValue({ error: { message: "Task outside branch scope" } });
-  expect((await editRecurringTask({ error: "" }, data)).error).toBeTruthy();
+  expect(
+    (await editRecurringTask({ error: "", success: "" }, data)).error,
+  ).toBeTruthy();
   expect(redirect).not.toHaveBeenCalled();
 });

@@ -3,6 +3,12 @@
 import { useActionState, useState } from "react";
 import type { Tables } from "@/lib/database.types";
 import { denverParts } from "@/lib/event-time";
+import {
+  initialFormActionState,
+  submittedValue,
+  submittedValues,
+} from "@/lib/form-feedback";
+import { ActionFeedback, FieldError } from "@/components/ui";
 import { saveEvent } from "./actions";
 import {
   RecurrenceScope,
@@ -34,8 +40,16 @@ export default function EventForm({
   series?: RecurrenceSeries;
   mutationRequestKey?: string;
 }) {
-  const [state, action, pending] = useActionState(saveEvent, { error: "" });
-  const [selectedBranches, setSelectedBranches] = useState(branchIds);
+  const [state, action, pending] = useActionState(
+    saveEvent,
+    initialFormActionState,
+  );
+  const [selectedBranches, setSelectedBranches] = useState(() =>
+    submittedValues(state.values, "branches", branchIds.map(String)).map(
+      Number,
+    ),
+  );
+  const fieldErrors = state.fieldErrors ?? {};
 
   const [editedFields, setEditedFields] = useState<string[]>([]);
   const original: Record<string, string | string[]> = event
@@ -93,12 +107,21 @@ export default function EventForm({
           requestKey={mutationRequestKey}
           recordType="Event"
           editing
+          values={state.values}
+          fieldErrors={fieldErrors}
         />
       )}
 
       <label className="sm:col-span-2">
         Name
-        <input name="name" required defaultValue={event?.name} />
+        <input
+          name="name"
+          required
+          aria-invalid={Boolean(fieldErrors.name)}
+          aria-describedby={fieldErrors.name ? "event-name-error" : undefined}
+          defaultValue={submittedValue(state.values, "name", event?.name ?? "")}
+        />
+        <FieldError id="event-name-error">{fieldErrors.name}</FieldError>
       </label>
 
       <label className="sm:col-span-2">
@@ -106,8 +129,19 @@ export default function EventForm({
         <textarea
           name="description"
           required
-          defaultValue={event?.description}
+          aria-invalid={Boolean(fieldErrors.description)}
+          aria-describedby={
+            fieldErrors.description ? "event-description-error" : undefined
+          }
+          defaultValue={submittedValue(
+            state.values,
+            "description",
+            event?.description ?? "",
+          )}
         />
+        <FieldError id="event-description-error">
+          {fieldErrors.description}
+        </FieldError>
       </label>
 
       <label>
@@ -115,7 +149,15 @@ export default function EventForm({
         <select
           name="event_type_id"
           required
-          defaultValue={event?.event_type_id ?? ""}
+          aria-invalid={Boolean(fieldErrors.event_type_id)}
+          aria-describedby={
+            fieldErrors.event_type_id ? "event-type-error" : undefined
+          }
+          defaultValue={submittedValue(
+            state.values,
+            "event_type_id",
+            String(event?.event_type_id ?? ""),
+          )}
         >
           <option value="" disabled>
             Select an event type
@@ -127,6 +169,9 @@ export default function EventForm({
             </option>
           ))}
         </select>
+        <FieldError id="event-type-error">
+          {fieldErrors.event_type_id}
+        </FieldError>
       </label>
 
       <label>
@@ -135,13 +180,24 @@ export default function EventForm({
           name="location"
           list="event-location-suggestions"
           required
-          defaultValue={event?.location ?? ""}
+          aria-invalid={Boolean(fieldErrors.location)}
+          aria-describedby={
+            fieldErrors.location ? "event-location-error" : undefined
+          }
+          defaultValue={submittedValue(
+            state.values,
+            "location",
+            event?.location ?? "",
+          )}
         />
         <datalist id="event-location-suggestions">
           {locations.map((location) => (
             <option key={location.id} value={location.name} />
           ))}
         </datalist>
+        <FieldError id="event-location-error">
+          {fieldErrors.location}
+        </FieldError>
       </label>
 
       <label>
@@ -149,8 +205,19 @@ export default function EventForm({
         <input
           name="slides_url"
           type="url"
-          defaultValue={event?.slides_url ?? ""}
+          aria-invalid={Boolean(fieldErrors.slides_url)}
+          aria-describedby={
+            fieldErrors.slides_url ? "event-slides-url-error" : undefined
+          }
+          defaultValue={submittedValue(
+            state.values,
+            "slides_url",
+            event?.slides_url ?? "",
+          )}
         />
+        <FieldError id="event-slides-url-error">
+          {fieldErrors.slides_url}
+        </FieldError>
       </label>
 
       <label>
@@ -158,8 +225,21 @@ export default function EventForm({
         <input
           name="meeting_notes_url"
           type="url"
-          defaultValue={event?.meeting_notes_url ?? ""}
+          aria-invalid={Boolean(fieldErrors.meeting_notes_url)}
+          aria-describedby={
+            fieldErrors.meeting_notes_url
+              ? "event-meeting-notes-url-error"
+              : undefined
+          }
+          defaultValue={submittedValue(
+            state.values,
+            "meeting_notes_url",
+            event?.meeting_notes_url ?? "",
+          )}
         />
+        <FieldError id="event-meeting-notes-url-error">
+          {fieldErrors.meeting_notes_url}
+        </FieldError>
       </label>
 
       <label className="sm:col-span-2">
@@ -168,8 +248,17 @@ export default function EventForm({
           name="event_date"
           type="date"
           required
-          defaultValue={event?.event_date ?? undefined}
+          aria-invalid={Boolean(fieldErrors.event_date)}
+          aria-describedby={
+            fieldErrors.event_date ? "event-date-error" : undefined
+          }
+          defaultValue={submittedValue(
+            state.values,
+            "event_date",
+            event?.event_date ?? "",
+          )}
         />
+        <FieldError id="event-date-error">{fieldErrors.event_date}</FieldError>
       </label>
 
       <p className="sm:col-span-2">
@@ -185,10 +274,19 @@ export default function EventForm({
           min="06:00"
           max="23:59"
           required
-          defaultValue={
-            event?.starts_at ? denverParts(event.starts_at).time : undefined
+          aria-invalid={Boolean(fieldErrors.start_time)}
+          aria-describedby={
+            fieldErrors.start_time ? "event-start-time-error" : undefined
           }
+          defaultValue={submittedValue(
+            state.values,
+            "start_time",
+            event?.starts_at ? denverParts(event.starts_at).time : "",
+          )}
         />
+        <FieldError id="event-start-time-error">
+          {fieldErrors.start_time}
+        </FieldError>
       </label>
 
       <label>
@@ -199,13 +297,28 @@ export default function EventForm({
           min="06:00"
           max="23:59"
           required
-          defaultValue={
-            event?.ends_at ? denverParts(event.ends_at).time : undefined
+          aria-invalid={Boolean(fieldErrors.end_time)}
+          aria-describedby={
+            fieldErrors.end_time ? "event-end-time-error" : undefined
           }
+          defaultValue={submittedValue(
+            state.values,
+            "end_time",
+            event?.ends_at ? denverParts(event.ends_at).time : "",
+          )}
         />
+        <FieldError id="event-end-time-error">
+          {fieldErrors.end_time}
+        </FieldError>
       </label>
 
-      <fieldset className="sm:col-span-2">
+      <fieldset
+        className="sm:col-span-2"
+        aria-invalid={Boolean(fieldErrors.branches)}
+        aria-describedby={
+          fieldErrors.branches ? "event-branches-error" : undefined
+        }
+      >
         <legend>
           {allowGlobal
             ? "Branches (optional; none means a global event)"
@@ -254,17 +367,24 @@ export default function EventForm({
             {branch.name}
           </label>
         ))}
+        <FieldError id="event-branches-error">
+          {fieldErrors.branches}
+        </FieldError>
       </fieldset>
 
-      {!event && <RecurrenceFields recordType="Event" />}
-
-      {state.error && (
-        <p role="alert" className="sm:col-span-2">
-          {state.error}
-        </p>
+      {!event && (
+        <RecurrenceFields
+          recordType="Event"
+          values={state.values}
+          fieldErrors={fieldErrors}
+        />
       )}
 
-      <button disabled={pending}>{pending ? "Saving…" : "Save event"}</button>
+      <ActionFeedback state={state} />
+
+      <button disabled={pending}>
+        {pending ? (event ? "Saving…" : "Creating…") : "Save event"}
+      </button>
     </form>
   );
 }

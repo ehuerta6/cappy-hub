@@ -2,6 +2,11 @@
 
 import { getAuthorizationContext, isAdmin } from "@/lib/authorization";
 import { mutationError } from "@/lib/mutation-error";
+import {
+  formFailure,
+  validationFailure,
+  type FormActionState,
+} from "@/lib/form-feedback";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import {
@@ -10,28 +15,30 @@ import {
   deleteWarningInputSchema,
 } from "./warning-validation";
 
-type ActionState = { error: string; success: string };
+type ActionState = FormActionState;
 
 export async function createWarning(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   const actor = await getAuthorizationContext();
-  if (!isAdmin(actor)) return { error: "Admin required", success: "" };
+  if (!isAdmin(actor))
+    return formFailure("Admin required", formData, ["reason"]);
   const rawWarningInput = {
     officer_id: formData.get("officer_id") ?? "",
     reason: formData.get("reason") ?? "",
   };
   const validationResult = createWarningInputSchema.safeParse(rawWarningInput);
   if (!validationResult.success)
-    return { error: validationResult.error.issues[0].message, success: "" };
+    return validationFailure(validationResult.error, formData, ["reason"]);
   const validatedWarningInput = validationResult.data;
   const supabase = await createClient();
   const { error } = await supabase.rpc("create_warning", {
     p_officer_id: validatedWarningInput.officer_id,
     p_reason: validatedWarningInput.reason,
   });
-  if (error) return { error: mutationError(error.message), success: "" };
+  if (error)
+    return formFailure(mutationError(error.message), formData, ["reason"]);
   revalidatePath(`/officers/${validatedWarningInput.officer_id}`);
   revalidatePath("/officers");
   return { error: "", success: "Warning created for leadership approval" };

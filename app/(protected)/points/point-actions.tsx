@@ -1,5 +1,7 @@
 "use client";
 import { useActionState } from "react";
+import { ActionFeedback, FieldError } from "@/components/ui";
+import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { editPointTransaction, removePointTransaction } from "./actions";
 
 export default function PointActions({
@@ -11,12 +13,13 @@ export default function PointActions({
 }) {
   const [editState, editAction, editing] = useActionState(
     editPointTransaction,
-    { error: "", success: "" },
+    initialFormActionState,
   );
   const [removeState, removeAction, removing] = useActionState(
     removePointTransaction,
-    { error: "", success: "" },
+    initialFormActionState,
   );
+  const fieldErrors = editState.fieldErrors ?? {};
   return (
     <div className="space-y-2">
       <form action={editAction} className="flex items-end gap-2">
@@ -28,13 +31,25 @@ export default function PointActions({
             type="number"
             step="any"
             required
-            defaultValue={points}
+            aria-invalid={Boolean(fieldErrors.points)}
+            aria-describedby={
+              fieldErrors.points
+                ? `transaction-${transactionId}-points-error`
+                : undefined
+            }
+            defaultValue={submittedValue(
+              editState.values,
+              "points",
+              String(points),
+            )}
           />
+          <FieldError id={`transaction-${transactionId}-points-error`}>
+            {fieldErrors.points}
+          </FieldError>
         </label>
         <button disabled={editing}>{editing ? "Saving…" : "Edit"}</button>
       </form>
-      {editState.error && <p role="alert">{editState.error}</p>}
-      {editState.success && <p role="status">{editState.success}</p>}
+      <ActionFeedback state={editState} />
       <form
         action={removeAction}
         onSubmit={(event) => {
@@ -51,8 +66,7 @@ export default function PointActions({
           {removing ? "Removing…" : "Remove"}
         </button>
       </form>
-      {removeState.error && <p role="alert">{removeState.error}</p>}
-      {removeState.success && <p role="status">{removeState.success}</p>}
+      <ActionFeedback state={removeState} />
     </div>
   );
 }

@@ -102,8 +102,12 @@ it("rejects malformed Event input before calling the RPC", async () => {
   } as never);
   const invalidEventForm = eventForm();
   invalidEventForm.set("event_date", "October 12");
-  const result = await saveEvent({ error: "" }, invalidEventForm);
-  expect(result).toEqual({ error: "Choose one event date" });
+  const result = await saveEvent({ error: "", success: "" }, invalidEventForm);
+  expect(result).toMatchObject({
+    error: "Choose one event date",
+    fieldErrors: { event_date: "Choose one event date" },
+    values: { event_date: "October 12" },
+  });
   expect(rpc).not.toHaveBeenCalled();
 });
 
@@ -112,7 +116,10 @@ it("sends validated Event fields to the existing RPC", async () => {
     id: 8,
     positionName: "President",
   } as never);
-  await saveEvent({ error: "" }, eventForm());
+  const data = eventForm();
+  data.set("returnTo", "/events?q=meeting&branch=2");
+  rpc.mockResolvedValueOnce({ data: 12, error: null });
+  await saveEvent({ error: "", success: "" }, data);
   expect(rpc).toHaveBeenCalledWith("save_event_with_links", {
     p_event_id: undefined,
     p_name: " CIC meeting ",
@@ -126,6 +133,9 @@ it("sends validated Event fields to the existing RPC", async () => {
     p_slides_url: "https://example.com/slides",
     p_meeting_notes_url: "",
   });
+  expect(redirect).toHaveBeenCalledWith(
+    "/events/12?returnTo=%2Fevents%3Fq%3Dmeeting%26branch%3D2&feedback=event-saved",
+  );
 });
 
 it("trims a free-entry location before the trusted Event RPC", async () => {
@@ -135,7 +145,7 @@ it("trims a free-entry location before the trusted Event RPC", async () => {
   } as never);
   const data = eventForm();
   data.set("location", "  CCSB   1.032  ");
-  await saveEvent({ error: "" }, data);
+  await saveEvent({ error: "", success: "" }, data);
   expect(rpc).toHaveBeenCalledWith(
     "save_event_with_links",
     expect.objectContaining({ p_location: "CCSB   1.032" }),
@@ -149,8 +159,12 @@ it("rejects blank free-entry locations before calling a trusted Event RPC", asyn
   } as never);
   const data = eventForm();
   data.set("location", "   ");
-  const result = await saveEvent({ error: "" }, data);
-  expect(result.error).toBe("Name, description and location are required");
+  const result = await saveEvent({ error: "", success: "" }, data);
+  expect(result).toMatchObject({
+    error: "Enter an event location",
+    fieldErrors: { location: "Enter an event location" },
+    values: { location: "   " },
+  });
   expect(rpc).not.toHaveBeenCalled();
 });
 
@@ -164,7 +178,7 @@ it("materializes recurring Events with independent Denver schedules", async () =
   recurring.set("recurrence_interval", "1");
   recurring.set("recurrence_end_mode", "count");
   recurring.set("recurrence_count", "3");
-  await saveEvent({ error: "" }, recurring);
+  await saveEvent({ error: "", success: "" }, recurring);
   expect(rpc).toHaveBeenCalledWith(
     "create_recurring_event",
     expect.objectContaining({
@@ -223,6 +237,7 @@ it("self signup reports closed-event RPC errors without claiming success or reva
   expect(result).toEqual({
     error: "Signups are closed for this event",
     success: "",
+    values: { event_id: "12", officer_id: "8", remove: "" },
   });
   expect(revalidatePath).not.toHaveBeenCalled();
 });
@@ -235,7 +250,7 @@ it("edits a recurring Event through the scoped RPC with only changed fields", as
   data.set("recurrence_revision", "2");
   data.set("mutation_request_key", "00000000-0000-4000-8000-000000000068");
   data.append("edited_fields", "location");
-  await saveEvent({ error: "" }, data);
+  await saveEvent({ error: "", success: "" }, data);
   expect(rpc).toHaveBeenCalledWith("mutate_recurring_event", {
     p_selected_id: 12,
     p_scope: "following",
@@ -265,9 +280,9 @@ it.each([false, true])(
       data.append("edited_fields", "name");
     }
     rpc.mockResolvedValue({ data: 12, error: null });
-    await saveEvent({ error: "" }, data);
+    await saveEvent({ error: "", success: "" }, data);
     expect(redirect).toHaveBeenCalledWith(
-      "/events/12?returnTo=%2Fevents%3Fq%3Dmeeting%26branch%3D2%26status%3Dupcoming",
+      "/events/12?returnTo=%2Fevents%3Fq%3Dmeeting%26branch%3D2%26status%3Dupcoming&feedback=event-saved",
     );
     expect(rpc).toHaveBeenCalledWith(
       recurring ? "mutate_recurring_event" : "save_event_with_links",
@@ -289,8 +304,8 @@ it.each([
     data.set("id", "12");
     if (returnTo) data.set("returnTo", returnTo);
     rpc.mockResolvedValue({ data: 12, error: null });
-    await saveEvent({ error: "" }, data);
-    expect(redirect).toHaveBeenCalledWith("/events/12");
+    await saveEvent({ error: "", success: "" }, data);
+    expect(redirect).toHaveBeenCalledWith("/events/12?feedback=event-saved");
   },
 );
 
@@ -299,7 +314,9 @@ it("a contextual edit still surfaces the Event RPC authorization denial without 
   data.set("id", "12");
   data.set("returnTo", "/events?branch=2");
   rpc.mockResolvedValue({ error: { message: "Event outside branch scope" } });
-  expect((await saveEvent({ error: "" }, data)).error).toBeTruthy();
+  expect(
+    (await saveEvent({ error: "", success: "" }, data)).error,
+  ).toBeTruthy();
   expect(rpc).toHaveBeenCalledWith(
     "save_event_with_links",
     expect.objectContaining({ p_event_id: 12 }),

@@ -27,6 +27,7 @@ import {
   PageHeader,
   SectionHeading,
   StatusBadge,
+  SuccessNotice,
   TableFrame,
 } from "@/components/ui";
 export default async function EventDetailPage({
@@ -36,7 +37,7 @@ export default async function EventDetailPage({
   params: Promise<{ id: string }>;
   searchParams?: Promise<NavigationSearchParams>;
 }) {
-  const { returnTo } = (await searchParams) ?? {};
+  const { returnTo, feedback } = (await searchParams) ?? {};
   const actor = await getAuthorizationContext();
   const supabase = await createClient();
   const { id: eventIdParam } = await params;
@@ -101,6 +102,7 @@ export default async function EventDetailPage({
           ) : undefined
         }
       />
+      <SuccessNotice status={feedback} />
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <section
           aria-label="Event details"

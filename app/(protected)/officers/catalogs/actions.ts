@@ -2,6 +2,11 @@
 
 import { getAuthorizationContext, isAdmin } from "@/lib/authorization";
 import { mutationError } from "@/lib/mutation-error";
+import {
+  formFailure,
+  validationFailure,
+  type FormActionState,
+} from "@/lib/form-feedback";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import {
@@ -10,11 +15,11 @@ import {
 } from "./validation";
 
 export async function changeCatalog(
-  _previous: { error: string; success: string },
+  _previous: FormActionState,
   formData: FormData,
 ) {
   const actor = await getAuthorizationContext();
-  if (!isAdmin(actor)) return { error: "Admin required", success: "" };
+  if (!isAdmin(actor)) return formFailure("Admin required", formData, ["name"]);
 
   const rawCatalogMutationInput = {
     catalog: formData.get("catalog") ?? "",
@@ -34,14 +39,14 @@ export async function changeCatalog(
       rawCatalogMutationInput,
     );
     if (!validationResult.success)
-      return { error: validationResult.error.issues[0].message, success: "" };
+      return validationFailure(validationResult.error, formData, ["name"]);
     validatedLocationMutation = validationResult.data;
   } else {
     const validationResult = catalogMutationInputSchema.safeParse(
       rawCatalogMutationInput,
     );
     if (!validationResult.success)
-      return { error: validationResult.error.issues[0].message, success: "" };
+      return validationFailure(validationResult.error, formData, ["name"]);
     validatedCatalogMutation = validationResult.data;
   }
 
@@ -109,13 +114,26 @@ export async function changeCatalog(
     }
   }
   if (mutationErrorResponse)
-    return {
-      error:
-        mutationErrorResponse.code === "23505"
-          ? "A record with this name already exists"
-          : mutationError(mutationErrorResponse.message),
-      success: "",
-    };
+    return formFailure(
+      mutationErrorResponse.code === "23505"
+        ? "A record with this name already exists"
+        : mutationError(mutationErrorResponse.message),
+      formData,
+      ["name"],
+    );
   revalidatePath("/", "layout");
-  return { error: "", success: "Saved" };
+  const subject = validatedLocationMutation
+    ? "Event location"
+    : validatedCatalogMutation?.catalog === "branch"
+      ? "Branch"
+      : "Position";
+  const operation =
+    validatedLocationMutation?.operation ?? validatedCatalogMutation?.operation;
+  const verb =
+    operation === "create"
+      ? "added"
+      : operation === "rename"
+        ? "updated"
+        : "removed";
+  return { error: "", success: `${subject} ${verb}` };
 }

@@ -9,6 +9,7 @@ import {
   ActionLink,
   ListFilterBar,
   PageHeader,
+  SuccessNotice,
   TableFrame,
 } from "@/components/ui";
 import { formatLabel } from "@/lib/presentation";
@@ -131,6 +132,7 @@ export default async function TasksPage({
           ) : undefined
         }
       />
+      <SuccessNotice status={params.feedback} />
       <ListFilterBar
         key={JSON.stringify(filters)}
         action="/tasks"
