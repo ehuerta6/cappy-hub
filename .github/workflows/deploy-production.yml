@@ -23,9 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -44,18 +42,11 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Link Supabase production project
-        run: >-
-          npx supabase link
-          --project-ref "$SUPABASE_PROJECT_REF"
-          --password "$SUPABASE_DB_PASSWORD"
-          --yes
-
       - name: Verify production migration history before push
         run: node scripts/verify-production-migrations.mjs
 
       - name: Preview pending production migrations
-        run: npx supabase db push --linked --dry-run
+        run: npx supabase db push --db-url "$SUPABASE_DB_URL" --dry-run
 
       - name: Pull Vercel production settings
         run: >-
@@ -66,7 +57,7 @@ jobs:
         run: npx --yes vercel@62.2.0 build --prod --token="$VERCEL_TOKEN"
 
       - name: Apply production migrations
-        run: npx supabase db push --linked
+        run: npx supabase db push --db-url "$SUPABASE_DB_URL"
 
       - name: Verify production migration history is aligned
         run: node scripts/verify-production-migrations.mjs --require-aligned

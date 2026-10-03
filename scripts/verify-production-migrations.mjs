@@ -17,20 +17,23 @@ if (new Set(localMigrations).size !== localMigrations.length) {
   throw new Error("Duplicate migration versions found in supabase/migrations.");
 }
 
-const databasePassword = process.env.SUPABASE_DB_PASSWORD;
-if (!databasePassword) {
-  throw new Error("SUPABASE_DB_PASSWORD is required.");
+const databaseUrl = process.env.SUPABASE_DB_URL;
+if (!databaseUrl) {
+  throw new Error("SUPABASE_DB_URL is required.");
 }
 
 const result = spawnSync(
   "npx",
-  ["supabase", "migration", "list", "--linked", "--password", databasePassword],
+  ["supabase", "migration", "list", "--db-url", databaseUrl],
   { encoding: "utf8" },
 );
 
-if (result.error) throw result.error;
+if (result.error) {
+  throw new Error(
+    "Could not run Supabase CLI to list production migration history.",
+  );
+}
 if (result.status !== 0) {
-  process.stderr.write(result.stderr);
   throw new Error(
     `supabase migration list failed with exit code ${result.status}.`,
   );
@@ -52,7 +55,9 @@ for (const line of output.split(/\r?\n/)) {
     (localVersion && !/^\d{14}$/.test(localVersion)) ||
     (remoteVersion && !/^\d{14}$/.test(remoteVersion))
   ) {
-    throw new Error(`Could not parse Supabase migration list row: ${line}`);
+    throw new Error(
+      "Supabase migration list output contained an unrecognized row.",
+    );
   }
 
   if (localVersion) listedLocal.add(localVersion);

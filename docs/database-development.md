@@ -43,12 +43,11 @@ CI compares migration files with the PR base on pull requests and with the previ
 
 After a PR is merged to `main`, the existing CI workflow runs the normal quality checks. When CI succeeds, `.github/workflows/deploy-production.yml` checks out that exact `main` commit and runs these steps in order:
 
-1. Link the Supabase CLI to the configured production project.
-2. Compare `supabase/migrations/` with production migration history. Production history must match a prefix of the local migration list; migrations in `main` that have not reached production are allowed.
-3. Run `supabase db push --dry-run` (without `--include-seed`).
-4. Pull Vercel production settings and build the application artifact with the pinned Vercel CLI (`62.2.0`). This does not deploy or change production traffic.
-5. Apply pending migrations with `supabase db push` (without `--include-seed`), then verify production history is fully aligned with `supabase/migrations/`.
-6. Deploy the already-built artifact with `vercel deploy --prebuilt --prod`.
+1. Compare `supabase/migrations/` with production migration history using the configured Session Pooler connection string. Production history must match a prefix of the local migration list; migrations in `main` that have not reached production are allowed.
+2. Run `supabase db push --db-url "$SUPABASE_DB_URL" --dry-run` (without `--include-seed`).
+3. Pull Vercel production settings and build the application artifact with the pinned Vercel CLI (`62.2.0`). This does not deploy or change production traffic.
+4. Apply pending migrations with `supabase db push --db-url "$SUPABASE_DB_URL"` (without `--include-seed`), then verify production history is fully aligned with `supabase/migrations/`.
+5. Deploy the already-built artifact with `vercel deploy --prebuilt --prod`.
 
 Any failed step stops the workflow before the next step. A CI failure skips production deployment. A migration history mismatch or failed dry run prevents the Vercel build. A failed migration or final history check prevents deployment, so the new application never receives production traffic before its migrations succeed.
 
@@ -56,16 +55,16 @@ Any failed step stops the workflow before the next step. A CI failure skips prod
 
 Add the following repository or `production` environment configuration. The workflow uses the `production` environment, so configure its secrets and variables there:
 
-| Name                    | Type     | Purpose                                                         |
-| ----------------------- | -------- | --------------------------------------------------------------- |
-| `SUPABASE_ACCESS_TOKEN` | Secret   | Authenticates Supabase CLI project linking                      |
-| `SUPABASE_DB_PASSWORD`  | Secret   | Authenticates migration history reads and migration application |
-| `VERCEL_TOKEN`          | Secret   | Authenticates Vercel CLI                                        |
-| `SUPABASE_PROJECT_REF`  | Variable | Supabase production project Reference ID                        |
-| `VERCEL_ORG_ID`         | Variable | Vercel team or account ID                                       |
-| `VERCEL_PROJECT_ID`     | Variable | Vercel project ID                                               |
+| Name                | Type     | Purpose                                                                                        |
+| ------------------- | -------- | ---------------------------------------------------------------------------------------------- |
+| `SUPABASE_DB_URL`   | Secret   | Production Supabase Postgres Session Pooler connection string, including its database password |
+| `VERCEL_TOKEN`      | Secret   | Authenticates Vercel CLI                                                                       |
+| `VERCEL_ORG_ID`     | Variable | Vercel team or account ID                                                                      |
+| `VERCEL_PROJECT_ID` | Variable | Vercel project ID                                                                              |
 
-Keep credentials in GitHub configuration. Never commit them or expose Supabase service-role credentials to application or browser code.
+`SUPABASE_DB_URL` is the only Supabase production credential used by GitHub Actions. Store it as the `production` environment secret; do not echo it in workflow logs or commit it. Never expose Supabase service-role credentials to application or browser code.
+
+Use the production project's Postgres Session Pooler connection string and URL-encode any special characters in its database password, as required for connection URLs.
 
 ### One-time Vercel project setting
 
