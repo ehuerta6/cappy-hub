@@ -127,7 +127,7 @@ it("sends validated Event fields to the existing RPC", async () => {
   });
 });
 
-it("trims and bounds a free-entry location before the trusted Event RPC", async () => {
+it("trims a free-entry location before the trusted Event RPC", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 8,
     positionName: "President",
