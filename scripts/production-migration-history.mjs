@@ -5,26 +5,34 @@ export function parseMigrationList(output) {
 
   for (const line of ansiStrippedOutput.split(/\r?\n/)) {
     const trimmedLine = line.trim();
-    if (!trimmedLine || !/^[│|].*[│|]$/.test(trimmedLine)) continue;
+    if (!trimmedLine) continue;
 
-    const columns = trimmedLine.split(/[│|]/);
-    if (columns.length < 4) {
+    const columns = trimmedLine.split(/[│|]/).map((column) => column.trim());
+    if (columns.length === 1) continue;
+    if (columns.every((column) => /^[+\-=─━┼╋╬╪╫┬┴├┤]+$/.test(column))) {
+      continue;
+    }
+    if (columns.length !== 3) {
       throw new Error(
         "Supabase migration list output contained an unrecognized row.",
       );
     }
 
-    const localVersion = columns[1].trim();
-    const remoteVersion = columns[2].trim();
-    if (localVersion === "LOCAL" && remoteVersion === "REMOTE") continue;
-    if (!localVersion && !remoteVersion) continue;
     if (
-      /^[+\-=─━┼╋╬╪╫┬┴├┤┌┐└┘╭╮╰╯]+$/.test(localVersion) &&
-      /^[+\-=─━┼╋╬╪╫┬┴├┤┌┐└┘╭╮╰╯]+$/.test(remoteVersion)
+      columns[0].toUpperCase() === "LOCAL" &&
+      columns[1].toUpperCase() === "REMOTE"
     ) {
       continue;
     }
+
+    // The CLI's text renderer may wrap cells in Markdown code spans.
+    // Only LOCAL and REMOTE are migration versions; TIME is informational.
+    const normalizeVersion = (column) =>
+      column.replace(/^`(.*)`$/, "$1").trim();
+    const localVersion = normalizeVersion(columns[0]);
+    const remoteVersion = normalizeVersion(columns[1]);
     if (
+      (!localVersion && !remoteVersion) ||
       (localVersion && !/^\d{14}$/.test(localVersion)) ||
       (remoteVersion && !/^\d{14}$/.test(remoteVersion))
     ) {
