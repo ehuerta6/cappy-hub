@@ -18,7 +18,7 @@ function OfficerLink({
 }) {
   if (!transaction.officer_id) return transaction.officer_name;
   return (
-    <Link href={withReturnTo("/officers/" + transaction.officer_id, returnTo)}>
+    <Link href={withReturnTo(`/officers/${transaction.officer_id}`, returnTo)}>
       {transaction.officer_name}
     </Link>
   );
@@ -34,7 +34,7 @@ function TransactionSource({
   if (transaction.event_id)
     return (
       <Link
-        href={withReturnTo("/events/" + transaction.event_id, returnTo)}
+        href={withReturnTo(`/events/${transaction.event_id}`, returnTo)}
         className="break-words"
       >
         {transaction.event_name}
@@ -43,7 +43,7 @@ function TransactionSource({
   if (transaction.task_id)
     return (
       <Link
-        href={withReturnTo("/tasks/" + transaction.task_id, returnTo)}
+        href={withReturnTo(`/tasks/${transaction.task_id}`, returnTo)}
         className="break-words"
       >
         {transaction.task_title}

@@ -1,3 +1,5 @@
+import type { Route } from "next";
+
 export const mutationSuccessMessages = {
   "event-saved": "Event saved",
   "officer-saved": "Officer saved",
@@ -9,10 +11,10 @@ export type MutationSuccessStatus = keyof typeof mutationSuccessMessages;
 
 const internalOrigin = "https://cappy.invalid";
 
-export function withSuccessNotice(
-  href: string,
+export function withSuccessNotice<T extends string>(
+  href: Route<T>,
   status: MutationSuccessStatus,
-): string {
+): Route<T> | "/" {
   if (
     !href.startsWith("/") ||
     href.startsWith("//") ||
@@ -24,7 +26,8 @@ export function withSuccessNotice(
     if (url.origin !== internalOrigin) return "/";
     url.searchParams.delete("feedback");
     url.searchParams.set("feedback", status);
-    return `${url.pathname}${url.search}${url.hash}`;
+    // The validated internal pathname is unchanged; only feedback is updated.
+    return `${url.pathname}${url.search}${url.hash}` as Route<T>;
   } catch {
     return "/";
   }

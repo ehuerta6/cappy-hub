@@ -2,6 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
+import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import ThemeToggle from "@/components/theme-toggle";
@@ -13,7 +14,8 @@ const links = [
   { href: "/calendar", label: "Calendar" },
   { href: "/officers", label: "Officers" },
   { href: "/points", label: "Points" },
-];
+] as const satisfies readonly { href: Route; label: string }[];
+const adminLinks = [...links, { href: "/admin", label: "Admin" }] as const;
 
 export default function SiteNavigation({
   isAdmin,
@@ -23,9 +25,7 @@ export default function SiteNavigation({
   account: ReactNode;
 }) {
   const pathname = usePathname();
-  const visibleLinks = isAdmin
-    ? [...links, { href: "/admin", label: "Admin" }]
-    : links;
+  const visibleLinks = isAdmin ? adminLinks : links;
   const active = (href: string) =>
     href === "/"
       ? pathname === href

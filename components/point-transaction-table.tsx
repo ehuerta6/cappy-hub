@@ -19,13 +19,13 @@ function TransactionSource({
 }) {
   if (transaction.events)
     return (
-      <Link href={"/events/" + transaction.events.id} className="break-words">
+      <Link href={`/events/${transaction.events.id}`} className="break-words">
         {transaction.events.name}
       </Link>
     );
   if (transaction.tasks)
     return (
-      <Link href={"/tasks/" + transaction.tasks.id} className="break-words">
+      <Link href={`/tasks/${transaction.tasks.id}`} className="break-words">
         {transaction.tasks.title}
       </Link>
     );
@@ -70,7 +70,7 @@ export default function PointTransactionTable({
               <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <Link
-                    href={"/officers/" + transaction.officers.id}
+                    href={`/officers/${transaction.officers.id}`}
                     className="break-words font-medium"
                   >
                     {transaction.officers.name}
@@ -91,7 +91,7 @@ export default function PointTransactionTable({
               </div>
             </td>
             <td className="hidden xl:table-cell">
-              <Link href={"/officers/" + transaction.officers.id}>
+              <Link href={`/officers/${transaction.officers.id}`}>
                 {transaction.officers.name}
               </Link>
             </td>

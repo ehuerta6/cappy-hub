@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { Route } from "next";
 import Link from "next/link";
 import { displayPoints } from "@/lib/participation";
 import { formatLabel } from "@/lib/presentation";
@@ -106,11 +107,11 @@ export function SectionHeading({
   );
 }
 
-export function ActionLink({
+export function ActionLink<T extends string>({
   href,
   children,
 }: {
-  href: string;
+  href: Route<T>;
   children: ReactNode;
 }) {
   return (
@@ -216,7 +217,7 @@ export function ListFilterBar({
   action: string;
   label: string;
   active: boolean;
-  clearHref: string;
+  clearHref: Route;
   children: ReactNode;
 }) {
   return (

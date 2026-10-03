@@ -6,10 +6,22 @@ import listPlugin from "@fullcalendar/react/list";
 import classicThemePlugin from "@fullcalendar/react/themes/classic";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { Route } from "next";
 import { useTheme } from "@/components/theme";
 import { filterCalendarEntries, type CalendarEntry } from "./calendar-events";
 
 export const COMPACT_CALENDAR_QUERY = "(max-width: 767px)";
+
+function calendarRoute(
+  url: string,
+  kind: unknown,
+): Route<`/events/${string}` | `/tasks/${string}`> | undefined {
+  if (kind === "event" && /^\/events\/\d+$/.test(url))
+    return url as Route<`/events/${string}`>;
+  if (kind === "task" && /^\/tasks\/\d+$/.test(url))
+    return url as Route<`/tasks/${string}`>;
+  return undefined;
+}
 
 export default function CalendarView({
   entries,
@@ -124,9 +136,15 @@ export default function CalendarView({
           info.el.setAttribute("role", "link");
         }}
         eventClick={(info) => {
-          if (!info.event.url) return;
+          // FullCalendar exposes url as a plain string. Only our canonical
+          // Event and Task detail URLs cross into Next navigation.
+          const href = calendarRoute(
+            info.event.url,
+            info.event.extendedProps?.kind,
+          );
+          if (!href) return;
           info.jsEvent.preventDefault();
-          router.push(info.event.url);
+          router.push(href);
         }}
       />
     </div>

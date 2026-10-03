@@ -1,5 +1,7 @@
+import type { ListRoute } from "@/lib/return-context";
+
 export function listPageUrl(
-  pathname: string,
+  pathname: Extract<ListRoute, "/points" | "/system-log">,
   filters: URLSearchParams,
   page: number,
 ) {
@@ -7,5 +9,5 @@ export function listPageUrl(
   if (page > 1) search.set("page", String(page));
   else search.delete("page");
   const query = search.toString();
-  return query ? `${pathname}?${query}` : pathname;
+  return query ? (`${pathname}?${query}` as const) : pathname;
 }

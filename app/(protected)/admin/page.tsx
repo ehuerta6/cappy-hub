@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/ui";
 import { getAuthorizationContext, isAdmin } from "@/lib/authorization";
 import Link from "next/link";
+import type { Route } from "next";
 import { notFound } from "next/navigation";
 
 const adminAreas = [
@@ -32,7 +33,12 @@ const adminAreas = [
     href: "/system-log",
     link: "View system log",
   },
-];
+] as const satisfies readonly {
+  title: string;
+  description: string;
+  href: Route;
+  link: string;
+}[];
 
 export default async function AdminPage() {
   const actor = await getAuthorizationContext();

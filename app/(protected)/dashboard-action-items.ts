@@ -33,7 +33,7 @@ type ActionWarning = Pick<Tables<"officer_warnings">, "id" | "created_at"> & {
 export type ActionItem = {
   key: string;
   title: string;
-  href: string;
+  href: `/tasks/${number}` | `/officers#warning-${number}`;
   status: string;
   dueDate?: string;
 };
@@ -80,7 +80,7 @@ export function dashboardActionItems(
         ),
       )
       .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id)
-      .map((warning) => ({
+      .map((warning): ActionItem => ({
         key: `warning-${warning.id}`,
         title: warning.officers
           ? `Warning for ${warning.officers.name}`

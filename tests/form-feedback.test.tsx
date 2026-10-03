@@ -77,5 +77,6 @@ it("preserves filtered return context and fragments when adding a status", () =>
     ),
   ).toBe("/tasks/9?returnTo=%2Ftasks%3Fbranch%3D2&feedback=task-updated");
   expect(withSuccessNotice("https://evil.example/", "event-saved")).toBe("/");
+  // @ts-expect-error Exercise the runtime guard with an invalid internal route.
   expect(withSuccessNotice("//evil.example/", "event-saved")).toBe("/");
 });

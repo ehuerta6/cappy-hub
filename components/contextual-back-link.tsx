@@ -1,14 +1,15 @@
 import type { ReactNode } from "react";
+import type { Route } from "next";
 import { safeReturnTo, returnLinkLabel } from "@/lib/return-context";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-export default function ContextualBackLink({
+export default function ContextualBackLink<T extends string>({
   href,
   children,
   returnTo,
 }: {
-  href: string;
+  href: Route<T>;
   returnTo?: unknown;
   children: ReactNode;
 }) {

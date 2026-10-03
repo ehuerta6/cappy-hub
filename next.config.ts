@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  typedRoutes: true,
   async headers() {
     // Public build metadata distinguishes the new deployment from the old one.
     const revision = process.env.VERCEL_GIT_COMMIT_SHA;

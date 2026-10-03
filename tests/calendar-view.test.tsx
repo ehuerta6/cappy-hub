@@ -161,6 +161,16 @@ it("routes Event and Task clicks to canonical details and leaves URL-less entrie
     jsEvent: { preventDefault },
   });
   expect(harness.push).toHaveBeenCalledTimes(2);
+  for (const event of [
+    { url: "https://example.com", extendedProps: { kind: "event" } },
+    { url: "/events/12/edit", extendedProps: { kind: "event" } },
+    { url: "/tasks/9", extendedProps: { kind: "event" } },
+  ])
+    (harness.options.eventClick as (info: unknown) => void)({
+      event,
+      jsEvent: { preventDefault },
+    });
+  expect(harness.push).toHaveBeenCalledTimes(2);
 });
 
 it("explains empty data and disabled presentation filters", () => {

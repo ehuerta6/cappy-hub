@@ -394,7 +394,7 @@ it("Point History record links carry the same filtered page into Officers, Event
       returnTo={returnTo}
     />,
   );
-  for (const record of ["/officers/7", "/events/8", "/tasks/9"])
+  for (const record of ["/officers/7", "/events/8", "/tasks/9"] as const)
     expect(html).toContain(`href="${withReturnTo(record, returnTo)}"`);
 });
 

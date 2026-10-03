@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { Route } from "next";
 
 export type NavigationSearchParams = Record<
   string,
@@ -14,10 +15,11 @@ const listRoutes = {
 } as const;
 
 export type ListRoute = keyof typeof listRoutes;
+export type ListUrl = ListRoute | `${ListRoute}?${string}`;
 
 // Accept only literal list paths, never arbitrary redirect destinations. Query
 // values are data; decode once to reject malformed percent encoding as well.
-export function safeReturnTo(value: unknown): string | undefined {
+export function safeReturnTo(value: unknown): ListUrl | undefined {
   if (typeof value !== "string" || /[\\#\s\u0000-\u001f\u007f]/.test(value))
     return undefined;
   try {
@@ -29,7 +31,8 @@ export function safeReturnTo(value: unknown): string | undefined {
       return undefined;
     // A return destination is always a list, never another contextual link.
     if (url.searchParams.has("returnTo")) return undefined;
-    return value;
+    // The pathname was checked against the exact list-route allowlist above.
+    return value as ListUrl;
   } catch {
     return undefined;
   }
@@ -40,7 +43,7 @@ export function safeReturnTo(value: unknown): string | undefined {
 export function listReturnUrl(
   pathname: ListRoute,
   params: NavigationSearchParams,
-): string {
+): ListUrl {
   const search = new URLSearchParams();
   for (const key of listRoutes[pathname]) {
     const value = params[key];
@@ -50,12 +53,16 @@ export function listReturnUrl(
   return query ? `${pathname}?${query}` : pathname;
 }
 
-export function withReturnTo(href: string, value: unknown): string {
+export function withReturnTo<T extends string>(
+  href: Route<T>,
+  value: unknown,
+): Route<T> {
   const destination = safeReturnTo(value);
   const url = new URL(href, "https://cappy.invalid");
   url.searchParams.delete("returnTo");
   if (destination) url.searchParams.set("returnTo", destination);
-  return `${url.pathname}${url.search}${url.hash}`;
+  // Only the query changes; the input's checked route pathname is preserved.
+  return `${url.pathname}${url.search}${url.hash}` as Route<T>;
 }
 
 export function returnLinkLabel(
