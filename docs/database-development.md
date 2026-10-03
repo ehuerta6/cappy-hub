@@ -37,6 +37,8 @@ Do not delete catalog rows referenced by historical records. For example, `event
 
 Keep authorization and important validation in trusted server actions or SQL functions, with database constraints for data integrity. UI filtering alone is not enforcement. Never disable RLS as a shortcut. Never edit a migration already applied to production; create a new migration for follow-up changes.
 
+Normal PR CI compares migration files with the PR base. It allows new migration files and rejects modification, deletion, or renaming of migrations that already existed in the base. This protection assumes feature work reaches `main` through PRs; direct pushes bypass it, so protect `main` by requiring PRs.
+
 ## Production deployment
 
 After a PR is merged to `main`, the existing CI workflow runs the normal quality checks. When CI succeeds, `.github/workflows/deploy-production.yml` checks out that exact `main` commit and runs these steps in order:
@@ -45,7 +47,7 @@ After a PR is merged to `main`, the existing CI workflow runs the normal quality
 2. Compare `supabase/migrations/` with production migration history. Production history must match a prefix of the local migration list; migrations in `main` that have not reached production are allowed.
 3. Run `supabase db push --dry-run`, then apply pending migrations with `supabase db push` (without `--include-seed`).
 4. Verify production history is fully aligned with `supabase/migrations/`.
-5. Pull Vercel production settings, build the application, and deploy it with `vercel deploy --prebuilt --prod`.
+5. Pull Vercel production settings, build the application, and deploy it with the pinned Vercel CLI (`62.2.0`) using `vercel deploy --prebuilt --prod`.
 
 Any failed step stops the workflow before the next step. A CI failure skips production deployment. A migration history mismatch, a failed dry run, or a failed migration prevents the application build and deploy. If the final history check fails, the application is not deployed; contact a maintainer to investigate.
 

@@ -65,13 +65,13 @@ jobs:
 
       - name: Pull Vercel production settings
         run: >-
-          npx vercel@latest pull --yes --environment=production
+          npx --yes vercel@62.2.0 pull --yes --environment=production
           --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID"
 
       - name: Build Vercel production application
-        run: npx vercel@latest build --prod --token="$VERCEL_TOKEN"
+        run: npx --yes vercel@62.2.0 build --prod --token="$VERCEL_TOKEN"
 
       - name: Deploy Vercel production application
         run: >-
-          npx vercel@latest deploy --prebuilt --prod --yes
+          npx --yes vercel@62.2.0 deploy --prebuilt --prod --yes
           --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID"
