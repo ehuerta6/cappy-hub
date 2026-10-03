@@ -1,35 +1,47 @@
-import { formatDate, formatEventSchedule } from "@/lib/presentation";
+import {
+  formatCalendarDate,
+  formatDate,
+  formatEventSchedule,
+} from "@/lib/presentation";
 import { requireCurrentOfficer } from "@/lib/current-officer";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { displayPoints } from "@/lib/participation";
 import { participationLabel } from "@/lib/event-status";
 import { PageHeader, SectionHeading, PointValue, Badge } from "@/components/ui";
+import {
+  ACTION_ITEM_LIMIT,
+  loadDashboardActionItems,
+} from "./dashboard-action-items";
+
 export default async function DashboardPage() {
   const officer = await requireCurrentOfficer();
   const supabase = await createClient();
-  const [summary, events, transactions, total] = await Promise.all([
-    supabase.from("dashboard_summary").select("*").single(),
-    supabase
-      .from("events")
-      .select("*,event_officers(officer_id)")
-      .neq("status", "cancelled")
-      .is("deleted_at", null)
-      .gt("starts_at", new Date().toISOString())
-      .order("event_date"),
-    supabase
-      .from("point_transactions")
-      .select("*,officers(id,name),events(id,name),tasks(id,title)")
-      .is("removed_at", null)
-      .order("created_at", { ascending: false })
-      .order("id", { ascending: false })
-      .limit(10),
-    supabase
-      .from("officer_point_totals")
-      .select("total_points")
-      .eq("id", officer.id)
-      .single(),
-  ]);
+  const [summary, events, transactions, total, actionItems] = await Promise.all(
+    [
+      supabase.from("dashboard_summary").select("*").single(),
+      supabase
+        .from("events")
+        .select("*,event_officers(officer_id)")
+        .neq("status", "cancelled")
+        .is("deleted_at", null)
+        .gt("starts_at", new Date().toISOString())
+        .order("event_date"),
+      supabase
+        .from("point_transactions")
+        .select("*,officers(id,name),events(id,name),tasks(id,title)")
+        .is("removed_at", null)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(10),
+      supabase
+        .from("officer_point_totals")
+        .select("total_points")
+        .eq("id", officer.id)
+        .single(),
+      loadDashboardActionItems(supabase, officer),
+    ],
+  );
   if (summary.error || events.error || transactions.error || total.error)
     throw new Error("Failed to load dashboard");
   return (
@@ -85,6 +97,64 @@ export default async function DashboardPage() {
         Half-year periods are January–June and July–December (America/Denver).
         Points include signed corrections.
       </p>
+      <section
+        aria-label="Your action items"
+        className="min-w-0 border-y border-border py-3"
+      >
+        <SectionHeading
+          title="Your action items"
+          action={
+            <div className="flex flex-wrap gap-x-4 text-sm">
+              <Link
+                href="/tasks"
+                className="inline-flex min-h-9 items-center underline underline-offset-4"
+              >
+                View all Tasks
+              </Link>
+              <Link
+                href="/officers"
+                className="inline-flex min-h-9 items-center underline underline-offset-4"
+              >
+                View warning decisions
+              </Link>
+            </div>
+          }
+        />
+        {actionItems.items.length === 0 ? (
+          <p className="text-sm">You&apos;re all caught up.</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {actionItems.items.map((item) => (
+              <li key={item.key}>
+                <Link
+                  href={item.href}
+                  className="grid min-h-11 gap-x-4 gap-y-1 py-2 text-sm hover:underline sm:grid-cols-[minmax(0,1fr)_12rem_10rem] sm:items-center"
+                >
+                  <span className="min-w-0 break-words font-medium text-foreground">
+                    {item.title}
+                  </span>
+                  {item.dueDate ? (
+                    <time dateTime={item.dueDate} className="text-muted">
+                      Due {formatCalendarDate(item.dueDate)}
+                    </time>
+                  ) : (
+                    <span className="hidden sm:block" />
+                  )}
+                  <span className="text-muted sm:text-right">
+                    {item.status}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        {actionItems.hasMore && (
+          <p className="mt-2 text-xs">
+            Showing the first {ACTION_ITEM_LIMIT} items. View Tasks or warning
+            decisions for more.
+          </p>
+        )}
+      </section>
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <section
           aria-label="Upcoming events"

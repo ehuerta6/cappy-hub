@@ -173,6 +173,7 @@ export default async function OfficersPage({
           {pendingWarnings.data.map((warning) => (
             <article
               key={warning.id}
+              id={`warning-${warning.id}`}
               className="space-y-2 rounded-lg border border-border p-4"
             >
               <p className="font-semibold text-foreground">

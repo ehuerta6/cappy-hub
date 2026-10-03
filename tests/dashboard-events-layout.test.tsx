@@ -3,6 +3,8 @@ import type { Tables } from "@/lib/database.types";
 import { createElement, useActionState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
+vi.mock("server-only", () => ({}));
+
 vi.mock("react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react")>()),
   useActionState: vi.fn(),
@@ -15,6 +17,7 @@ vi.mock("@/lib/authorization", () => ({
     actor.applicationRole === "admin",
   isLead: () => false,
   canSeeAllBranches: () => false,
+  canManageEvent: () => false,
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/app/auth/actions", () => ({ signOut: vi.fn() }));
@@ -34,6 +37,8 @@ import { SelfSignupForm } from "@/app/(protected)/events/event-controls";
 
 const actor = {
   id: 8,
+  branchIds: [],
+  authUserId: "current-user",
   name: "Local Officer",
   positionName: "Secretary",
   applicationRole: "officer",
