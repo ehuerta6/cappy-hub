@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import ThemeToggle from "@/components/theme-toggle";
 
 const links = [
   { href: "/", label: "Dashboard" },
@@ -26,11 +27,11 @@ export default function SiteNavigation({
     : links;
 
   return (
-    <header className="border-b border-zinc-800 bg-zinc-950">
+    <header className="border-b border-border bg-background">
       <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
         <Link
           href="/"
-          className="text-sm font-semibold tracking-tight text-zinc-100 hover:text-white"
+          className="text-sm font-semibold tracking-tight text-foreground hover:text-foreground"
         >
           Cappy Hub
         </Link>
@@ -48,8 +49,8 @@ export default function SiteNavigation({
                 aria-current={active ? "page" : undefined}
                 className={
                   active
-                    ? "shrink-0 whitespace-nowrap border-b border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-100"
-                    : "shrink-0 whitespace-nowrap border-b border-transparent px-3 py-2 text-sm text-zinc-400 hover:text-zinc-100"
+                    ? "shrink-0 whitespace-nowrap border-b border-foreground px-3 py-2 text-sm font-medium text-foreground"
+                    : "shrink-0 whitespace-nowrap border-b border-transparent px-3 py-2 text-sm text-muted hover:text-foreground"
                 }
               >
                 {label}
@@ -57,7 +58,10 @@ export default function SiteNavigation({
             );
           })}
         </nav>
-        <div className="ml-auto min-w-0 max-w-[70%]">{account}</div>
+        <div className="ml-auto flex min-w-0 max-w-[70%] items-center gap-3">
+          <ThemeToggle />
+          {account}
+        </div>
       </div>
     </header>
   );

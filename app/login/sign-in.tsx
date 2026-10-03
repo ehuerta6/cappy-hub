@@ -64,7 +64,7 @@ export default function GoogleSignIn() {
     <div className="mt-6">
       {isLocal ? (
         <div className="space-y-3">
-          <p className="text-sm text-zinc-400">Local development accounts</p>
+          <p className="text-sm text-muted">Local development accounts</p>
           <div className="flex flex-wrap gap-2">
             {LOCAL_ACCOUNTS.map((account) => (
               <button
@@ -72,7 +72,7 @@ export default function GoogleSignIn() {
                 type="button"
                 disabled={Boolean(busy)}
                 onClick={() => signInLocally(account.email)}
-                className="rounded border border-zinc-500 px-3 py-2 text-sm disabled:opacity-50"
+                className="rounded border border-border-strong px-3 py-2 text-sm disabled:opacity-50"
               >
                 {busy === account.email ? "Signing in..." : account.label}
               </button>
@@ -84,14 +84,14 @@ export default function GoogleSignIn() {
           type="button"
           disabled={Boolean(busy)}
           onClick={signInWithGoogle}
-          className="rounded border border-zinc-500 px-4 py-2 text-sm disabled:opacity-50"
+          className="rounded border border-border-strong px-4 py-2 text-sm disabled:opacity-50"
         >
           {busy === "google" ? "Signing in..." : "Continue with Google"}
         </button>
       )}
 
       {error && (
-        <p role="alert" className="mt-3 text-sm text-red-300">
+        <p role="alert" className="mt-3 text-sm text-danger">
           {error}
         </p>
       )}

@@ -49,7 +49,7 @@ function CatalogForm({
             : "Delete"}
       </button>
       {state.error && (
-        <span role="alert" className="text-red-300">
+        <span role="alert" className="text-danger">
           {state.error}
         </span>
       )}
@@ -85,14 +85,11 @@ export default function CatalogManager({
           const required =
             catalog === "position" && requiredPositions.has(record.name);
           return (
-            <li
-              key={record.id}
-              className="rounded-lg border border-zinc-800 p-3"
-            >
+            <li key={record.id} className="rounded-lg border border-border p-3">
               {required ? (
                 <p>
                   {record.name}{" "}
-                  <span className="text-zinc-400">(required position)</span>
+                  <span className="text-muted">(required position)</span>
                 </p>
               ) : (
                 <div className="flex flex-wrap items-center gap-3">

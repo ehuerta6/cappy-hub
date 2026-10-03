@@ -10,7 +10,7 @@ export default async function ProtectedLayout({ children }: LayoutProps<"/">) {
         isAdmin={officer.applicationRole === "admin"}
         account={
           <div className="flex min-w-0 items-center gap-3 text-sm">
-            <span className="truncate text-zinc-400">{officer.name}</span>
+            <span className="truncate text-muted">{officer.name}</span>
             <form action={signOut} className="w-auto shrink-0">
               <button
                 type="submit"

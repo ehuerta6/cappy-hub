@@ -14,7 +14,7 @@ export function CreateWarningForm({ officerId }: { officerId: number }) {
         Reason
         <textarea name="reason" required rows={3} />
       </label>
-      <p className="text-sm text-zinc-400">
+      <p className="text-sm text-muted">
         The warning starts pending and requires approval from the current
         President and Vice Presidents. Its reason cannot be edited afterward.
       </p>

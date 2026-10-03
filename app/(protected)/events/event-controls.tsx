@@ -111,13 +111,13 @@ export function BulkAddOfficersForm({
         )}
       </fieldset>
       {past && pointsPerOfficer !== undefined && (
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-muted">
           Each new award: {pointsPerOfficer} points from this event’s saved
           participation rate.
         </p>
       )}
       {past && pointsPerOfficer === undefined && (
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-muted">
           The participation rate will be saved when attendees are added.
         </p>
       )}

@@ -179,7 +179,7 @@ export default async function PointsPage({
       {admin && (
         <section>
           <SectionHeading title="Add manual transaction or correction" />
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4 sm:p-5">
+          <div className="rounded-lg border border-border bg-surface/40 p-4 sm:p-5">
             <TransactionForm
               officers={officers.data}
               events={recentEvents.data}

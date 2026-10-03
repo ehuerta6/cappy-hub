@@ -20,7 +20,7 @@ export default async function OfficerCatalogsPage() {
         title="Officer catalogs"
         description="Manage controlled positions and branches."
       />
-      <p className="text-sm text-zinc-400">
+      <p className="text-sm text-muted">
         The six baseline positions are required. Referenced records cannot be
         deleted. Renaming retains their IDs and relationships.
       </p>

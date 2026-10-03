@@ -104,7 +104,7 @@ export default async function OfficerDetailPage({
       />
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="min-w-0 space-y-4">
-          <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-5 gap-y-3 rounded-lg border border-zinc-800 bg-zinc-900/30 p-4 text-sm">
+          <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-5 gap-y-3 rounded-lg border border-border bg-surface/30 p-4 text-sm">
             <dt>UTEP email</dt>
             <dd className="min-w-0 break-words">
               {officer.utep_email ?? "Not provided"}
@@ -124,11 +124,11 @@ export default async function OfficerDetailPage({
                 : "Not specified"}
             </dd>
           </dl>
-          <p className="text-lg font-semibold text-zinc-100">
+          <p className="text-lg font-semibold text-foreground">
             Total points: <PointValue value={total.data.total_points ?? 0} />
           </p>
         </div>
-        <div className="min-w-0 space-y-4 rounded-lg border border-zinc-800 p-4">
+        <div className="min-w-0 space-y-4 rounded-lg border border-border p-4">
           <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
             <dt>Status</dt>
             <dd>
@@ -202,7 +202,7 @@ export default async function OfficerDetailPage({
           {displayedWarnings.map((warning) => (
             <article
               key={warning.id}
-              className="space-y-2 rounded-lg border border-zinc-800 p-4"
+              className="space-y-2 rounded-lg border border-border p-4"
             >
               <div className="flex flex-wrap items-center gap-3">
                 <StatusBadge status={warning.status} />
@@ -222,7 +222,7 @@ export default async function OfficerDetailPage({
                     }
                     /{warning.warning_approvals.length}
                   </p>
-                  <ul className="text-sm text-zinc-400">
+                  <ul className="text-sm text-muted">
                     {warning.warning_approvals.map((approval) => (
                       <li key={approval.approver_id}>
                         {approval.approver_role} (
@@ -252,15 +252,15 @@ export default async function OfficerDetailPage({
           {events.data.map(({ events: event }) => (
             <li
               key={event.id}
-              className="flex flex-wrap items-center gap-2 border-b border-zinc-800 py-2 text-sm"
+              className="flex flex-wrap items-center gap-2 border-b border-border py-2 text-sm"
             >
               <Link
                 href={`/events/${event.id}`}
-                className="font-medium text-zinc-200 hover:underline"
+                className="font-medium text-secondary hover:underline"
               >
                 {event.name}
               </Link>
-              <span className="text-zinc-500">{event.event_date}</span>
+              <span className="text-subtle">{event.event_date}</span>
               <StatusBadge status={eventStatus(event)} />
             </li>
           ))}

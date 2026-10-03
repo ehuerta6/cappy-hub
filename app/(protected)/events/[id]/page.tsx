@@ -86,7 +86,7 @@ export default async function EventDetailPage({
           <p className="whitespace-pre-wrap break-words">
             {event.description || "No description"}
           </p>
-          <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-5 gap-y-3 rounded-lg border border-zinc-800 bg-zinc-900/30 p-4 text-sm">
+          <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-5 gap-y-3 rounded-lg border border-border bg-surface/30 p-4 text-sm">
             <dt>Type</dt>
             <dd>{event.event_types.name}</dd>
             <dt>Location</dt>

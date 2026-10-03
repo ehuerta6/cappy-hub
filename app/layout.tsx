@@ -21,9 +21,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      data-theme="dark"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-zinc-950 font-sans text-zinc-100 antialiased">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var theme=localStorage.getItem("cappy-hub-theme");if(theme==="light"||theme==="dark"){document.documentElement.dataset.theme=theme}}catch{}`,
+          }}
+        />
+      </head>
+      <body className="flex min-h-full flex-col bg-background font-sans text-foreground antialiased">
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-16 pt-8 sm:px-6 sm:pt-10">
           {children}
         </main>

@@ -48,14 +48,14 @@ export default async function AdminPage() {
         {adminAreas.map((area) => (
           <section
             key={area.href}
-            className="flex flex-col items-start gap-4 rounded-lg border border-zinc-800 bg-zinc-900/40 p-5"
+            className="flex flex-col items-start gap-4 rounded-lg border border-border bg-surface/40 p-5"
           >
             <div className="space-y-2">
               <h2 className="text-lg font-semibold">{area.title}</h2>
-              <p className="text-sm text-zinc-400">{area.description}</p>
+              <p className="text-sm text-muted">{area.description}</p>
             </div>
             <Link
-              className="text-sm font-medium text-zinc-100 underline"
+              className="text-sm font-medium text-foreground underline"
               href={area.href}
             >
               {area.link}
