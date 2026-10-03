@@ -27,7 +27,7 @@ type ActionWarning = Pick<Tables<"officer_warnings">, "id" | "created_at"> & {
   officers: { name: string } | null;
   warning_approvals: Pick<
     Tables<"warning_approvals">,
-    "approver_id" | "decision"
+    "approver_officer_id" | "decision"
   >[];
 };
 export type ActionItem = {
@@ -75,7 +75,7 @@ export function dashboardActionItems(
       .filter((warning) =>
         warning.warning_approvals.some(
           (approval) =>
-            approval.approver_id === actor.authUserId &&
+            approval.approver_officer_id === actor.id &&
             approval.decision === "pending",
         ),
       )
@@ -137,10 +137,10 @@ export async function loadDashboardActionItems(
       supabase
         .from("officer_warnings")
         .select(
-          "id,created_at,officers!officer_warnings_officer_id_fkey(name),warning_approvals!inner(approver_id,decision)",
+          "id,created_at,officers!officer_warnings_officer_id_fkey(name),warning_approvals!inner(approver_officer_id,decision)",
         )
         .eq("status", "pending")
-        .eq("warning_approvals.approver_id", actor.authUserId)
+        .eq("warning_approvals.approver_officer_id", actor.id)
         .eq("warning_approvals.decision", "pending")
         .order("created_at")
         .order("id")

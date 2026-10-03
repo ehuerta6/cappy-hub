@@ -31,6 +31,7 @@ export type Database = {
         Row: {
           action: string;
           actor_id: string | null;
+          actor_officer_id: number | null;
           created_at: string;
           details: NonNullable<Json>;
           entity_id: string;
@@ -40,6 +41,7 @@ export type Database = {
         Insert: {
           action: string;
           actor_id?: string | null;
+          actor_officer_id?: number | null;
           created_at?: string;
           details?: NonNullable<Json>;
           entity_id: string;
@@ -49,13 +51,29 @@ export type Database = {
         Update: {
           action?: string;
           actor_id?: string | null;
+          actor_officer_id?: number | null;
           created_at?: string;
           details?: NonNullable<Json>;
           entity_id?: string;
           entity_type?: string;
           id?: number;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_actor_officer_id_fkey";
+            columns: ["actor_officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "audit_logs_actor_officer_id_fkey";
+            columns: ["actor_officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       branches: {
         Row: {
@@ -253,6 +271,7 @@ export type Database = {
           created_at: string;
           deleted_at: string | null;
           deleted_by: string | null;
+          deleted_by_officer_id: number | null;
           description: string;
           ends_at: string;
           event_date: string;
@@ -273,6 +292,7 @@ export type Database = {
           created_at?: string;
           deleted_at?: string | null;
           deleted_by?: string | null;
+          deleted_by_officer_id?: number | null;
           description?: string;
           ends_at: string;
           event_date: string;
@@ -293,6 +313,7 @@ export type Database = {
           created_at?: string;
           deleted_at?: string | null;
           deleted_by?: string | null;
+          deleted_by_officer_id?: number | null;
           description?: string;
           ends_at?: string;
           event_date?: string;
@@ -310,6 +331,20 @@ export type Database = {
           status?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "events_deleted_by_officer_id_fkey";
+            columns: ["deleted_by_officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "events_deleted_by_officer_id_fkey";
+            columns: ["deleted_by_officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "events_event_type_id_fkey";
             columns: ["event_type_id"];
@@ -461,6 +496,7 @@ export type Database = {
           award_type: string;
           created_at: string;
           created_by: string | null;
+          created_by_officer_id: number | null;
           event_id: number | null;
           id: number;
           officer_id: number;
@@ -468,14 +504,17 @@ export type Database = {
           reason: string;
           removed_at: string | null;
           removed_by: string | null;
+          removed_by_officer_id: number | null;
           task_id: number | null;
           updated_at: string | null;
           updated_by: string | null;
+          updated_by_officer_id: number | null;
         };
         Insert: {
           award_type: string;
           created_at?: string;
           created_by?: string | null;
+          created_by_officer_id?: number | null;
           event_id?: number | null;
           id?: number;
           officer_id: number;
@@ -483,14 +522,17 @@ export type Database = {
           reason: string;
           removed_at?: string | null;
           removed_by?: string | null;
+          removed_by_officer_id?: number | null;
           task_id?: number | null;
           updated_at?: string | null;
           updated_by?: string | null;
+          updated_by_officer_id?: number | null;
         };
         Update: {
           award_type?: string;
           created_at?: string;
           created_by?: string | null;
+          created_by_officer_id?: number | null;
           event_id?: number | null;
           id?: number;
           officer_id?: number;
@@ -498,11 +540,27 @@ export type Database = {
           reason?: string;
           removed_at?: string | null;
           removed_by?: string | null;
+          removed_by_officer_id?: number | null;
           task_id?: number | null;
           updated_at?: string | null;
           updated_by?: string | null;
+          updated_by_officer_id?: number | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "point_transactions_created_by_officer_id_fkey";
+            columns: ["created_by_officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "point_transactions_created_by_officer_id_fkey";
+            columns: ["created_by_officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "point_transactions_event_id_fkey";
             columns: ["event_id"];
@@ -525,10 +583,38 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "point_transactions_removed_by_officer_id_fkey";
+            columns: ["removed_by_officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "point_transactions_removed_by_officer_id_fkey";
+            columns: ["removed_by_officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "point_transactions_task_id_fkey";
             columns: ["task_id"];
             isOneToOne: false;
             referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "point_transactions_updated_by_officer_id_fkey";
+            columns: ["updated_by_officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "point_transactions_updated_by_officer_id_fkey";
+            columns: ["updated_by_officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officers";
             referencedColumns: ["id"];
           },
         ];
@@ -789,6 +875,7 @@ export type Database = {
       warning_approvals: {
         Row: {
           approver_id: string;
+          approver_officer_id: number | null;
           approver_role: string;
           decided_at: string | null;
           decision: string;
@@ -796,6 +883,7 @@ export type Database = {
         };
         Insert: {
           approver_id: string;
+          approver_officer_id?: number | null;
           approver_role: string;
           decided_at?: string | null;
           decision?: string;
@@ -803,12 +891,27 @@ export type Database = {
         };
         Update: {
           approver_id?: string;
+          approver_officer_id?: number | null;
           approver_role?: string;
           decided_at?: string | null;
           decision?: string;
           warning_id?: number;
         };
         Relationships: [
+          {
+            foreignKeyName: "warning_approvals_approver_officer_id_fkey";
+            columns: ["approver_officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "warning_approvals_approver_officer_id_fkey";
+            columns: ["approver_officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "warning_approvals_warning_id_fkey";
             columns: ["warning_id"];
@@ -843,6 +946,7 @@ export type Database = {
           created_at: string | null;
           created_by: string | null;
           created_by_name: string | null;
+          created_by_officer_id: number | null;
           event_date: string | null;
           event_id: number | null;
           event_name: string | null;
@@ -854,13 +958,30 @@ export type Database = {
           removed_at: string | null;
           removed_by: string | null;
           removed_by_name: string | null;
+          removed_by_officer_id: number | null;
           search_text: string | null;
           task_id: number | null;
           task_title: string | null;
           updated_at: string | null;
           updated_by: string | null;
+          updated_by_name: string | null;
+          updated_by_officer_id: number | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "point_transactions_created_by_officer_id_fkey";
+            columns: ["created_by_officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "point_transactions_created_by_officer_id_fkey";
+            columns: ["created_by_officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "point_transactions_event_id_fkey";
             columns: ["event_id"];
@@ -883,10 +1004,38 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "point_transactions_removed_by_officer_id_fkey";
+            columns: ["removed_by_officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "point_transactions_removed_by_officer_id_fkey";
+            columns: ["removed_by_officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "point_transactions_task_id_fkey";
             columns: ["task_id"];
             isOneToOne: false;
             referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "point_transactions_updated_by_officer_id_fkey";
+            columns: ["updated_by_officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "point_transactions_updated_by_officer_id_fkey";
+            columns: ["updated_by_officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officers";
             referencedColumns: ["id"];
           },
         ];

@@ -69,7 +69,7 @@ export default async function OfficersPage({
   const pendingApprovals = await supabase
     .from("warning_approvals")
     .select("warning_id,approver_role")
-    .eq("approver_id", actor.authUserId)
+    .eq("approver_officer_id", actor.id)
     .eq("decision", "pending");
   if (pendingApprovals.error)
     throw new Error("Failed to load warning approvals");

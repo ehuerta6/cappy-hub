@@ -45,11 +45,11 @@ select results_eq($$select * from event_officers where event_id between 90004 an
   $$select * from upgrade_fixture.event_officers where event_id between 90004 and 90006 order by event_id,officer_id$$,
   'timed legacy Event officer participation survives');
 select results_eq(
-  $$select to_jsonb(p)-'removed_at'-'removed_by'-'updated_at'-'updated_by'-'task_id' from point_transactions p where id between 90001 and 90002 order by id$$,
+  $$select to_jsonb(p)-'removed_at'-'removed_by'-'updated_at'-'updated_by'-'task_id'-'created_by_officer_id'-'updated_by_officer_id'-'removed_by_officer_id' from point_transactions p where id between 90001 and 90002 order by id$$,
   $$select original from upgrade_fixture.points where (original->>'id')::bigint between 90001 and 90002 order by (original->>'id')::bigint$$,
   'point transaction IDs, values, timestamps and actors survive');
 select results_eq(
-  $$select to_jsonb(p)-'task_id' from point_transactions p where id in (90003,90004) order by id$$,
+  $$select to_jsonb(p)-'task_id'-'created_by_officer_id'-'updated_by_officer_id'-'removed_by_officer_id' from point_transactions p where id in (90003,90004) order by id$$,
   $$select original from upgrade_fixture.points where (original->>'id')::bigint in (90003,90004) order by (original->>'id')::bigint$$,
   'active and removed legacy Event transactions retain their IDs, associations, values, actors and timestamps');
 select is((select count(*) from point_transactions where id=90003),1::bigint,
@@ -60,6 +60,86 @@ select isnt((select removed_at from point_transactions where id=90003),null::tim
   'removed historical transaction remains removed');
 select is((select removed_at from point_transactions where id=90004),null::timestamptz,
   'active historical transaction remains active');
+select has_column('audit_logs','actor_officer_id','stable audit actor identity is additive');
+select has_column('warning_approvals','approver_officer_id','stable warning approver identity is additive');
+select has_column('events','deleted_by_officer_id','stable Event deletion actor identity is additive');
+select has_column('point_transactions','created_by_officer_id','stable point creator identity is additive');
+select has_column('point_transactions','updated_by_officer_id','stable point updater identity is additive');
+select has_column('point_transactions','removed_by_officer_id','stable point remover identity is additive');
+select is((select actor_officer_id from audit_logs where id=91001),91001::bigint,
+  'known historical audit actor maps by exact current Auth UUID');
+select is((select approver_officer_id from warning_approvals where warning_id=91001),91001::bigint,
+  'warning snapshot maps to its intended Officer');
+select is((select deleted_by_officer_id from events where id=91001),91001::bigint,
+  'Event deletion actor maps to its Officer');
+select results_eq(
+  $$select created_by_officer_id,updated_by_officer_id,removed_by_officer_id from point_transactions where id=91001$$,
+  $$values (91001::bigint,91001::bigint,91001::bigint)$$,
+  'point creation, update and removal actors map to their Officer');
+select results_eq(
+  $$select actor_id,actor_officer_id from audit_logs where id in (91001,91002) order by id$$,
+  $$values ('20000000-0000-0000-0000-000000009101'::uuid,91001::bigint),
+    ('20000000-0000-0000-0000-000000009103'::uuid,null::bigint)$$,
+  'UUID provenance survives and an unmappable actor remains explicit');
+select is((select created_by_officer_id from point_transactions where id=91002),null::bigint,
+  'unmappable point actor remains unknown');
+
+-- Relinking changes the current authentication principal, not business history.
+update public.officers set auth_user_id='20000000-0000-0000-0000-000000009102'
+  where id=91001;
+select is((select actor_officer_id from audit_logs where id=91001),91001::bigint,
+  'historical audit entry still resolves after Auth relink');
+select is((select approver_officer_id from warning_approvals where warning_id=91001),91001::bigint,
+  'warning snapshot remains with the same Officer after Auth relink');
+select is((select created_by_officer_id from point_transactions where id=91001),91001::bigint,
+  'point history still resolves after Auth relink');
+select is((select created_by_name from point_history where id=91001),'Historical Actor',
+  'point history read resolves actor by stable Officer identity');
+select is((select actor_officer_id from audit_logs where id=91002),null::bigint,
+  'an unknown actor is not reassigned after another Officer relinks');
+
+select set_config('request.jwt.claim.sub','20000000-0000-0000-0000-000000009102',true);
+set local role authenticated;
+select is((select count(*) from warning_approvals where warning_id=91001),1::bigint,
+  'relinked Officer retains RLS visibility of their pending warning snapshot');
+select lives_ok($$select decide_warning(91001,'approved')$$,
+  'relinked Officer can decide the warning assigned to their stable identity');
+select throws_ok($$update public.point_transactions set created_by_officer_id=91002 where id=91001$$,
+  '42501',null,'authenticated clients cannot forge stable actor IDs with direct writes');
+select throws_ok($$select add_manual_transaction(91002,1,'Not authorized','manual')$$,
+  'P0001','Admin required','a relinked non-admin cannot claim another Officer identity through a write RPC');
+reset role;
+
+select set_config('request.jwt.claim.sub','20000000-0000-0000-0000-000000009104',true);
+set local role authenticated;
+select lives_ok($$select add_manual_transaction(91002,1,'Current stable attribution','manual')$$,
+  'authorized admin can award points to another Officer');
+reset role;
+select is((select created_by_officer_id from point_transactions where reason='Current stable attribution'),
+  91004::bigint,'new point transaction stores the authenticated Officer as actor, not its recipient');
+select is((select actor_officer_id from audit_logs where action='points.manual_created'
+  and entity_id=(select id::text from point_transactions where reason='Current stable attribution')),
+  91004::bigint,'new System Log entry stores the authenticated Officer identity');
+select lives_ok($$select update_point_transaction(
+  (select id from point_transactions where reason='Current stable attribution'),2)$$,
+  'authorized admin can update a point transaction');
+select lives_ok($$select remove_point_transaction(
+  (select id from point_transactions where reason='Current stable attribution'))$$,
+  'authorized admin can remove a point transaction');
+select results_eq(
+  $$select created_by_officer_id,updated_by_officer_id,removed_by_officer_id
+    from point_transactions where reason='Current stable attribution'$$,
+  $$values (91004::bigint,91004::bigint,91004::bigint)$$,
+  'new point create, update and remove actions each store the session Officer');
+insert into events(id,name,description,location,event_type_id,event_date,starts_at,ends_at)
+values (91002,'Current deletion actor','Historical test','TBA',
+  (select id from event_types where name='Meeting'),'2099-10-01',
+  '2099-10-01 09:00-06','2099-10-01 10:00-06');
+select lives_ok($$select remove_event(91002)$$,
+  'authorized admin can remove an Event');
+select is((select deleted_by_officer_id from events where id=91002),91004::bigint,
+  'new Event deletion stores the session Officer');
+
 select is((select count(*) from point_transactions where id=90005),0::bigint,
   'participation transaction for a truly untimed legacy Event is removed');
 select is((select count(*) from event_officers where event_id=90007),0::bigint,
@@ -82,10 +162,14 @@ select results_eq(
   $$select e.id,e.event_type_id,t.name from events e join event_types t on t.id=e.event_type_id where e.id between 90004 and 90006 order by e.id$$,
   $$select (e.row->>'id')::bigint,(e.row->>'event_type_id')::bigint,t.row->>'name' from upgrade_fixture.pre_hardening_events e join upgrade_fixture.pre_hardening_event_types t on (t.row->>'id')::bigint=(e.row->>'event_type_id')::bigint where (e.row->>'id')::bigint between 90004 and 90006 order by (e.row->>'id')::bigint$$,
   'historical Events retain their exact type IDs and labels');
-select is((select jsonb_agg(to_jsonb(e) order by id) from events e),
+select is((select jsonb_agg(to_jsonb(e)-'deleted_by_officer_id' order by id)
+  from events e where exists(select 1 from upgrade_fixture.pre_hardening_events f
+    where (f.row->>'id')::bigint=e.id)),
   (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.pre_hardening_events),
   'hardening leaves every Event row and lifecycle value intact');
-select is((select jsonb_agg(to_jsonb(p) order by id) from point_transactions p),
+select is((select jsonb_agg(to_jsonb(p)-'created_by_officer_id'-'updated_by_officer_id'-'removed_by_officer_id' order by id)
+  from point_transactions p where exists(select 1 from upgrade_fixture.pre_hardening_points f
+    where (f.row->>'id')::bigint=p.id)),
   (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.pre_hardening_points),
   'hardening leaves Point history and lifecycle metadata intact');
 select is((select jsonb_agg(to_jsonb(b) order by id) from branches b),
@@ -160,12 +244,12 @@ select is((select count(*) from tasks where recurrence_series_id is not null and
   'existing Tasks remain standalone after the additive recurrence migration');
 select has_column('events','recurrence_key','Event occurrence identity is additive');
 select has_column('tasks','recurrence_key','Task occurrence identity is additive');
-select is((select jsonb_agg(to_jsonb(e) order by id) from events e where id in (90680,90681)),
+select is((select jsonb_agg(to_jsonb(e)-'deleted_by_officer_id' order by id) from events e where id in (90680,90681)),
  (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.recurring_events),'scope migration preserves existing recurring Event rows including cancellation');
 select is((select jsonb_agg(to_jsonb(t) order by id) from tasks t where id in (90680,90681)),
  (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.recurring_tasks),'scope migration preserves existing recurring Task rows');
 select is((select to_jsonb(a) from task_assignments a where task_id=90680),(select row from upgrade_fixture.recurring_assignment),'scope migration preserves assignment completion and approval');
-select is((select to_jsonb(p) from point_transactions p where id=90680),(select row from upgrade_fixture.recurring_award),'scope migration preserves existing awarded Task points');
+select is((select to_jsonb(p)-'created_by_officer_id'-'updated_by_officer_id'-'removed_by_officer_id' from point_transactions p where id=90680),(select row from upgrade_fixture.recurring_award),'scope migration preserves existing awarded Task points');
 select is((select starts_on::text||'/'||ends_on::text from event_series where id=90680),'2099-10-01/2099-10-02','existing Event series bounds backfilled');
 select is((select starts_on::text||'/'||ends_on::text from task_series where id=90680),'2099-10-01/2099-10-02','existing Task series bounds backfilled');
 select * from finish();

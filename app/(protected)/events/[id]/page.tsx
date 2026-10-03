@@ -69,7 +69,9 @@ export default async function EventDetailPage({
   );
   const transactions = await supabase
     .from("point_transactions")
-    .select("*,officers(id,name),events(id,name),tasks(id,title)")
+    .select(
+      "*,officers!point_transactions_officer_id_fkey(id,name),events(id,name),tasks(id,title)",
+    )
     .is("removed_at", null)
     .eq("event_id", event.id)
     .order("created_at", { ascending: false })

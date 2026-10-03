@@ -81,7 +81,7 @@ export default async function SystemLogPage({
   const toBoundary = toNextDate ? denverTimestamp(toNextDate, "00:00") : null;
   const filterSearch = new URLSearchParams();
   if (search) filterSearch.set("q", search);
-  if (actorFilter) filterSearch.set("actor", actorFilter);
+  if (actorFilter) filterSearch.set("actor", String(actorFilter));
   if (action) filterSearch.set("action", action);
   if (entity) filterSearch.set("entity", entity);
   if (fromDate) filterSearch.set("from", fromDate);
@@ -91,7 +91,7 @@ export default async function SystemLogPage({
     let query = supabase
       .from("audit_logs")
       .select(
-        "id,actor_id,action,entity_type,entity_id,details,created_at",
+        "id,actor_id,actor_officer_id,action,entity_type,entity_id,details,created_at",
         countOnly ? { count: "exact", head: true } : undefined,
       );
     if (includeFilters) {
@@ -99,8 +99,12 @@ export default async function SystemLogPage({
         query = query.or(
           searchOrFilter(search, ["action", "entity_type", "entity_id"]),
         );
-      if (actorFilter === "system") query = query.is("actor_id", null);
-      else if (actorFilter) query = query.eq("actor_id", actorFilter);
+      if (actorFilter === "system")
+        query = query.is("actor_id", null).is("actor_officer_id", null);
+      else if (typeof actorFilter === "string")
+        query = query.eq("actor_id", actorFilter);
+      else if (actorFilter !== undefined)
+        query = query.eq("actor_officer_id", actorFilter);
       if (action)
         query = query.filter("action", "imatch", literalSearchPattern(action));
       if (entity) query = query.eq("entity_type", entity);
@@ -119,11 +123,7 @@ export default async function SystemLogPage({
   const [filteredCount, visibleCount, actorResult] = await Promise.all([
     buildLogQuery(true, true),
     buildLogQuery(false, true),
-    supabase
-      .from("officers")
-      .select("auth_user_id,name")
-      .not("auth_user_id", "is", null)
-      .order("name"),
+    supabase.from("officers").select("id,name").order("name"),
   ]);
   if (filteredCount.error || visibleCount.error || actorResult.error)
     throw new Error("Failed to load System Log");
@@ -143,19 +143,8 @@ export default async function SystemLogPage({
   if (error) throw new Error(`Failed to load System Log: ${error.message}`);
 
   const officerNames = new Map(
-    actorResult.data.map((officer) => [officer.auth_user_id, officer.name]),
+    actorResult.data.map((officer) => [officer.id, officer.name]),
   );
-
-  const actors = [
-    ...new Map(
-      actorResult.data
-        .filter(
-          (officer): officer is typeof officer & { auth_user_id: string } =>
-            officer.auth_user_id !== null,
-        )
-        .map((officer) => [officer.auth_user_id, officer]),
-    ).values(),
-  ];
   const hasFilters = Boolean(
     search || actorFilter || action || entity || fromDate || toDate,
   );
@@ -192,8 +181,8 @@ export default async function SystemLogPage({
           <select name="actor" defaultValue={actorFilter ?? ""}>
             <option value="">All actors</option>
             <option value="system">System</option>
-            {actors.map((officer) => (
-              <option key={officer.auth_user_id} value={officer.auth_user_id}>
+            {actorResult.data.map((officer) => (
+              <option key={officer.id} value={officer.id}>
                 {officer.name}
               </option>
             ))}
@@ -266,10 +255,12 @@ export default async function SystemLogPage({
                     })}
                   </td>
                   <td>
-                    {entry.actor_id === null
-                      ? "System"
-                      : (officerNames.get(entry.actor_id) ??
-                        `Account ${entry.actor_id.slice(0, 8)}…`)}
+                    {entry.actor_officer_id !== null
+                      ? (officerNames.get(entry.actor_officer_id) ??
+                        `Officer #${entry.actor_officer_id}`)
+                      : entry.actor_id === null
+                        ? "System"
+                        : `Unmapped account ${entry.actor_id.slice(0, 8)}…`}
                   </td>
                   <td>{formatLabel(entry.action.replaceAll(".", " "))}</td>
                   <td>

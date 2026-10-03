@@ -418,6 +418,7 @@ it("preserves the full System Log row and provides a keyboard-scroll region", as
     {
       id: 21,
       actor_id: null,
+      actor_officer_id: null,
       action: "event.updated",
       entity_type: "event",
       entity_id: 8,
@@ -468,13 +469,13 @@ it("keeps legacy removed Event URLs admin-only", async () => {
 it("filters a specific System Log actor without losing other URL filters", async () => {
   filteredCount = 125;
   const html = await render(SystemLogPage, {
-    actor: actor.authUserId,
+    actor: String(actor.id),
     entity: "officer",
     q: "change",
     page: "2",
   });
-  has(forTable("audit_logs")[0], "eq", "actor_id", actor.authUserId);
-  expect(html).toContain("actor=" + actor.authUserId);
+  has(forTable("audit_logs")[0], "eq", "actor_officer_id", actor.id);
+  expect(html).toContain("actor=" + actor.id);
   expect(html).toContain("entity=officer");
   expect(html).toContain("q=change");
   expect(html).toContain("page=3");

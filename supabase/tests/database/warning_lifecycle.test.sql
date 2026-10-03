@@ -32,6 +32,10 @@ select lives_ok($$select create_warning(-905,'First warning')$$,
 reset role;
 select is((select count(*) from warning_approvals a join officer_warnings w on w.id=a.warning_id
   where w.reason='First warning'),3::bigint,'President and both VPs are snapshotted');
+select is((select approver_officer_id from warning_approvals a
+  join officer_warnings w on w.id=a.warning_id
+  where w.reason='First warning' and a.approver_id='00000000-0000-4000-8000-000000000902'),
+  -902::bigint,'current warning snapshot writes the stable approver Officer ID');
 select set_config('test.first_warning_id',
   (select id::text from officer_warnings where reason='First warning'),true);
 set local role authenticated;

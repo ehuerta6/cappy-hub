@@ -273,7 +273,12 @@ it("preserves all three summary metric values and the existing summary/activity 
     ["order", ["event_date"]],
   ]);
   expect(operations("point_transactions")).toEqual([
-    ["select", ["*,officers(id,name),events(id,name),tasks(id,title)"]],
+    [
+      "select",
+      [
+        "*,officers!point_transactions_officer_id_fkey(id,name),events(id,name),tasks(id,title)",
+      ],
+    ],
     ["is", ["removed_at", null]],
     ["order", ["created_at", { ascending: false }]],
     ["order", ["id", { ascending: false }]],

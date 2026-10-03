@@ -52,7 +52,7 @@ const warning = (id: number, changes = {}) => ({
   created_at: "2026-10-03T12:00:00Z",
   status: "pending",
   officers: { name: "Alex" },
-  warning_approvals: [{ approver_id: "current-user", decision: "pending" }],
+  warning_approvals: [{ approver_officer_id: 8, decision: "pending" }],
   ...changes,
 });
 let tasks: ReturnType<typeof task>[];
@@ -219,12 +219,10 @@ it("includes only current pending snapshotted warning decisions, even for admins
   warnings = [
     warning(1),
     warning(2, {
-      warning_approvals: [{ approver_id: "other-user", decision: "pending" }],
+      warning_approvals: [{ approver_officer_id: 9, decision: "pending" }],
     }),
     warning(3, {
-      warning_approvals: [
-        { approver_id: "current-user", decision: "approved" },
-      ],
+      warning_approvals: [{ approver_officer_id: 8, decision: "approved" }],
     }),
     warning(4, { status: "rejected" }),
     warning(5, { status: "approved" }),
@@ -234,8 +232,8 @@ it("includes only current pending snapshotted warning decisions, even for admins
   expect(html).toContain("Warning for Alex");
   for (const id of [2, 3, 4, 5]) expect(html).not.toContain(`warning-${id}`);
   const url = urls.find((url) => url.pathname.endsWith("officer_warnings"))!;
-  expect(url.searchParams.get("warning_approvals.approver_id")).toBe(
-    "eq.current-user",
+  expect(url.searchParams.get("warning_approvals.approver_officer_id")).toBe(
+    "eq.8",
   );
   expect(url.searchParams.get("warning_approvals.decision")).toBe("eq.pending");
   expect(url.searchParams.get("status")).toBe("eq.pending");

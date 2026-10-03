@@ -64,7 +64,9 @@ export default async function OfficerDetailPage({
       .eq("officer_id", officerId),
     supabase
       .from("point_transactions")
-      .select("*,officers(id,name),events(id,name),tasks(id,title)")
+      .select(
+        "*,officers!point_transactions_officer_id_fkey(id,name),events(id,name),tasks(id,title)",
+      )
       .is("removed_at", null)
       .eq("officer_id", officerId)
       .order("created_at", { ascending: false })
@@ -96,7 +98,7 @@ export default async function OfficerDetailPage({
     (warning) => warning.status === "approved",
   ).length;
   const approverNames = isAdmin(actor)
-    ? await supabase.from("officers").select("auth_user_id,name")
+    ? await supabase.from("officers").select("id,name")
     : null;
   if (approverNames?.error) throw new Error("Failed to load approver names");
   return (
@@ -255,7 +257,7 @@ export default async function OfficerDetailPage({
                           {approval.approver_role} (
                           {approverNames?.data?.find(
                             (person) =>
-                              person.auth_user_id === approval.approver_id,
+                              person.id === approval.approver_officer_id,
                           )?.name ?? approval.approver_id}
                           ): {approval.decision}
                         </li>

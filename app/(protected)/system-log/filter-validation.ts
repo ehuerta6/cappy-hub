@@ -1,12 +1,21 @@
 import * as zod from "zod";
 import { searchParamStringSchema } from "@/lib/search-params";
 
-const uuidPattern =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 const actorSchema = searchParamStringSchema.transform((value) => {
   if (value === "system") return value;
-  return uuidPattern.test(value) ? value : undefined;
+  if (
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      value,
+    )
+  )
+    return value;
+  const parsed = zod
+    .string()
+    .regex(/^-?\d+$/)
+    .transform(Number)
+    .refine(Number.isSafeInteger)
+    .safeParse(value.trim());
+  return parsed.success ? parsed.data : undefined;
 });
 
 const entityTypeSchema = searchParamStringSchema.transform((value) =>

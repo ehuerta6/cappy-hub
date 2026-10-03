@@ -82,6 +82,7 @@ it("validates log actors, entity types, dates and bounded pages safely", () => {
     dateRangeIsReversed: true,
     page: 100000,
   });
+  expect(systemLogFiltersSchema.parse({ actor: "42" }).actor).toBe(42);
   expect(
     systemLogFiltersSchema.parse({
       actor: "00000000-0000-0000-0000-000000000001",
