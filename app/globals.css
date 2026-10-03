@@ -1,4 +1,7 @@
 @import "tailwindcss";
+@import "@fullcalendar/react/skeleton.css";
+@import "@fullcalendar/react/themes/classic/theme.css";
+@import "@fullcalendar/react/themes/classic/palette.css";
 
 :root {
   color-scheme: dark;
@@ -220,4 +223,29 @@
     margin-top: 0.25rem;
     color: #f4f4f5;
   }
+}
+
+.calendar-shell {
+  --fc-classic-border: #3f3f46;
+  --fc-classic-strong-border: #52525b;
+  --fc-classic-button: #27272a;
+  --fc-classic-button-border: #3f3f46;
+  --fc-classic-button-strong: #3f3f46;
+  --fc-classic-button-strong-border: #52525b;
+}
+
+.calendar-legend-event,
+.calendar-legend-task {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 0.2rem;
+}
+
+.calendar-legend-event {
+  background-color: #2563eb;
+}
+
+.calendar-legend-task {
+  background-color: #b45309;
 }
