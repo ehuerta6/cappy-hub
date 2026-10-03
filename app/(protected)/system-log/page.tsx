@@ -244,7 +244,7 @@ export default async function SystemLogPage({
       {entries.length === 0 ? (
         <p>{emptyMessage}</p>
       ) : (
-        <TableFrame>
+        <TableFrame label="System Log entries">
           <table>
             <thead>
               <tr>
@@ -277,7 +277,7 @@ export default async function SystemLogPage({
                   </td>
                   <td>
                     <details>
-                      <summary className="cursor-pointer">
+                      <summary className="flex min-h-11 cursor-pointer items-center">
                         {describeDetails(entry.details)}
                       </summary>
                       <pre className="mt-2 max-w-md overflow-x-auto whitespace-pre-wrap text-xs text-muted">

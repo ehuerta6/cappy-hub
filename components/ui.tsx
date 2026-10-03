@@ -59,7 +59,7 @@ export function ActionLink({
   return (
     <Link
       href={href}
-      className="inline-flex w-fit items-center justify-center rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-foreground hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted"
+      className="inline-flex min-h-11 w-fit max-w-full items-center justify-center break-words rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-foreground hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted lg:min-h-0"
     >
       {children}
     </Link>
@@ -124,9 +124,26 @@ export function PointValue({ value }: { value: number }) {
   );
 }
 
-export function TableFrame({ children }: { children: ReactNode }) {
+export function TableFrame({
+  children,
+  compact = false,
+  label,
+}: {
+  children: ReactNode;
+  compact?: boolean;
+  label?: string;
+}) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
+    <div
+      className={
+        "overflow-x-auto rounded-lg border border-border" +
+        (compact ? " table-frame--compact" : "") +
+        (label ? " table-frame--keyboard-scroll" : "")
+      }
+      role={label ? "region" : undefined}
+      aria-label={label}
+      tabIndex={label ? 0 : undefined}
+    >
       {children}
     </div>
   );
@@ -155,15 +172,15 @@ export function ListFilterBar({
         className="!flex w-full !max-w-none flex-wrap items-end gap-3"
       >
         {children}
-        <div className="flex min-h-10 flex-wrap items-center gap-3">
-          <button type="submit" className="min-h-10">
+        <div className="flex w-full min-h-10 flex-wrap items-center gap-3 sm:w-auto">
+          <button type="submit" className="min-h-11 lg:min-h-0">
             Apply filters
           </button>
           {active && (
             <Link
               href={clearHref}
               aria-label={`Clear current ${label.toLowerCase()}`}
-              className="inline-flex min-h-10 items-center rounded-md border border-border-strong px-3 py-2 text-sm font-medium text-secondary underline-offset-4 hover:bg-hover hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted"
+              className="inline-flex min-h-11 items-center rounded-md border border-border-strong px-3 py-2 text-sm font-medium text-secondary underline-offset-4 hover:bg-hover hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted lg:min-h-0"
             >
               Clear filters
             </Link>

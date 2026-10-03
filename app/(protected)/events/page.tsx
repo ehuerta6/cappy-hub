@@ -208,50 +208,89 @@ export default async function EventsPage({
             {!groupEvents.length ? (
               <p>{empty}</p>
             ) : (
-              <TableFrame>
+              <TableFrame compact>
                 <table>
                   <thead>
-                    <tr>
+                    <tr className="grid grid-cols-1 md:table-row">
                       <th scope="col">Event</th>
-                      <th scope="col">Schedule (El Paso)</th>
-                      <th scope="col">Type</th>
-                      <th scope="col">Branches</th>
-                      <th scope="col">Officers</th>
-                      <th scope="col">Status</th>
+                      <th scope="col" className="hidden xl:table-cell">
+                        Schedule (El Paso)
+                      </th>
+                      <th scope="col" className="hidden xl:table-cell">
+                        Type
+                      </th>
+                      <th scope="col" className="hidden xl:table-cell">
+                        Branches
+                      </th>
+                      <th scope="col" className="hidden xl:table-cell">
+                        Officers
+                      </th>
+                      <th scope="col" className="hidden xl:table-cell">
+                        Status
+                      </th>
                       {allowSignup && <th scope="col">Action</th>}
                     </tr>
                   </thead>
                   <tbody>
                     {groupEvents.map((event) => (
-                      <tr key={event.id}>
-                        <td>
+                      <tr
+                        key={event.id}
+                        className="grid grid-cols-1 md:table-row"
+                      >
+                        <td className="min-w-0">
                           <Link
                             href={withReturnTo(`/events/${event.id}`, returnTo)}
+                            className="block break-words"
                           >
                             {event.name}
                           </Link>
+                          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted xl:hidden">
+                            <span>
+                              {formatEventSchedule(
+                                event.starts_at,
+                                event.ends_at,
+                              )}
+                            </span>
+                            <span>{event.event_types.name}</span>
+                            <BranchBadges
+                              branches={event.event_branches.map(
+                                (eventBranch) => eventBranch.branches.name,
+                              )}
+                            />
+                            <span>
+                              {event.event_officers.length}{" "}
+                              {event.event_officers.length === 1
+                                ? "officer"
+                                : "officers"}
+                            </span>
+                            <StatusBadge
+                              status={eventStatus(event, now.getTime())}
+                            />
+                          </div>
                         </td>
-                        <td>
+                        <td className="hidden xl:table-cell">
                           {formatEventSchedule(event.starts_at, event.ends_at)}
                         </td>
-                        <td>{event.event_types.name}</td>
-                        <td>
+                        <td className="hidden xl:table-cell">
+                          {event.event_types.name}
+                        </td>
+                        <td className="hidden xl:table-cell">
                           <BranchBadges
                             branches={event.event_branches.map(
                               (eventBranch) => eventBranch.branches.name,
                             )}
                           />
                         </td>
-                        <td className="tabular-nums">
+                        <td className="hidden xl:table-cell tabular-nums">
                           {event.event_officers.length}
                         </td>
-                        <td>
+                        <td className="hidden xl:table-cell">
                           <StatusBadge
                             status={eventStatus(event, now.getTime())}
                           />
                         </td>
                         {allowSignup && (
-                          <td>
+                          <td className="min-w-0">
                             {eventSignupOpen(event, now.getTime()) && (
                               <SelfSignupForm
                                 eventId={event.id}

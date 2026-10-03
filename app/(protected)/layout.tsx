@@ -9,12 +9,14 @@ export default async function ProtectedLayout({ children }: LayoutProps<"/">) {
       <SiteNavigation
         isAdmin={officer.applicationRole === "admin"}
         account={
-          <div className="flex min-w-0 items-center gap-3 text-sm">
-            <span className="truncate text-muted">{officer.name}</span>
-            <form action={signOut} className="w-auto shrink-0">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+            <span className="min-w-28 flex-1 break-words text-muted">
+              {officer.name}
+            </span>
+            <form action={signOut} className="w-auto max-w-full shrink-0">
               <button
                 type="submit"
-                className="button-secondary whitespace-nowrap px-3 py-1.5"
+                className="button-secondary min-h-11 max-w-full whitespace-normal break-words px-3 py-2 text-left lg:min-h-0 lg:py-1.5"
               >
                 Sign out
               </button>

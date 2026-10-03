@@ -11,12 +11,14 @@ export default function ThemeToggle() {
   return (
     <button
       type="button"
-      className="button-secondary inline-flex items-center gap-2 whitespace-nowrap px-3 py-1.5"
+      className="button-secondary inline-flex min-h-11 min-w-11 max-w-full flex-wrap items-center justify-center gap-2 px-3 py-2 text-center lg:min-h-0 lg:py-1.5"
       aria-label={`Switch to ${nextTheme} theme`}
       onClick={toggleTheme}
     >
       <Icon aria-hidden="true" size={16} />
-      <span>{nextTheme === "light" ? "Light" : "Dark"} theme</span>
+      <span className="min-w-0 break-words">
+        {nextTheme === "light" ? "Light" : "Dark"} theme
+      </span>
     </button>
   );
 }

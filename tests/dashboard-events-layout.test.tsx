@@ -138,7 +138,10 @@ it("groups relationships into distinct sections from the filtered event query", 
   expect(your).toContain("Participating event");
   expect(your).not.toContain("Available event");
   expect(other).toContain("Available event");
+  expect(other).toContain("Meeting");
+  expect(other).toContain("Upcoming");
   expect(other).not.toContain("Participating event");
+  expect(other).toContain('<th scope="col">Action</th>');
   expect(html).not.toMatch(/Your participation|Your signup/i);
   expect(other).toContain('aria-label="Sign up for Available event"');
   expect(your).not.toContain("Sign up for");
@@ -213,6 +216,9 @@ it("places the single sign out form and officer context inside the protected hea
   expect(header).not.toContain("Back to");
   expect(header).toContain("Local Officer");
   expect(header).toContain("Sign out");
+  expect(header).toContain('aria-label="Switch to light theme"');
+  expect(header).toContain("min-h-11");
+  expect(header).toContain("Local Officer");
   expect(html.match(/Sign out/g)).toHaveLength(1);
   expect(html.split("</header>")[1].split("<script>")[0]).toBe("Page content");
   expect(header).toContain('aria-current="page"');

@@ -176,7 +176,7 @@ export default async function PointsPage({
       </section>
       <section>
         <SectionHeading title="Officer totals" />
-        <TableFrame>
+        <TableFrame compact>
           <table>
             <thead>
               <tr>
@@ -230,7 +230,7 @@ export default async function PointsPage({
         {dateRangeIsReversed && (
           <p role="status">Choose a From date on or before the To date.</p>
         )}
-        <TableFrame>
+        <TableFrame compact>
           <HistoryTable
             returnTo={listPageUrl("/points", currentFilterSearch, page)}
             transactions={transactions.data}

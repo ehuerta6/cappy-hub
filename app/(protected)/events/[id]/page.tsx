@@ -294,7 +294,7 @@ export default async function EventDetailPage({
           title="Event point history"
           description="Latest 100 transactions"
         />
-        <TableFrame>
+        <TableFrame compact>
           <PointTransactionTable transactions={transactions.data} />
         </TableFrame>
         <Link

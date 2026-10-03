@@ -300,7 +300,7 @@ export default async function OfficerDetailPage({
           title="Point history"
           description="Latest 100 transactions"
         />
-        <TableFrame>
+        <TableFrame compact>
           <PointTransactionTable transactions={transactions.data} />
         </TableFrame>
         <Link

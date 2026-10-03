@@ -19,9 +19,12 @@ export default function PointActions({
   );
   return (
     <div className="space-y-2">
-      <form action={editAction} className="flex items-end gap-2">
+      <form
+        action={editAction}
+        className="flex min-w-0 flex-wrap items-end gap-2"
+      >
         <input type="hidden" name="transaction_id" value={transactionId} />
-        <label>
+        <label className="min-w-0 flex-1">
           Points
           <input
             name="points"

@@ -28,6 +28,13 @@ vi.mock("@/app/(protected)/points/history-table", () => ({
 vi.mock("@/app/(protected)/events/event-controls", () => ({
   SelfSignupForm: () => null,
 }));
+vi.mock("@/app/(protected)/tasks/task-action-form", () => ({
+  default: ({ label }: { label: string }) => (
+    <form>
+      <button>{label}</button>
+    </form>
+  ),
+}));
 vi.mock("@/app/(protected)/officers/warning-forms", () => ({
   WarningDecisionForm: () => null,
 }));
@@ -322,6 +329,114 @@ it.each([OfficersPage, EventsPage, TasksPage, PointsPage, SystemLogPage])(
     expect(empty).not.toContain("Clear filters");
   },
 );
+
+it.each([
+  [OfficersPage, "Officer filters"],
+  [EventsPage, "Event filters"],
+  [TasksPage, "Task filters"],
+  [PointsPage, "Point history filters"],
+  [SystemLogPage, "System Log filters"],
+] as const)(
+  "keeps %s filters grouped for narrow layouts",
+  async (Page, label) => {
+    const html = await render(Page, { q: "filter" });
+    const form = html.split(`aria-label="${label}"`)[1].split("</form>")[0];
+    expect(form).toContain('method="get"');
+    expect(form).toContain("Apply filters");
+    expect(form).toContain("Clear filters");
+    expect(form).toContain("flex-wrap");
+    expect(form).toContain("min-h-11");
+    if (Page === PointsPage || Page === SystemLogPage)
+      expect(form).toContain('type="date"');
+  },
+);
+
+it("keeps officer identity, status and contact information in a semantic table", async () => {
+  rows.officers = [
+    {
+      id: 7,
+      name: "Emi Huerta",
+      utep_email: "emi@miners.utep.edu",
+      personal_email: "emi@example.test",
+      positions: { name: "Technical Officer" },
+      classification: "intro",
+      officer_branches: [{ branches: { name: "intro" } }],
+      status: "active",
+    },
+  ];
+  const html = await render(OfficersPage);
+  expect(html).toContain("<table");
+  expect(html).toContain('<th scope="col">Name</th>');
+  for (const heading of [
+    "UTEP email",
+    "Personal email",
+    "Position",
+    "Classification",
+    "Branches",
+    "Status",
+  ])
+    expect(html).toContain(`>${heading}</th>`);
+  expect(html).toContain("Emi Huerta");
+  expect(html).toContain("Technical Officer");
+  expect(html).toContain("Intro");
+  expect(html).toContain("Active");
+  expect(html).toContain("Contact details");
+  expect(html).toContain('href="mailto:emi@miners.utep.edu"');
+  expect(html).toContain('href="mailto:emi@example.test"');
+});
+
+it("keeps task schedule, ownership and workflow actions together in the list row", async () => {
+  rows.tasks = [
+    {
+      id: 7,
+      title: "Prepare the workshop slides",
+      description: "Add the schedule, speaker names, and room details.",
+      task_type: "one_time",
+      branches: { name: "intro" },
+      branch_id: 2,
+      points: 3,
+      approval_required: true,
+      due_date: "2099-10-08",
+      task_assignments: null,
+    },
+  ];
+  const html = await render(TasksPage);
+  expect(html).toContain("<table");
+  expect(html).toContain('<th scope="col">Task</th>');
+  expect(html).toContain("Due: 2099-10-08");
+  expect(html).toContain("Assignee: Unassigned");
+  expect(html).toContain("Status: Open");
+  expect(html).toContain("Branch: intro");
+  expect(html).toContain("Points: 3");
+  expect(html).toContain("Description</summary>");
+  expect(html).toContain("Self-assign");
+  expect(html).toContain("Assign");
+});
+
+it("preserves the full System Log row and provides a keyboard-scroll region", async () => {
+  rows.audit_logs = [
+    {
+      id: 21,
+      actor_id: null,
+      action: "event.updated",
+      entity_type: "event",
+      entity_id: 8,
+      details: { name: "Synthetic workshop room" },
+      created_at: "2026-10-03T12:00:00.000Z",
+    },
+  ];
+  const html = await render(SystemLogPage);
+  expect(html).toContain('role="region"');
+  expect(html).toContain('aria-label="System Log entries"');
+  expect(html).toContain('tabindex="0"');
+  expect(html).toContain("<table");
+  for (const heading of ["Time", "Actor", "Action", "Entity", "Details"])
+    expect(html).toContain(`<th scope="col">${heading}</th>`);
+  expect(html).toContain("System");
+  expect(html).toContain("Event #8");
+  expect(html).toContain("Synthetic workshop room");
+  expect(html).toContain('type="date"');
+});
 
 it.each([PointsPage, SystemLogPage])(
   "clamps out-of-range pagination while preserving URL filters",

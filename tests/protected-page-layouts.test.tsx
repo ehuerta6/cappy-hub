@@ -341,3 +341,59 @@ it("Point History record links carry the same filtered page into Officers, Event
   for (const record of ["/officers/7", "/events/8", "/tasks/9"])
     expect(html).toContain(`href="${withReturnTo(record, returnTo)}"`);
 });
+
+it("keeps Point History values, source and admin context in its compact row", () => {
+  const transactions = [
+    {
+      id: 33,
+      officer_id: 7,
+      officer_name: "Emi Huerta",
+      event_id: 8,
+      event_name: "Workshop",
+      task_id: null,
+      task_title: null,
+      reason: "Workshop correction",
+      points: -2.5,
+      award_type: "correction",
+      activity_date: "2026-10-02",
+      created_at: "2026-10-03T12:00:00.000Z",
+      created_by: "admin-user",
+      created_by_name: "Club Administrator",
+      removed_at: null,
+      removed_by: null,
+      removed_by_name: null,
+    },
+  ] as unknown as Tables<"point_history">[];
+  const html = renderToStaticMarkup(
+    <HistoryTable
+      transactions={transactions}
+      isAdmin={true}
+      emptyMessage="Empty"
+    />,
+  );
+
+  expect(html).toContain("<table");
+  for (const heading of [
+    "Officer",
+    "Event / task",
+    "Reason",
+    "Points",
+    "Type",
+    "Activity date",
+    "Actor / status",
+    "Action",
+  ])
+    expect(html).toContain(heading);
+  for (const value of [
+    "Emi Huerta",
+    "Workshop",
+    "Reason: Workshop correction",
+    "-2.5",
+    "Type: Correction",
+    "Activity date:",
+    "Actor: Club Administrator",
+    "Edit",
+    "Remove",
+  ])
+    expect(html).toContain(value);
+});

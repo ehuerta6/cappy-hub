@@ -189,17 +189,29 @@ export default async function TasksPage({
             : "No tasks yet."}
         </p>
       ) : (
-        <TableFrame>
+        <TableFrame compact>
           <table>
             <thead>
-              <tr>
+              <tr className="grid grid-cols-1 md:table-row">
                 <th scope="col">Task</th>
-                <th scope="col">Type</th>
-                <th scope="col">Branch</th>
-                <th scope="col">Due</th>
-                <th scope="col">Points</th>
-                <th scope="col">Assignee</th>
-                <th scope="col">Status</th>
+                <th scope="col" className="hidden xl:table-cell">
+                  Type
+                </th>
+                <th scope="col" className="hidden xl:table-cell">
+                  Branch
+                </th>
+                <th scope="col" className="hidden xl:table-cell">
+                  Due
+                </th>
+                <th scope="col" className="hidden xl:table-cell">
+                  Points
+                </th>
+                <th scope="col" className="hidden xl:table-cell">
+                  Assignee
+                </th>
+                <th scope="col" className="hidden xl:table-cell">
+                  Status
+                </th>
                 <th scope="col">Actions</th>
               </tr>
             </thead>
@@ -209,20 +221,53 @@ export default async function TasksPage({
                 const canManage = canManageEvent(actor, [task.branch_id]);
                 const currentStatus = taskStatus(task, assignment);
                 return (
-                  <tr key={task.id} id={`task-${task.id}`}>
-                    <td>
-                      <Link href={withReturnTo(`/tasks/${task.id}`, returnTo)}>
+                  <tr
+                    key={task.id}
+                    id={`task-${task.id}`}
+                    className="grid grid-cols-1 md:table-row"
+                  >
+                    <td className="min-w-0">
+                      <Link
+                        href={withReturnTo(`/tasks/${task.id}`, returnTo)}
+                        className="block break-words"
+                      >
                         {task.title}
                       </Link>
-                      <p className="text-sm text-muted">{task.description}</p>
+                      <p className="hidden text-sm text-muted xl:block">
+                        {task.description}
+                      </p>
+                      <details className="mt-1 xl:hidden">
+                        <summary className="flex min-h-11 cursor-pointer items-center text-sm text-secondary">
+                          Description
+                        </summary>
+                        <p className="whitespace-pre-wrap break-words text-sm">
+                          {task.description}
+                        </p>
+                      </details>
+                      <div className="mt-2 flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-sm text-muted xl:hidden">
+                        <span>Due: {task.due_date}</span>
+                        <span>
+                          Assignee: {assignment?.officers.name ?? "Unassigned"}
+                        </span>
+                        <span>Status: {currentStatus}</span>
+                        <span>Type: {task.task_type}</span>
+                        <span>Branch: {task.branches.name}</span>
+                        <span>Points: {task.points}</span>
+                      </div>
                     </td>
-                    <td>{task.task_type}</td>
-                    <td>{task.branches.name}</td>
-                    <td>{task.due_date}</td>
-                    <td>{task.points}</td>
-                    <td>{assignment?.officers.name ?? "Unassigned"}</td>
-                    <td>{currentStatus}</td>
-                    <td>
+                    <td className="hidden xl:table-cell">{task.task_type}</td>
+                    <td className="hidden xl:table-cell">
+                      {task.branches.name}
+                    </td>
+                    <td className="hidden whitespace-nowrap xl:table-cell">
+                      {task.due_date}
+                    </td>
+                    <td className="hidden xl:table-cell">{task.points}</td>
+                    <td className="hidden whitespace-nowrap xl:table-cell">
+                      {assignment?.officers.name ?? "Unassigned"}
+                    </td>
+                    <td className="hidden xl:table-cell">{currentStatus}</td>
+                    <td className="min-w-0">
                       <TaskWorkflow
                         task={task}
                         assignment={assignment}
