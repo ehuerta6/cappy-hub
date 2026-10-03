@@ -25,6 +25,12 @@ jobs:
           GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: node scripts/check-migration-immutability.mjs
 
+      - name: Guard new migrations for rollout compatibility
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        env:
+          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: node scripts/check-destructive-migrations.mjs
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:

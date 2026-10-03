@@ -31,7 +31,28 @@ Commit regenerated `lib/database.types.ts` when the schema changes application q
 
 Use `npm run local:reset` to prove the full migration history and seed rebuild local from scratch. This destroys the local database, never production.
 
-Prefer additive migrations when changing a structure used by deployed code. For risky renames or removals, add and backfill the new structure, switch application code, then remove the old structure in a later migration. Ensure new `NOT NULL` constraints work with existing production rows, and use explicit conversions for data type changes.
+### Rollout-compatible schema changes
+
+Production applies migrations before the new application deployment. Every migration must therefore keep working with the currently deployed application while rollout is in progress. Use **expand → migrate/backfill → deploy compatible application → contract later**; do not combine a breaking schema change and the first application release that knows about it.
+
+- **Add a column:** Prefer a nullable column or a safe default first. Deploy code that can work with both old and new rows (and, when needed, reads or writes both forms). Backfill historical rows in a controlled step, verify the result, then add and validate constraints. Make the column `NOT NULL` in a later migration only when all supported application versions and existing rows satisfy it. Cappy Hub's `events.location_id` transition is a useful pattern: retain the existing `events.location` snapshot while adding and backfilling reusable locations.
+- **Remove a column:** First deploy code that no longer reads or writes it. After that application version has deployed and the rollout window has passed, remove the column in a later migration. Do not drop `events.location` in the release that first stops using it.
+- **Rename a column or table:** Treat a rename as breaking because the old application still queries the old name. Add the new name, synchronize/backfill it while both names exist, deploy code that transitions to the new name, and drop the old name only in a later contract migration. Apply the same process when renaming a table used by the application.
+- **Change a type:** If existing queries, writes, generated types, or returned values may be incompatible, stage the conversion. Add a compatible replacement column or representation, backfill and verify it, transition application code, and remove the old representation later. Do not cast a live column in place while the old application expects its previous type.
+- **Change an RPC or view:** Treat functions and views exposed through Supabase/PostgREST as application APIs. Preserve argument names/types and returned fields while the old application can call them. Add a new RPC or returned field first, deploy consumers, and only later remove the old RPC or field. Dropping or renaming a public RPC, or removing a view field, can break the currently deployed application.
+- **Tighten a constraint:** For checks and foreign keys where PostgreSQL supports it, add the constraint `NOT VALID`, inspect and fix historical rows, then `VALIDATE CONSTRAINT`. Add required columns as nullable first and validate historical data before making them required. For example, add a check on `events` as `NOT VALID`, correct existing rows that fail it, validate it, and only then rely on it for new writes.
+
+New migration files are checked by `scripts/check-destructive-migrations.mjs` for potentially rollout-incompatible operations. It considers only `.sql` migrations added relative to the CI base: the PR base SHA for pull requests, or the previous commit on pushes to `main` and `mvp`. Existing migrations are not re-scanned. The separate migration immutability check continues to reject edits, deletions, or renames of files already present in the base.
+
+The guard flags `DROP COLUMN`, `DROP TABLE`, table/column renames, `ALTER COLUMN ... TYPE`, `DROP VIEW`, and `DROP FUNCTION` (which may remove a public RPC). It ignores SQL comments, quoted strings, and dollar-quoted function bodies so examples or text containing these phrases do not trigger it. For a reviewed contract-phase migration, put this explicit header at the beginning of that migration and give a concrete rationale of at least 30 characters:
+
+```sql
+-- cappy-hub: approve-destructive-migration
+-- reason: app stopped reading events.location in PR #123 and a full production deployment passed
+ALTER TABLE public.events DROP COLUMN location;
+```
+
+The header approves only that migration file. Keep the relevant transition and deployment evidence in the rationale; a missing, misplaced, or short rationale does not bypass the guard. Use the escape hatch only after checking that the old application no longer needs the structure.
 
 Do not delete catalog rows referenced by historical records. For example, `events.event_type_id` references `event_types` with `ON DELETE RESTRICT`. Check references before changing event types, branches, or positions; retire referenced values instead of removing their history. Preserve past business values when they need to remain meaningful; add a specific snapshot only when a real workflow requires it.
 
@@ -116,6 +137,8 @@ npm test
 `db:reset` recreates only the local test database and skips seed data. `db:start` omits Auth, API, Studio, and other services used by the full local app environment.
 
 `npm run test:db:upgrade` exercises a historical populated database upgrade, then resets the local database to the latest migrations without seed data. It discards current local rows and Auth accounts; run `npm run local:reset` afterward if you want to restore the full local development dataset. `npm run test:local-seed` loads synthetic seed rows into the local database and expects it to be empty; do not run it over existing local development data.
+
+Any migration that transforms or removes historical structure must include representative pre-migration fixture data and preservation assertions when existing rows could be affected. Add data to a focused `supabase/fixtures/pre-<change>.sql` fixture that represents the schema immediately before the migration. Extend `scripts/test-db-upgrade.mjs` to apply that fixture at the correct point in the historical replay, then add assertions to `supabase/upgrade-tests/preservation.test.sql` comparing the migrated result with the captured pre-migration values. Update the replay boundary there when a new historical milestone is introduced. Extend the fixture, runner, and assertions together so the test demonstrates what historical values and relationships survive the change. A purely additive change that cannot transform or remove existing rows may not need extra preservation data.
 
 CI replays all migrations against a fresh local database, runs the PostgreSQL and application tests, checks an existing-data migration upgrade, verifies generated types and the synthetic seed, runs Supabase database lint, and builds the application. The matching local checks include `npm run test:db:upgrade` and `npm run test:local-seed`.
 
