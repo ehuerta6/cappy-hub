@@ -37,7 +37,7 @@ Do not delete catalog rows referenced by historical records. For example, `event
 
 Keep authorization and important validation in trusted server actions or SQL functions, with database constraints for data integrity. UI filtering alone is not enforcement. Never disable RLS as a shortcut. Never edit a migration already applied to production; create a new migration for follow-up changes.
 
-Normal PR CI compares migration files with the PR base. It allows new migration files and rejects modification, deletion, or renaming of migrations that already existed in the base. This protection assumes feature work reaches `main` through PRs; direct pushes bypass it, so protect `main` by requiring PRs.
+CI compares migration files with the PR base on pull requests and with the previous commit on pushes to `main` or `mvp`. It allows new migration files and rejects modification, deletion, or renaming of migrations already present in that base. A direct push that changes an existing migration fails CI, so the production workflow does not continue. Protect `main` by requiring PRs so invalid changes are stopped before reaching the branch.
 
 ## Production deployment
 
@@ -45,11 +45,12 @@ After a PR is merged to `main`, the existing CI workflow runs the normal quality
 
 1. Link the Supabase CLI to the configured production project.
 2. Compare `supabase/migrations/` with production migration history. Production history must match a prefix of the local migration list; migrations in `main` that have not reached production are allowed.
-3. Run `supabase db push --dry-run`, then apply pending migrations with `supabase db push` (without `--include-seed`).
-4. Verify production history is fully aligned with `supabase/migrations/`.
-5. Pull Vercel production settings, build the application, and deploy it with the pinned Vercel CLI (`62.2.0`) using `vercel deploy --prebuilt --prod`.
+3. Run `supabase db push --dry-run` (without `--include-seed`).
+4. Pull Vercel production settings and build the application artifact with the pinned Vercel CLI (`62.2.0`). This does not deploy or change production traffic.
+5. Apply pending migrations with `supabase db push` (without `--include-seed`), then verify production history is fully aligned with `supabase/migrations/`.
+6. Deploy the already-built artifact with `vercel deploy --prebuilt --prod`.
 
-Any failed step stops the workflow before the next step. A CI failure skips production deployment. A migration history mismatch, a failed dry run, or a failed migration prevents the application build and deploy. If the final history check fails, the application is not deployed; contact a maintainer to investigate.
+Any failed step stops the workflow before the next step. A CI failure skips production deployment. A migration history mismatch or failed dry run prevents the Vercel build. A failed migration or final history check prevents deployment, so the new application never receives production traffic before its migrations succeed.
 
 ### Required GitHub configuration
 
@@ -76,7 +77,7 @@ If this Vercel project cannot use a reserved production branch, disable automati
 
 `supabase/migrations/` is the schema source of truth. Before applying anything, the workflow stops if production records a version missing from the repository or if production history is not a prefix of the local migration history. That permits expected pending migrations while catching production-only versions and gaps. It never runs `migration repair`, resets production, runs seeds, or includes seed data in `db push`.
 
-If drift is reported, deployment stops. A maintainer must inspect production and the migration files, determine the correct state, and record any required schema changes in a new migration before retrying. Never repair migration history blindly. Once a migration reaches production, keep its version, filename, and contents unchanged; use a new migration for follow-up changes. A migration or deployment failure leaves the previous Vercel production application active. Fix the failure and retry by merging a follow-up commit to `main`.
+Production migrations must remain backward-compatible and additive so the previous application deployment stays valid if migrations succeed but the final Vercel deployment fails. If drift is reported, deployment stops. A maintainer must inspect production and the migration files, determine the correct state, and record any required schema changes in a new migration before retrying. Never repair migration history blindly. Once a migration reaches production, keep its version, filename, and contents unchanged; use a new migration for follow-up changes. A migration or deployment failure leaves the previous Vercel production application active. Fix the failure and retry by merging a follow-up commit to `main`.
 
 ## Database test stack
 

@@ -23,10 +23,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Protect existing migrations from PR changes
-        if: github.event_name == 'pull_request'
+      - name: Protect existing migrations from changes
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
         env:
-          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: node scripts/check-migration-immutability.mjs
 
       - name: Set up Node.js

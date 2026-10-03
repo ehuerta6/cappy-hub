@@ -57,12 +57,6 @@ jobs:
       - name: Preview pending production migrations
         run: npx supabase db push --linked --dry-run
 
-      - name: Apply production migrations
-        run: npx supabase db push --linked
-
-      - name: Verify production migration history is aligned
-        run: node scripts/verify-production-migrations.mjs --require-aligned
-
       - name: Pull Vercel production settings
         run: >-
           npx --yes vercel@62.2.0 pull --yes --environment=production
@@ -70,6 +64,12 @@ jobs:
 
       - name: Build Vercel production application
         run: npx --yes vercel@62.2.0 build --prod --token="$VERCEL_TOKEN"
+
+      - name: Apply production migrations
+        run: npx supabase db push --linked
+
+      - name: Verify production migration history is aligned
+        run: node scripts/verify-production-migrations.mjs --require-aligned
 
       - name: Deploy Vercel production application
         run: >-

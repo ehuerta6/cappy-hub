@@ -97,7 +97,8 @@ select lives_ok($$select save_event_with_links('Accepted Workshop','Description'
   '2099-09-20 09:00-06','2099-09-20 10:00-06','{}'::bigint[])$$,
   'trusted Event API accepts Workshop');
 reset role;
-select is((select total_points from officer_point_totals where id=90001),3.25::numeric,
+select private.process_finished_events();
+select is((select total_points from officer_point_totals where id=90001),4.25::numeric,
   'historical signed point total includes active legacy Event history, excluding the removed award');
 select throws_ok($$insert into officers(name,position_id,personal_email) values
   ('Duplicate historical contact',(select id from positions where name='Officer'),'HISTORY@MINERS.UTEP.EDU')$$,
