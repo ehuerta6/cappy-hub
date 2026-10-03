@@ -4,6 +4,11 @@ import { getAuthorizationContext, canManageEvent } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import { mutationError } from "@/lib/mutation-error";
 import { denverTimestamp } from "@/lib/event-time";
+import {
+  canonicalRecurrenceRule,
+  expandRecurrenceDates,
+} from "@/lib/recurrence";
+import { recurrenceInput } from "@/lib/recurrence-validation";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
@@ -40,6 +45,14 @@ export async function saveEvent(
     branches: formData.getAll("branches"),
     slides_url: formData.get("slides_url") ?? "",
     meeting_notes_url: formData.get("meeting_notes_url") ?? "",
+    recurrence_frequency: formData.get("recurrence_frequency") ?? "none",
+    recurrence_request_key:
+      formData.get("recurrence_request_key") ?? crypto.randomUUID(),
+    recurrence_interval: formData.get("recurrence_interval") ?? "1",
+    recurrence_weekdays: formData.getAll("recurrence_weekdays"),
+    recurrence_end_mode: formData.get("recurrence_end_mode") ?? "count",
+    recurrence_count: formData.get("recurrence_count") ?? "12",
+    recurrence_until: formData.get("recurrence_until") ?? "2099-12-31",
   };
   const validationResult = saveEventInputSchema.safeParse(rawEventInput);
   if (!validationResult.success)
@@ -56,6 +69,46 @@ export async function saveEvent(
   );
   if (!start || !end) return { error: "Enter valid El Paso times" };
   const supabase = await createClient();
+  const recurrence = recurrenceInput(validatedEventInput);
+  if (recurrence && validatedEventInput.id)
+    return { error: "Recurrence can only be set when creating a new event" };
+  if (recurrence) {
+    let dates: string[];
+    try {
+      dates = expandRecurrenceDates(validatedEventInput.event_date, recurrence);
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : "Invalid recurrence",
+      };
+    }
+    const starts = dates.map((date) =>
+      denverTimestamp(date, validatedEventInput.start_time),
+    );
+    const ends = dates.map((date) =>
+      denverTimestamp(date, validatedEventInput.end_time),
+    );
+    if (starts.some((value) => !value) || ends.some((value) => !value))
+      return {
+        error: "A recurring occurrence falls on an invalid El Paso time",
+      };
+    const { data, error } = await supabase.rpc("create_recurring_event", {
+      p_name: validatedEventInput.name,
+      p_description: validatedEventInput.description,
+      p_event_type_id: validatedEventInput.event_type_id,
+      p_location: validatedEventInput.location,
+      p_branch_ids: validatedEventInput.branches,
+      p_slides_url: validatedEventInput.slides_url,
+      p_meeting_notes_url: validatedEventInput.meeting_notes_url,
+      p_request_key: validatedEventInput.recurrence_request_key,
+      p_recurrence_rule: canonicalRecurrenceRule(recurrence),
+      p_event_dates: dates,
+      p_starts_at: starts as string[],
+      p_ends_at: ends as string[],
+    });
+    if (error) return { error: mutationError(error.message) };
+    revalidatePath("/", "layout");
+    redirect(`/events/${data}`);
+  }
   const { data, error } = await supabase.rpc("save_event_with_links", {
     p_event_id: validatedEventInput.id,
     p_name: validatedEventInput.name,

@@ -42,6 +42,14 @@ try {
   }
   psql(readFileSync("supabase/fixtures/pre-simplify-untimed.sql"));
   psql(readFileSync("supabase/migrations/20261001060843_simplify_events.sql"));
+  const followupMigrations = readdirSync("supabase/migrations")
+    .filter(
+      (file) => file.endsWith(".sql") && file.slice(0, 14) > "20261001060843",
+    )
+    .sort();
+  for (const migration of followupMigrations) {
+    psql(readFileSync(`supabase/migrations/${migration}`));
+  }
   cli([
     "test",
     "db",

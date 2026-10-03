@@ -18,6 +18,7 @@ export default async function TasksPage() {
       .select(
         "*,branches(name),task_assignments(officer_id,completed_at,approved_at,officers!task_assignments_officer_id_fkey(name))",
       )
+      .is("removed_at", null)
       .order("due_date"),
     supabase
       .from("officers")

@@ -22,6 +22,7 @@ const taskForm = () => {
   data.set("due_date", "2026-10-15");
   data.set("points", "1.5");
   data.set("approval_required", "on");
+  data.set("recurrence_request_key", "00000000-0000-4000-8000-000000000002");
   return data;
 };
 
@@ -52,6 +53,26 @@ it("submits task creation values to the existing RPC", async () => {
     p_approval_required: true,
   });
   expect(revalidatePath).toHaveBeenCalledWith("/tasks");
+});
+
+it("creates separate recurring Task due-date rows", async () => {
+  const recurring = taskForm();
+  recurring.set("recurrence_frequency", "daily");
+  recurring.set("recurrence_interval", "2");
+  recurring.set("recurrence_end_mode", "count");
+  recurring.set("recurrence_count", "3");
+  await createTask({ error: "" }, recurring);
+  expect(rpc).toHaveBeenCalledWith("create_recurring_task", {
+    p_title: " Flyer ",
+    p_description: " Prepare the flyer ",
+    p_task_type: "Flyer",
+    p_branch_id: -5,
+    p_points: 1.5,
+    p_approval_required: true,
+    p_recurrence_rule: "RRULE:FREQ=DAILY;INTERVAL=2;COUNT=3",
+    p_request_key: "00000000-0000-4000-8000-000000000002",
+    p_due_dates: ["2026-10-15", "2026-10-17", "2026-10-19"],
+  });
 });
 
 it("requires an assigned officer only for the assign task action", async () => {

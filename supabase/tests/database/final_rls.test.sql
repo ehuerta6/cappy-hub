@@ -88,6 +88,9 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       'public.assign_task(bigint,bigint)'::regprocedure,
       'public.complete_task(bigint)'::regprocedure,
       'public.approve_task(bigint)'::regprocedure
+      ,'public.create_recurring_event(text,text,bigint,text,bigint[],text,text,uuid,text,date[],timestamptz[],timestamptz[])'::regprocedure
+      ,'public.create_recurring_task(text,text,text,bigint,numeric,boolean,uuid,text,date[])'::regprocedure
+      ,'public.remove_task(bigint)'::regprocedure
     )), 'authenticated has no unreviewed public RPC entry point');
 
 -- Fixtures are inserted as database owner. Every probe below changes to the

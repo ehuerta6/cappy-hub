@@ -46,6 +46,7 @@ const eventForm = () => {
   data.append("branches", "-4");
   data.set("slides_url", " https://example.com/slides ");
   data.set("meeting_notes_url", "");
+  data.set("recurrence_request_key", "00000000-0000-4000-8000-000000000001");
   return data;
 };
 
@@ -124,6 +125,32 @@ it("sends validated Event fields to the existing RPC", async () => {
     p_slides_url: "https://example.com/slides",
     p_meeting_notes_url: "",
   });
+});
+
+it("materializes recurring Events with independent Denver schedules", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 8,
+    positionName: "President",
+  } as never);
+  const recurring = eventForm();
+  recurring.set("recurrence_frequency", "daily");
+  recurring.set("recurrence_interval", "1");
+  recurring.set("recurrence_end_mode", "count");
+  recurring.set("recurrence_count", "3");
+  await saveEvent({ error: "" }, recurring);
+  expect(rpc).toHaveBeenCalledWith(
+    "create_recurring_event",
+    expect.objectContaining({
+      p_recurrence_rule: "RRULE:FREQ=DAILY;INTERVAL=1;COUNT=3",
+      p_request_key: "00000000-0000-4000-8000-000000000001",
+      p_event_dates: ["2026-10-12", "2026-10-13", "2026-10-14"],
+      p_starts_at: [
+        denverTimestamp("2026-10-12", "10:00"),
+        denverTimestamp("2026-10-13", "10:00"),
+        denverTimestamp("2026-10-14", "10:00"),
+      ],
+    }),
+  );
 });
 
 it("rejects malformed IDs before calling Supabase", async () => {

@@ -2,15 +2,23 @@
 
 import { useActionState } from "react";
 import { createTask } from "./actions";
+import { RecurrenceFields } from "@/components/recurrence-fields";
 
 export default function TaskCreateForm({
   branches,
+  recurrenceRequestKey,
 }: {
   branches: { id: number; name: string }[];
+  recurrenceRequestKey: string;
 }) {
   const [state, action, pending] = useActionState(createTask, { error: "" });
   return (
     <form action={action} className="space-y-4 max-w-xl">
+      <input
+        type="hidden"
+        name="recurrence_request_key"
+        value={recurrenceRequestKey}
+      />
       <label>
         Title
         <input name="title" required />
@@ -55,6 +63,7 @@ export default function TaskCreateForm({
         <input name="approval_required" type="checkbox" /> Require lead approval
         before points are awarded
       </label>
+      <RecurrenceFields recordType="Task" />
       {state.error && (
         <p role="alert" className="text-red-300">
           {state.error}

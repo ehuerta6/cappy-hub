@@ -24,6 +24,7 @@ export default async function NewTaskPage() {
       <ContextualBackLink href="/tasks">Back to tasks</ContextualBackLink>
       <PageHeader title="New task" />
       <TaskCreateForm
+        recurrenceRequestKey={crypto.randomUUID()}
         branches={
           canSeeAllBranches(actor)
             ? data

@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import type { Tables } from "@/lib/database.types";
 import { denverParts } from "@/lib/event-time";
 import { saveEvent } from "./actions";
+import { RecurrenceFields } from "@/components/recurrence-fields";
 
 export default function EventForm({
   branches,
@@ -11,12 +12,14 @@ export default function EventForm({
   event,
   branchIds = [],
   allowGlobal = false,
+  recurrenceRequestKey,
 }: {
   branches: Pick<Tables<"branches">, "id" | "name">[];
   eventTypes: Pick<Tables<"event_types">, "id" | "name">[];
   event?: Tables<"events">;
   branchIds?: number[];
   allowGlobal?: boolean;
+  recurrenceRequestKey?: string;
 }) {
   const [state, action, pending] = useActionState(saveEvent, { error: "" });
   const [selectedBranches, setSelectedBranches] = useState(branchIds);
@@ -24,6 +27,20 @@ export default function EventForm({
   return (
     <form action={action} className="sm:grid-cols-2">
       {event && <input type="hidden" name="id" value={event.id} />}
+      {!event && recurrenceRequestKey && (
+        <input
+          type="hidden"
+          name="recurrence_request_key"
+          value={recurrenceRequestKey}
+        />
+      )}
+      {event?.recurrence_series_id !== null &&
+        event?.recurrence_series_id !== undefined && (
+          <p className="sm:col-span-2">
+            This is one recurring occurrence. Saving edits this occurrence only;
+            editing future occurrences or the entire series is not supported.
+          </p>
+        )}
 
       <label className="sm:col-span-2">
         Name
@@ -166,6 +183,8 @@ export default function EventForm({
           </label>
         ))}
       </fieldset>
+
+      {!event && <RecurrenceFields recordType="Event" />}
 
       {state.error && (
         <p role="alert" className="sm:col-span-2">

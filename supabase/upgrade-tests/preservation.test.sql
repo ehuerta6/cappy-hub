@@ -105,7 +105,13 @@ select throws_ok($$insert into officers(name,position_id,personal_email) values
 select hasnt_column('positions','can_manage_branch_events','obsolete capability flag is gone');
 select hasnt_column('events','flyer_status','flyer event column is gone');
 select hasnt_column('application_config','flyer_completion_points','flyer configuration is gone');
-select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),15::bigint,
+select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),17::bigint,
   'final schema contains Events and Tasks tables');
+select is((select count(*) from events where recurrence_series_id is not null),0::bigint,
+  'existing Events remain standalone after the additive recurrence migration');
+select is((select count(*) from tasks where recurrence_series_id is not null),0::bigint,
+  'existing Tasks remain standalone after the additive recurrence migration');
+select has_column('events','recurrence_key','Event occurrence identity is additive');
+select has_column('tasks','recurrence_key','Task occurrence identity is additive');
 select * from finish();
 rollback;

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui";
 import { formatLabel } from "@/lib/presentation";
 import { TaskWorkflow, taskStatus } from "../task-workflow";
+import { TaskRemoveForm } from "../task-remove-form";
 
 export default async function TaskDetailPage({
   params,
@@ -28,6 +29,7 @@ export default async function TaskDetailPage({
         "*,branches(name),task_assignments(officer_id,completed_at,approved_at,officers!task_assignments_officer_id_fkey(name))",
       )
       .eq("id", taskId)
+      .is("removed_at", null)
       .maybeSingle(),
     supabase
       .from("officers")
@@ -39,6 +41,7 @@ export default async function TaskDetailPage({
   if (!result.data) notFound();
   const task = result.data;
   const assignment = task.task_assignments;
+  const canManageTask = canManageEvent(actor, [task.branch_id]);
   return (
     <div className="space-y-6">
       <ContextualBackLink href="/tasks">Back to tasks</ContextualBackLink>
@@ -71,13 +74,24 @@ export default async function TaskDetailPage({
               ? "Approval required"
               : "No approval required"}
           </p>
+          {task.recurrence_series_id !== null && (
+            <p className="text-sm text-zinc-400">
+              Recurring occurrence. Its due date, assignment, completion,
+              approval and points belong to this Task only. Series editing is
+              not supported.
+            </p>
+          )}
           <TaskWorkflow
             task={task}
             assignment={assignment}
             actorId={actor.id}
-            canManage={canManageEvent(actor, [task.branch_id])}
+            canManage={canManageTask}
             officers={officers.data}
           />
+          {canManageTask &&
+          (!assignment || assignment.completed_at === null) ? (
+            <TaskRemoveForm taskId={task.id} />
+          ) : null}
         </section>
       </div>
     </div>

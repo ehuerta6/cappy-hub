@@ -142,6 +142,48 @@ export type Database = {
           },
         ];
       };
+      event_series: {
+        Row: {
+          created_at: string;
+          created_by: number;
+          id: number;
+          recurrence_rule: string;
+          request_key: string;
+          time_zone: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by: number;
+          id?: number;
+          recurrence_rule: string;
+          request_key: string;
+          time_zone?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: number;
+          id?: number;
+          recurrence_rule?: string;
+          request_key?: string;
+          time_zone?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_series_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_series_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       event_types: {
         Row: {
           created_at: string;
@@ -174,6 +216,8 @@ export type Database = {
           meeting_notes_url: string | null;
           name: string;
           participation_points_per_hour_at_end: number | null;
+          recurrence_key: string | null;
+          recurrence_series_id: number | null;
           slides_url: string | null;
           starts_at: string;
           status: string;
@@ -191,6 +235,8 @@ export type Database = {
           meeting_notes_url?: string | null;
           name: string;
           participation_points_per_hour_at_end?: number | null;
+          recurrence_key?: string | null;
+          recurrence_series_id?: number | null;
           slides_url?: string | null;
           starts_at: string;
           status?: string;
@@ -208,6 +254,8 @@ export type Database = {
           meeting_notes_url?: string | null;
           name?: string;
           participation_points_per_hour_at_end?: number | null;
+          recurrence_key?: string | null;
+          recurrence_series_id?: number | null;
           slides_url?: string | null;
           starts_at?: string;
           status?: string;
@@ -218,6 +266,13 @@ export type Database = {
             columns: ["event_type_id"];
             isOneToOne: false;
             referencedRelation: "event_types";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "events_recurrence_series_id_fkey";
+            columns: ["recurrence_series_id"];
+            isOneToOne: false;
+            referencedRelation: "event_series";
             referencedColumns: ["id"];
           },
         ];
@@ -520,6 +575,45 @@ export type Database = {
           },
         ];
       };
+      task_series: {
+        Row: {
+          created_at: string;
+          created_by: number;
+          id: number;
+          recurrence_rule: string;
+          request_key: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by: number;
+          id?: number;
+          recurrence_rule: string;
+          request_key: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: number;
+          id?: number;
+          recurrence_rule?: string;
+          request_key?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "task_series_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_series_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       tasks: {
         Row: {
           approval_required: boolean;
@@ -530,6 +624,10 @@ export type Database = {
           due_date: string;
           id: number;
           points: number;
+          recurrence_key: string | null;
+          recurrence_series_id: number | null;
+          removed_at: string | null;
+          removed_by: number | null;
           task_type: string;
           title: string;
         };
@@ -542,6 +640,10 @@ export type Database = {
           due_date: string;
           id?: number;
           points: number;
+          recurrence_key?: string | null;
+          recurrence_series_id?: number | null;
+          removed_at?: string | null;
+          removed_by?: number | null;
           task_type: string;
           title: string;
         };
@@ -554,6 +656,10 @@ export type Database = {
           due_date?: string;
           id?: number;
           points?: number;
+          recurrence_key?: string | null;
+          recurrence_series_id?: number | null;
+          removed_at?: string | null;
+          removed_by?: number | null;
           task_type?: string;
           title?: string;
         };
@@ -575,6 +681,27 @@ export type Database = {
           {
             foreignKeyName: "tasks_created_by_fkey";
             columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_recurrence_series_id_fkey";
+            columns: ["recurrence_series_id"];
+            isOneToOne: false;
+            referencedRelation: "task_series";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_removed_by_fkey";
+            columns: ["removed_by"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_removed_by_fkey";
+            columns: ["removed_by"];
             isOneToOne: false;
             referencedRelation: "officers";
             referencedColumns: ["id"];
@@ -720,6 +847,37 @@ export type Database = {
       create_branch: { Args: { p_name: string }; Returns: number };
       create_event_type: { Args: { p_name: string }; Returns: number };
       create_position: { Args: { p_name: string }; Returns: number };
+      create_recurring_event: {
+        Args: {
+          p_branch_ids: number[];
+          p_description: string;
+          p_ends_at: string[];
+          p_event_dates: string[];
+          p_event_type_id: number;
+          p_location: string;
+          p_meeting_notes_url: string;
+          p_name: string;
+          p_recurrence_rule: string;
+          p_request_key: string;
+          p_slides_url: string;
+          p_starts_at: string[];
+        };
+        Returns: number;
+      };
+      create_recurring_task: {
+        Args: {
+          p_approval_required: boolean;
+          p_branch_id: number;
+          p_description: string;
+          p_due_dates: string[];
+          p_points: number;
+          p_recurrence_rule: string;
+          p_request_key: string;
+          p_task_type: string;
+          p_title: string;
+        };
+        Returns: number;
+      };
       create_warning: {
         Args: { p_officer_id: number; p_reason: string };
         Returns: number;
@@ -741,6 +899,7 @@ export type Database = {
         Args: { p_transaction_id: number };
         Returns: boolean;
       };
+      remove_task: { Args: { p_task_id: number }; Returns: undefined };
       rename_branch: {
         Args: { p_id: number; p_name: string };
         Returns: undefined;

@@ -5,6 +5,7 @@ import {
   requiredTrimmedStringSchema,
   safeIntegerStringSchema,
 } from "@/lib/validation";
+import { recurrenceFieldsSchema } from "@/lib/recurrence-validation";
 
 const eventDateInputSchema = zod
   .string()
@@ -37,6 +38,7 @@ export const saveEventInputSchema = zod
     slides_url: zod.string().transform((url) => url.trim()),
     meeting_notes_url: zod.string().transform((url) => url.trim()),
   })
+  .extend(recurrenceFieldsSchema.shape)
   .superRefine((eventInput, context) => {
     if (
       eventInput.start_time < "06:00" ||

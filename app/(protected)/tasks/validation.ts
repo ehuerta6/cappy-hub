@@ -3,30 +3,33 @@ import {
   finiteNumberStringSchema,
   safeIntegerStringSchema,
 } from "@/lib/validation";
+import { recurrenceFieldsSchema } from "@/lib/recurrence-validation";
 
-export const createTaskInputSchema = zod.object({
-  title: zod
-    .string()
-    .refine((title) => title.trim().length > 0, "Invalid task fields"),
-  description: zod
-    .string()
-    .refine(
-      (description) => description.trim().length > 0,
+export const createTaskInputSchema = zod
+  .object({
+    title: zod
+      .string()
+      .refine((title) => title.trim().length > 0, "Invalid task fields"),
+    description: zod
+      .string()
+      .refine(
+        (description) => description.trim().length > 0,
+        "Invalid task fields",
+      ),
+    task_type: zod.enum(["Flyer", "LinkedIn", "Airtable", "Story", "Post"], {
+      error: "Invalid task fields",
+    }),
+    branch_id: safeIntegerStringSchema("Invalid task fields"),
+    due_date: zod.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid task fields"),
+    points: finiteNumberStringSchema("Invalid task fields").refine(
+      (points) => points > 0,
       "Invalid task fields",
     ),
-  task_type: zod.enum(["Flyer", "LinkedIn", "Airtable", "Story", "Post"], {
-    error: "Invalid task fields",
-  }),
-  branch_id: safeIntegerStringSchema("Invalid task fields"),
-  due_date: zod.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid task fields"),
-  points: finiteNumberStringSchema("Invalid task fields").refine(
-    (points) => points > 0,
-    "Invalid task fields",
-  ),
-  approval_required: zod
-    .string()
-    .transform((approvalRequired) => approvalRequired === "on"),
-});
+    approval_required: zod
+      .string()
+      .transform((approvalRequired) => approvalRequired === "on"),
+  })
+  .extend(recurrenceFieldsSchema.shape);
 
 const taskActionCommonInputSchema = zod.object({
   task_id: safeIntegerStringSchema("Task not found"),
@@ -48,3 +51,7 @@ export const taskActionInputSchema = zod.discriminatedUnion(
   ],
   { error: "Unknown task action" },
 );
+
+export const taskRecordInputSchema = zod.object({
+  task_id: safeIntegerStringSchema("Task not found"),
+});

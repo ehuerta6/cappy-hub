@@ -31,6 +31,7 @@ export default async function NewEventPage() {
       <ContextualBackLink href="/events">Back to events</ContextualBackLink>
       <PageHeader title="New event" />
       <EventForm
+        recurrenceRequestKey={crypto.randomUUID()}
         allowGlobal={canSeeAllBranches(actor)}
         branches={
           canSeeAllBranches(actor)
