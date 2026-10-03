@@ -10,6 +10,7 @@ export default async function CalendarPage() {
       .from("events")
       .select("id,name,starts_at,ends_at")
       .is("deleted_at", null)
+      .neq("status", "cancelled")
       .order("starts_at"),
     supabase.from("tasks").select("id,title,due_date").order("due_date"),
   ]);
