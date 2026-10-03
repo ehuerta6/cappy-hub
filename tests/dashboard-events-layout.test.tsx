@@ -66,13 +66,22 @@ const upcoming: Pick<
   event_officers: [{ officer_id: 8 }],
 };
 let events: (typeof upcoming)[];
+let transactions: {
+  id: number;
+  points: number;
+  reason: string;
+  created_at: string;
+  officers: { id: number; name: string };
+  events: { id: number; name: string } | null;
+  tasks: { id: number; title: string } | null;
+}[];
 const from = vi.fn((table: string) => {
   const result = {
     data:
       table === "events"
         ? events
         : table === "point_transactions"
-          ? []
+          ? transactions
           : table === "officer_point_totals"
             ? { total_points: 12.5 }
             : { half_year_points: 99 },
@@ -101,6 +110,7 @@ beforeEach(() => {
     vi.fn(),
     false,
   ] as never);
+  transactions = [];
   events = [
     upcoming,
     { ...upcoming, id: 2, name: "Available event", event_officers: [] },
@@ -265,4 +275,78 @@ it("keeps main pages free of contextual navigation and shows the compact upcomin
   const html = renderToStaticMarkup(await DashboardPage());
   expect(html).not.toContain("Back to");
   expect(html).toContain("Jan 1 · 5:00–6:00 AM");
+});
+
+it("summarizes all upcoming events in a named list with signup context and full-page links", async () => {
+  events = Array.from({ length: 12 }, (_, index) => ({
+    ...upcoming,
+    id: index + 1,
+    name: `Upcoming event ${index + 1}`,
+    event_officers: index === 0 ? [{ officer_id: actor.id }] : [],
+  }));
+  const html = renderToStaticMarkup(await DashboardPage());
+  const list = html
+    .split('aria-label="Upcoming events"')[1]
+    .split("</section>")[0];
+  expect(list).toContain("<ul");
+  expect(list.match(/<li /g)).toHaveLength(12);
+  expect(list).toContain('href="/events/12"');
+  expect(list).toContain("Signed up");
+  expect(list).toContain("Not signed up");
+  expect(list).toContain("1 officer");
+  expect(list).toContain('href="/events"');
+  expect(html).toContain('href="/points"');
+  expect(html).not.toContain("<table");
+});
+
+it("summarizes signed point values with officer and event/task links or a manual reason", async () => {
+  const transaction = {
+    id: 1,
+    points: 2.5,
+    reason: "Participation",
+    created_at: "2026-10-03T12:00:00Z",
+    officers: { id: 8, name: "Local Officer" },
+    events: { id: 3, name: "Workshop" },
+    tasks: null,
+  };
+  transactions = [
+    transaction,
+    {
+      ...transaction,
+      id: 2,
+      points: -1,
+      events: null,
+      tasks: { id: 4, title: "Flyer" },
+    },
+    {
+      ...transaction,
+      id: 3,
+      points: 0,
+      events: null,
+      reason: "Manual adjustment",
+    },
+  ];
+  const html = renderToStaticMarkup(await DashboardPage());
+  const list = html
+    .split('aria-label="Recent point activity"')[1]
+    .split("</section>")[0];
+  expect(list).toContain("<ul");
+  expect(list.match(/<li /g)).toHaveLength(3);
+  for (const href of ["/officers/8", "/events/3", "/tasks/4"])
+    expect(list).toContain(`href="${href}"`);
+  for (const text of ["+2.5", "-1", "Manual adjustment", "Oct 3, 2026"])
+    expect(list).toContain(text);
+  expect(list).toContain('dateTime="2026-10-03T12:00:00Z"');
+  expect(list).not.toContain("<table");
+});
+
+it("keeps dashboard empty states and destination links without empty lists or tables", async () => {
+  events = [];
+  const html = renderToStaticMarkup(await DashboardPage());
+  expect(html).toContain("No upcoming events.");
+  expect(html).toContain("No point transactions yet.");
+  expect(html).toContain("View all Events");
+  expect(html).toContain("View all Points");
+  expect(html).not.toContain("<ul");
+  expect(html).not.toContain("<table");
 });

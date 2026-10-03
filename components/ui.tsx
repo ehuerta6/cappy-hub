@@ -13,14 +13,16 @@ export function PageHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0 space-y-1">
+        <h1 className="break-words text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           {title}
         </h1>
         {description && <p className="text-sm text-muted">{description}</p>}
       </div>
-      {action}
+      {action && (
+        <div className="min-w-0 shrink-0 sm:max-w-[50%]">{action}</div>
+      )}
     </div>
   );
 }
@@ -28,16 +30,21 @@ export function PageHeader({
 export function SectionHeading({
   title,
   description,
+  action,
 }: {
   title: string;
   description?: string;
+  action?: ReactNode;
 }) {
   return (
-    <div className="mb-3 space-y-1">
-      <h2 className="text-lg font-semibold tracking-tight text-foreground">
-        {title}
-      </h2>
-      {description && <p className="text-sm text-muted">{description}</p>}
+    <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+      <div className="min-w-0 space-y-1">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">
+          {title}
+        </h2>
+        {description && <p className="text-sm text-muted">{description}</p>}
+      </div>
+      {action}
     </div>
   );
 }

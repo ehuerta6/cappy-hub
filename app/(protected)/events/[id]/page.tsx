@@ -78,7 +78,7 @@ export default async function EventDetailPage({
           .single();
   if (series?.error) throw new Error("Failed to load recurring series");
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <ContextualBackLink href="/events">Back to events</ContextualBackLink>
       <PageHeader
         title={event.name}
@@ -90,44 +90,20 @@ export default async function EventDetailPage({
           ) : undefined
         }
       />
-      <div className="grid items-start gap-6 lg:grid-cols-2">
-        <div className="min-w-0 space-y-4">
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <section
+          aria-label="Event details"
+          className="min-w-0 space-y-4 rounded-lg border border-border p-4"
+        >
+          <SectionHeading title="Event details" />
           <p className="whitespace-pre-wrap break-words">
             {event.description || "No description"}
           </p>
-          <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-5 gap-y-3 rounded-lg border border-border bg-surface/30 p-4 text-sm">
+          <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-5 gap-y-2 text-sm [&>dt]:mt-0 [&>dd]:mt-0 [&>dd]:min-w-0 [&>dd]:break-words">
             <dt>Type</dt>
             <dd>{event.event_types.name}</dd>
             <dt>Location</dt>
             <dd className="break-words">{event.location || "Not set"}</dd>
-            {event.slides_url && (
-              <>
-                <dt>Slides</dt>
-                <dd>
-                  <a
-                    href={event.slides_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Open slides
-                  </a>
-                </dd>
-              </>
-            )}
-            {event.meeting_notes_url && (
-              <>
-                <dt>Meeting notes</dt>
-                <dd>
-                  <a
-                    href={event.meeting_notes_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Open notes
-                  </a>
-                </dd>
-              </>
-            )}
             <dt>Date</dt>
             <dd>{event.event_date}</dd>
             <dt>Start</dt>
@@ -159,6 +135,35 @@ export default async function EventDetailPage({
               />
             </dd>
           </dl>
+          {(event.slides_url || event.meeting_notes_url) && (
+            <section>
+              <h3 className="mb-2 text-sm font-semibold text-foreground">
+                Links and files
+              </h3>
+              <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                {event.slides_url && (
+                  <a
+                    href={event.slides_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-9 items-center underline underline-offset-4"
+                  >
+                    Open slides
+                  </a>
+                )}
+                {event.meeting_notes_url && (
+                  <a
+                    href={event.meeting_notes_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-9 items-center underline underline-offset-4"
+                  >
+                    Open notes
+                  </a>
+                )}
+              </div>
+            </section>
+          )}
           {canManage && !event.deleted_at && (
             <div className="flex flex-wrap gap-3 [&>form]:w-auto">
               {status === "cancelled" && (
@@ -178,8 +183,11 @@ export default async function EventDetailPage({
               />
             </div>
           )}
-        </div>
-        <div className="min-w-0 space-y-4">
+        </section>
+        <section
+          aria-label="Participation"
+          className="min-w-0 space-y-4 rounded-lg border border-border p-4"
+        >
           <p>
             Your participation:{" "}
             {participationLabel(
@@ -188,7 +196,7 @@ export default async function EventDetailPage({
               ),
             )}
           </p>
-          <section>
+          <section className="space-y-3">
             <SectionHeading title="Signed-up officers" />
             <TableFrame>
               <table className="min-w-full">
@@ -268,7 +276,7 @@ export default async function EventDetailPage({
               />
             )}
           </section>
-        </div>
+        </section>
       </div>
       <section>
         <SectionHeading

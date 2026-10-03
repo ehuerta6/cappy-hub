@@ -53,7 +53,7 @@ export default async function TaskDetailPage({
           .single();
   if (series?.error) throw new Error("Failed to load recurring series");
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <ContextualBackLink href="/tasks">Back to tasks</ContextualBackLink>
       <PageHeader
         title={task.title}
@@ -65,13 +65,13 @@ export default async function TaskDetailPage({
           ) : undefined
         }
       />
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <section className="min-w-0 space-y-4 rounded-lg border border-border p-4">
           <SectionHeading title="Task details" />
           <p className="whitespace-pre-wrap break-words">
             {task.description || "No description"}
           </p>
-          <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
+          <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm [&>dt]:mt-0 [&>dd]:mt-0 [&>dd]:min-w-0 [&>dd]:break-words">
             <dt>Type</dt>
             <dd>{formatLabel(task.task_type)}</dd>
             <dt>Branch</dt>

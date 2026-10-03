@@ -90,7 +90,7 @@ export default async function OfficerDetailPage({
     : null;
   if (approverNames?.error) throw new Error("Failed to load approver names");
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <ContextualBackLink href="/officers">Back to officers</ContextualBackLink>
       <PageHeader
         title={officer.name}
@@ -102,9 +102,9 @@ export default async function OfficerDetailPage({
           ) : undefined
         }
       />
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="min-w-0 space-y-4">
-          <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-5 gap-y-3 rounded-lg border border-border bg-surface/30 p-4 text-sm">
+          <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-5 gap-y-2 rounded-lg border border-border bg-surface/30 p-4 text-sm [&>dt]:mt-0 [&>dd]:mt-0 [&>dd]:min-w-0 [&>dd]:break-words">
             <dt>UTEP email</dt>
             <dd className="min-w-0 break-words">
               {officer.utep_email ?? "Not provided"}
@@ -129,7 +129,7 @@ export default async function OfficerDetailPage({
           </p>
         </div>
         <div className="min-w-0 space-y-4 rounded-lg border border-border p-4">
-          <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
+          <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm [&>dt]:mt-0 [&>dd]:mt-0 [&>dd]:min-w-0 [&>dd]:break-words">
             <dt>Status</dt>
             <dd>
               <StatusBadge status={officer.status} />
@@ -158,114 +158,129 @@ export default async function OfficerDetailPage({
           {showWarnings && <p>Approved warnings: {approvedCount}</p>}
         </div>
       </div>
-      {showWarnings && (
-        <section className="space-y-4">
-          <SectionHeading title="Warnings" />
-          {isAdmin(actor) && approvedCount >= 3 && (
-            <p role="status" className="font-semibold">
-              Admin Review — three or more approved warnings. Deactivation is a
-              separate manual decision.
-            </p>
-          )}
-          {isAdmin(actor) && (
-            <nav aria-label="Warning status" className="flex gap-4 text-sm">
-              {[
-                ["All", ""],
-                ["Pending", "pending"],
-                ["Approved", "approved"],
-                ["Rejected", "rejected"],
-              ].map(([label, status]) => (
-                <Link
-                  key={label}
-                  href={
-                    status
-                      ? `/officers/${officerIdParam}?warningStatus=${status}`
-                      : `/officers/${officerIdParam}`
-                  }
-                  className="underline"
-                  aria-current={
-                    (selectedStatus ?? "") === status ? "page" : undefined
-                  }
-                >
-                  {label}
-                </Link>
-              ))}
-            </nav>
-          )}
-          {displayedWarnings.length === 0 && (
-            <p>
-              {isAdmin(actor)
-                ? "No warnings in this view."
-                : "No approved warnings."}
-            </p>
-          )}
-          {displayedWarnings.map((warning) => (
-            <article
-              key={warning.id}
-              className="space-y-2 rounded-lg border border-border p-4"
-            >
-              <div className="flex flex-wrap items-center gap-3">
-                <StatusBadge status={warning.status} />
-                <time dateTime={warning.created_at}>
-                  {formatDate(warning.created_at)}
-                </time>
-              </div>
-              <p className="whitespace-pre-wrap">{warning.reason}</p>
-              {isAdmin(actor) && (
-                <>
-                  <p className="text-sm">
-                    Approvals:{" "}
-                    {
-                      warning.warning_approvals.filter(
-                        (approval) => approval.decision === "approved",
-                      ).length
-                    }
-                    /{warning.warning_approvals.length}
-                  </p>
-                  <ul className="text-sm text-muted">
-                    {warning.warning_approvals.map((approval) => (
-                      <li key={approval.approver_id}>
-                        {approval.approver_role} (
-                        {approverNames?.data?.find(
-                          (person) =>
-                            person.auth_user_id === approval.approver_id,
-                        )?.name ?? approval.approver_id}
-                        ): {approval.decision}
-                      </li>
-                    ))}
-                  </ul>
-                  <DeleteWarningForm
-                    warningId={warning.id}
-                    officerId={officer.id}
-                  />
-                </>
-              )}
-            </article>
-          ))}
-          {isAdmin(actor) && <CreateWarningForm officerId={officer.id} />}
-        </section>
-      )}
-      <section>
-        <SectionHeading title="Associated events" />
-        {!events.data.length && <p>No associated events yet.</p>}
-        <ul>
-          {events.data.map(({ events: event }) => (
-            <li
-              key={event.id}
-              className="flex flex-wrap items-center gap-2 border-b border-border py-2 text-sm"
-            >
-              <Link
-                href={`/events/${event.id}`}
-                className="font-medium text-secondary hover:underline"
+      <div
+        className={`grid items-start gap-4 ${showWarnings ? "lg:grid-cols-2" : ""}`}
+      >
+        {showWarnings && (
+          <section
+            aria-label="Warnings"
+            className="min-w-0 space-y-3 rounded-lg border border-border p-4"
+          >
+            <SectionHeading title="Warnings" />
+            {isAdmin(actor) && approvedCount >= 3 && (
+              <p role="status" className="font-semibold">
+                Admin Review — three or more approved warnings. Deactivation is
+                a separate manual decision.
+              </p>
+            )}
+            {isAdmin(actor) && (
+              <nav
+                aria-label="Warning status"
+                className="flex flex-wrap gap-4 text-sm"
               >
-                {event.name}
-              </Link>
-              <span className="text-subtle">{event.event_date}</span>
-              <StatusBadge status={eventStatus(event)} />
-            </li>
-          ))}
-        </ul>
-      </section>
+                {[
+                  ["All", ""],
+                  ["Pending", "pending"],
+                  ["Approved", "approved"],
+                  ["Rejected", "rejected"],
+                ].map(([label, status]) => (
+                  <Link
+                    key={label}
+                    href={
+                      status
+                        ? `/officers/${officerIdParam}?warningStatus=${status}`
+                        : `/officers/${officerIdParam}`
+                    }
+                    className="underline"
+                    aria-current={
+                      (selectedStatus ?? "") === status ? "page" : undefined
+                    }
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </nav>
+            )}
+            {displayedWarnings.length === 0 && (
+              <p>
+                {isAdmin(actor)
+                  ? "No warnings in this view."
+                  : "No approved warnings."}
+              </p>
+            )}
+            {displayedWarnings.map((warning) => (
+              <article
+                key={warning.id}
+                className="space-y-2 rounded-lg border border-border p-4"
+              >
+                <div className="flex flex-wrap items-center gap-3">
+                  <StatusBadge status={warning.status} />
+                  <time dateTime={warning.created_at}>
+                    {formatDate(warning.created_at)}
+                  </time>
+                </div>
+                <p className="whitespace-pre-wrap break-words">
+                  {warning.reason}
+                </p>
+                {isAdmin(actor) && (
+                  <>
+                    <p className="text-sm">
+                      Approvals:{" "}
+                      {
+                        warning.warning_approvals.filter(
+                          (approval) => approval.decision === "approved",
+                        ).length
+                      }
+                      /{warning.warning_approvals.length}
+                    </p>
+                    <ul className="text-sm text-muted">
+                      {warning.warning_approvals.map((approval) => (
+                        <li key={approval.approver_id}>
+                          {approval.approver_role} (
+                          {approverNames?.data?.find(
+                            (person) =>
+                              person.auth_user_id === approval.approver_id,
+                          )?.name ?? approval.approver_id}
+                          ): {approval.decision}
+                        </li>
+                      ))}
+                    </ul>
+                    <DeleteWarningForm
+                      warningId={warning.id}
+                      officerId={officer.id}
+                    />
+                  </>
+                )}
+              </article>
+            ))}
+            {isAdmin(actor) && <CreateWarningForm officerId={officer.id} />}
+          </section>
+        )}
+        <section
+          aria-label="Associated events"
+          className="min-w-0 rounded-lg border border-border p-4"
+        >
+          <SectionHeading title="Associated events" />
+          {!events.data.length && <p>No associated events yet.</p>}
+          <ul>
+            {events.data.map(({ events: event }) => (
+              <li
+                key={event.id}
+                className="flex flex-wrap items-center gap-2 border-b border-border py-2 text-sm"
+              >
+                <Link
+                  href={`/events/${event.id}`}
+                  className="break-words font-medium text-secondary hover:underline"
+                >
+                  {event.name}
+                </Link>
+                <span className="text-subtle">{event.event_date}</span>
+                <StatusBadge status={eventStatus(event)} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
       <section>
         <SectionHeading
           title="Point history"

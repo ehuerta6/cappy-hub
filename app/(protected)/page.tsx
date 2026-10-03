@@ -1,16 +1,10 @@
-import { formatEventSchedule } from "@/lib/presentation";
+import { formatDate, formatEventSchedule } from "@/lib/presentation";
 import { requireCurrentOfficer } from "@/lib/current-officer";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { displayPoints } from "@/lib/participation";
 import { participationLabel } from "@/lib/event-status";
-import PointTransactionTable from "@/components/point-transaction-table";
-import {
-  ActionLink,
-  PageHeader,
-  SectionHeading,
-  TableFrame,
-} from "@/components/ui";
+import { PageHeader, SectionHeading, PointValue, Badge } from "@/components/ui";
 export default async function DashboardPage() {
   const officer = await requireCurrentOfficer();
   const supabase = await createClient();
@@ -39,33 +33,29 @@ export default async function DashboardPage() {
   if (summary.error || events.error || transactions.error || total.error)
     throw new Error("Failed to load dashboard");
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Dashboard"
         description="A current view of club activity."
-      />
-      <section
-        aria-label="Your profile"
-        className="flex flex-col gap-4 rounded-lg border border-border bg-surface/40 p-4 sm:flex-row sm:items-center sm:justify-between"
-      >
-        <div className="min-w-0 space-y-1">
-          <h2 className="break-words">{officer.name}</h2>
-          <p>{officer.positionName}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-5">
-          <div>
-            <p className="text-sm">Your total points</p>
-            <p className="text-2xl font-semibold tabular-nums text-foreground">
-              {displayPoints(total.data.total_points ?? 0)}
+        action={
+          <section aria-label="Your profile" className="text-sm sm:text-right">
+            <p className="break-words font-medium text-foreground">
+              {officer.name}
             </p>
-          </div>
-          <ActionLink href={`/officers/${officer.id}`}>View profile</ActionLink>
-        </div>
-      </section>
-      <section
-        aria-label="Summary"
-        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
-      >
+            <p className="break-words">
+              {officer.positionName} · Your total points:{" "}
+              <PointValue value={total.data.total_points ?? 0} />
+            </p>
+            <Link
+              href={`/officers/${officer.id}`}
+              className="inline-flex min-h-9 items-center underline underline-offset-4"
+            >
+              View profile
+            </Link>
+          </section>
+        }
+      />
+      <section aria-label="Summary" className="grid gap-3 sm:grid-cols-3">
         {[
           {
             label: "Active officers",
@@ -84,65 +74,142 @@ export default async function DashboardPage() {
             key={stat.label}
             className="rounded-lg border border-border bg-surface/40 p-4"
           >
-            <p className="text-xs font-medium uppercase tracking-wider text-subtle">
-              {stat.label}
-            </p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums text-foreground">
+            <p className="text-sm font-medium text-muted">{stat.label}</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
               {stat.value}
             </p>
           </div>
         ))}
       </section>
-      <p className="-mt-3 text-xs text-subtle">
+      <p className="text-xs text-muted">
         Half-year periods are January–June and July–December (America/Denver).
         Points include signed corrections.
       </p>
-      <section>
-        <SectionHeading
-          title="Upcoming events"
-          description="All upcoming events"
-        />
-        {!events.data.length && <p>No upcoming events.</p>}
-        <TableFrame>
-          <table>
-            <thead>
-              <tr>
-                <th>Event</th>
-                <th>Schedule (El Paso)</th>
-                <th>Officers</th>
-                <th>Your signup</th>
-              </tr>
-            </thead>
-            <tbody>
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <section
+          aria-label="Upcoming events"
+          className="min-w-0 rounded-lg border border-border bg-surface/40 p-4"
+        >
+          <SectionHeading
+            title="Upcoming events"
+            description="All upcoming events · El Paso time"
+            action={
+              <Link
+                href="/events"
+                className="inline-flex min-h-9 items-center text-sm underline underline-offset-4"
+              >
+                View all Events
+              </Link>
+            }
+          />
+          {!events.data.length ? (
+            <p>No upcoming events.</p>
+          ) : (
+            <ul className="divide-y divide-border">
               {events.data.map((event) => (
-                <tr key={event.id}>
-                  <td>
-                    <Link href={`/events/${event.id}`}>{event.name}</Link>
-                  </td>
-                  <td>{formatEventSchedule(event.starts_at, event.ends_at)}</td>
-                  <td>{event.event_officers.length}</td>
-                  <td>
-                    {participationLabel(
-                      event.event_officers.some(
-                        (signup) => signup.officer_id === officer.id,
-                      ),
-                    )}
-                  </td>
-                </tr>
+                <li
+                  key={event.id}
+                  className="grid gap-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-3"
+                >
+                  <div className="min-w-0">
+                    <Link
+                      href={`/events/${event.id}`}
+                      className="block break-words font-medium text-foreground hover:underline"
+                    >
+                      {event.name}
+                    </Link>
+                    <p className="text-sm">
+                      {formatEventSchedule(event.starts_at, event.ends_at)}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted sm:flex-col sm:items-end">
+                    <span>
+                      {event.event_officers.length}{" "}
+                      {event.event_officers.length === 1
+                        ? "officer"
+                        : "officers"}
+                    </span>
+                    <Badge>
+                      {participationLabel(
+                        event.event_officers.some(
+                          (signup) => signup.officer_id === officer.id,
+                        ),
+                      )}
+                    </Badge>
+                  </div>
+                </li>
               ))}
-            </tbody>
-          </table>
-        </TableFrame>
-      </section>
-      <section>
-        <SectionHeading
-          title="Recent point activity"
-          description="Latest 10 transactions"
-        />
-        <TableFrame>
-          <PointTransactionTable transactions={transactions.data} />
-        </TableFrame>
-      </section>
+            </ul>
+          )}
+        </section>
+        <section
+          aria-label="Recent point activity"
+          className="min-w-0 rounded-lg border border-border bg-surface/40 p-4"
+        >
+          <SectionHeading
+            title="Recent point activity"
+            description="Latest 10 transactions"
+            action={
+              <Link
+                href="/points"
+                className="inline-flex min-h-9 items-center text-sm underline underline-offset-4"
+              >
+                View all Points
+              </Link>
+            }
+          />
+          {!transactions.data.length ? (
+            <p>No point transactions yet.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {transactions.data.map((transaction) => (
+                <li
+                  key={transaction.id}
+                  className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                >
+                  <div className="min-w-0 text-sm">
+                    <Link
+                      href={`/officers/${transaction.officers.id}`}
+                      className="break-words font-medium text-foreground hover:underline"
+                    >
+                      {transaction.officers.name}
+                    </Link>
+                    <p className="break-words">
+                      {transaction.events ? (
+                        <Link
+                          href={`/events/${transaction.events.id}`}
+                          className="underline underline-offset-4"
+                        >
+                          {transaction.events.name}
+                        </Link>
+                      ) : transaction.tasks ? (
+                        <Link
+                          href={`/tasks/${transaction.tasks.id}`}
+                          className="underline underline-offset-4"
+                        >
+                          {transaction.tasks.title}
+                        </Link>
+                      ) : (
+                        transaction.reason
+                      )}
+                    </p>
+                  </div>
+                  <div className="shrink-0 space-y-1 text-right text-sm">
+                    <PointValue value={transaction.points} />
+                    <span className="sr-only"> points</span>
+                    <time
+                      dateTime={transaction.created_at}
+                      className="block text-xs text-muted"
+                    >
+                      {formatDate(transaction.created_at)}
+                    </time>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

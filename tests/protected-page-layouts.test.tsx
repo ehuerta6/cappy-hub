@@ -48,6 +48,9 @@ const officer = {
 const event = {
   id: 7,
   name: "Synthetic Event",
+  location: "Synthetic Room",
+  slides_url: "https://example.com/slides",
+  meeting_notes_url: "https://example.com/notes",
   event_types: { name: "Meeting" },
   event_branches: [],
   event_officers: [],
@@ -168,4 +171,49 @@ it("retains Task assignment, completion and separate approver controls", () => {
 it("does not add contextual Back links to Officer or Task main pages", async () => {
   expect(renderToStaticMarkup(await OfficersPage())).not.toContain("Back to");
   expect(renderToStaticMarkup(await TasksPage())).not.toContain("Back to");
+});
+
+it("groups Event details, files and participation while retaining management controls and history", async () => {
+  const html = renderToStaticMarkup(
+    await EventDetail({ params: Promise.resolve({ id: "7" }) }),
+  );
+  const details = html
+    .split('aria-label="Event details"')[1]
+    .split('aria-label="Participation"')[0];
+  for (const text of [
+    "Synthetic Room",
+    "Meeting",
+    "Links and files",
+    "Open slides",
+    "Open notes",
+    "Cancel event",
+    "Remove event",
+  ])
+    expect(details).toContain(text);
+  expect(details).toContain('rel="noopener noreferrer"');
+  const participation = html.split('aria-label="Participation"')[1];
+  expect(participation).toContain("Your participation:");
+  expect(participation).toContain("Signed-up officers");
+  expect(participation).toContain("Add selected officers");
+  expect(html).toContain("Event point history");
+});
+
+it("retains Officer operational sections and full point history", async () => {
+  const html = renderToStaticMarkup(
+    await OfficerDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({}),
+    }),
+  );
+  for (const text of [
+    "UTEP email",
+    "Application access",
+    "Total points:",
+    "Approved warnings:",
+    "Point history",
+  ])
+    expect(html).toContain(text);
+  expect(html).toContain('aria-label="Warnings"');
+  expect(html).toContain('aria-label="Associated events"');
+  expect(html).toContain('href="/points?officer=7"');
 });
