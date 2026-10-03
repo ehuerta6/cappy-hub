@@ -83,7 +83,11 @@ export default async function PointsPage({
   const [historyCount, totals, officers, events, recentEvents, configuration] =
     await Promise.all([
       buildPointHistoryQuery({ count: "exact", head: true }),
-      supabase.from("officer_point_totals").select("*").order("name"),
+      supabase
+        .from("officer_point_totals")
+        .select("*")
+        .order("total_points", { ascending: false })
+        .order("name", { ascending: true }),
       supabase.from("officers").select("id,name").order("name"),
       supabase
         .from("events")
