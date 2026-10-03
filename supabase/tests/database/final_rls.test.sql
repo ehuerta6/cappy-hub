@@ -64,6 +64,7 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       'public.claim_current_officer_identity()'::regprocedure,
       'public.set_officer_application_role(bigint,text)'::regprocedure,
       'public.cancel_event(bigint)'::regprocedure,
+      'public.restore_event(bigint)'::regprocedure,
       'public.add_manual_transaction(bigint,numeric,text,text,bigint)'::regprocedure,
       'public.create_position(text)'::regprocedure,
       'public.rename_position(bigint,text)'::regprocedure,

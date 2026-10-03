@@ -14,6 +14,7 @@ import {
   BulkAddOfficersForm,
   SignupForm,
   CancelForm,
+  RestoreEventForm,
   RemoveEventForm,
 } from "../event-controls";
 import {
@@ -151,6 +152,9 @@ export default async function EventDetailPage({
           </dl>
           {canManage && !event.deleted_at && (
             <div className="flex flex-wrap gap-3 [&>form]:w-auto">
+              {status === "cancelled" && (
+                <RestoreEventForm eventId={event.id} />
+              )}
               {signupOpen && <CancelForm eventId={event.id} />}
               <RemoveEventForm eventId={event.id} />
             </div>

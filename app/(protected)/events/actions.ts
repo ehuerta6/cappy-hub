@@ -11,6 +11,7 @@ import {
   changeSignupInputSchema,
   eventBranchIdsInputSchema,
   eventRecordInputSchema,
+  restoreEventInputSchema,
   saveEventInputSchema,
 } from "./validation";
 export async function saveEvent(
@@ -171,6 +172,28 @@ export async function cancelEvent(
   if (error) return { error: mutationError(error.message), success: "" };
   revalidatePath("/", "layout");
   return { error: "", success: "Event cancelled" };
+}
+
+export async function restoreEvent(
+  _previous: { error: string; success: string },
+  formData: FormData,
+) {
+  await getAuthorizationContext();
+  const restoreEventValidationResult = restoreEventInputSchema.safeParse({
+    event_id: formData.get("event_id") ?? "",
+  });
+  if (!restoreEventValidationResult.success)
+    return {
+      error: restoreEventValidationResult.error.issues[0].message,
+      success: "",
+    };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("restore_event", {
+    p_event_id: restoreEventValidationResult.data.event_id,
+  });
+  if (error) return { error: mutationError(error.message), success: "" };
+  revalidatePath("/", "layout");
+  return { error: "", success: "Event restored" };
 }
 
 export async function removeEvent(

@@ -753,6 +753,7 @@ export type Database = {
         Args: { p_id: number; p_name: string };
         Returns: undefined;
       };
+      restore_event: { Args: { p_event_id: number }; Returns: undefined };
       save_event: {
         Args: {
           p_branch_ids: number[];

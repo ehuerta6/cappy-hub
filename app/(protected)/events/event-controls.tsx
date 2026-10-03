@@ -6,6 +6,7 @@ import {
   changeSignup,
   selfSignup,
   cancelEvent,
+  restoreEvent,
   removeEvent,
 } from "./actions";
 export function SelfSignupForm({
@@ -154,6 +155,23 @@ export function CancelForm({ eventId }: { eventId: number }) {
       {state.success && <p role="status">{state.success}</p>}
       <button disabled={pending} className="button-secondary">
         Cancel event
+      </button>
+    </form>
+  );
+}
+
+export function RestoreEventForm({ eventId }: { eventId: number }) {
+  const [state, action, pending] = useActionState(restoreEvent, {
+    error: "",
+    success: "",
+  });
+  return (
+    <form action={action}>
+      <input type="hidden" name="event_id" value={eventId} />
+      {state.error && <p role="alert">{state.error}</p>}
+      {state.success && <p role="status">{state.success}</p>}
+      <button disabled={pending} className="button-secondary">
+        {pending ? "Restoring…" : "Restore event"}
       </button>
     </form>
   );

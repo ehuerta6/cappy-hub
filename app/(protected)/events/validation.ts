@@ -85,3 +85,7 @@ export const bulkAddEventOfficersInputSchema = zod.object({
 export const eventRecordInputSchema = zod.object({
   event_id: safeIntegerStringSchema("Select a valid event"),
 });
+
+export const restoreEventInputSchema = zod.object({
+  event_id: safeIntegerStringSchema("Select a valid event"),
+});

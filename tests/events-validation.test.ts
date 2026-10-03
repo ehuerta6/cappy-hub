@@ -1,5 +1,8 @@
 import { expect, it } from "vitest";
-import { saveEventInputSchema } from "@/app/(protected)/events/validation";
+import {
+  restoreEventInputSchema,
+  saveEventInputSchema,
+} from "@/app/(protected)/events/validation";
 
 it("validates Event shape and keeps Event range boundaries", () => {
   const validEvent = {
@@ -27,4 +30,16 @@ it("validates Event shape and keeps Event range boundaries", () => {
   expect(
     saveEventInputSchema.safeParse({ ...validEvent, name: " " }).success,
   ).toBe(false);
+});
+
+it("validates a restore request with a safe Event ID", () => {
+  expect(restoreEventInputSchema.safeParse({ event_id: "-12" }).success).toBe(
+    true,
+  );
+  expect(restoreEventInputSchema.safeParse({ event_id: "0" }).success).toBe(
+    true,
+  );
+  expect(restoreEventInputSchema.safeParse({ event_id: "12x" }).success).toBe(
+    false,
+  );
 });

@@ -20,6 +20,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import {
   bulkAddEventOfficers,
+  restoreEvent,
   saveEvent,
   selfSignup,
 } from "@/app/(protected)/events/actions";
@@ -73,6 +74,23 @@ it("submits a selected officer group to the trusted RPC", async () => {
     p_event_id: 12,
     p_officer_ids: [3, 4, 3],
   });
+});
+
+it("validates the Event ID and restores through the trusted RPC", async () => {
+  const data = new FormData();
+  data.set("event_id", "12");
+  const result = await restoreEvent({ error: "", success: "" }, data);
+  expect(result).toEqual({ error: "", success: "Event restored" });
+  expect(rpc).toHaveBeenCalledWith("restore_event", { p_event_id: 12 });
+  expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+});
+
+it("rejects malformed Event IDs before calling the restore RPC", async () => {
+  const data = new FormData();
+  data.set("event_id", "12x");
+  const result = await restoreEvent({ error: "", success: "" }, data);
+  expect(result).toEqual({ error: "Select a valid event", success: "" });
+  expect(rpc).not.toHaveBeenCalled();
 });
 
 it("rejects malformed Event input before calling the RPC", async () => {
