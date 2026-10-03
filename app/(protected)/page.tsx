@@ -8,7 +8,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { displayPoints } from "@/lib/participation";
 import { participationLabel } from "@/lib/event-status";
-import { PageHeader, SectionHeading, PointValue, Badge } from "@/components/ui";
+import { SectionHeading, PointValue } from "@/components/ui";
 import {
   ACTION_ITEM_LIMIT,
   loadDashboardActionItems,
@@ -46,54 +46,76 @@ export default async function DashboardPage() {
     throw new Error("Failed to load dashboard");
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Dashboard"
-        description="A current view of club activity."
-        action={
-          <section aria-label="Your profile" className="text-sm sm:text-right">
-            <p className="break-words font-medium text-foreground">
+      <header className="grid min-w-0 gap-4 border-b border-border pb-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+        <section aria-label="Dashboard context" className="min-w-0">
+          <h1 className="text-xs font-medium uppercase tracking-[0.08em] text-muted">
+            Dashboard
+          </h1>
+          <div className="mt-1.5 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+            <h2 className="break-words text-2xl font-semibold tracking-tight text-foreground sm:text-[1.75rem]">
               {officer.name}
+            </h2>
+            <span className="break-words text-sm text-muted">
+              · {officer.positionName}
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-muted">
+            A current view of club activity.
+          </p>
+        </section>
+        <section
+          aria-label="Your profile"
+          className="flex min-w-0 flex-wrap items-center justify-between gap-x-5 gap-y-2 sm:justify-end"
+        >
+          <div className="min-w-0">
+            <p className="text-[0.6875rem] font-medium uppercase tracking-[0.06em] text-muted">
+              Personal total
             </p>
-            <p className="break-words">
-              {officer.positionName} · Your total points:{" "}
+            <p className="mt-0.5 flex items-baseline gap-1 text-lg font-semibold tabular-nums text-foreground">
               <PointValue value={total.data.total_points ?? 0} />
-            </p>
-            <Link
-              href={`/officers/${officer.id}`}
-              className="inline-flex min-h-9 items-center underline underline-offset-4"
-            >
-              View profile
-            </Link>
-          </section>
-        }
-      />
-      <section aria-label="Summary" className="grid gap-3 sm:grid-cols-3">
-        {[
-          {
-            label: "Active officers",
-            value: summary.data.active_officer_count ?? 0,
-          },
-          {
-            label: "Upcoming events",
-            value: summary.data.upcoming_event_count ?? 0,
-          },
-          {
-            label: "Points this half-year",
-            value: displayPoints(summary.data.half_year_points ?? 0),
-          },
-        ].map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-lg border border-border bg-surface/40 p-4"
-          >
-            <p className="text-sm font-medium text-muted">{stat.label}</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
-              {stat.value}
+              <span className="text-sm font-medium text-muted">pts</span>
             </p>
           </div>
-        ))}
+          <Link
+            href={`/officers/${officer.id}`}
+            aria-label={`View ${officer.name}'s profile`}
+            className="inline-flex min-h-11 items-center gap-1 text-sm text-secondary underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted lg:min-h-9"
+          >
+            View profile <span aria-hidden="true">→</span>
+          </Link>
+        </section>
+      </header>
+      <section
+        aria-label="Summary"
+        className="overflow-hidden rounded-md border border-border bg-surface/30"
+      >
+        <dl className="grid grid-cols-1 divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          {[
+            {
+              label: "Active officers",
+              value: summary.data.active_officer_count ?? 0,
+            },
+            {
+              label: "Upcoming events",
+              value: summary.data.upcoming_event_count ?? 0,
+            },
+            {
+              label: "Points this half-year",
+              value: displayPoints(summary.data.half_year_points ?? 0),
+            },
+          ].map((stat) => (
+            <div key={stat.label} className="min-w-0 px-3 py-2.5 sm:px-4">
+              <dt className="mt-0 text-[0.6875rem] font-medium uppercase tracking-[0.06em] text-muted">
+                {stat.label}
+              </dt>
+              <dd className="mt-1 text-xl font-semibold tabular-nums text-foreground sm:text-2xl">
+                {stat.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
       </section>
-      <p className="text-xs text-muted">
+      <p className="px-1 text-xs text-muted">
         Half-year periods are January–June and July–December (America/Denver).
         Points include signed corrections.
       </p>
@@ -104,7 +126,7 @@ export default async function DashboardPage() {
         <SectionHeading
           title="Your action items"
           action={
-            <div className="flex flex-wrap gap-x-4 text-sm">
+            <div className="flex max-w-full flex-wrap gap-x-4 text-sm">
               <Link
                 href="/tasks"
                 className="inline-flex min-h-9 items-center underline underline-offset-4"
@@ -128,7 +150,7 @@ export default async function DashboardPage() {
               <li key={item.key}>
                 <Link
                   href={item.href}
-                  className="grid min-h-11 gap-x-4 gap-y-1 py-2 text-sm hover:underline sm:grid-cols-[minmax(0,1fr)_12rem_10rem] sm:items-center"
+                  className="grid min-h-11 min-w-0 gap-x-4 gap-y-1 py-2 text-sm hover:underline sm:grid-cols-[minmax(0,1fr)_max-content_max-content] sm:items-center"
                 >
                   <span className="min-w-0 break-words font-medium text-foreground">
                     {item.title}
@@ -140,7 +162,7 @@ export default async function DashboardPage() {
                   ) : (
                     <span className="hidden sm:block" />
                   )}
-                  <span className="text-muted sm:text-right">
+                  <span className="min-w-0 break-words text-muted sm:text-right">
                     {item.status}
                   </span>
                 </Link>
@@ -155,11 +177,8 @@ export default async function DashboardPage() {
           </p>
         )}
       </section>
-      <div className="grid items-start gap-4 lg:grid-cols-2">
-        <section
-          aria-label="Upcoming events"
-          className="min-w-0 rounded-lg border border-border bg-surface/40 p-4"
-        >
+      <div className="grid min-w-0 items-start gap-5 border-t border-border pt-4 lg:grid-cols-2 lg:gap-0">
+        <section aria-label="Upcoming events" className="min-w-0 lg:pr-6">
           <SectionHeading
             title="Upcoming events"
             description="All upcoming events · El Paso time"
@@ -179,7 +198,7 @@ export default async function DashboardPage() {
               {events.data.map((event) => (
                 <li
                   key={event.id}
-                  className="grid gap-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-3"
+                  className="grid min-w-0 gap-1 py-2.5 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-3"
                 >
                   <div className="min-w-0">
                     <Link
@@ -192,20 +211,20 @@ export default async function DashboardPage() {
                       {formatEventSchedule(event.starts_at, event.ends_at)}
                     </p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted sm:flex-col sm:items-end">
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted sm:flex-col sm:items-end sm:gap-y-0.5">
                     <span>
                       {event.event_officers.length}{" "}
                       {event.event_officers.length === 1
                         ? "officer"
                         : "officers"}
                     </span>
-                    <Badge>
+                    <span className="text-secondary">
                       {participationLabel(
                         event.event_officers.some(
                           (signup) => signup.officer_id === officer.id,
                         ),
                       )}
-                    </Badge>
+                    </span>
                   </div>
                 </li>
               ))}
@@ -214,7 +233,7 @@ export default async function DashboardPage() {
         </section>
         <section
           aria-label="Recent point activity"
-          className="min-w-0 rounded-lg border border-border bg-surface/40 p-4"
+          className="min-w-0 border-t border-border pt-4 lg:border-l lg:border-t-0 lg:py-0 lg:pl-6"
         >
           <SectionHeading
             title="Recent point activity"
@@ -235,7 +254,7 @@ export default async function DashboardPage() {
               {transactions.data.map((transaction) => (
                 <li
                   key={transaction.id}
-                  className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                  className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 py-2.5 first:pt-0 last:pb-0"
                 >
                   <div className="min-w-0 text-sm">
                     <Link

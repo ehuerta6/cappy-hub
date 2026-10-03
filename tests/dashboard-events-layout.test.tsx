@@ -80,7 +80,9 @@ let transactions: {
   events: { id: number; name: string } | null;
   tasks: { id: number; title: string } | null;
 }[];
+let dashboardQueries: { table: string; operations: [string, unknown[]][] }[];
 const from = vi.fn((table: string) => {
+  const operations: [string, unknown[]][] = [];
   const result = {
     data:
       table === "events"
@@ -90,23 +92,55 @@ const from = vi.fn((table: string) => {
           : table === "officer_point_totals"
             ? { total_points: 12.5 }
             : table === "dashboard_summary"
-              ? { half_year_points: 99 }
+              ? {
+                  active_officer_count: 24,
+                  upcoming_event_count: 5,
+                  half_year_points: 99,
+                }
               : [],
     error: null,
   };
   const query = {
-    select: () => query,
-    eq: () => query,
-    neq: () => query,
-    is: () => query,
-    not: () => query,
-    gt: () => query,
-    order: () => query,
-    limit: () => query,
-    single: () => Promise.resolve(result),
+    select: (...args: unknown[]) => {
+      operations.push(["select", args]);
+      return query;
+    },
+    eq: (...args: unknown[]) => {
+      operations.push(["eq", args]);
+      return query;
+    },
+    neq: (...args: unknown[]) => {
+      operations.push(["neq", args]);
+      return query;
+    },
+    is: (...args: unknown[]) => {
+      operations.push(["is", args]);
+      return query;
+    },
+    not: (...args: unknown[]) => {
+      operations.push(["not", args]);
+      return query;
+    },
+    gt: (...args: unknown[]) => {
+      operations.push(["gt", args]);
+      return query;
+    },
+    order: (...args: unknown[]) => {
+      operations.push(["order", args]);
+      return query;
+    },
+    limit: (...args: unknown[]) => {
+      operations.push(["limit", args]);
+      return query;
+    },
+    single: () => {
+      operations.push(["single", []]);
+      return Promise.resolve(result);
+    },
     then: (resolve: (value: typeof result) => unknown) =>
       Promise.resolve(result).then(resolve),
   };
+  dashboardQueries.push({ table, operations });
   return query;
 });
 
@@ -118,6 +152,7 @@ beforeEach(() => {
     false,
   ] as never);
   transactions = [];
+  dashboardQueries = [];
   events = [
     upcoming,
     { ...upcoming, id: 2, name: "Available event", event_officers: [] },
@@ -191,18 +226,59 @@ it("shows useful empty messages without empty tables", async () => {
   expect(html).not.toContain("<table");
 });
 
-it("shows personal name, position, database total and profile link separately from club points", async () => {
+it("keeps Dashboard as the page heading and gives the current officer stronger identity", async () => {
   const html = renderToStaticMarkup(await DashboardPage());
+  expect(html.match(/<h1\b/g)).toHaveLength(1);
+  expect(html).toMatch(/<h1[^>]*>Dashboard<\/h1>/);
+  expect(html).toMatch(/<h2[^>]*>Local Officer<\/h2>/);
+  expect(html).toContain("· Secretary");
+  expect(html).toContain("A current view of club activity.");
   const profile = html
     .split('aria-label="Your profile"')[1]
     .split("</section>")[0];
-  expect(profile).toContain("Local Officer");
-  expect(profile).toContain("Secretary");
   expect(profile).toContain("+12.5");
+  expect(profile).toContain("pts");
+  expect(profile).toContain("Personal total");
   expect(profile).toContain('href="/officers/8"');
+  expect(profile).toContain('aria-label="View Local Officer&#x27;s profile"');
   expect(profile).toContain("View profile");
+});
+
+it("preserves all three summary metric values and the existing summary/activity queries", async () => {
+  const html = renderToStaticMarkup(await DashboardPage());
+  const summary = html.split('aria-label="Summary"')[1].split("</section>")[0];
+  expect(summary).toContain("Active officers");
+  expect(summary).toContain(">24</dd>");
+  expect(summary).toContain("Upcoming events");
+  expect(summary).toContain(">5</dd>");
   expect(html).toContain("Points this half-year");
   expect(html).toContain("+99");
+
+  const operations = (table: string) =>
+    dashboardQueries.find((query) => query.table === table)?.operations ?? [];
+  expect(operations("dashboard_summary")).toEqual([
+    ["select", ["*"]],
+    ["single", []],
+  ]);
+  expect(operations("officer_point_totals")).toEqual([
+    ["select", ["total_points"]],
+    ["eq", ["id", actor.id]],
+    ["single", []],
+  ]);
+  expect(operations("events")).toEqual([
+    ["select", ["*,event_officers(officer_id)"]],
+    ["neq", ["status", "cancelled"]],
+    ["is", ["deleted_at", null]],
+    ["gt", ["starts_at", expect.any(String)]],
+    ["order", ["event_date"]],
+  ]);
+  expect(operations("point_transactions")).toEqual([
+    ["select", ["*,officers(id,name),events(id,name),tasks(id,title)"]],
+    ["is", ["removed_at", null]],
+    ["order", ["created_at", { ascending: false }]],
+    ["order", ["id", { ascending: false }]],
+    ["limit", [10]],
+  ]);
 });
 
 it("places the single sign out form and officer context inside the protected header", async () => {

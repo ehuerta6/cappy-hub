@@ -295,12 +295,51 @@ it("caps the summary at five and bounds all source queries, with both destinatio
   expect(section).toContain("Showing the first 5 items");
   expect(section).toContain('href="/tasks"');
   expect(section).toContain('href="/officers"');
+  expect(
+    [...section.matchAll(/href="\/tasks\/(\d+)"/g)].map((match) => match[1]),
+  ).toEqual(["1", "2", "3", "4", "5"]);
   for (const url of urls.filter((url) =>
     ["tasks", "officer_warnings"].includes(url.pathname.split("/").at(-1)!),
   )) {
     expect(url.searchParams.get("limit")).toBe("6");
     expect(url.searchParams.get("order")).toMatch(/,id.asc$/);
   }
+});
+
+it("renders the current Task and warning statuses with their canonical record links", async () => {
+  actor.positionName = "Lead";
+  tasks = [
+    task(8, {
+      title:
+        "Review the recurring CIC workshop volunteer schedule and venue checklist",
+    }),
+    awaiting(9),
+  ];
+  warnings = [warning(2)];
+
+  const html = await render();
+  const section = html
+    .split('aria-label="Your action items"')[1]
+    .split("</section>")[0];
+
+  expect(section).toContain(
+    "Review the recurring CIC workshop volunteer schedule and venue checklist",
+  );
+  expect(section).toContain('href="/tasks/8"');
+  expect(section).toContain("Due Oct 5, 2026");
+  expect(section).toContain("Assigned");
+  expect(section).toContain('href="/tasks/9"');
+  expect(section).toContain("Awaiting approval");
+  expect(section).toContain('href="/officers#warning-2"');
+  expect(section).toContain("Warning for Alex");
+  expect(section).toContain("Needs decision");
+  expect(section.indexOf('href="/tasks/8"')).toBeLessThan(
+    section.indexOf('href="/tasks/9"'),
+  );
+  expect(section.indexOf('href="/tasks/9"')).toBeLessThan(
+    section.indexOf('href="/officers#warning-2"'),
+  );
+  expect(section).not.toContain("<form");
 });
 
 it("keeps the empty state lightweight and preserves profile, metrics and summary layout", async () => {
@@ -315,6 +354,10 @@ it("keeps the empty state lightweight and preserves profile, metrics and summary
     "Recent point activity",
   ])
     expect(html).toContain(`aria-label="${label}"`);
+  const summary = html.split('aria-label="Summary"')[1].split("</section>")[0];
+  expect(summary.match(/<dt\b/g)).toHaveLength(3);
+  expect(summary).toContain("sm:grid-cols-3");
+  expect(summary).toContain("sm:divide-x");
   expect(html).toContain("lg:grid-cols-2");
   expect(html.indexOf('aria-label="Summary"')).toBeLessThan(
     html.indexOf('aria-label="Your action items"'),
