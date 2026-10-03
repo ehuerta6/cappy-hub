@@ -125,6 +125,19 @@ function findDestructiveOperations(sql) {
       operations.push("ALTER TABLE ... RENAME TO (table rename)");
     }
     if (
+      hasSequence(words, ["alter", "view"]) &&
+      hasSequence(words, ["rename", "column"])
+    ) {
+      operations.push("ALTER VIEW ... RENAME COLUMN (view API field rename)");
+    }
+    if (
+      (hasSequence(words, ["alter", "view"]) ||
+        hasSequence(words, ["alter", "function"])) &&
+      hasSequence(words, ["rename", "to"])
+    ) {
+      operations.push("ALTER VIEW/FUNCTION ... RENAME TO (public API rename)");
+    }
+    if (
       hasSequence(words, ["alter", "table"]) &&
       hasSequence(words, ["alter", "column"]) &&
       hasSequence(words, ["type"])

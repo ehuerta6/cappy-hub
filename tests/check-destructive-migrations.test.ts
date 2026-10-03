@@ -61,6 +61,18 @@ do $example$ begin raise notice 'ALTER TABLE events DROP COLUMN name'; end $exam
     ],
     ["RENAME TABLE", "alter table public.events rename to club_events;"],
     [
+      "RENAME VIEW",
+      "alter view public.officer_point_totals rename to officer_totals;",
+    ],
+    [
+      "RENAME VIEW FIELD",
+      "alter view public.officer_point_totals rename column total to points;",
+    ],
+    [
+      "RENAME RPC",
+      "alter function public.save_event_with_links(bigint) rename to save_event;",
+    ],
+    [
       "ALTER COLUMN TYPE",
       "alter table public.events alter column event_date type timestamptz using event_date::timestamptz;",
     ],

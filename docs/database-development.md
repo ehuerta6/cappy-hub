@@ -44,7 +44,7 @@ Production applies migrations before the new application deployment. Every migra
 
 New migration files are checked by `scripts/check-destructive-migrations.mjs` for potentially rollout-incompatible operations. It considers only `.sql` migrations added relative to the CI base: the PR base SHA for pull requests, or the previous commit on pushes to `main` and `mvp`. Existing migrations are not re-scanned. The separate migration immutability check continues to reject edits, deletions, or renames of files already present in the base.
 
-The guard flags `DROP COLUMN`, `DROP TABLE`, table/column renames, `ALTER COLUMN ... TYPE`, `DROP VIEW`, and `DROP FUNCTION` (which may remove a public RPC). It ignores SQL comments, quoted strings, and dollar-quoted function bodies so examples or text containing these phrases do not trigger it. For a reviewed contract-phase migration, put this explicit header at the beginning of that migration and give a concrete rationale of at least 30 characters:
+The guard flags `DROP COLUMN`, `DROP TABLE`, table/column renames, public view/RPC renames, `ALTER COLUMN ... TYPE`, `DROP VIEW`, and `DROP FUNCTION` (which may remove a public RPC). It ignores SQL comments, quoted strings, and dollar-quoted function bodies so examples or text containing these phrases do not trigger it. For a reviewed contract-phase migration, put this explicit header at the beginning of that migration and give a concrete rationale of at least 30 characters:
 
 ```sql
 -- cappy-hub: approve-destructive-migration
