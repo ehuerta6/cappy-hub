@@ -162,3 +162,60 @@ it("routes a valid catalog create through the existing branch RPC", async () => 
   expect((await changeCatalog(previous, branchForm)).success).toBe("Saved");
   expect(rpc).toHaveBeenCalledWith("create_branch", { p_name: "Denver" });
 });
+
+it("validates and routes Event location catalog mutations", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 601,
+    applicationRole: "admin",
+  } as never);
+  const locationForm = (operation: string, name = "  CCSB 1.032  ") => {
+    const data = new FormData();
+    data.set("catalog", "event_location");
+    data.set("operation", operation);
+    data.set("id", "17");
+    data.set("name", name);
+    return data;
+  };
+  expect((await changeCatalog(previous, locationForm("create"))).success).toBe(
+    "Saved",
+  );
+  expect(rpc).toHaveBeenCalledWith("create_event_location", {
+    p_name: "CCSB 1.032",
+  });
+  await changeCatalog(previous, locationForm("rename", "CCSB 1.033"));
+  expect(rpc).toHaveBeenLastCalledWith("rename_event_location", {
+    p_id: 17,
+    p_name: "CCSB 1.033",
+  });
+  await changeCatalog(previous, locationForm("delete"));
+  expect(rpc).toHaveBeenLastCalledWith("delete_event_location", {
+    p_id: 17,
+  });
+});
+
+it("rejects invalid Event location mutations before the trusted RPC", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 601,
+    applicationRole: "admin",
+  } as never);
+  const data = new FormData();
+  data.set("catalog", "event_location");
+  data.set("operation", "rename");
+  data.set("id", "17x");
+  data.set("name", " Valid location ");
+  expect((await changeCatalog(previous, data)).error).toBe("Invalid location");
+  expect(rpc).not.toHaveBeenCalled();
+});
+
+it("denies Event location catalog mutations for non-admins", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 603,
+    applicationRole: "officer",
+  } as never);
+  const data = new FormData();
+  data.set("catalog", "event_location");
+  data.set("operation", "create");
+  data.set("name", "New room");
+  expect((await changeCatalog(previous, data)).error).toBe("Admin required");
+  expect(rpc).not.toHaveBeenCalled();
+});

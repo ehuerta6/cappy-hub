@@ -4,7 +4,10 @@ import { getAuthorizationContext, isAdmin } from "@/lib/authorization";
 import { mutationError } from "@/lib/mutation-error";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { catalogMutationInputSchema } from "./validation";
+import {
+  catalogMutationInputSchema,
+  eventLocationMutationInputSchema,
+} from "./validation";
 
 export async function changeCatalog(
   _previous: { error: string; success: string },
@@ -19,16 +22,52 @@ export async function changeCatalog(
     id: formData.get("id") ?? "",
     name: formData.get("name") ?? "",
   };
-  const validationResult = catalogMutationInputSchema.safeParse(
-    rawCatalogMutationInput,
-  );
-  if (!validationResult.success)
-    return { error: validationResult.error.issues[0].message, success: "" };
-  const validatedCatalogMutation = validationResult.data;
+  const isLocation = rawCatalogMutationInput.catalog === "event_location";
+  let validatedLocationMutation: ReturnType<
+    typeof eventLocationMutationInputSchema.parse
+  > | null = null;
+  let validatedCatalogMutation: ReturnType<
+    typeof catalogMutationInputSchema.parse
+  > | null = null;
+  if (isLocation) {
+    const validationResult = eventLocationMutationInputSchema.safeParse(
+      rawCatalogMutationInput,
+    );
+    if (!validationResult.success)
+      return { error: validationResult.error.issues[0].message, success: "" };
+    validatedLocationMutation = validationResult.data;
+  } else {
+    const validationResult = catalogMutationInputSchema.safeParse(
+      rawCatalogMutationInput,
+    );
+    if (!validationResult.success)
+      return { error: validationResult.error.issues[0].message, success: "" };
+    validatedCatalogMutation = validationResult.data;
+  }
 
   const supabase = await createClient();
   let mutationErrorResponse;
-  if (validatedCatalogMutation.catalog === "position") {
+  if (validatedLocationMutation) {
+    if (validatedLocationMutation.operation === "create") {
+      ({ error: mutationErrorResponse } = await supabase.rpc(
+        "create_event_location",
+        { p_name: validatedLocationMutation.name },
+      ));
+    } else if (validatedLocationMutation.operation === "rename") {
+      ({ error: mutationErrorResponse } = await supabase.rpc(
+        "rename_event_location",
+        {
+          p_id: validatedLocationMutation.id,
+          p_name: validatedLocationMutation.name,
+        },
+      ));
+    } else {
+      ({ error: mutationErrorResponse } = await supabase.rpc(
+        "delete_event_location",
+        { p_id: validatedLocationMutation.id },
+      ));
+    }
+  } else if (validatedCatalogMutation?.catalog === "position") {
     if (validatedCatalogMutation.operation === "create") {
       ({ error: mutationErrorResponse } = await supabase.rpc(
         "create_position",
@@ -52,19 +91,22 @@ export async function changeCatalog(
         },
       ));
     }
-  } else if (validatedCatalogMutation.operation === "create") {
-    ({ error: mutationErrorResponse } = await supabase.rpc("create_branch", {
-      p_name: validatedCatalogMutation.name,
-    }));
-  } else if (validatedCatalogMutation.operation === "rename") {
-    ({ error: mutationErrorResponse } = await supabase.rpc("rename_branch", {
-      p_id: validatedCatalogMutation.id,
-      p_name: validatedCatalogMutation.name,
-    }));
   } else {
-    ({ error: mutationErrorResponse } = await supabase.rpc("delete_branch", {
-      p_id: validatedCatalogMutation.id,
-    }));
+    const branchMutation = validatedCatalogMutation!;
+    if (branchMutation.operation === "create") {
+      ({ error: mutationErrorResponse } = await supabase.rpc("create_branch", {
+        p_name: branchMutation.name,
+      }));
+    } else if (branchMutation.operation === "rename") {
+      ({ error: mutationErrorResponse } = await supabase.rpc("rename_branch", {
+        p_id: branchMutation.id,
+        p_name: branchMutation.name,
+      }));
+    } else {
+      ({ error: mutationErrorResponse } = await supabase.rpc("delete_branch", {
+        p_id: branchMutation.id,
+      }));
+    }
   }
   if (mutationErrorResponse)
     return {

@@ -9,6 +9,7 @@ import { RecurrenceFields } from "@/components/recurrence-fields";
 export default function EventForm({
   branches,
   eventTypes,
+  locations,
   event,
   branchIds = [],
   allowGlobal = false,
@@ -16,6 +17,7 @@ export default function EventForm({
 }: {
   branches: Pick<Tables<"branches">, "id" | "name">[];
   eventTypes: Pick<Tables<"event_types">, "id" | "name">[];
+  locations: Pick<Tables<"event_locations">, "id" | "name">[];
   event?: Tables<"events">;
   branchIds?: number[];
   allowGlobal?: boolean;
@@ -77,7 +79,17 @@ export default function EventForm({
 
       <label>
         Location
-        <input name="location" required defaultValue={event?.location ?? ""} />
+        <input
+          name="location"
+          list="event-location-suggestions"
+          required
+          defaultValue={event?.location ?? ""}
+        />
+        <datalist id="event-location-suggestions">
+          {locations.map((location) => (
+            <option key={location.id} value={location.name} />
+          ))}
+        </datalist>
       </label>
 
       <label>

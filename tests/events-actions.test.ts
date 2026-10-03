@@ -127,6 +127,32 @@ it("sends validated Event fields to the existing RPC", async () => {
   });
 });
 
+it("trims and bounds a free-entry location before the trusted Event RPC", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 8,
+    positionName: "President",
+  } as never);
+  const data = eventForm();
+  data.set("location", "  CCSB   1.032  ");
+  await saveEvent({ error: "" }, data);
+  expect(rpc).toHaveBeenCalledWith(
+    "save_event_with_links",
+    expect.objectContaining({ p_location: "CCSB   1.032" }),
+  );
+});
+
+it("rejects blank free-entry locations before calling a trusted Event RPC", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 8,
+    positionName: "President",
+  } as never);
+  const data = eventForm();
+  data.set("location", "   ");
+  const result = await saveEvent({ error: "" }, data);
+  expect(result.error).toBe("Name, description and location are required");
+  expect(rpc).not.toHaveBeenCalled();
+});
+
 it("materializes recurring Events with independent Denver schedules", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 8,

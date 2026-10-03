@@ -8,17 +8,18 @@ export default async function OfficerCatalogsPage() {
   const actor = await getAuthorizationContext();
   if (!isAdmin(actor)) notFound();
   const supabase = await createClient();
-  const [positions, branches] = await Promise.all([
+  const [positions, branches, locations] = await Promise.all([
     supabase.from("positions").select("id,name").order("name"),
     supabase.from("branches").select("id,name").order("name"),
+    supabase.from("event_locations").select("id,name").order("name"),
   ]);
-  if (positions.error || branches.error)
+  if (positions.error || branches.error || locations.error)
     throw new Error("Could not load catalogs");
   return (
     <div className="space-y-8">
       <PageHeader
         title="Officer catalogs"
-        description="Manage controlled positions and branches."
+        description="Manage officer positions, branches and reusable Event locations."
       />
       <p className="text-sm text-zinc-400">
         The six baseline positions are required. Referenced records cannot be
@@ -33,6 +34,11 @@ export default async function OfficerCatalogsPage() {
         catalog="branch"
         title="Branches"
         records={branches.data}
+      />
+      <CatalogManager
+        catalog="event_location"
+        title="Event locations"
+        records={locations.data}
       />
     </div>
   );

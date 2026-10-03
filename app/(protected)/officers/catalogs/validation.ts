@@ -34,3 +34,23 @@ export const catalogMutationInputSchema = zod.discriminatedUnion(
   ],
   { error: "Invalid catalog operation" },
 );
+
+export const eventLocationMutationInputSchema = zod.discriminatedUnion(
+  "operation",
+  [
+    zod.object({
+      operation: zod.literal("create"),
+      name: requiredTrimmedStringSchema("Location is required").trim(),
+    }),
+    zod.object({
+      operation: zod.literal("rename"),
+      id: positiveSafeIntegerStringSchema("Invalid location"),
+      name: requiredTrimmedStringSchema("Location is required").trim(),
+    }),
+    zod.object({
+      operation: zod.literal("delete"),
+      id: positiveSafeIntegerStringSchema("Invalid location"),
+    }),
+  ],
+  { error: "Invalid location operation" },
+);

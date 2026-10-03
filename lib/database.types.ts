@@ -105,6 +105,27 @@ export type Database = {
           },
         ];
       };
+      event_locations: {
+        Row: {
+          created_at: string;
+          id: number;
+          name: string;
+          normalized_name: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          id?: number;
+          name: string;
+          normalized_name?: never;
+        };
+        Update: {
+          created_at?: string;
+          id?: number;
+          name?: string;
+          normalized_name?: never;
+        };
+        Relationships: [];
+      };
       event_officers: {
         Row: {
           event_id: number;
@@ -213,6 +234,7 @@ export type Database = {
           event_type_id: number;
           id: number;
           location: string | null;
+          location_id: number | null;
           meeting_notes_url: string | null;
           name: string;
           participation_points_per_hour_at_end: number | null;
@@ -232,6 +254,7 @@ export type Database = {
           event_type_id: number;
           id?: number;
           location?: string | null;
+          location_id?: number | null;
           meeting_notes_url?: string | null;
           name: string;
           participation_points_per_hour_at_end?: number | null;
@@ -251,6 +274,7 @@ export type Database = {
           event_type_id?: number;
           id?: number;
           location?: string | null;
+          location_id?: number | null;
           meeting_notes_url?: string | null;
           name?: string;
           participation_points_per_hour_at_end?: number | null;
@@ -266,6 +290,13 @@ export type Database = {
             columns: ["event_type_id"];
             isOneToOne: false;
             referencedRelation: "event_types";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "events_location_id_fkey";
+            columns: ["location_id"];
+            isOneToOne: false;
+            referencedRelation: "event_locations";
             referencedColumns: ["id"];
           },
           {
@@ -845,6 +876,7 @@ export type Database = {
       };
       complete_task: { Args: { p_task_id: number }; Returns: undefined };
       create_branch: { Args: { p_name: string }; Returns: number };
+      create_event_location: { Args: { p_name: string }; Returns: number };
       create_event_type: { Args: { p_name: string }; Returns: number };
       create_position: { Args: { p_name: string }; Returns: number };
       create_recurring_event: {
@@ -887,6 +919,7 @@ export type Database = {
         Returns: undefined;
       };
       delete_branch: { Args: { p_id: number }; Returns: undefined };
+      delete_event_location: { Args: { p_id: number }; Returns: undefined };
       delete_event_type: { Args: { p_id: number }; Returns: undefined };
       delete_position: { Args: { p_id: number }; Returns: undefined };
       delete_warning: { Args: { p_warning_id: number }; Returns: undefined };
@@ -901,6 +934,10 @@ export type Database = {
       };
       remove_task: { Args: { p_task_id: number }; Returns: undefined };
       rename_branch: {
+        Args: { p_id: number; p_name: string };
+        Returns: undefined;
+      };
+      rename_event_location: {
         Args: { p_id: number; p_name: string };
         Returns: undefined;
       };

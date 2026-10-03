@@ -22,6 +22,11 @@ select results_eq(
   $$select id,name,description,location,starts_at,ends_at,status,created_at from events where id between 90001 and 90003 order by id$$,
   $$select (original->>'id')::bigint,original->>'name',case when original->>'description'='' then 'Description unavailable' else original->>'description' end,coalesce(original->>'location','TBA'),(original->>'starts_at')::timestamptz,(original->>'ends_at')::timestamptz,original->>'status',(original->>'created_at')::timestamptz from upgrade_fixture.events where (original->>'id')::bigint between 90001 and 90003 order by (original->>'id')::bigint$$,
   'event identities, schedules, statuses and timestamps survive');
+select is((select count(*) from events where id between 90001 and 90006
+  and location_id is not null),6::bigint,
+  'existing Events are connected to reusable locations during migration');
+select has_column('events','location_id',
+  'reusable location links are added without replacing Event location snapshots');
 select results_eq(
   $$select e.id,e.name,t.name,e.starts_at,e.ends_at,e.description,e.location from events e join event_types t on t.id=e.event_type_id where e.id between 90004 and 90006 order by e.id$$,
   $$select (original->>'id')::bigint,original->>'name',original->>'type',(original->>'starts_at')::timestamptz,(original->>'ends_at')::timestamptz,case when original->>'description'='' then 'Description unavailable' else original->>'description' end,coalesce(original->>'location','TBA') from upgrade_fixture.events where (original->>'id')::bigint between 90004 and 90006 order by (original->>'id')::bigint$$,
@@ -106,7 +111,7 @@ select throws_ok($$insert into officers(name,position_id,personal_email) values
 select hasnt_column('positions','can_manage_branch_events','obsolete capability flag is gone');
 select hasnt_column('events','flyer_status','flyer event column is gone');
 select hasnt_column('application_config','flyer_completion_points','flyer configuration is gone');
-select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),17::bigint,
+select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),18::bigint,
   'final schema contains Events and Tasks tables');
 select is((select count(*) from events where recurrence_series_id is not null),0::bigint,
   'existing Events remain standalone after the additive recurrence migration');

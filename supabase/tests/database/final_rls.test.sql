@@ -50,6 +50,9 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
 select ok(not has_function_privilege('authenticated','private.process_finished_events()','EXECUTE')
   and has_function_privilege('authenticated','public.claim_current_officer_identity()','EXECUTE')
   and has_function_privilege('authenticated','public.save_event_with_links(text,text,bigint,text,date,timestamptz,timestamptz,bigint[],bigint,text,text)','EXECUTE')
+  and has_function_privilege('authenticated','public.create_event_location(text)','EXECUTE')
+  and has_function_privilege('authenticated','public.rename_event_location(bigint,text)','EXECUTE')
+  and has_function_privilege('authenticated','public.delete_event_location(bigint)','EXECUTE')
   and has_function_privilege('authenticated','public.change_event_signup(bigint,bigint,boolean)','EXECUTE')
   and has_function_privilege('authenticated','public.bulk_add_event_officers(bigint,bigint[])','EXECUTE'),
   'essential checked RPCs remain callable and private processing stays closed');
@@ -91,6 +94,9 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       ,'public.create_recurring_event(text,text,bigint,text,bigint[],text,text,uuid,text,date[],timestamptz[],timestamptz[])'::regprocedure
       ,'public.create_recurring_task(text,text,text,bigint,numeric,boolean,uuid,text,date[])'::regprocedure
       ,'public.remove_task(bigint)'::regprocedure
+      ,'public.create_event_location(text)'::regprocedure
+      ,'public.rename_event_location(bigint,text)'::regprocedure
+      ,'public.delete_event_location(bigint)'::regprocedure
     )), 'authenticated has no unreviewed public RPC entry point');
 
 -- Fixtures are inserted as database owner. Every probe below changes to the

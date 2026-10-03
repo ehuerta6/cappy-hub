@@ -30,7 +30,7 @@ export const saveEventInputSchema = zod
     event_type_id: positiveSafeIntegerStringSchema("Select a valid event type"),
     location: requiredTrimmedStringSchema(
       "Name, description and location are required",
-    ),
+    ).trim(),
     event_date: eventDateInputSchema,
     start_time: eventTimeInputSchema,
     end_time: eventTimeInputSchema,
