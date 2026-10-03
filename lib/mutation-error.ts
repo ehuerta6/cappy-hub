@@ -38,7 +38,7 @@ const safeMessages = new Set([
   "Required positions cannot be renamed",
   "Required positions cannot be deleted",
   "This position cannot be deleted because officers are using it",
-  "This branch cannot be deleted because officers or events are using it",
+  "This branch cannot be deleted because dependent records are using it",
   "This event type cannot be deleted because events are using it",
   "Rate must be a finite positive number",
   "Participation configuration not found",

@@ -36,28 +36,28 @@ export default async function EditEventPage({
     supabase.from("branches").select("id,name").order("name"),
     supabase
       .from("event_types")
-      .select("id,name")
-      .in("name", ["Meeting", "Social", "Workshop"])
+      .select("id,name,available_for_new_events")
       .order("name"),
     supabase.from("event_locations").select("id,name").order("name"),
   ]);
   if (event.error || branches.error || eventTypes.error || locations.error)
     throw new Error("Failed to load event form");
   if (!event.data || event.data.deleted_at) notFound();
+  const currentEvent = event.data;
   if (
     !canManageEvent(
       actor,
-      event.data.event_branches.map((eventBranch) => eventBranch.branch_id),
+      currentEvent.event_branches.map((eventBranch) => eventBranch.branch_id),
     )
   )
     redirect("/access-denied");
   const series =
-    event.data.recurrence_series_id === null
+    currentEvent.recurrence_series_id === null
       ? undefined
       : await supabase
           .from("event_series")
           .select("id,revision,recurrence_rule,starts_on")
-          .eq("id", event.data.recurrence_series_id)
+          .eq("id", currentEvent.recurrence_series_id)
           .single();
   if (series?.error) throw new Error("Failed to load recurring series");
   return (
@@ -73,11 +73,15 @@ export default async function EditEventPage({
         series={series?.data ?? undefined}
         mutationRequestKey={crypto.randomUUID()}
         allowGlobal={canSeeAllBranches(actor)}
-        event={event.data}
+        event={currentEvent}
         branches={branches.data}
-        eventTypes={eventTypes.data}
+        eventTypes={eventTypes.data.filter(
+          (type) =>
+            type.available_for_new_events ||
+            type.id === currentEvent.event_type_id,
+        )}
         locations={locations.data}
-        branchIds={event.data.event_branches.map(
+        branchIds={currentEvent.event_branches.map(
           (eventBranch) => eventBranch.branch_id,
         )}
       />

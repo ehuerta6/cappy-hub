@@ -39,12 +39,13 @@ with denver_today as (
     (-337,'Bulk removed',-1,time '09:00',time '10:00','past',null::numeric,true)
 )
 insert into events(id,name,description,location,event_type_id,starts_at,ends_at,status,
- participation_points_per_hour_at_end,deleted_at)
+ participation_points_per_hour_at_end,deleted_at,deleted_by)
 select f.id,f.name,'Test event','TBA',(select id from event_types where name='Meeting'),
   ((d.local_date+f.day_offset)::timestamp+f.start_time) at time zone 'America/Denver',
   ((d.local_date+f.day_offset)::timestamp+f.end_time) at time zone 'America/Denver',
   f.status,f.rate,case when f.is_removed then
-    ((d.local_date+f.day_offset)::timestamp+f.end_time) at time zone 'America/Denver' end
+    ((d.local_date+f.day_offset)::timestamp+f.end_time) at time zone 'America/Denver' end,
+  case when f.is_removed then '00000000-0000-4000-8000-000000000331'::uuid end
 from denver_today d cross join fixtures f;
 insert into event_branches(event_id,branch_id)
 select -332,id from branches where name='intro'

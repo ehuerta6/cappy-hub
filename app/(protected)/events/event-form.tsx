@@ -31,7 +31,9 @@ export default function EventForm({
 }: {
   returnTo?: string;
   branches: Pick<Tables<"branches">, "id" | "name">[];
-  eventTypes: Pick<Tables<"event_types">, "id" | "name">[];
+  eventTypes: (Pick<Tables<"event_types">, "id" | "name"> & {
+    available_for_new_events?: boolean;
+  })[];
   locations: Pick<Tables<"event_locations">, "id" | "name">[];
   event?: Tables<"events">;
   branchIds?: number[];
@@ -166,6 +168,7 @@ export default function EventForm({
           {eventTypes.map((type) => (
             <option key={type.id} value={type.id}>
               {type.name}
+              {type.available_for_new_events === false ? " (historical)" : ""}
             </option>
           ))}
         </select>

@@ -37,8 +37,9 @@ insert into events(id,name,description,location,event_type_id,starts_at,ends_at,
     '2020-09-23 09:00-06','2020-09-23 10:00-06','upcoming');
 insert into event_officers(event_id,officer_id) values
   (-801,-801),(-801,-802),(-803,-801),(-804,-801),(-805,-801),(-806,-801);
-insert into point_transactions(id,officer_id,event_id,points,reason,award_type,removed_at)
-  values(-806,-801,-806,1,'Previously removed','participation',now());
+insert into point_transactions(id,officer_id,event_id,points,reason,award_type,removed_at,removed_by)
+  values(-806,-801,-806,1,'Previously removed','participation',now(),
+    '00000000-0000-4000-8000-000000000807');
 update application_config set participation_points_per_hour=1.25 where id=1;
 
 set local role anon;

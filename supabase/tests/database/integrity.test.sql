@@ -71,10 +71,58 @@ insert into point_transactions(id,officer_id,event_id,points,reason,award_type) 
   (-1,-1,-1,1.5,'Participation','participation'),(-2,-1,null,-0.25,'Correction','correction');
 select throws_ok($$insert into point_transactions(officer_id,event_id,points,reason,award_type) values(-1,-1,1,'Duplicate','participation')$$,
   '23505',null,'participation cannot be awarded twice');
-update point_transactions set removed_at=now() where id=-1;
+update point_transactions set removed_at=now(),removed_by='00000000-0000-4000-8000-000000000201' where id=-1;
 select throws_ok($$insert into point_transactions(officer_id,event_id,points,reason,award_type) values(-1,-1,1,'Regeneration','participation')$$,
   '23505',null,'removed participation award cannot regenerate');
 select lives_ok($$update application_config set participation_points_per_hour=1.25$$,'participation rate remains configurable');
+
+select ok((select convalidated from pg_catalog.pg_constraint
+  where conrelid='public.events'::regclass and conname='events_local_hours_check'),
+  'existing Event local-hours constraint is validated');
+select throws_ok($$update events set deleted_at=now() where id=-2$$,
+  '23514',null,'Event deletion timestamp requires an actor');
+select throws_ok($$update events set deleted_by='00000000-0000-4000-8000-000000000201' where id=-2$$,
+  '23514',null,'Event deletion actor requires a timestamp');
+select lives_ok($$update events set deleted_at=now(),deleted_by='00000000-0000-4000-8000-000000000201' where id=-2$$,
+  'paired Event deletion metadata is accepted');
+select throws_ok($$update point_transactions set removed_by=null where id=-1$$,
+  '23514',null,'Point removal actor cannot be cleared alone');
+select throws_ok($$update point_transactions set updated_at=now() where id=-2$$,
+  '23514',null,'Point update timestamp requires an actor');
+select throws_ok($$update point_transactions set updated_by='00000000-0000-4000-8000-000000000201' where id=-2$$,
+  '23514',null,'Point update actor requires a timestamp');
+select lives_ok($$update point_transactions set updated_at=now(),updated_by='00000000-0000-4000-8000-000000000201' where id=-2$$,
+  'paired Point update metadata is accepted');
+select is((select created_by from point_transactions where id=-2),null::uuid,
+  'system-created Point transaction may still lack a creator');
+insert into officer_warnings(id,officer_id,reason) values(-1,-1,'Integrity fixture');
+insert into warning_approvals(warning_id,approver_id,approver_role) values
+  (-1,'00000000-0000-4000-8000-000000000201','President');
+select throws_ok($$update warning_approvals set decision='approved' where warning_id=-1$$,
+  '23514',null,'decided warning requires a decision timestamp');
+select throws_ok($$update warning_approvals set decided_at=now() where warning_id=-1$$,
+  '23514',null,'pending warning cannot have a decision timestamp');
+select lives_ok($$update warning_approvals set decision='approved',decided_at=now() where warning_id=-1$$,
+  'paired warning decision metadata is accepted');
+
+select is((select count(*) from event_types where available_for_new_events),3::bigint,
+  'only the three current Event Types are available for new Events');
+insert into event_types(name) values('General') on conflict (lower(trim(name))) do nothing;
+insert into events(id,name,description,location,event_type_id,starts_at,ends_at) values
+  (-3,'Legacy General','Historical Event','TBA',(select id from event_types where name='General'),
+   '2099-09-20 09:00-06','2099-09-20 10:00-06');
+select throws_ok($$select save_event_with_links('New legacy','Description',
+  (select id from event_types where name='General'),'TBA','2099-09-20',
+  '2099-09-20 09:00-06','2099-09-20 10:00-06','{}'::bigint[])$$,
+  'P0001','Invalid event type','trusted creation rejects retired Event Types');
+select lives_ok($$select save_event_with_links('Edited legacy','Historical Event',
+  (select id from event_types where name='General'),'TBA','2099-09-20',
+  '2099-09-20 09:00-06','2099-09-20 10:00-06','{}'::bigint[],-3)$$,
+  'historical Event can be edited without changing its retired type');
+select throws_ok($$select save_event_with_links('Invalid switch','Description',
+  (select id from event_types where name='General'),'TBA','2099-09-20',
+  '2099-09-20 09:00-06','2099-09-20 10:00-06','{}'::bigint[],-1)$$,
+  'P0001','Invalid event type','current Event cannot switch to a retired type');
 
 select * from finish();
 rollback;

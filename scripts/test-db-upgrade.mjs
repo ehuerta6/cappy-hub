@@ -51,6 +51,13 @@ try {
     if (migration === "20261003042248_recurring_series_scopes.sql") {
       psql(readFileSync("supabase/fixtures/pre-series-scopes.sql"));
     }
+    if (migration.endsWith("_harden_catalogs_lifecycle_and_rls.sql")) {
+      psql(`create table upgrade_fixture.pre_hardening_events as select to_jsonb(e) row from public.events e;
+        create table upgrade_fixture.pre_hardening_points as select to_jsonb(p) row from public.point_transactions p;
+        create table upgrade_fixture.pre_hardening_branches as select to_jsonb(b) row from public.branches b;
+        create table upgrade_fixture.pre_hardening_positions as select to_jsonb(p) row from public.positions p;
+        create table upgrade_fixture.pre_hardening_event_types as select to_jsonb(t) row from public.event_types t;`);
+    }
     psql(readFileSync(`supabase/migrations/${migration}`));
   }
   cli([

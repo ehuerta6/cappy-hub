@@ -21,7 +21,7 @@ export default async function NewEventPage() {
     supabase
       .from("event_types")
       .select("id,name")
-      .in("name", ["Meeting", "Social", "Workshop"])
+      .eq("available_for_new_events", true)
       .order("name"),
     supabase.from("event_locations").select("id,name").order("name"),
   ]);

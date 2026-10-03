@@ -229,16 +229,19 @@ export type Database = {
       };
       event_types: {
         Row: {
+          available_for_new_events: boolean;
           created_at: string;
           id: number;
           name: string;
         };
         Insert: {
+          available_for_new_events?: boolean;
           created_at?: string;
           id?: number;
           name: string;
         };
         Update: {
+          available_for_new_events?: boolean;
           created_at?: string;
           id?: number;
           name?: string;

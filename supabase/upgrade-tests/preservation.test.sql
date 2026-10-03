@@ -70,13 +70,54 @@ select is((select count(*) from events where id=90007),0::bigint,
   'truly untimed legacy Event is removed separately from timed historical types');
 select is((select count(*) from event_types where name in ('General','Intro','ICPC')),3::bigint,
   'referenced legacy Event Type catalog values remain readable');
+select results_eq(
+  $$select id,name,created_at from event_types order by id$$,
+  $$select (row->>'id')::bigint,row->>'name',(row->>'created_at')::timestamptz from upgrade_fixture.pre_hardening_event_types order by (row->>'id')::bigint$$,
+  'Event Type IDs, labels and timestamps survive hardening');
+select is((select count(*) from event_types where available_for_new_events),3::bigint,
+  'only Meeting, Social and Workshop remain available for new Events');
+select is((select count(*) from event_types where name in ('General','Intro','ICPC') and available_for_new_events),0::bigint,
+  'historical Event Types are retired without deleting their rows');
+select results_eq(
+  $$select e.id,e.event_type_id,t.name from events e join event_types t on t.id=e.event_type_id where e.id between 90004 and 90006 order by e.id$$,
+  $$select (e.row->>'id')::bigint,(e.row->>'event_type_id')::bigint,t.row->>'name' from upgrade_fixture.pre_hardening_events e join upgrade_fixture.pre_hardening_event_types t on (t.row->>'id')::bigint=(e.row->>'event_type_id')::bigint where (e.row->>'id')::bigint between 90004 and 90006 order by (e.row->>'id')::bigint$$,
+  'historical Events retain their exact type IDs and labels');
+select is((select jsonb_agg(to_jsonb(e) order by id) from events e),
+  (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.pre_hardening_events),
+  'hardening leaves every Event row and lifecycle value intact');
+select is((select jsonb_agg(to_jsonb(p) order by id) from point_transactions p),
+  (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.pre_hardening_points),
+  'hardening leaves Point history and lifecycle metadata intact');
+select is((select jsonb_agg(to_jsonb(b) order by id) from branches b),
+  (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.pre_hardening_branches),
+  'Branch names, IDs and timestamps survive normalization');
+select is((select jsonb_agg(to_jsonb(p) order by id) from positions p),
+  (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.pre_hardening_positions),
+  'Position names, IDs and timestamps survive normalization');
+select ok((select convalidated from pg_catalog.pg_constraint where conrelid='public.events'::regclass and conname='events_local_hours_check'),
+  'upgrade validates the existing Event local-hours constraint');
 
-insert into auth.users(id) values ('20000000-0000-0000-0000-000000000002');
+insert into auth.users(id) values
+ ('20000000-0000-0000-0000-000000000002'),
+ ('20000000-0000-0000-0000-000000000003'),
+ ('20000000-0000-0000-0000-000000000004');
 insert into officers(id,name,utep_email,position_id,status,application_role,auth_user_id) values
   (-90010,'Upgrade test admin','upgrade-admin@example.org',(select id from positions where name='Officer'),'active','admin',
     '20000000-0000-0000-0000-000000000002');
-select set_config('request.jwt.claim.sub','20000000-0000-0000-0000-000000000002',true);
+update officers set auth_user_id='20000000-0000-0000-0000-000000000003' where id=90001;
+set local role anon;
+select throws_ok($$select count(*) from event_locations$$,'42501',null,
+  'anonymous account cannot read Event Locations after upgrade');
 set local role authenticated;
+select set_config('request.jwt.claim.sub','20000000-0000-0000-0000-000000000004',true);
+select is((select count(*) from event_locations),0::bigint,
+  'unmatched account cannot read Event Locations after upgrade');
+select set_config('request.jwt.claim.sub','20000000-0000-0000-0000-000000000003',true);
+select is((select count(*) from event_locations),0::bigint,
+  'inactive Officer cannot read Event Locations after upgrade');
+select set_config('request.jwt.claim.sub','20000000-0000-0000-0000-000000000002',true);
+select ok((select count(*) from event_locations)>0,
+  'active linked Officer reads Event Locations after upgrade');
 select throws_ok($$select save_event_with_links('Rejected General','Description',
   (select id from event_types where name='General'),'TBA','2099-09-20',
   '2099-09-20 09:00-06','2099-09-20 10:00-06','{}'::bigint[])$$,

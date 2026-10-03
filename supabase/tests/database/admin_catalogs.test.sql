@@ -26,12 +26,22 @@ select throws_ok($$select delete_position((select id from positions where name='
  'P0001','Required positions cannot be deleted','canonical Lead cannot be deleted');
 select lives_ok($$select rename_position((select id from positions where name='Mentor'),'Senior Mentor')$$,
  'admin renames position');
+select throws_ok($$select rename_position((select id from positions where name='Senior Mentor'),'  OFFICER  ')$$,
+ '23505',null,'position rename rejects normalized duplicates');
 select lives_ok($$select delete_position((select id from positions where name='Senior Mentor'))$$,
  'admin deletes unused custom position');
 
 select lives_ok($$select create_branch('  research  ')$$,'admin creates branch');
+select throws_ok($$select create_branch('  RESEARCH  ')$$,'23505',null,
+ 'branch creation rejects normalized duplicates');
+select throws_ok($$select create_branch(E'\t intro \t')$$,'23505',null,
+ 'branch creation rejects tab-padded normalized duplicates');
 select lives_ok($$select rename_branch((select id from branches where name='research'),'research-new')$$,
  'admin renames branch');
+select throws_ok($$select rename_branch((select id from branches where name='research-new'),'  InTro  ')$$,
+ '23505',null,'branch rename rejects normalized duplicates');
+select throws_ok($$select create_position('  LEAD  ')$$,'23505',null,
+ 'position creation cannot duplicate a required position');
 select lives_ok($$select delete_branch((select id from branches where name='research-new'))$$,
  'admin deletes unused branch');
 
@@ -48,6 +58,7 @@ reset role;
 insert into positions(name) values('Historian');
 update officers set position_id=(select id from positions where name='Historian') where id=-602;
 insert into branches(name) values('officer-reference'),('event-reference');
+insert into branches(name) values('task-reference');
 insert into officer_branches(officer_id,branch_id)
  values(-602,(select id from branches where name='officer-reference'));
 insert into events(id,name,description,location,event_type_id,starts_at,ends_at)
@@ -55,6 +66,9 @@ insert into events(id,name,description,location,event_type_id,starts_at,ends_at)
  '2099-09-20 09:00-06','2099-09-20 10:00-06');
 insert into event_branches(event_id,branch_id)
  values(-601,(select id from branches where name='event-reference'));
+insert into tasks(title,description,task_type,branch_id,due_date,points,created_by)
+ values('Branch dependency fixture','Keep branch attached to task','Flyer',
+   (select id from branches where name='task-reference'),'2099-09-20',1,-601);
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000601',true);
 set local role authenticated;
@@ -65,10 +79,12 @@ select throws_ok($$select delete_position((select id from positions where name='
 select lives_ok($$select rename_branch((select id from branches where name='officer-reference'),'officer-renamed')$$,
  'membership branch can be renamed');
 select throws_ok($$select delete_branch((select id from branches where name='officer-renamed'))$$,
- 'P0001','This branch cannot be deleted because officers or events are using it','membership branch cannot be deleted');
+ 'P0001','This branch cannot be deleted because dependent records are using it','membership branch cannot be deleted');
 select lives_ok($$select rename_branch((select id from branches where name='event-reference'),'event-renamed')$$,
  'event branch can be renamed');
 select throws_ok($$select delete_branch((select id from branches where name='event-renamed'))$$,
- 'P0001','This branch cannot be deleted because officers or events are using it','event branch cannot be deleted');
+ 'P0001','This branch cannot be deleted because dependent records are using it','event branch cannot be deleted');
+select throws_ok($$select delete_branch((select id from branches where name='task-reference'))$$,
+ 'P0001','This branch cannot be deleted because dependent records are using it','Task branch cannot be deleted');
 select * from finish();
 rollback;

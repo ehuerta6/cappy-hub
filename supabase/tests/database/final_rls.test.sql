@@ -126,7 +126,7 @@ insert into event_branches(event_id,branch_id)
 insert into point_transactions(id,officer_id,points,reason,award_type) values
   (-401,-403,2,'RLS active points','manual'),
   (-402,-403,5,'RLS removed points','manual');
-update point_transactions set removed_at=now() where id=-402;
+update point_transactions set removed_at=now(),removed_by='00000000-0000-4000-8000-000000000401' where id=-402;
 insert into officer_warnings(id,officer_id,reason,status) values
   (-401,-403,'RLS approved own','approved'),
   (-402,-403,'RLS pending own','pending'),
