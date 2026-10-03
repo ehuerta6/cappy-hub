@@ -18,7 +18,6 @@ const safeMessages = new Set([
   "Officer not found",
   "Event not found",
   "Event outside branch scope",
-  "Only upcoming events can be edited",
   "This event cannot be cancelled",
   "Cannot manage another officer signup for this event",
   "Signups are closed for this event",

@@ -4,7 +4,10 @@ export default function ErrorPage({ reset }: { reset: () => void }) {
   return (
     <>
       <h1>Unable to load this page</h1>
-      <p>Check your Supabase configuration and connection.</p>
+      <p>
+        This page could not be loaded. If the problem continues, contact a Cappy
+        Hub maintainer.
+      </p>
       <button onClick={reset}>Try again</button>
     </>
   );
