@@ -7,9 +7,10 @@ import {
 } from "@/lib/form-feedback";
 import {
   RecurrenceScope,
-  confirmRecurrenceMutation,
+  recurrenceScopeLabels,
   type RecurrenceSeries,
 } from "@/components/recurrence-scope";
+import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { useActionState } from "react";
 import type { Tables } from "@/lib/database.types";
 import {
@@ -184,13 +185,7 @@ export function CancelForm({
     ...initialFormActionState,
   });
   return (
-    <form
-      action={action}
-      onSubmit={(event) => {
-        if (!confirmRecurrenceMutation(event.currentTarget, "Cancel Event"))
-          event.preventDefault();
-      }}
-    >
+    <form action={action}>
       <input type="hidden" name="event_id" value={eventId} />
       {series && requestKey && (
         <RecurrenceScope
@@ -200,9 +195,29 @@ export function CancelForm({
         />
       )}
       <ActionFeedback state={state} />
-      <button disabled={pending} className="button-secondary">
-        {pending ? "Cancelling…" : "Cancel event"}
-      </button>
+      <ConfirmationDialog
+        title="Cancel Event?"
+        description={
+          series
+            ? "This applies cancellation to the selected recurrence scope. Existing workflow history remains governed by the current Event rules."
+            : "This changes the Event’s status to cancelled. Existing Event history and eligibility rules stay in effect."
+        }
+        triggerLabel={pending ? "Cancelling…" : "Cancel event"}
+        confirmLabel="Cancel Event"
+        destructive
+        pending={pending}
+        triggerClassName="button-secondary"
+        context={
+          series
+            ? {
+                label: "Scope",
+                fieldName: "scope",
+                values: recurrenceScopeLabels,
+                defaultValue: "occurrence",
+              }
+            : undefined
+        }
+      />
     </form>
   );
 }
@@ -235,13 +250,7 @@ export function RemoveEventForm({
     ...initialFormActionState,
   });
   return (
-    <form
-      action={action}
-      onSubmit={(event) => {
-        if (!confirmRecurrenceMutation(event.currentTarget, "Remove Event"))
-          event.preventDefault();
-      }}
-    >
+    <form action={action}>
       <input type="hidden" name="event_id" value={eventId} />
       {series && requestKey && (
         <RecurrenceScope
@@ -251,9 +260,29 @@ export function RemoveEventForm({
         />
       )}
       <ActionFeedback state={state} />
-      <button disabled={pending} className="button-secondary">
-        {pending ? "Removing…" : "Remove event"}
-      </button>
+      <ConfirmationDialog
+        title="Remove Event?"
+        description={
+          series
+            ? "This removes the Event in the selected scope according to current series rules. Existing protected history remains governed by the current workflow rules."
+            : "This removes the Event from active use. Existing protected history remains governed by the current workflow rules."
+        }
+        triggerLabel={pending ? "Removing…" : "Remove event"}
+        confirmLabel="Remove Event"
+        destructive
+        pending={pending}
+        triggerClassName="button-secondary"
+        context={
+          series
+            ? {
+                label: "Scope",
+                fieldName: "scope",
+                values: recurrenceScopeLabels,
+                defaultValue: "occurrence",
+              }
+            : undefined
+        }
+      />
     </form>
   );
 }

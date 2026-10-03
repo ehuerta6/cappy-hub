@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { ActionFeedback, FieldError } from "@/components/ui";
+import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { createWarning, decideWarning, deleteWarning } from "./warning-actions";
 
@@ -45,30 +46,35 @@ export function WarningDecisionForm({ warningId }: { warningId: number }) {
     "approved" | "rejected" | null
   >(null);
   return (
-    <form
-      action={action}
-      onSubmit={(event) => {
-        const button = (event.nativeEvent as SubmitEvent)
-          .submitter as HTMLButtonElement | null;
-        const decision = button?.value === "rejected" ? "reject" : "approve";
-        if (
-          !window.confirm(`Are you sure you want to ${decision} this warning?`)
-        )
-          event.preventDefault();
-        else
-          setPendingDecision(
-            button?.value === "rejected" ? "rejected" : "approved",
-          );
-      }}
-      className="flex flex-wrap items-center gap-2"
-    >
+    <form action={action} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="warning_id" value={warningId} />
-      <button name="decision" value="approved" disabled={pending}>
-        {pending && pendingDecision === "approved" ? "Approving…" : "Approve"}
-      </button>
-      <button name="decision" value="rejected" disabled={pending}>
-        {pending && pendingDecision === "rejected" ? "Rejecting…" : "Reject"}
-      </button>
+      <ConfirmationDialog
+        title="Approve warning?"
+        description="This records your approval for the warning under the existing leadership approval rules."
+        triggerLabel={
+          pending && pendingDecision === "approved" ? "Approving…" : "Approve"
+        }
+        confirmLabel="Approve"
+        pending={pending}
+        triggerClassName=""
+        confirmName="decision"
+        confirmValue="approved"
+        onConfirm={() => setPendingDecision("approved")}
+      />
+      <ConfirmationDialog
+        title="Reject warning?"
+        description="This records your rejection for the warning under the existing leadership decision rules."
+        triggerLabel={
+          pending && pendingDecision === "rejected" ? "Rejecting…" : "Reject"
+        }
+        confirmLabel="Reject"
+        destructive
+        pending={pending}
+        triggerClassName=""
+        confirmName="decision"
+        confirmValue="rejected"
+        onConfirm={() => setPendingDecision("rejected")}
+      />
       <ActionFeedback state={state} />
     </form>
   );
@@ -83,21 +89,18 @@ export function DeleteWarningForm({
 }) {
   const [state, action, pending] = useActionState(deleteWarning, initial);
   return (
-    <form
-      action={action}
-      onSubmit={(event) => {
-        if (
-          !window.confirm(
-            "Delete this warning? Its System Log record will remain.",
-          )
-        )
-          event.preventDefault();
-      }}
-      className="flex flex-wrap items-center gap-2"
-    >
+    <form action={action} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="warning_id" value={warningId} />
       <input type="hidden" name="officer_id" value={officerId} />
-      <button disabled={pending}>{pending ? "Deleting…" : "Delete"}</button>
+      <ConfirmationDialog
+        title="Delete warning?"
+        description="This deletes the warning record. Its System Log record remains."
+        triggerLabel={pending ? "Deleting…" : "Delete"}
+        confirmLabel="Delete warning"
+        destructive
+        pending={pending}
+        triggerClassName="button-secondary"
+      />
       <ActionFeedback state={state} />
     </form>
   );

@@ -1,6 +1,7 @@
 "use client";
 import { useActionState } from "react";
 import { ActionFeedback, FieldError } from "@/components/ui";
+import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { editPointTransaction, removePointTransaction } from "./actions";
 
@@ -53,21 +54,17 @@ export default function PointActions({
         <button disabled={editing}>{editing ? "Saving…" : "Edit"}</button>
       </form>
       <ActionFeedback state={editState} />
-      <form
-        action={removeAction}
-        onSubmit={(event) => {
-          if (
-            !window.confirm(
-              "Remove this transaction? It will stop counting in totals.",
-            )
-          )
-            event.preventDefault();
-        }}
-      >
+      <form action={removeAction}>
         <input type="hidden" name="transaction_id" value={transactionId} />
-        <button disabled={removing} className="button-secondary">
-          {removing ? "Removing…" : "Remove"}
-        </button>
+        <ConfirmationDialog
+          title="Remove Point transaction?"
+          description="This marks the Point transaction as removed, so it no longer counts in totals. The removal is recorded in the System Log."
+          triggerLabel={removing ? "Removing…" : "Remove"}
+          confirmLabel="Remove transaction"
+          destructive
+          pending={removing}
+          triggerClassName="button-secondary"
+        />
       </form>
       <ActionFeedback state={removeState} />
     </div>

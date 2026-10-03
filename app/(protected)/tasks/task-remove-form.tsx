@@ -2,9 +2,10 @@
 
 import {
   RecurrenceScope,
-  confirmRecurrenceMutation,
+  recurrenceScopeLabels,
   type RecurrenceSeries,
 } from "@/components/recurrence-scope";
+import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { useActionState } from "react";
 import { ActionFeedback } from "@/components/ui";
 import { initialFormActionState } from "@/lib/form-feedback";
@@ -24,13 +25,7 @@ export function TaskRemoveForm({
     initialFormActionState,
   );
   return (
-    <form
-      action={action}
-      onSubmit={(event) => {
-        if (!confirmRecurrenceMutation(event.currentTarget, "Remove Task"))
-          event.preventDefault();
-      }}
-    >
+    <form action={action}>
       <RecurrenceScope
         series={series}
         requestKey={requestKey}
@@ -38,9 +33,21 @@ export function TaskRemoveForm({
       />
       <input type="hidden" name="task_id" value={taskId} />
       <ActionFeedback state={state} />
-      <button className="button-secondary" disabled={pending}>
-        {pending ? "Removing…" : "Remove task"}
-      </button>
+      <ConfirmationDialog
+        title="Remove Task?"
+        description="This removes the Task in the selected scope according to current recurring-series rules. Protected completion and award history remains governed by existing workflow rules."
+        triggerLabel={pending ? "Removing…" : "Remove task"}
+        confirmLabel="Remove Task"
+        destructive
+        pending={pending}
+        triggerClassName="button-secondary"
+        context={{
+          label: "Scope",
+          fieldName: "scope",
+          values: recurrenceScopeLabels,
+          defaultValue: "occurrence",
+        }}
+      />
     </form>
   );
 }

@@ -104,14 +104,6 @@ export function RecurrenceScope({
   );
 }
 
-export function confirmRecurrenceMutation(form: HTMLFormElement, verb: string) {
-  const scope = new FormData(form).get("scope") as
-    keyof typeof recurrenceScopeLabels | null;
-  return window.confirm(
-    `${verb}: ${scope ? recurrenceScopeLabels[scope] : "this occurrence"}? Workflow history will remain.`,
-  );
-}
-
 /** Track submitted differences, including changes reverted before submission. */
 export function changedFormFields(
   form: HTMLFormElement,

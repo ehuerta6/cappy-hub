@@ -195,7 +195,7 @@ The shared UI is deliberately small. Reuse these roles and keep their use consis
 | `ContextualBackLink` | Destination-specific return navigation on secondary pages, with safe list context when supplied. | Name the actual parent; preserve the originating list state when supplied; never imply browser history. |
 | `ThemeToggle`        | Switches between the existing light and dark themes.                                             | Keep its accessible name explicit about the destination theme.                                          |
 
-Other workflows are implemented near their owning screens: `TaskWorkflow`, recurrence fields/scope controls, warning forms, and point-action forms. Keep these actions close to their records. There is no shared dialog primitive or general-purpose card system to imitate.
+Other workflows are implemented near their owning screens: `TaskWorkflow`, recurrence fields/scope controls, warning forms, and point-action forms. Keep these actions close to their records. `ConfirmationDialog` is a small shared native HTML dialog for the existing consequential actions; it is not a general-purpose modal framework. There is no general-purpose card system to imitate.
 
 ## 11. Buttons and actions
 
@@ -258,7 +258,7 @@ Tables are a core pattern for directory, event, point, and audit work. **CURRENT
 
 ## 16. Forms and dialogs
 
-Long workflows belong on dedicated pages, with a contextual return link. Small, focused actions can stay inline beside the record they affect. The current application does not use a reusable modal-dialog system; do not convert existing workflows into dialogs for visual novelty. **CURRENT:** Recurrence-scope changes, point-transaction removal, and warning approval/rejection/deletion use the browser's native confirmation dialog. Other operations should be described according to their actual behavior, not assumed to share that confirmation pattern.
+Long workflows belong on dedicated pages, with a contextual return link. Small, focused actions can stay inline beside the record they affect. **CURRENT:** Event cancellation/removal, recurring Task removal, Point transaction removal, and warning approval/rejection/deletion use the shared in-app `ConfirmationDialog`, built on native HTML `<dialog>`. Recurring Event/Task actions show the selected occurrence scope from the existing form state. Other operations should be described according to their actual behavior, not assumed to share that confirmation pattern.
 
 **DESIGN DECISION:** Group long forms into clear sections using the field names and relationships already present. Use two columns on desktop only for natural pairs; collapse to one column on narrow screens. Prefer existing constrained choices over unnecessary free typing. Keep labels explicit and optional/required status faithful to current validation. Validate close to the relevant field or action. Do not infer required fields or change validation rules for a proposed layout. Any dialog used for a future focused action must have a clear name and exit, work by keyboard, and avoid stacking with another dialog.
 
@@ -275,7 +275,7 @@ For recurring Events and Tasks, the current choices include this occurrence, thi
 
 ## 17. Feedback, empty states, and UI states
 
-**CURRENT:** Server-action forms show inline errors with `role="alert"`, successes with `role="status"`, and pending button labels such as “Saving…” or “Adding…”. Pending controls are disabled. Filtered zero-results messages differ from an actually empty list. The confirmed operations listed in §16 use explicit browser confirmation. The root error screen offers Try again.
+**CURRENT:** Server-action forms show inline errors with `role="alert"`, successes with `role="status"`, and pending button labels such as “Saving…” or “Adding…”. Pending controls are disabled. Filtered zero-results messages differ from an actually empty list. The confirmed operations listed in §16 use action-specific in-app confirmation dialogs. The root error screen offers Try again.
 
 **DESIGN DECISION:** Keep loading/saving feedback near the operation, state what happened in plain language, disable repeat submission while pending where appropriate, and confirm success only after the trusted server action finishes. Do not assume optimistic updates for administrative records. Disabled controls should still read as controls and should explain unavailable states where needed. Destructive actions should explain their consequences and use confirmation for meaningful destructive operations; offer recovery only where the product permits it. Errors must be legible in both themes, explain what went wrong, and tell the user what they can do when there is a useful next step. Do not surface raw API/database errors, implementation jargon, apologies, or filler.
 
