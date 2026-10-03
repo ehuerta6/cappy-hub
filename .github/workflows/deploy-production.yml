@@ -61,3 +61,10 @@ jobs:
             echo "Vercel production deploy hook request failed."
             exit 1
           fi
+
+      - name: Wait for production deployment and verify login surface
+        timeout-minutes: 11
+        env:
+          PRODUCTION_APP_URL: ${{ vars.PRODUCTION_APP_URL }}
+          EXPECTED_DEPLOYMENT_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: node scripts/verify-production-deployment.mjs
