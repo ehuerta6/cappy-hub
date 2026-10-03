@@ -22,6 +22,7 @@ vi.mock("@/app/(protected)/points/actions", () => ({
 import {
   ConfirmationDialog,
   confirmationContextValue,
+  focusTriggerWhenReady,
 } from "@/components/confirmation-dialog";
 import { ActionFeedback } from "@/components/ui";
 import { recurrenceScopeLabels } from "@/components/recurrence-scope";
@@ -68,6 +69,35 @@ it("labels the native dialog and gives only Confirm submit behavior", () => {
   expect(html.match(/type="submit"/g)).toHaveLength(1);
   expect(html).toContain("Cancel");
   expect(html).toContain("Remove Task");
+});
+
+it("restores focus only to a connected enabled trigger when submission is idle", () => {
+  const focus = vi.fn();
+
+  focusTriggerWhenReady({ disabled: false, isConnected: true, focus }, false);
+  expect(focus).toHaveBeenCalledOnce();
+
+  const disabledFocus = vi.fn();
+  focusTriggerWhenReady(
+    { disabled: true, isConnected: true, focus: disabledFocus },
+    false,
+  );
+  expect(disabledFocus).not.toHaveBeenCalled();
+
+  const pendingFocus = vi.fn();
+  focusTriggerWhenReady(
+    { disabled: true, isConnected: true, focus: pendingFocus },
+    true,
+  );
+  expect(pendingFocus).not.toHaveBeenCalled();
+
+  const disconnectedFocus = vi.fn();
+  focusTriggerWhenReady(
+    { disabled: false, isConnected: false, focus: disconnectedFocus },
+    false,
+  );
+  expect(disconnectedFocus).not.toHaveBeenCalled();
+  expect(() => focusTriggerWhenReady(null, false)).not.toThrow();
 });
 
 it.each([

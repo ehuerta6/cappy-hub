@@ -28,6 +28,14 @@ export function confirmationContextValue(
   );
 }
 
+export function focusTriggerWhenReady(
+  trigger: Pick<HTMLButtonElement, "disabled" | "focus" | "isConnected"> | null,
+  defer: boolean,
+) {
+  if (defer || !trigger || !trigger.isConnected || trigger.disabled) return;
+  trigger.focus();
+}
+
 export function ConfirmationDialog({
   title,
   description,
@@ -61,6 +69,7 @@ export function ConfirmationDialog({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const confirmedRef = useRef(false);
+  const closesForSubmissionRef = useRef(false);
   const previousPendingRef = useRef(pending);
   const [contextValue, setContextValue] = useState(
     context?.values[context.defaultValue] ?? "",
@@ -76,9 +85,14 @@ export function ConfirmationDialog({
     previousPendingRef.current = pending;
 
     if (pending) {
-      if (dialogRef.current?.open) dialogRef.current.close();
+      if (dialogRef.current?.open) {
+        closesForSubmissionRef.current = true;
+        dialogRef.current.close();
+      }
     } else if (wasPending) {
       confirmedRef.current = false;
+      closesForSubmissionRef.current = false;
+      focusTriggerWhenReady(triggerRef.current, false);
     }
   }, [pending]);
 
@@ -106,7 +120,11 @@ export function ConfirmationDialog({
   }
 
   function handleClose() {
-    triggerRef.current?.focus();
+    if (dialogRef.current?.open) return;
+
+    const deferFocus = pending || closesForSubmissionRef.current;
+    if (!deferFocus) confirmedRef.current = false;
+    focusTriggerWhenReady(triggerRef.current, deferFocus);
   }
 
   return (
