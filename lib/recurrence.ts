@@ -19,6 +19,7 @@ const rruleDate = (date: Temporal.PlainDate) =>
 export function expandRecurrenceDates(
   startDate: string,
   input: RecurrenceInput,
+  allowSingle = false,
 ): string[] {
   const start = Temporal.PlainDate.from(startDate);
   if (
@@ -31,7 +32,9 @@ export function expandRecurrenceDates(
     throw new Error("Choose either an occurrence count or an end date");
   if (
     input.count !== null &&
-    (!Number.isInteger(input.count) || input.count < 2 || input.count > 500)
+    (!Number.isInteger(input.count) ||
+      input.count < (allowSingle ? 1 : 2) ||
+      input.count > 500)
   )
     throw new Error("Choose between 2 and 500 occurrences");
 
@@ -94,4 +97,31 @@ export function canonicalRecurrenceRule(input: RecurrenceInput) {
   if (input.count !== null) parts.push(`COUNT=${input.count}`);
   else if (input.until) parts.push(`UNTIL=${input.until.replaceAll("-", "")}`);
   return RRule.fromString(`RRULE:${parts.join(";")}`).toString();
+}
+
+/** Reads only the canonical MVP rule format emitted by this module. */
+export function recurrenceFromRule(rule: string): RecurrenceInput {
+  const options = RRule.parseString(rule);
+  const days = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"] as const;
+  const weekdays =
+    options.byweekday === undefined
+      ? []
+      : Array.isArray(options.byweekday)
+        ? options.byweekday
+        : [options.byweekday];
+  return {
+    frequency: options.freq === RRule.DAILY ? "daily" : "weekly",
+    interval: options.interval ?? 1,
+    weekdays: weekdays.flatMap((day) =>
+      day === null
+        ? []
+        : [
+            typeof day === "string"
+              ? day
+              : days[typeof day === "number" ? day : day.weekday],
+          ],
+    ),
+    count: options.count ?? null,
+    until: options.until?.toISOString().slice(0, 10) ?? null,
+  };
 }

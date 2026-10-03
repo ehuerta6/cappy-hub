@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import ContextualBackLink from "@/components/contextual-back-link";
 import {
   PageHeader,
+  ActionLink,
   SectionHeading,
   PointValue,
   StatusBadge,
@@ -42,10 +43,28 @@ export default async function TaskDetailPage({
   const task = result.data;
   const assignment = task.task_assignments;
   const canManageTask = canManageEvent(actor, [task.branch_id]);
+  const series =
+    task.recurrence_series_id === null
+      ? undefined
+      : await supabase
+          .from("task_series")
+          .select("id,revision,recurrence_rule")
+          .eq("id", task.recurrence_series_id)
+          .single();
+  if (series?.error) throw new Error("Failed to load recurring series");
   return (
     <div className="space-y-6">
       <ContextualBackLink href="/tasks">Back to tasks</ContextualBackLink>
-      <PageHeader title={task.title} />
+      <PageHeader
+        title={task.title}
+        action={
+          canManageTask && series?.data ? (
+            <ActionLink href={`/tasks/${task.id}/edit`}>
+              Edit recurring task
+            </ActionLink>
+          ) : undefined
+        }
+      />
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <section className="min-w-0 space-y-4 rounded-lg border border-border p-4">
           <SectionHeading title="Task details" />
@@ -77,8 +96,7 @@ export default async function TaskDetailPage({
           {task.recurrence_series_id !== null && (
             <p className="text-sm text-muted">
               Recurring occurrence. Its due date, assignment, completion,
-              approval and points belong to this Task only. Series editing is
-              not supported.
+              approval and points belong to this Task only.
             </p>
           )}
           <TaskWorkflow
@@ -91,7 +109,13 @@ export default async function TaskDetailPage({
           {task.recurrence_series_id !== null &&
           canManageTask &&
           (!assignment || assignment.completed_at === null) ? (
-            <TaskRemoveForm taskId={task.id} />
+            series?.data ? (
+              <TaskRemoveForm
+                taskId={task.id}
+                series={series.data}
+                requestKey={crypto.randomUUID()}
+              />
+            ) : null
           ) : null}
         </section>
       </div>

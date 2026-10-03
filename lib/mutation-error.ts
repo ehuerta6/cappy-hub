@@ -1,5 +1,18 @@
 // Database constraint details are useful in logs, but not in form responses.
 const safeMessages = new Set([
+  "Invalid recurrence scope or operation",
+  "Invalid recurrence edit fields",
+  "Recurring series not found",
+  "Occurrence outside active schedule",
+  "Series changed; reload and try again",
+  "Occurrence does not belong to this series",
+  "Future schedule must remain after earlier occurrences",
+  "Schedule would recreate a removed occurrence",
+  "Completed or awarded Task point settings cannot be edited",
+  "Completed or awarded Tasks cannot be removed",
+  "Only recurring Task occurrences can be removed",
+  "Task has been removed",
+  "Idempotency key already used",
   "Admin required",
   "Unauthorized",
   "Officer not found",

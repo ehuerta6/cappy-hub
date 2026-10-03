@@ -4,6 +4,11 @@ import { useActionState, useState } from "react";
 import type { Tables } from "@/lib/database.types";
 import { denverParts } from "@/lib/event-time";
 import { saveEvent } from "./actions";
+import {
+  RecurrenceScope,
+  changedFormFields,
+  type RecurrenceSeries,
+} from "@/components/recurrence-scope";
 import { RecurrenceFields } from "@/components/recurrence-fields";
 
 export default function EventForm({
@@ -14,6 +19,8 @@ export default function EventForm({
   branchIds = [],
   allowGlobal = false,
   recurrenceRequestKey,
+  series,
+  mutationRequestKey,
 }: {
   branches: Pick<Tables<"branches">, "id" | "name">[];
   eventTypes: Pick<Tables<"event_types">, "id" | "name">[];
@@ -22,13 +29,54 @@ export default function EventForm({
   branchIds?: number[];
   allowGlobal?: boolean;
   recurrenceRequestKey?: string;
+  series?: RecurrenceSeries;
+  mutationRequestKey?: string;
 }) {
   const [state, action, pending] = useActionState(saveEvent, { error: "" });
   const [selectedBranches, setSelectedBranches] = useState(branchIds);
 
+  const [editedFields, setEditedFields] = useState<string[]>([]);
+  const original: Record<string, string | string[]> = event
+    ? {
+        name: event.name,
+        description: event.description,
+        location: event.location ?? "",
+        event_type_id: String(event.event_type_id),
+        slides_url: event.slides_url ?? "",
+        meeting_notes_url: event.meeting_notes_url ?? "",
+        event_date: event.event_date,
+        start_time: denverParts(event.starts_at).time,
+        end_time: denverParts(event.ends_at).time,
+        branches: branchIds.map(String),
+      }
+    : {};
   return (
-    <form action={action} className="sm:grid-cols-2">
+    <form
+      action={action}
+      className="sm:grid-cols-2"
+      onChange={(event) => {
+        if (series)
+          setEditedFields(changedFormFields(event.currentTarget, original));
+      }}
+    >
+      {editedFields.map((field) => (
+        <input key={field} type="hidden" name="edited_fields" value={field} />
+      ))}
       {event && <input type="hidden" name="id" value={event.id} />}
+      {series && event && (
+        <>
+          <input
+            type="hidden"
+            name="recurrence_original_date"
+            value={event.event_date}
+          />
+          <input
+            type="hidden"
+            name="recurrence_original_key"
+            value={event.recurrence_key ?? ""}
+          />
+        </>
+      )}
       {!event && recurrenceRequestKey && (
         <input
           type="hidden"
@@ -36,13 +84,14 @@ export default function EventForm({
           value={recurrenceRequestKey}
         />
       )}
-      {event?.recurrence_series_id !== null &&
-        event?.recurrence_series_id !== undefined && (
-          <p className="sm:col-span-2">
-            This is one recurring occurrence. Saving edits this occurrence only;
-            editing future occurrences or the entire series is not supported.
-          </p>
-        )}
+      {series && mutationRequestKey && (
+        <RecurrenceScope
+          series={series}
+          requestKey={mutationRequestKey}
+          recordType="Event"
+          editing
+        />
+      )}
 
       <label className="sm:col-span-2">
         Name
@@ -163,13 +212,21 @@ export default function EventForm({
         <button
           type="button"
           className="button-secondary"
-          onClick={() =>
-            setSelectedBranches(
+          onClick={() => {
+            const next =
               selectedBranches.length === branches.length
                 ? []
-                : branches.map((branch) => branch.id),
-            )
-          }
+                : branches.map((branch) => branch.id);
+            setSelectedBranches(next);
+            if (series)
+              setEditedFields((fields) => [
+                ...fields.filter((field) => field !== "branch_ids"),
+                ...(JSON.stringify([...next].sort()) ===
+                JSON.stringify([...branchIds].sort())
+                  ? []
+                  : ["branch_ids"]),
+              ]);
+          }}
         >
           {selectedBranches.length === branches.length
             ? "Clear all"

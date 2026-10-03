@@ -167,25 +167,40 @@ export type Database = {
         Row: {
           created_at: string;
           created_by: number;
+          ends_on: string | null;
           id: number;
+          parent_series_id: number | null;
           recurrence_rule: string;
           request_key: string;
+          retired: boolean;
+          revision: number;
+          starts_on: string | null;
           time_zone: string;
         };
         Insert: {
           created_at?: string;
           created_by: number;
+          ends_on?: string | null;
           id?: number;
+          parent_series_id?: number | null;
           recurrence_rule: string;
           request_key: string;
+          retired?: boolean;
+          revision?: number;
+          starts_on?: string | null;
           time_zone?: string;
         };
         Update: {
           created_at?: string;
           created_by?: number;
+          ends_on?: string | null;
           id?: number;
+          parent_series_id?: number | null;
           recurrence_rule?: string;
           request_key?: string;
+          retired?: boolean;
+          revision?: number;
+          starts_on?: string | null;
           time_zone?: string;
         };
         Relationships: [
@@ -201,6 +216,13 @@ export type Database = {
             columns: ["created_by"];
             isOneToOne: false;
             referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_series_parent_series_id_fkey";
+            columns: ["parent_series_id"];
+            isOneToOne: false;
+            referencedRelation: "event_series";
             referencedColumns: ["id"];
           },
         ];
@@ -610,23 +632,38 @@ export type Database = {
         Row: {
           created_at: string;
           created_by: number;
+          ends_on: string | null;
           id: number;
+          parent_series_id: number | null;
           recurrence_rule: string;
           request_key: string;
+          retired: boolean;
+          revision: number;
+          starts_on: string | null;
         };
         Insert: {
           created_at?: string;
           created_by: number;
+          ends_on?: string | null;
           id?: number;
+          parent_series_id?: number | null;
           recurrence_rule: string;
           request_key: string;
+          retired?: boolean;
+          revision?: number;
+          starts_on?: string | null;
         };
         Update: {
           created_at?: string;
           created_by?: number;
+          ends_on?: string | null;
           id?: number;
+          parent_series_id?: number | null;
           recurrence_rule?: string;
           request_key?: string;
+          retired?: boolean;
+          revision?: number;
+          starts_on?: string | null;
         };
         Relationships: [
           {
@@ -641,6 +678,13 @@ export type Database = {
             columns: ["created_by"];
             isOneToOne: false;
             referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_series_parent_series_id_fkey";
+            columns: ["parent_series_id"];
+            isOneToOne: false;
+            referencedRelation: "task_series";
             referencedColumns: ["id"];
           },
         ];
@@ -923,6 +967,34 @@ export type Database = {
       delete_event_type: { Args: { p_id: number }; Returns: undefined };
       delete_position: { Args: { p_id: number }; Returns: undefined };
       delete_warning: { Args: { p_warning_id: number }; Returns: undefined };
+      mutate_recurring_event: {
+        Args: {
+          p_dates?: string[];
+          p_operation: string;
+          p_patch?: Json;
+          p_request_key: string;
+          p_revision: number;
+          p_rule?: string;
+          p_scope: string;
+          p_selected_id: number;
+          p_series_id: number;
+        };
+        Returns: number;
+      };
+      mutate_recurring_task: {
+        Args: {
+          p_dates?: string[];
+          p_operation: string;
+          p_patch?: Json;
+          p_request_key: string;
+          p_revision: number;
+          p_rule?: string;
+          p_scope: string;
+          p_selected_id: number;
+          p_series_id: number;
+        };
+        Returns: number;
+      };
       remove_event: { Args: { p_event_id: number }; Returns: boolean };
       remove_participation_award: {
         Args: { p_transaction_id: number };

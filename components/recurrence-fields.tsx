@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { RecurrenceInput } from "@/lib/recurrence";
 
 const weekdays = [
   ["MO", "Mon"],
@@ -14,11 +15,13 @@ const weekdays = [
 
 export function RecurrenceFields({
   recordType,
+  initial,
 }: {
   recordType: "Event" | "Task";
+  initial?: RecurrenceInput;
 }) {
-  const [frequency, setFrequency] = useState("none");
-  const [endMode, setEndMode] = useState("count");
+  const [frequency, setFrequency] = useState(initial?.frequency ?? "none");
+  const [endMode, setEndMode] = useState(initial?.until ? "until" : "count");
   return (
     <fieldset className="sm:col-span-2 space-y-3">
       <legend>Repeat</legend>
@@ -29,7 +32,7 @@ export function RecurrenceFields({
           value={frequency}
           onChange={(event) => setFrequency(event.target.value)}
         >
-          <option value="none">Does not repeat</option>
+          {!initial && <option value="none">Does not repeat</option>}
           <option value="daily">Daily</option>
           <option value="weekly">Weekly</option>
         </select>
@@ -45,7 +48,7 @@ export function RecurrenceFields({
               min="1"
               max="52"
               step="1"
-              defaultValue="1"
+              defaultValue={initial?.interval ?? 1}
               required
             />
           </label>
@@ -59,6 +62,7 @@ export function RecurrenceFields({
                       type="checkbox"
                       name="recurrence_weekdays"
                       value={value}
+                      defaultChecked={initial?.weekdays.includes(value)}
                     />
                     {label}
                   </label>
@@ -79,28 +83,32 @@ export function RecurrenceFields({
           </label>
           {endMode === "count" ? (
             <label>
-              Occurrences (2–500)
+              Occurrences ({initial ? "1" : "2"}–500)
               <input
                 name="recurrence_count"
                 type="number"
-                min="2"
+                min={initial ? 1 : 2}
                 max="500"
                 step="1"
-                defaultValue="12"
+                defaultValue={initial?.count ?? 12}
                 required
               />
             </label>
           ) : (
             <label>
               End date (inclusive)
-              <input name="recurrence_until" type="date" required />
+              <input
+                name="recurrence_until"
+                type="date"
+                defaultValue={initial?.until ?? undefined}
+                required
+              />
             </label>
           )}
           <p>
-            Occurrences are created as separate records.{" "}
-            {recordType === "Event"
-              ? "Edits apply to this occurrence only. Editing this and future occurrences or the entire series is not supported. One occurrence can be cancelled or removed."
-              : "Each Task has its own assignment, completion, approval and points. Task details cannot be edited in this MVP; unfinished occurrences can be removed individually."}
+            Occurrences are created as separate records. Each {recordType} keeps
+            its own workflow and points. Recurring occurrences support
+            individual, following, and whole-series changes.
           </p>
         </>
       )}

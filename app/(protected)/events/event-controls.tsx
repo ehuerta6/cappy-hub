@@ -1,4 +1,9 @@
 "use client";
+import {
+  RecurrenceScope,
+  confirmRecurrenceMutation,
+  type RecurrenceSeries,
+} from "@/components/recurrence-scope";
 import { useActionState } from "react";
 import type { Tables } from "@/lib/database.types";
 import {
@@ -133,7 +138,15 @@ export function BulkAddOfficersForm({
     </form>
   );
 }
-export function CancelForm({ eventId }: { eventId: number }) {
+export function CancelForm({
+  eventId,
+  series,
+  requestKey,
+}: {
+  eventId: number;
+  series?: RecurrenceSeries;
+  requestKey?: string;
+}) {
   const [state, action, pending] = useActionState(cancelEvent, {
     error: "",
     success: "",
@@ -142,15 +155,18 @@ export function CancelForm({ eventId }: { eventId: number }) {
     <form
       action={action}
       onSubmit={(event) => {
-        if (
-          !window.confirm(
-            "Cancel this event? Signups will close and no automatic points will be awarded.",
-          )
-        )
+        if (!confirmRecurrenceMutation(event.currentTarget, "Cancel Event"))
           event.preventDefault();
       }}
     >
       <input type="hidden" name="event_id" value={eventId} />
+      {series && requestKey && (
+        <RecurrenceScope
+          series={series}
+          requestKey={requestKey}
+          recordType="Event"
+        />
+      )}
       {state.error && <p role="alert">{state.error}</p>}
       {state.success && <p role="status">{state.success}</p>}
       <button disabled={pending} className="button-secondary">
@@ -177,7 +193,15 @@ export function RestoreEventForm({ eventId }: { eventId: number }) {
   );
 }
 
-export function RemoveEventForm({ eventId }: { eventId: number }) {
+export function RemoveEventForm({
+  eventId,
+  series,
+  requestKey,
+}: {
+  eventId: number;
+  series?: RecurrenceSeries;
+  requestKey?: string;
+}) {
   const [state, action, pending] = useActionState(removeEvent, {
     error: "",
     success: "",
@@ -186,15 +210,18 @@ export function RemoveEventForm({ eventId }: { eventId: number }) {
     <form
       action={action}
       onSubmit={(event) => {
-        if (
-          !window.confirm(
-            "Remove this event? Its signups, points and audit history will remain.",
-          )
-        )
+        if (!confirmRecurrenceMutation(event.currentTarget, "Remove Event"))
           event.preventDefault();
       }}
     >
       <input type="hidden" name="event_id" value={eventId} />
+      {series && requestKey && (
+        <RecurrenceScope
+          series={series}
+          requestKey={requestKey}
+          recordType="Event"
+        />
+      )}
       {state.error && <p role="alert">{state.error}</p>}
       {state.success && <p role="status">{state.success}</p>}
       <button disabled={pending} className="button-secondary">

@@ -12,5 +12,6 @@ The application uses Next.js, React, TypeScript, Supabase, PostgreSQL, Tailwind 
 - [Development workflow](docs/development-workflow.md): branches, local checks, commits, and pushing work.
 - [Pull requests](docs/pull-requests.md): review and merge expectations.
 - [Database development](docs/database-development.md): migrations, local and production data, and the automated production deployment flow.
+- [Recurring schedules](docs/recurring-series.md): scope choices, schedule segments, and history preservation.
 - [Useful commands](docs/useful-commands.md): common application, test, and database commands.
 - [Maintainers](docs/maintainers.md): project ownership and maintenance principles.

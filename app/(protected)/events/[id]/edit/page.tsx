@@ -43,6 +43,15 @@ export default async function EditEventPage({
     )
   )
     redirect("/access-denied");
+  const series =
+    event.data.recurrence_series_id === null
+      ? undefined
+      : await supabase
+          .from("event_series")
+          .select("id,revision,recurrence_rule,starts_on")
+          .eq("id", event.data.recurrence_series_id)
+          .single();
+  if (series?.error) throw new Error("Failed to load recurring series");
   return (
     <div className="space-y-6">
       <ContextualBackLink href={`/events/${eventIdParam}`}>
@@ -50,15 +59,11 @@ export default async function EditEventPage({
       </ContextualBackLink>
       <PageHeader title="Edit event" />
       <EventForm
+        series={series?.data ?? undefined}
+        mutationRequestKey={crypto.randomUUID()}
         allowGlobal={canSeeAllBranches(actor)}
         event={event.data}
-        branches={
-          canSeeAllBranches(actor)
-            ? branches.data
-            : branches.data.filter((branch) =>
-                actor.branchIds.includes(branch.id),
-              )
-        }
+        branches={branches.data}
         eventTypes={eventTypes.data}
         locations={locations.data}
         branchIds={event.data.event_branches.map(

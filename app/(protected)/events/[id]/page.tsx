@@ -68,6 +68,15 @@ export default async function EventDetailPage({
     .order("id", { ascending: false })
     .limit(100);
   if (transactions.error) throw new Error("Failed to load event points");
+  const series =
+    event.recurrence_series_id === null
+      ? undefined
+      : await supabase
+          .from("event_series")
+          .select("id,revision,recurrence_rule")
+          .eq("id", event.recurrence_series_id)
+          .single();
+  if (series?.error) throw new Error("Failed to load recurring series");
   return (
     <div className="space-y-6">
       <ContextualBackLink href="/events">Back to events</ContextualBackLink>
@@ -155,8 +164,18 @@ export default async function EventDetailPage({
               {status === "cancelled" && (
                 <RestoreEventForm eventId={event.id} />
               )}
-              {signupOpen && <CancelForm eventId={event.id} />}
-              <RemoveEventForm eventId={event.id} />
+              {signupOpen && (
+                <CancelForm
+                  eventId={event.id}
+                  series={series?.data ?? undefined}
+                  requestKey={crypto.randomUUID()}
+                />
+              )}
+              <RemoveEventForm
+                eventId={event.id}
+                series={series?.data ?? undefined}
+                requestKey={crypto.randomUUID()}
+              />
             </div>
           )}
         </div>

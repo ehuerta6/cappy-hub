@@ -48,6 +48,9 @@ try {
     )
     .sort();
   for (const migration of followupMigrations) {
+    if (migration === "20261003042248_recurring_series_scopes.sql") {
+      psql(readFileSync("supabase/fixtures/pre-series-scopes.sql"));
+    }
     psql(readFileSync(`supabase/migrations/${migration}`));
   }
   cli([

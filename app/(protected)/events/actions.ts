@@ -8,6 +8,10 @@ import {
   canonicalRecurrenceRule,
   expandRecurrenceDates,
 } from "@/lib/recurrence";
+import {
+  recurrenceMutation,
+  recurrenceMutationError,
+} from "@/lib/recurrence-mutation";
 import { recurrenceInput } from "@/lib/recurrence-validation";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -69,6 +73,35 @@ export async function saveEvent(
   );
   if (!start || !end) return { error: "Enter valid El Paso times" };
   const supabase = await createClient();
+  if (validatedEventInput.id && formData.has("recurrence_series_id")) {
+    try {
+      const args = await recurrenceMutation(
+        "event",
+        validatedEventInput.id,
+        formData,
+        "edit",
+        {
+          name: validatedEventInput.name,
+          description: validatedEventInput.description,
+          event_type_id: validatedEventInput.event_type_id,
+          location: validatedEventInput.location,
+          event_date: validatedEventInput.event_date,
+          start_time: validatedEventInput.start_time,
+          end_time: validatedEventInput.end_time,
+          branch_ids: validatedEventInput.branches,
+          slides_url: validatedEventInput.slides_url,
+          meeting_notes_url: validatedEventInput.meeting_notes_url,
+        },
+      );
+      const { error } = await supabase.rpc("mutate_recurring_event", args);
+      if (error) return { error: mutationError(error.message) };
+    } catch (error) {
+      return { error: recurrenceMutationError(error) };
+    }
+    revalidatePath("/", "layout");
+    redirect(`/events/${validatedEventInput.id}`);
+    return { error: "" };
+  }
   const recurrence = recurrenceInput(validatedEventInput);
   if (recurrence && validatedEventInput.id)
     return { error: "Recurrence can only be set when creating a new event" };
@@ -219,9 +252,25 @@ export async function cancelEvent(
   if (!validationResult.success)
     return { error: validationResult.error.issues[0].message, success: "" };
   const supabase = await createClient();
-  const { error } = await supabase.rpc("cancel_event", {
-    p_event_id: validationResult.data.event_id,
-  });
+  let response;
+  try {
+    response = formData.has("recurrence_series_id")
+      ? await supabase.rpc(
+          "mutate_recurring_event",
+          await recurrenceMutation(
+            "event",
+            validationResult.data.event_id,
+            formData,
+            "cancel",
+          ),
+        )
+      : await supabase.rpc("cancel_event", {
+          p_event_id: validationResult.data.event_id,
+        });
+  } catch (error) {
+    return { error: recurrenceMutationError(error), success: "" };
+  }
+  const { error } = response;
   if (error) return { error: mutationError(error.message), success: "" };
   revalidatePath("/", "layout");
   return { error: "", success: "Event cancelled" };
@@ -260,9 +309,25 @@ export async function removeEvent(
   if (!validationResult.success)
     return { error: validationResult.error.issues[0].message, success: "" };
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("remove_event", {
-    p_event_id: validationResult.data.event_id,
-  });
+  let response;
+  try {
+    response = formData.has("recurrence_series_id")
+      ? await supabase.rpc(
+          "mutate_recurring_event",
+          await recurrenceMutation(
+            "event",
+            validationResult.data.event_id,
+            formData,
+            "remove",
+          ),
+        )
+      : await supabase.rpc("remove_event", {
+          p_event_id: validationResult.data.event_id,
+        });
+  } catch (error) {
+    return { error: recurrenceMutationError(error), success: "" };
+  }
+  const { data, error } = response;
   if (error) return { error: mutationError(error.message), success: "" };
   revalidatePath("/", "layout");
   return {

@@ -94,6 +94,8 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       ,'public.create_recurring_event(text,text,bigint,text,bigint[],text,text,uuid,text,date[],timestamptz[],timestamptz[])'::regprocedure
       ,'public.create_recurring_task(text,text,text,bigint,numeric,boolean,uuid,text,date[])'::regprocedure
       ,'public.remove_task(bigint)'::regprocedure
+      ,'public.mutate_recurring_event(bigint,text,text,uuid,bigint,integer,jsonb,text,date[])'::regprocedure
+      ,'public.mutate_recurring_task(bigint,text,text,uuid,bigint,integer,jsonb,text,date[])'::regprocedure
       ,'public.create_event_location(text)'::regprocedure
       ,'public.rename_event_location(bigint,text)'::regprocedure
       ,'public.delete_event_location(bigint)'::regprocedure

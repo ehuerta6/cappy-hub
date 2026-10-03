@@ -20,7 +20,7 @@ export const recurrenceFieldsSchema = zod
       .string()
       .regex(/^\d+$/)
       .transform(Number)
-      .refine((value) => Number.isInteger(value) && value >= 2 && value <= 500)
+      .refine((value) => Number.isInteger(value) && value >= 1 && value <= 500)
       .default(12),
     recurrence_until: zod
       .string()

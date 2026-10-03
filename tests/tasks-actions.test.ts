@@ -131,3 +131,25 @@ it("returns a controlled message for an unknown task action", async () => {
   });
   expect(rpc).not.toHaveBeenCalled();
 });
+
+it("recurring Task editing submits only changed fields to its trusted RPC", async () => {
+  const { editRecurringTask } = await import("@/app/(protected)/tasks/actions");
+  const data = taskForm();
+  data.set("task_id", "9");
+  data.set("scope", "series");
+  data.set("recurrence_series_id", "3");
+  data.set("recurrence_revision", "2");
+  data.set("mutation_request_key", "00000000-0000-4000-8000-000000000068");
+  data.append("edited_fields", "title");
+  await editRecurringTask({ error: "" }, data);
+  expect(rpc).toHaveBeenCalledWith("mutate_recurring_task", {
+    p_selected_id: 9,
+    p_scope: "series",
+    p_operation: "edit",
+    p_series_id: 3,
+    p_revision: 2,
+    p_request_key: "00000000-0000-4000-8000-000000000068",
+    p_patch: { title: " Flyer " },
+  });
+  expect(rpc).not.toHaveBeenCalledWith("save_task", expect.anything());
+});
