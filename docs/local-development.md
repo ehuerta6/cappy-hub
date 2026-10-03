@@ -34,6 +34,23 @@ Use these emails on the local login page. Every account uses the same local-only
 
 These synthetic accounts are created only by the local setup/reset workflow. Never use this password or these accounts in production.
 
+## Browser smoke tests
+
+The Playwright smoke suite uses the rendered local app and local Supabase. Before each run, reset the database to its synthetic seed, build the app, install Chromium once, then run the suite:
+
+```bash
+npm run local:reset
+npx playwright install chromium
+npm run build
+npm run test:e2e
+```
+
+The suite does not reset data itself. `local:reset` clears prior local changes, reloads the synthetic seed, creates the local Auth accounts, and updates `.env.local`. Run it again before rerunning the suite so the stable `E2E Event - Core Workflow` and `E2E Task - Approval Workflow` records start from a clean database.
+
+Tests run serially against a locally started production build. They sign in through the local login page using the seeded **Admin**, **Officer**, and **Inactive Officer** accounts. The Admin creates and updates an Event, adds the Officer as a participant, and tests the Event cancellation confirmation and filtered return navigation. A separate Task workflow has the Admin create and assign a Task, the Officer complete it, and the Admin approve it before checking the awarded Task Point in Point History. The inactive account must reach Access denied. Selectors use the app's visible labels, links, buttons, headings, and tables.
+
+CI runs the normal database checks first, then resets to the seeded local app environment, builds, installs Chromium, and runs the same serial suite. It uploads Playwright traces and screenshots on a browser test failure as the `playwright-results-<run id>` artifact. Local failure artifacts are written under `test-results/`.
+
 ## Daily development
 
 After pulling the latest code:

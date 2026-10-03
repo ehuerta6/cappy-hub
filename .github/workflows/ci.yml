@@ -13,10 +13,6 @@ jobs:
   checks:
     name: Quality checks
     runs-on: ubuntu-latest
-    env:
-      # Public placeholders let builds compile without connecting to a real Supabase project.
-      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -76,8 +72,27 @@ jobs:
       - name: Verify synthetic local seed
         run: npm run test:local-seed
 
+      - name: Prepare the full local app and seeded auth accounts
+        run: npm run local:reset
+
       - name: Build for production
         run: npm run build
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser smoke tests
+        id: browser_smoke
+        run: npm run test:e2e
+
+      - name: Upload browser failure artifacts
+        if: ${{ failure() && steps.browser_smoke.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results-${{ github.run_id }}
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Stop disposable database
         if: always()
