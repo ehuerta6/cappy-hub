@@ -9,7 +9,7 @@ vi.mock("@/lib/authorization", () => ({
     actor.positionName === "President" ||
     (actor.positionName === "Lead" &&
       branches.length > 0 &&
-      branches.every((branchId) => actor.branchIds?.includes(branchId))),
+      branches.some((branchId) => actor.branchIds?.includes(branchId))),
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));

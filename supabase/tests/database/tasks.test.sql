@@ -33,11 +33,11 @@ select throws_ok($$select save_event_with_links('Nope','Description',
 reset role;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000972',true);
 set local role authenticated;
-select throws_ok($$select save_event_with_links('Mixed','Description',
+select lives_ok($$select save_event_with_links('Mixed','Description',
  (select id from event_types where name='Meeting'),'TBA','2099-09-20',
  '2099-09-20 09:00-06','2099-09-20 10:00-06',
  array[(select id from branches where name='intro'),(select id from branches where name='icpc')]::bigint[])$$,
- 'P0001','Event outside branch scope','Lead cannot create multi-branch event outside scope');
+ 'Lead can create multi-branch Event with one matching branch');
 select throws_ok($$select save_task('Wrong','Description','Flyer',
  (select id from branches where name='icpc'),'2099-09-20',5,false)$$,
  'P0001','Task outside branch scope','Lead cannot create another branch task');

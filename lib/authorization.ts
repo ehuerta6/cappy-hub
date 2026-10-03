@@ -28,7 +28,7 @@ export const canManageEvent = (
   canSeeAllBranches(actor) ||
   (isLead(actor) &&
     branches.length > 0 &&
-    branches.every((id) => actor.branchIds.includes(id)));
+    branches.some((id) => actor.branchIds.includes(id)));
 export const canManageOfficers = isAdmin;
 export const canManagePoints = isAdmin;
 export const canViewSystemLog = isAdmin;
