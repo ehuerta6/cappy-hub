@@ -17,9 +17,13 @@ vi.mock("@/app/(protected)/points/transaction-form", () => ({
 }));
 vi.mock("@/app/(protected)/points/rate-form", () => ({ default: () => null }));
 vi.mock("@/app/(protected)/points/history-table", () => ({
-  default: ({ emptyMessage }: { emptyMessage: string }) => (
-    <p>{emptyMessage}</p>
-  ),
+  default: ({
+    emptyMessage,
+    returnTo,
+  }: {
+    emptyMessage: string;
+    returnTo?: string;
+  }) => <p data-return-to={returnTo}>{emptyMessage}</p>,
 }));
 vi.mock("@/app/(protected)/events/event-controls", () => ({
   SelfSignupForm: () => null,
@@ -37,6 +41,7 @@ import SystemLogPage from "@/app/(protected)/system-log/page";
 
 type Call = [string, ...unknown[]];
 type Query = { table: string; calls: Call[] };
+let rows: Record<string, unknown[]>;
 let queries: Query[];
 let visibleCount: number;
 let filteredCount: number;
@@ -50,6 +55,7 @@ const actor = {
   branchIds: [],
 };
 beforeEach(() => {
+  rows = {};
   queries = [];
   visibleCount = 4;
   filteredCount = 0;
@@ -117,7 +123,7 @@ beforeEach(() => {
                       : 11,
                   },
                 ]
-              : [],
+              : (rows[table] ?? []),
           error: null,
           count: head
             ? isBaseline || pointsBaseline
@@ -247,6 +253,9 @@ it("keeps all Points capabilities with one GET form and preserves pagination fil
   has(history, "not", "removed_at", "is", null);
   expect(html).toContain('method="get"');
   expect(html).not.toContain('name="page"');
+  expect(html).toContain(
+    'data-return-to="/points?q=Avery&amp;type=manual&amp;officer=-1013&amp;event=-2001&amp;status=removed&amp;from=2026-09-01&amp;to=2026-10-01&amp;page=2"',
+  );
   expect(html).toContain("page=3");
   expect(html).toContain("officer=-1013");
   expect(html).toContain("status=removed");
@@ -355,3 +364,50 @@ it("filters a specific System Log actor without losing other URL filters", async
   expect(html).toContain("q=change");
   expect(html).toContain("page=3");
 });
+
+it.each([
+  [
+    OfficersPage,
+    "officers",
+    {
+      id: 7,
+      name: "Officer",
+      positions: { name: "Officer" },
+      officer_branches: [],
+      status: "active",
+    },
+  ],
+  [
+    EventsPage,
+    "events",
+    {
+      id: 7,
+      name: "Event",
+      event_types: { name: "Workshop" },
+      event_branches: [],
+      event_officers: [],
+      starts_at: "2099-10-08T23:00:00Z",
+      ends_at: "2099-10-09T01:00:00Z",
+    },
+  ],
+  [
+    TasksPage,
+    "tasks",
+    {
+      id: 7,
+      title: "Task",
+      branches: { name: "Intro" },
+      branch_id: 2,
+      task_assignments: null,
+    },
+  ],
+] as const)(
+  "carries URL list filters into %s record links",
+  async (Page, route, row) => {
+    rows[route] = [row];
+    const html = await render(Page, { q: "workshop", branch: "2" });
+    expect(html).toContain(
+      `href="/${route}/7?returnTo=%2F${route}%3Fq%3Dworkshop%26branch%3D2"`,
+    );
+  },
+);

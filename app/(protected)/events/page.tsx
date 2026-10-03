@@ -5,6 +5,7 @@ import {
   isLead,
   canSeeAllBranches,
 } from "@/lib/authorization";
+import { listReturnUrl, withReturnTo } from "@/lib/return-context";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { eventStatus, eventSignupOpen } from "@/lib/event-status";
@@ -32,6 +33,7 @@ export default async function EventsPage({
   const actor = await getAuthorizationContext();
   const admin = isAdmin(actor);
   const params = await searchParams;
+  const returnTo = listReturnUrl("/events", params);
   const parsedFilters = eventListFiltersSchema.parse({
     ...params,
     status: params.status ?? (params.removed === "1" ? "removed" : undefined),
@@ -223,7 +225,11 @@ export default async function EventsPage({
                     {groupEvents.map((event) => (
                       <tr key={event.id}>
                         <td>
-                          <Link href={`/events/${event.id}`}>{event.name}</Link>
+                          <Link
+                            href={withReturnTo(`/events/${event.id}`, returnTo)}
+                          >
+                            {event.name}
+                          </Link>
                         </td>
                         <td>
                           {formatEventSchedule(event.starts_at, event.ends_at)}

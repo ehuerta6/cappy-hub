@@ -14,6 +14,7 @@ import {
 } from "@/lib/recurrence-mutation";
 import { recurrenceInput } from "@/lib/recurrence-validation";
 import { revalidatePath } from "next/cache";
+import { withReturnTo } from "@/lib/return-context";
 import { redirect } from "next/navigation";
 import {
   bulkAddEventOfficersInputSchema,
@@ -99,7 +100,12 @@ export async function saveEvent(
       return { error: recurrenceMutationError(error) };
     }
     revalidatePath("/", "layout");
-    redirect(`/events/${validatedEventInput.id}`);
+    redirect(
+      withReturnTo(
+        `/events/${validatedEventInput.id}`,
+        formData.get("returnTo"),
+      ),
+    );
     return { error: "" };
   }
   const recurrence = recurrenceInput(validatedEventInput);
@@ -140,7 +146,7 @@ export async function saveEvent(
     });
     if (error) return { error: mutationError(error.message) };
     revalidatePath("/", "layout");
-    redirect(`/events/${data}`);
+    redirect(withReturnTo(`/events/${data}`, formData.get("returnTo")));
   }
   const { data, error } = await supabase.rpc("save_event_with_links", {
     p_event_id: validatedEventInput.id,
@@ -157,7 +163,7 @@ export async function saveEvent(
   });
   if (error) return { error: mutationError(error.message) };
   revalidatePath("/", "layout");
-  redirect(`/events/${data}`);
+  redirect(withReturnTo(`/events/${data}`, formData.get("returnTo")));
 }
 export async function changeSignup(
   _previous: { error: string; success: string },

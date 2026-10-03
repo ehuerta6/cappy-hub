@@ -12,6 +12,7 @@ import {
 import { RecurrenceFields } from "@/components/recurrence-fields";
 
 export default function EventForm({
+  returnTo,
   branches,
   eventTypes,
   locations,
@@ -22,6 +23,7 @@ export default function EventForm({
   series,
   mutationRequestKey,
 }: {
+  returnTo?: string;
   branches: Pick<Tables<"branches">, "id" | "name">[];
   eventTypes: Pick<Tables<"event_types">, "id" | "name">[];
   locations: Pick<Tables<"event_locations">, "id" | "name">[];
@@ -59,6 +61,7 @@ export default function EventForm({
           setEditedFields(changedFormFields(event.currentTarget, original));
       }}
     >
+      {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
       {editedFields.map((field) => (
         <input key={field} type="hidden" name="edited_fields" value={field} />
       ))}

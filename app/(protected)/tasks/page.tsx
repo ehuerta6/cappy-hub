@@ -15,6 +15,7 @@ import { formatLabel } from "@/lib/presentation";
 import { searchOrFilter } from "@/lib/list-search";
 import { taskListFiltersSchema } from "./filter-validation";
 import { TaskWorkflow, taskStatus } from "./task-workflow";
+import { listReturnUrl, withReturnTo } from "@/lib/return-context";
 import Link from "next/link";
 
 type TaskListSearchParams = Record<string, string | string[] | undefined>;
@@ -26,6 +27,7 @@ export default async function TasksPage({
 }) {
   const actor = await getAuthorizationContext();
   const params = await searchParams;
+  const returnTo = listReturnUrl("/tasks", params);
   const filters = taskListFiltersSchema.parse(params);
   const { q: search, branch: branchId, assignee: assigneeId } = filters;
   const status = filters.status;
@@ -209,7 +211,9 @@ export default async function TasksPage({
                 return (
                   <tr key={task.id} id={`task-${task.id}`}>
                     <td>
-                      <Link href={`/tasks/${task.id}`}>{task.title}</Link>
+                      <Link href={withReturnTo(`/tasks/${task.id}`, returnTo)}>
+                        {task.title}
+                      </Link>
                       <p className="text-sm text-muted">{task.description}</p>
                     </td>
                     <td>{task.task_type}</td>

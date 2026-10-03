@@ -6,6 +6,7 @@ import { formatLabel } from "@/lib/presentation";
 import { saveOfficer } from "../actions";
 
 type OfficerFormProps = {
+  returnTo?: string;
   branches: Pick<Tables<"branches">, "id" | "name">[];
   positions: Pick<Tables<"positions">, "id" | "name">[];
   officer?: Tables<"officers">;
@@ -13,6 +14,7 @@ type OfficerFormProps = {
 };
 
 export default function OfficerForm({
+  returnTo,
   branches,
   positions,
   officer,
@@ -21,6 +23,7 @@ export default function OfficerForm({
   const [state, action, pending] = useActionState(saveOfficer, { error: "" });
   return (
     <form action={action} className="sm:grid-cols-2">
+      {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
       {officer && <input type="hidden" name="id" value={officer.id} />}
       <label className="sm:col-span-2">
         Name <input name="name" required defaultValue={officer?.name} />

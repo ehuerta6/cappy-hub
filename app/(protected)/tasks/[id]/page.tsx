@@ -1,3 +1,7 @@
+import {
+  withReturnTo,
+  type NavigationSearchParams,
+} from "@/lib/return-context";
 import { getAuthorizationContext, canManageEvent } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
@@ -15,9 +19,12 @@ import { TaskRemoveForm } from "../task-remove-form";
 
 export default async function TaskDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<NavigationSearchParams>;
 }) {
+  const { returnTo } = (await searchParams) ?? {};
   const actor = await getAuthorizationContext();
   const { id: taskIdParam } = await params;
   if (!/^-?[1-9]\d*$/.test(taskIdParam)) notFound();
@@ -54,12 +61,14 @@ export default async function TaskDetailPage({
   if (series?.error) throw new Error("Failed to load recurring series");
   return (
     <div className="space-y-4">
-      <ContextualBackLink href="/tasks">Back to tasks</ContextualBackLink>
+      <ContextualBackLink href="/tasks" returnTo={returnTo}>
+        Back to tasks
+      </ContextualBackLink>
       <PageHeader
         title={task.title}
         action={
           canManageTask && series?.data ? (
-            <ActionLink href={`/tasks/${task.id}/edit`}>
+            <ActionLink href={withReturnTo(`/tasks/${task.id}/edit`, returnTo)}>
               Edit recurring task
             </ActionLink>
           ) : undefined

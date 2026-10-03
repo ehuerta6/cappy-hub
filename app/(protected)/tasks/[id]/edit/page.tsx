@@ -1,15 +1,23 @@
 import { notFound, redirect } from "next/navigation";
 import { getAuthorizationContext, canManageEvent } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
+import {
+  safeReturnTo,
+  withReturnTo,
+  type NavigationSearchParams,
+} from "@/lib/return-context";
 import ContextualBackLink from "@/components/contextual-back-link";
 import { PageHeader } from "@/components/ui";
 import TaskCreateForm from "../../task-create-form";
 
 export default async function EditRecurringTaskPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<NavigationSearchParams>;
 }) {
+  const returnTo = safeReturnTo((await searchParams)?.returnTo);
   const actor = await getAuthorizationContext();
   const { id } = await params;
   if (!/^-?[1-9]\d*$/.test(id)) notFound();
@@ -39,11 +47,12 @@ export default async function EditRecurringTaskPage({
     throw new Error("Failed to load recurring task form");
   return (
     <div className="space-y-6">
-      <ContextualBackLink href={`/tasks/${id}`}>
+      <ContextualBackLink href={withReturnTo(`/tasks/${id}`, returnTo)}>
         Back to task
       </ContextualBackLink>
       <PageHeader title="Edit recurring task" />
       <TaskCreateForm
+        returnTo={returnTo}
         task={task.data}
         series={series.data}
         branches={branches.data}

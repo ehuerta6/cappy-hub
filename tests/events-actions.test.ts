@@ -15,6 +15,7 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 
+import { redirect } from "next/navigation";
 import { getAuthorizationContext } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
@@ -248,4 +249,60 @@ it("edits a recurring Event through the scoped RPC with only changed fields", as
     "save_event_with_links",
     expect.anything(),
   );
+});
+
+it.each([false, true])(
+  "Event edit retains list context after save (recurring=%s)",
+  async (recurring) => {
+    const data = eventForm();
+    data.set("id", "12");
+    data.set("returnTo", "/events?q=meeting&branch=2&status=upcoming");
+    if (recurring) {
+      data.set("scope", "series");
+      data.set("recurrence_series_id", "3");
+      data.set("recurrence_revision", "2");
+      data.set("mutation_request_key", "00000000-0000-4000-8000-000000000068");
+      data.append("edited_fields", "name");
+    }
+    rpc.mockResolvedValue({ data: 12, error: null });
+    await saveEvent({ error: "" }, data);
+    expect(redirect).toHaveBeenCalledWith(
+      "/events/12?returnTo=%2Fevents%3Fq%3Dmeeting%26branch%3D2%26status%3Dupcoming",
+    );
+    expect(rpc).toHaveBeenCalledWith(
+      recurring ? "mutate_recurring_event" : "save_event_with_links",
+      expect.not.objectContaining({ returnTo: expect.anything() }),
+    );
+  },
+);
+
+it.each([
+  undefined,
+  "https://evil.example",
+  "//evil.example",
+  "/events/12?returnTo=%2Fevents",
+  "/events?q=%",
+])(
+  "Event save drops invalid or missing return context: %s",
+  async (returnTo) => {
+    const data = eventForm();
+    data.set("id", "12");
+    if (returnTo) data.set("returnTo", returnTo);
+    rpc.mockResolvedValue({ data: 12, error: null });
+    await saveEvent({ error: "" }, data);
+    expect(redirect).toHaveBeenCalledWith("/events/12");
+  },
+);
+
+it("a contextual edit still surfaces the Event RPC authorization denial without redirecting", async () => {
+  const data = eventForm();
+  data.set("id", "12");
+  data.set("returnTo", "/events?branch=2");
+  rpc.mockResolvedValue({ error: { message: "Event outside branch scope" } });
+  expect((await saveEvent({ error: "" }, data)).error).toBeTruthy();
+  expect(rpc).toHaveBeenCalledWith(
+    "save_event_with_links",
+    expect.objectContaining({ p_event_id: 12 }),
+  );
+  expect(redirect).not.toHaveBeenCalled();
 });

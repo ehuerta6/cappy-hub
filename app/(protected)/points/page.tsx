@@ -232,6 +232,7 @@ export default async function PointsPage({
         )}
         <TableFrame>
           <HistoryTable
+            returnTo={listPageUrl("/points", currentFilterSearch, page)}
             transactions={transactions.data}
             isAdmin={admin}
             emptyMessage={historyEmptyMessage}

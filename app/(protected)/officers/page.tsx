@@ -2,6 +2,7 @@ import {
   getAuthorizationContext,
   canManageOfficers,
 } from "@/lib/authorization";
+import { listReturnUrl, withReturnTo } from "@/lib/return-context";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -27,6 +28,7 @@ export default async function OfficersPage({
 }) {
   const actor = await getAuthorizationContext();
   const params = await searchParams;
+  const returnTo = listReturnUrl("/officers", params);
   const filters = officerListFiltersSchema.parse(params);
   const { q: search, status, position: positionId, branch: branchId } = filters;
   const supabase = await createClient();
@@ -173,6 +175,7 @@ export default async function OfficersPage({
           {pendingWarnings.data.map((warning) => (
             <article
               key={warning.id}
+              id={`warning-${warning.id}`}
               className="space-y-2 rounded-lg border border-border p-4"
             >
               <p className="font-semibold text-foreground">
@@ -212,7 +215,11 @@ export default async function OfficersPage({
               {officers.map((officer) => (
                 <tr key={officer.id}>
                   <td>
-                    <Link href={`/officers/${officer.id}`}>{officer.name}</Link>
+                    <Link
+                      href={withReturnTo(`/officers/${officer.id}`, returnTo)}
+                    >
+                      {officer.name}
+                    </Link>
                   </td>
                   <td className="text-muted">{officer.utep_email ?? "—"}</td>
                   <td className="text-muted">

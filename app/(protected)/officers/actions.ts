@@ -5,6 +5,7 @@ import {
   canManageOfficers,
 } from "@/lib/authorization";
 
+import { withReturnTo } from "@/lib/return-context";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -50,7 +51,7 @@ export async function saveOfficer(
   });
   if (error) return { error: mutationError(error.message) };
   revalidatePath("/", "layout");
-  redirect(`/officers/${data}`);
+  redirect(withReturnTo(`/officers/${data}`, formData.get("returnTo")));
 }
 
 export async function changeApplicationRole(

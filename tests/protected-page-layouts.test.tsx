@@ -24,6 +24,10 @@ vi.mock("next/navigation", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import { createClient } from "@/lib/supabase/server";
 import { getAuthorizationContext } from "@/lib/authorization";
+import TaskEdit from "@/app/(protected)/tasks/[id]/edit/page";
+import HistoryTable from "@/app/(protected)/points/history-table";
+import type { Tables } from "@/lib/database.types";
+import { withReturnTo } from "@/lib/return-context";
 import OfficerDetail from "@/app/(protected)/officers/[id]/page";
 import OfficerEdit from "@/app/(protected)/officers/[id]/edit/page";
 import EventDetail from "@/app/(protected)/events/[id]/page";
@@ -67,6 +71,8 @@ const task = {
   points: 2,
   approval_required: true,
   task_assignments: null,
+  recurrence_series_id: 3,
+  due_date: "2099-10-08",
 };
 beforeEach(() => {
   vi.mocked(useActionState).mockReturnValue([
@@ -84,7 +90,20 @@ beforeEach(() => {
         is: () => query,
         order: () => query,
         limit: () => query,
-        single: async () => ({ data: { total_points: 12 }, error: null }),
+        single: async () => ({
+          data:
+            table === "tasks"
+              ? task
+              : table.endsWith("_series")
+                ? {
+                    id: 3,
+                    revision: 1,
+                    recurrence_rule: "RRULE:FREQ=DAILY;INTERVAL=1;COUNT=3",
+                    starts_on: "2099-10-08",
+                  }
+                : { total_points: 12 },
+          error: null,
+        }),
         maybeSingle: async () => ({
           data:
             table === "officers" ? officer : table === "events" ? event : task,
@@ -224,4 +243,101 @@ it("retains Officer operational sections and full point history", async () => {
   expect(html).toContain('aria-label="Warnings"');
   expect(html).toContain('aria-label="Associated events"');
   expect(html).toContain('href="/points?officer=7"');
+});
+
+it.each([
+  [OfficerDetail, OfficerEdit, "/officers", "Back to officers"],
+  [EventDetail, EventEdit, "/events", "Back to events"],
+  [TaskDetail, TaskEdit, "/tasks", "Back to tasks"],
+] as const)(
+  "keeps %s list context through detail and edit, including the submitted form",
+  async (Detail, Edit, route, label) => {
+    const returnTo = `${route}?q=workshop&branch=2&status=active`;
+    const props = {
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({ returnTo }),
+    };
+    const detail = renderToStaticMarkup(await Detail(props));
+    expect(detail).toContain(`href="${returnTo.replaceAll("&", "&amp;")}"`);
+    expect(detail).toContain(label);
+    const editHref = withReturnTo(`${route}/7/edit`, returnTo);
+    expect(detail).toContain(`href="${editHref}"`);
+    const edit = renderToStaticMarkup(await Edit(props));
+    expect(edit).toContain(`href="${withReturnTo(`${route}/7`, returnTo)}"`);
+    expect(edit).toContain(
+      `name="returnTo" value="${returnTo.replaceAll("&", "&amp;")}"`,
+    );
+  },
+);
+
+it.each([OfficerDetail, EventDetail, TaskDetail])(
+  "returns to the exact Point History page from linked detail",
+  async (Page) => {
+    const html = renderToStaticMarkup(
+      await Page({
+        params: Promise.resolve({ id: "7" }),
+        searchParams: Promise.resolve({
+          returnTo: "/points?q=workshop&type=task&page=3",
+        }),
+      }),
+    );
+    expect(html).toContain(
+      'href="/points?q=workshop&amp;type=task&amp;page=3"',
+    );
+    expect(html).toContain("Back to points</a>");
+  },
+);
+
+it.each([OfficerEdit, EventEdit, TaskEdit])(
+  "drops untrusted return context from edit links and forms",
+  async (Page) => {
+    const html = renderToStaticMarkup(
+      await Page({
+        params: Promise.resolve({ id: "7" }),
+        searchParams: Promise.resolve({ returnTo: "//evil.example" }),
+      }),
+    );
+    expect(html).not.toContain("evil.example");
+    expect(html).not.toContain('name="returnTo"');
+  },
+);
+
+it("retains list context while changing the Officer warning filter", async () => {
+  const html = renderToStaticMarkup(
+    await OfficerDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({
+        returnTo: "/officers?q=synthetic",
+        warningStatus: "pending",
+      }),
+    }),
+  );
+  expect(html).toContain(
+    'href="/officers/7?warningStatus=approved&amp;returnTo=%2Fofficers%3Fq%3Dsynthetic"',
+  );
+});
+
+it("Point History record links carry the same filtered page into Officers, Events and Tasks", () => {
+  const returnTo = "/points?q=workshop&type=task&page=3";
+  const transactions = [
+    {
+      id: 1,
+      officer_id: 7,
+      officer_name: "Officer",
+      event_id: 8,
+      event_name: "Event",
+      award_type: "participation",
+    },
+    { id: 2, task_id: 9, task_title: "Task", award_type: "task" },
+  ] as unknown as Tables<"point_history">[];
+  const html = renderToStaticMarkup(
+    <HistoryTable
+      transactions={transactions}
+      isAdmin={false}
+      emptyMessage="Empty"
+      returnTo={returnTo}
+    />,
+  );
+  for (const record of ["/officers/7", "/events/8", "/tasks/9"])
+    expect(html).toContain(`href="${withReturnTo(record, returnTo)}"`);
 });

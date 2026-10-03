@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { safeReturnTo, withReturnTo } from "@/lib/return-context";
 import { redirect } from "next/navigation";
 import { getAuthorizationContext } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
@@ -196,7 +197,9 @@ export async function editRecurringTask(
   }
   revalidatePath("/", "layout");
   redirect(
-    form.get("scope") === "series" ? "/tasks" : `/tasks/${id.data.task_id}`,
+    form.get("scope") === "series"
+      ? (safeReturnTo(form.get("returnTo")) ?? "/tasks")
+      : withReturnTo(`/tasks/${id.data.task_id}`, form.get("returnTo")),
   );
   return { error: "" };
 }

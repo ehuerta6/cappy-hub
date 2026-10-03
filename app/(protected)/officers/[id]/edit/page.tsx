@@ -1,3 +1,8 @@
+import {
+  safeReturnTo,
+  withReturnTo,
+  type NavigationSearchParams,
+} from "@/lib/return-context";
 import ContextualBackLink from "@/components/contextual-back-link";
 import {
   getAuthorizationContext,
@@ -10,9 +15,12 @@ import OfficerForm from "../../new/officer-form";
 
 export default async function EditOfficerPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<NavigationSearchParams>;
 }) {
+  const returnTo = safeReturnTo((await searchParams)?.returnTo);
   if (!canManageOfficers(await getAuthorizationContext()))
     redirect("/access-denied");
   const supabase = await createClient();
@@ -32,11 +40,12 @@ export default async function EditOfficerPage({
   if (!officer.data) notFound();
   return (
     <div className="space-y-4">
-      <ContextualBackLink href={`/officers/${id}`}>
+      <ContextualBackLink href={withReturnTo(`/officers/${id}`, returnTo)}>
         Back to officer
       </ContextualBackLink>
       <h1>Edit officer</h1>
       <OfficerForm
+        returnTo={returnTo}
         officer={officer.data}
         branches={branches.data}
         positions={positions.data}

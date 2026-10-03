@@ -11,6 +11,7 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 
+import { redirect } from "next/navigation";
 import { getAuthorizationContext } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -218,4 +219,48 @@ it("denies Event location catalog mutations for non-admins", async () => {
   data.set("name", "New room");
   expect((await changeCatalog(previous, data)).error).toBe("Admin required");
   expect(rpc).not.toHaveBeenCalled();
+});
+
+it.each([
+  "/officers?q=alex&branch=2",
+  undefined,
+  "https://evil.example",
+  "//evil.example",
+  "/officers?q=%",
+])("Officer edit validates submitted return context: %s", async (returnTo) => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 601,
+    applicationRole: "admin",
+  } as never);
+  rpc.mockResolvedValue({ data: 602, error: null });
+  const data = new FormData();
+  for (const [key, value] of Object.entries({
+    id: "602",
+    name: "Alex",
+    utep_email: "alex@example.edu",
+    position_id: "4",
+    status: "active",
+  }))
+    data.set(key, value);
+  if (returnTo) data.set("returnTo", returnTo);
+  await saveOfficer({ error: "" }, data);
+  expect(redirect).toHaveBeenCalledWith(
+    returnTo?.startsWith("/officers?q=alex")
+      ? "/officers/602?returnTo=%2Fofficers%3Fq%3Dalex%26branch%3D2"
+      : "/officers/602",
+  );
+});
+
+it("return context grants no Officer save permission", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 603,
+    applicationRole: "officer",
+  } as never);
+  const data = new FormData();
+  data.set("returnTo", "/officers?status=active");
+  expect(await saveOfficer({ error: "" }, data)).toEqual({
+    error: "Admin required",
+  });
+  expect(rpc).not.toHaveBeenCalled();
+  expect(redirect).not.toHaveBeenCalled();
 });

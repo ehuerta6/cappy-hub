@@ -1,3 +1,7 @@
+import {
+  withReturnTo,
+  type NavigationSearchParams,
+} from "@/lib/return-context";
 import ContextualBackLink from "@/components/contextual-back-link";
 import {
   getAuthorizationContext,
@@ -27,12 +31,17 @@ export default async function OfficerDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ warningStatus?: string }>;
+  searchParams?: Promise<NavigationSearchParams>;
 }) {
   const actor = await getAuthorizationContext();
   const supabase = await createClient();
   const { id: officerIdParam } = await params;
-  const { warningStatus } = await searchParams;
+  const context = (await searchParams) ?? {};
+  const { returnTo } = context;
+  const warningStatus =
+    typeof context.warningStatus === "string"
+      ? context.warningStatus
+      : undefined;
   if (!/^-?[1-9]\d*$/.test(officerIdParam)) notFound();
   const officerId = Number(officerIdParam);
   const { data: officer, error } = await supabase
@@ -91,12 +100,16 @@ export default async function OfficerDetailPage({
   if (approverNames?.error) throw new Error("Failed to load approver names");
   return (
     <div className="space-y-4">
-      <ContextualBackLink href="/officers">Back to officers</ContextualBackLink>
+      <ContextualBackLink href="/officers" returnTo={returnTo}>
+        Back to officers
+      </ContextualBackLink>
       <PageHeader
         title={officer.name}
         action={
           canManageOfficers(actor) ? (
-            <ActionLink href={`/officers/${officerIdParam}/edit`}>
+            <ActionLink
+              href={withReturnTo(`/officers/${officerIdParam}/edit`, returnTo)}
+            >
               Edit officer
             </ActionLink>
           ) : undefined
@@ -186,11 +199,12 @@ export default async function OfficerDetailPage({
                 ].map(([label, status]) => (
                   <Link
                     key={label}
-                    href={
+                    href={withReturnTo(
                       status
                         ? `/officers/${officerIdParam}?warningStatus=${status}`
-                        : `/officers/${officerIdParam}`
-                    }
+                        : `/officers/${officerIdParam}`,
+                      returnTo,
+                    )}
                     className="underline"
                     aria-current={
                       (selectedStatus ?? "") === status ? "page" : undefined

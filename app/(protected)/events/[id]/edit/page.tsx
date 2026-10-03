@@ -1,3 +1,8 @@
+import {
+  safeReturnTo,
+  withReturnTo,
+  type NavigationSearchParams,
+} from "@/lib/return-context";
 import ContextualBackLink from "@/components/contextual-back-link";
 import {
   getAuthorizationContext,
@@ -11,9 +16,12 @@ import EventForm from "../../event-form";
 import { PageHeader } from "@/components/ui";
 export default async function EditEventPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<NavigationSearchParams>;
 }) {
+  const returnTo = safeReturnTo((await searchParams)?.returnTo);
   const actor = await getAuthorizationContext();
   const supabase = await createClient();
   const { id: eventIdParam } = await params;
@@ -54,11 +62,14 @@ export default async function EditEventPage({
   if (series?.error) throw new Error("Failed to load recurring series");
   return (
     <div className="space-y-6">
-      <ContextualBackLink href={`/events/${eventIdParam}`}>
+      <ContextualBackLink
+        href={withReturnTo(`/events/${eventIdParam}`, returnTo)}
+      >
         Back to event
       </ContextualBackLink>
       <PageHeader title="Edit event" />
       <EventForm
+        returnTo={returnTo}
         series={series?.data ?? undefined}
         mutationRequestKey={crypto.randomUUID()}
         allowGlobal={canSeeAllBranches(actor)}

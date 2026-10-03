@@ -11,11 +11,13 @@ import { createTask, editRecurringTask } from "./actions";
 import { RecurrenceFields } from "@/components/recurrence-fields";
 
 export default function TaskCreateForm({
+  returnTo,
   branches,
   recurrenceRequestKey,
   task,
   series,
 }: {
+  returnTo?: string;
   branches: { id: number; name: string }[];
   recurrenceRequestKey: string;
   task?: Tables<"tasks">;
@@ -46,6 +48,7 @@ export default function TaskCreateForm({
           setEditedFields(changedFormFields(event.currentTarget, original));
       }}
     >
+      {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
       {task && <input type="hidden" name="task_id" value={task.id} />}
       {series && task && (
         <>

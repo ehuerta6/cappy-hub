@@ -1,3 +1,4 @@
+import { withReturnTo } from "@/lib/return-context";
 import Link from "next/link";
 import type { Tables } from "@/lib/database.types";
 import {
@@ -9,10 +10,12 @@ import { PointValue, StatusBadge } from "@/components/ui";
 import PointActions from "./point-actions";
 
 export default function HistoryTable({
+  returnTo,
   transactions,
   isAdmin,
   emptyMessage,
 }: {
+  returnTo?: string;
   transactions: Tables<"point_history">[];
   isAdmin: boolean;
   emptyMessage: string;
@@ -37,7 +40,12 @@ export default function HistoryTable({
           <tr key={transaction.id}>
             <td>
               {transaction.officer_id ? (
-                <Link href={`/officers/${transaction.officer_id}`}>
+                <Link
+                  href={withReturnTo(
+                    `/officers/${transaction.officer_id}`,
+                    returnTo,
+                  )}
+                >
                   {transaction.officer_name}
                 </Link>
               ) : (
@@ -46,11 +54,18 @@ export default function HistoryTable({
             </td>
             <td>
               {transaction.event_id ? (
-                <Link href={`/events/${transaction.event_id}`}>
+                <Link
+                  href={withReturnTo(
+                    `/events/${transaction.event_id}`,
+                    returnTo,
+                  )}
+                >
                   {transaction.event_name}
                 </Link>
               ) : transaction.task_id ? (
-                <Link href={`/tasks/${transaction.task_id}`}>
+                <Link
+                  href={withReturnTo(`/tasks/${transaction.task_id}`, returnTo)}
+                >
                   {transaction.task_title}
                 </Link>
               ) : (

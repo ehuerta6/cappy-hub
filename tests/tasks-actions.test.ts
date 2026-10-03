@@ -7,6 +7,7 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 
+import { redirect } from "next/navigation";
 import { getAuthorizationContext } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
@@ -152,4 +153,74 @@ it("recurring Task editing submits only changed fields to its trusted RPC", asyn
     p_patch: { title: " Flyer " },
   });
   expect(rpc).not.toHaveBeenCalledWith("save_task", expect.anything());
+});
+
+it.each(["occurrence", "following", "series"])(
+  "recurring Task edit preserves contextual return behavior for %s scope",
+  async (scope) => {
+    const { editRecurringTask } =
+      await import("@/app/(protected)/tasks/actions");
+    const data = taskForm();
+    data.set("task_id", "9");
+    data.set("scope", scope);
+    data.set("recurrence_series_id", "3");
+    data.set("recurrence_revision", "2");
+    data.set("mutation_request_key", "00000000-0000-4000-8000-000000000068");
+    data.append("edited_fields", "title");
+    data.set("returnTo", "/tasks?q=flyer&branch=2&assignee=7");
+    await editRecurringTask({ error: "" }, data);
+    expect(redirect).toHaveBeenCalledWith(
+      scope === "series"
+        ? "/tasks?q=flyer&branch=2&assignee=7"
+        : "/tasks/9?returnTo=%2Ftasks%3Fq%3Dflyer%26branch%3D2%26assignee%3D7",
+    );
+    expect(rpc).toHaveBeenCalledWith(
+      "mutate_recurring_task",
+      expect.objectContaining({
+        p_scope: scope,
+        p_patch: { title: " Flyer " },
+      }),
+    );
+  },
+);
+
+it.each(["occurrence", "series"])(
+  "recurring Task edit falls back safely for %s scope",
+  async (scope) => {
+    const { editRecurringTask } =
+      await import("@/app/(protected)/tasks/actions");
+    for (const returnTo of [
+      undefined,
+      "//evil.example",
+      "/tasks?q=%",
+      "/tasks/9?returnTo=%2Ftasks",
+    ]) {
+      vi.mocked(redirect).mockClear();
+      const data = taskForm();
+      data.set("task_id", "9");
+      data.set("scope", scope);
+      data.set("recurrence_series_id", "3");
+      data.set("recurrence_revision", "2");
+      data.set("mutation_request_key", "00000000-0000-4000-8000-000000000068");
+      if (returnTo) data.set("returnTo", returnTo);
+      await editRecurringTask({ error: "" }, data);
+      expect(redirect).toHaveBeenCalledWith(
+        scope === "series" ? "/tasks" : "/tasks/9",
+      );
+    }
+  },
+);
+
+it("return context does not bypass trusted recurring Task authorization", async () => {
+  const { editRecurringTask } = await import("@/app/(protected)/tasks/actions");
+  const data = taskForm();
+  data.set("task_id", "9");
+  data.set("scope", "occurrence");
+  data.set("recurrence_series_id", "3");
+  data.set("recurrence_revision", "2");
+  data.set("mutation_request_key", "00000000-0000-4000-8000-000000000068");
+  data.set("returnTo", "/points?page=3");
+  rpc.mockResolvedValue({ error: { message: "Task outside branch scope" } });
+  expect((await editRecurringTask({ error: "" }, data)).error).toBeTruthy();
+  expect(redirect).not.toHaveBeenCalled();
 });

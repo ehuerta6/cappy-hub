@@ -1,3 +1,7 @@
+import {
+  withReturnTo,
+  type NavigationSearchParams,
+} from "@/lib/return-context";
 import ContextualBackLink from "@/components/contextual-back-link";
 import { getAuthorizationContext, canManageEvent } from "@/lib/authorization";
 import PointTransactionTable from "@/components/point-transaction-table";
@@ -27,9 +31,12 @@ import {
 } from "@/components/ui";
 export default async function EventDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<NavigationSearchParams>;
 }) {
+  const { returnTo } = (await searchParams) ?? {};
   const actor = await getAuthorizationContext();
   const supabase = await createClient();
   const { id: eventIdParam } = await params;
@@ -79,12 +86,16 @@ export default async function EventDetailPage({
   if (series?.error) throw new Error("Failed to load recurring series");
   return (
     <div className="space-y-4">
-      <ContextualBackLink href="/events">Back to events</ContextualBackLink>
+      <ContextualBackLink href="/events" returnTo={returnTo}>
+        Back to events
+      </ContextualBackLink>
       <PageHeader
         title={event.name}
         action={
           canManage && !event.deleted_at && status !== "cancelled" ? (
-            <ActionLink href={`/events/${eventIdParam}/edit`}>
+            <ActionLink
+              href={withReturnTo(`/events/${eventIdParam}/edit`, returnTo)}
+            >
               Edit event
             </ActionLink>
           ) : undefined
