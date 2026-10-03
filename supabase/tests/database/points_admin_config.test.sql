@@ -6,11 +6,14 @@ select no_plan();
 insert into auth.users(id,email) values
  ('00000000-0000-4000-8000-000000000701','admin-pr7@example.org'),
  ('00000000-0000-4000-8000-000000000702','officer-pr7@example.org'),
- ('00000000-0000-4000-8000-000000000703','lead-pr7@example.org');
+ ('00000000-0000-4000-8000-000000000703','lead-pr7@example.org'),
+ ('00000000-0000-4000-8000-000000000704','second-admin-pr7@example.org'),
+ ('00000000-0000-4000-8000-000000000710','admin-pr7-relinked@example.org');
 insert into officers(id,name,utep_email,position_id,application_role,auth_user_id) values
  (-701,'Admin PR7','admin-pr7@example.org',(select id from positions where name='Officer'),'admin','00000000-0000-4000-8000-000000000701'),
  (-702,'Officer PR7','officer-pr7@example.org',(select id from positions where name='Officer'),'officer','00000000-0000-4000-8000-000000000702'),
- (-703,'Lead PR7','lead-pr7@example.org',(select id from positions where name='Lead'),'officer','00000000-0000-4000-8000-000000000703');
+ (-703,'Lead PR7','lead-pr7@example.org',(select id from positions where name='Lead'),'officer','00000000-0000-4000-8000-000000000703'),
+ (-704,'Second Admin PR7','second-admin-pr7@example.org',(select id from positions where name='Officer'),'admin','00000000-0000-4000-8000-000000000704');
 insert into events(id,name,description,location,event_type_id,starts_at,ends_at,participation_points_per_hour_at_end)
  values(-701,'PR7 Event','Test event','TBA',(select id from event_types where name='Meeting'),
  '2099-09-20 09:00-06','2099-09-20 10:00-06',2);
@@ -20,7 +23,11 @@ insert into point_transactions(id,officer_id,event_id,points,reason,award_type,c
  (-702,-702,null,1,'At period start','manual',
    (select starts_at from private.half_year_bounds(now()))),
  (-703,-702,null,100,'Before period start','manual',
-   (select starts_at-interval '1 second' from private.half_year_bounds(now())));
+   (select starts_at-interval '1 second' from private.half_year_bounds(now()))),
+ (-704,-703,null,5,'Editor attribution A/B','manual',
+   (select starts_at-interval '1 day' from private.half_year_bounds(now()))),
+ (-705,-703,null,5,'Editor attribution relink','manual',
+   (select starts_at-interval '1 day' from private.half_year_bounds(now())));
 update application_config set updated_at=now()-interval '1 day' where id=1;
 
 select is((select starts_at from private.half_year_bounds('2026-07-01 06:00+00')),
@@ -45,6 +52,42 @@ select lives_ok($$select set_participation_rate(1.25)$$,'fractional positive rat
 select is((select details ->> 'new_rate' from audit_logs where action='config.participation_rate_changed'),
  '1.25','rate audit retains new value');
 select lives_ok($$select set_participation_rate(1.25)$$,'same rate is harmless');
+
+-- A later successful edit replaces both the mutable UUID actor and its stable
+-- Officer attribution.
+select lives_ok($$select update_point_transaction(-704,6)$$,'Admin A edits transaction');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000704',true);
+select lives_ok($$select update_point_transaction(-704,7)$$,'Admin B edits same transaction');
+select is((select updated_by from point_transactions where id=-704),
+ '00000000-0000-4000-8000-000000000704'::uuid,'latest editor UUID is Admin B');
+select is((select updated_by_officer_id from point_transactions where id=-704),
+ -704::bigint,'latest editor stable ID is Admin B');
+
+-- Relinking Admin A does not itself rewrite the saved actor. When A edits
+-- again under the new UUID, that UUID resolves back to the same stable Officer.
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000701',true);
+select lives_ok($$select update_point_transaction(-705,6)$$,'Admin A edits relink transaction');
+select is((select updated_by_officer_id from point_transactions where id=-705),
+ -701::bigint,'initial stable actor is Admin A');
+reset role;
+update officers set auth_user_id='00000000-0000-4000-8000-000000000710'
+ where id=-701;
+select is((select updated_by from point_transactions where id=-705),
+ '00000000-0000-4000-8000-000000000701'::uuid,'Officer relink alone preserves UUID provenance');
+select is((select updated_by_officer_id from point_transactions where id=-705),
+ -701::bigint,'Officer relink alone preserves stable attribution');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000710',true);
+set local role authenticated;
+select lives_ok($$select update_point_transaction(-705,7)$$,'Admin A edits again with relinked UUID');
+select is((select updated_by from point_transactions where id=-705),
+ '00000000-0000-4000-8000-000000000710'::uuid,'re-edited UUID provenance uses relinked account');
+select is((select updated_by_officer_id from point_transactions where id=-705),
+ -701::bigint,'re-edited stable attribution remains Admin A');
+reset role;
+update officers set auth_user_id='00000000-0000-4000-8000-000000000701'
+ where id=-701;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000701',true);
+set local role authenticated;
 
 select lives_ok($$select add_manual_transaction(-702,2.5,'Extra work','manual')$$,
  'admin creates positive fractional manual transaction');
