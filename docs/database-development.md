@@ -66,9 +66,9 @@ Use the production project's Postgres Session Pooler connection string and URL-e
 
 ### One-time Vercel project setting
 
-Vercel Git integration currently deploys automatically. Before merging this deployment workflow, open the Vercel project’s **Settings → Environments → Production → Branch Tracking** and change **Production Branch** from `main` to the reserved branch name `workflow-only`. Do not push commits to `workflow-only`. Production deployments will then be triggered by the gated GitHub Actions workflow's Production Deploy Hook. Pull request branches continue to receive normal Preview deployments. The repository’s `vercel.json` also disables Git-triggered deployments from `main`.
+Keep the Vercel project's **Production Branch** set to `main`. The repository's `vercel.json` disables automatic Git-triggered production deployments from `main`; GitHub Actions applies pending migrations and verifies migration history alignment before it sends a POST request to the Production Deploy Hook configured for `main`. Pull request and feature branch Preview deployments remain enabled.
 
-Configure `VERCEL_DEPLOY_HOOK_URL` as a Production Deploy Hook for this Vercel project. If the project cannot use a reserved production branch, disable automatic Git deployments for `main` in its project Git settings before merging. Do not rely on the GitHub workflow alone while Vercel can independently promote `main` pushes.
+Configure `VERCEL_DEPLOY_HOOK_URL` as a Production Deploy Hook for the `main` branch. No reserved production branch is needed.
 
 ### Migration history and failure handling
 
