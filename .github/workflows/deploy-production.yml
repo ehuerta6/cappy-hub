@@ -24,9 +24,7 @@ jobs:
     environment: production
     env:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
     steps:
       - name: Check out the successful main commit
         uses: actions/checkout@v4
@@ -48,21 +46,18 @@ jobs:
       - name: Preview pending production migrations
         run: npx supabase db push --db-url "$SUPABASE_DB_URL" --dry-run
 
-      - name: Pull Vercel production settings
-        run: >-
-          npx --yes vercel@62.2.0 pull --yes --environment=production
-          --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID"
-
-      - name: Build Vercel production application
-        run: npx --yes vercel@62.2.0 build --prod --token="$VERCEL_TOKEN"
-
       - name: Apply production migrations
         run: npx supabase db push --db-url "$SUPABASE_DB_URL"
 
       - name: Verify production migration history is aligned
         run: node scripts/verify-production-migrations.mjs --require-aligned
 
-      - name: Deploy Vercel production application
-        run: >-
-          npx --yes vercel@62.2.0 deploy --prebuilt --prod --yes
-          --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID"
+      - name: Trigger Vercel production deployment
+        run: |
+          if ! curl --fail-with-body --silent --show-error \
+            --request POST \
+            "$VERCEL_DEPLOY_HOOK_URL" \
+            --output /dev/null 2>/dev/null; then
+            echo "Vercel production deploy hook request failed."
+            exit 1
+          fi
