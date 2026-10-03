@@ -51,6 +51,8 @@ Tests run serially against a locally started production build. They sign in thro
 
 CI runs the normal database checks first, then resets to the seeded local app environment, builds, installs Chromium, and runs the same serial suite. It uploads Playwright traces and screenshots on a browser test failure as the `playwright-results-<run id>` artifact. Local failure artifacts are written under `test-results/`.
 
+The same Playwright run includes a small axe accessibility smoke spec for local login, the authenticated Dashboard, new Event and Task forms, and an open Event cancellation dialog. Run it alone with `npx playwright test e2e/accessibility.spec.ts` after the reset and build above, or with the functional smoke through `npm run test:e2e`. Axe catches detectable issues on these representative states; manual keyboard and accessibility review is still needed.
+
 ## Daily development
 
 After pulling the latest code:
