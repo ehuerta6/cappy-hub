@@ -4,7 +4,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { displayPoints } from "@/lib/participation";
 import { participationLabel } from "@/lib/event-status";
-import TransactionTable from "./points/transaction-table";
+import PointTransactionTable from "@/components/point-transaction-table";
 import {
   ActionLink,
   PageHeader,
@@ -140,7 +140,7 @@ export default async function DashboardPage() {
           description="Latest 10 transactions"
         />
         <TableFrame>
-          <TransactionTable transactions={transactions.data} />
+          <PointTransactionTable transactions={transactions.data} />
         </TableFrame>
       </section>
     </div>

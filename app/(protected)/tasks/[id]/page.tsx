@@ -17,8 +17,9 @@ export default async function TaskDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const actor = await getAuthorizationContext();
-  const { id } = await params;
-  if (!/^-?[1-9]\d*$/.test(id)) notFound();
+  const { id: taskIdParam } = await params;
+  if (!/^-?[1-9]\d*$/.test(taskIdParam)) notFound();
+  const taskId = Number(taskIdParam);
   const supabase = await createClient();
   const [result, officers] = await Promise.all([
     supabase
@@ -26,7 +27,7 @@ export default async function TaskDetailPage({
       .select(
         "*,branches(name),task_assignments(officer_id,completed_at,approved_at,officers!task_assignments_officer_id_fkey(name))",
       )
-      .eq("id", Number(id))
+      .eq("id", taskId)
       .maybeSingle(),
     supabase
       .from("officers")

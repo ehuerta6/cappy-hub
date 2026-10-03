@@ -1,7 +1,7 @@
 import { getAuthorizationContext, isAdmin } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
-import CatalogManager from "../../catalog-manager";
+import CatalogManager from "./manager";
 import { PageHeader } from "@/components/ui";
 
 export default async function OfficerCatalogsPage() {

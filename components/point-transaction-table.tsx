@@ -1,17 +1,20 @@
 import Link from "next/link";
+import { PointValue } from "@/components/ui";
 import type { Tables } from "@/lib/database.types";
 import { formatDate, formatLabel } from "@/lib/presentation";
-import { PointValue } from "@/components/ui";
-type Transaction = Tables<"point_transactions"> & {
+
+type PointTransactionWithRelations = Tables<"point_transactions"> & {
   officers: Pick<Tables<"officers">, "id" | "name">;
   events: Pick<Tables<"events">, "id" | "name"> | null;
   tasks: Pick<Tables<"tasks">, "id" | "title"> | null;
 };
-export default function TransactionTable({
+type PointTransactionTableProps = {
+  transactions: PointTransactionWithRelations[];
+};
+
+export default function PointTransactionTable({
   transactions,
-}: {
-  transactions: Transaction[];
-}) {
+}: PointTransactionTableProps) {
   if (!transactions.length) return <p>No point transactions yet.</p>;
   return (
     <table>

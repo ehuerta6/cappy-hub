@@ -1,6 +1,6 @@
 import ContextualBackLink from "@/components/contextual-back-link";
 import { getAuthorizationContext, canManageEvent } from "@/lib/authorization";
-import TransactionTable from "@/app/(protected)/points/transaction-table";
+import PointTransactionTable from "@/components/point-transaction-table";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -31,15 +31,16 @@ export default async function EventDetailPage({
 }) {
   const actor = await getAuthorizationContext();
   const supabase = await createClient();
-  const { id } = await params;
-  if (!/^-?[1-9]\d*$/.test(id)) notFound();
+  const { id: eventIdParam } = await params;
+  if (!/^-?[1-9]\d*$/.test(eventIdParam)) notFound();
+  const eventId = Number(eventIdParam);
   const [result, officers] = await Promise.all([
     supabase
       .from("events")
       .select(
         "*,event_types(name),event_branches(branch_id,branches(name)),event_officers(officers(id,name))",
       )
-      .eq("id", Number(id))
+      .eq("id", eventId)
       .maybeSingle(),
     supabase
       .from("officers")
@@ -55,7 +56,7 @@ export default async function EventDetailPage({
   const past = status === "past";
   const canManage = canManageEvent(
     actor,
-    event.event_branches.map((x) => x.branch_id),
+    event.event_branches.map((eventBranch) => eventBranch.branch_id),
   );
   const transactions = await supabase
     .from("point_transactions")
@@ -73,7 +74,9 @@ export default async function EventDetailPage({
         title={event.name}
         action={
           canManage && !event.deleted_at && status !== "cancelled" ? (
-            <ActionLink href={`/events/${id}/edit`}>Edit event</ActionLink>
+            <ActionLink href={`/events/${eventIdParam}/edit`}>
+              Edit event
+            </ActionLink>
           ) : undefined
         }
       />
@@ -140,7 +143,9 @@ export default async function EventDetailPage({
             <dt>Branches</dt>
             <dd>
               <BranchBadges
-                branches={event.event_branches.map((x) => x.branches.name)}
+                branches={event.event_branches.map(
+                  (eventBranch) => eventBranch.branches.name,
+                )}
               />
             </dd>
           </dl>
@@ -202,7 +207,7 @@ export default async function EventDetailPage({
                 officers={officers.data.filter(
                   (officer) =>
                     !event.event_officers.some(
-                      (x) => x.officers.id === officer.id,
+                      (eventSignup) => eventSignup.officers.id === officer.id,
                     ),
                 )}
               />
@@ -214,7 +219,7 @@ export default async function EventDetailPage({
                   (officer) =>
                     officer.id === actor.id &&
                     !event.event_officers.some(
-                      (x) => x.officers.id === officer.id,
+                      (eventSignup) => eventSignup.officers.id === officer.id,
                     ),
                 )}
               />
@@ -234,7 +239,7 @@ export default async function EventDetailPage({
                 officers={officers.data.filter(
                   (officer) =>
                     !event.event_officers.some(
-                      (x) => x.officers.id === officer.id,
+                      (eventSignup) => eventSignup.officers.id === officer.id,
                     ),
                 )}
               />
@@ -248,7 +253,7 @@ export default async function EventDetailPage({
           description="Latest 100 transactions"
         />
         <TableFrame>
-          <TransactionTable transactions={transactions.data} />
+          <PointTransactionTable transactions={transactions.data} />
         </TableFrame>
         <Link
           href={`/points?event=${event.id}`}

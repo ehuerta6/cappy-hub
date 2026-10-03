@@ -4,7 +4,7 @@ import {
   canManageOfficers,
   isAdmin,
 } from "@/lib/authorization";
-import TransactionTable from "@/app/(protected)/points/transaction-table";
+import PointTransactionTable from "@/components/point-transaction-table";
 import { eventStatus } from "@/lib/event-status";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -31,13 +31,14 @@ export default async function OfficerDetailPage({
 }) {
   const actor = await getAuthorizationContext();
   const supabase = await createClient();
-  const { id } = await params;
+  const { id: officerIdParam } = await params;
   const { warningStatus } = await searchParams;
-  if (!/^-?[1-9]\d*$/.test(id)) notFound();
+  if (!/^-?[1-9]\d*$/.test(officerIdParam)) notFound();
+  const officerId = Number(officerIdParam);
   const { data: officer, error } = await supabase
     .from("officers")
     .select("*, positions(name), officer_branches(branches(name))")
-    .eq("id", Number(id))
+    .eq("id", officerId)
     .maybeSingle();
   if (error) throw new Error(`Failed to load officer: ${error.message}`);
   if (!officer) notFound();
@@ -45,17 +46,17 @@ export default async function OfficerDetailPage({
     supabase
       .from("officer_point_totals")
       .select("total_points")
-      .eq("id", Number(id))
+      .eq("id", officerId)
       .single(),
     supabase
       .from("event_officers")
       .select("events(*)")
-      .eq("officer_id", Number(id)),
+      .eq("officer_id", officerId),
     supabase
       .from("point_transactions")
       .select("*,officers(id,name),events(id,name),tasks(id,title)")
       .is("removed_at", null)
-      .eq("officer_id", Number(id))
+      .eq("officer_id", officerId)
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
       .limit(100),
@@ -95,7 +96,9 @@ export default async function OfficerDetailPage({
         title={officer.name}
         action={
           canManageOfficers(actor) ? (
-            <ActionLink href={`/officers/${id}/edit`}>Edit officer</ActionLink>
+            <ActionLink href={`/officers/${officerIdParam}/edit`}>
+              Edit officer
+            </ActionLink>
           ) : undefined
         }
       />
@@ -176,8 +179,8 @@ export default async function OfficerDetailPage({
                   key={label}
                   href={
                     status
-                      ? `/officers/${id}?warningStatus=${status}`
-                      : `/officers/${id}`
+                      ? `/officers/${officerIdParam}?warningStatus=${status}`
+                      : `/officers/${officerIdParam}`
                   }
                   className="underline"
                   aria-current={
@@ -269,7 +272,7 @@ export default async function OfficerDetailPage({
           description="Latest 100 transactions"
         />
         <TableFrame>
-          <TransactionTable transactions={transactions.data} />
+          <PointTransactionTable transactions={transactions.data} />
         </TableFrame>
         <Link
           href={`/points?officer=${officer.id}`}

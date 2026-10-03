@@ -18,13 +18,13 @@ import {
   TableFrame,
 } from "@/components/ui";
 
-const PAGE_SIZE = 25;
-type Params = Record<string, string | string[] | undefined>;
+const POINT_HISTORY_PAGE_SIZE = 25;
+type PointHistorySearchParams = Record<string, string | string[] | undefined>;
 
 export default async function PointsPage({
   searchParams,
 }: {
-  searchParams: Promise<Params>;
+  searchParams: Promise<PointHistorySearchParams>;
 }) {
   const actor = await getAuthorizationContext();
   const admin = canManagePoints(actor);
@@ -113,7 +113,7 @@ export default async function PointsPage({
 
   const totalPages = Math.max(
     1,
-    Math.ceil((historyCount.count ?? 0) / PAGE_SIZE),
+    Math.ceil((historyCount.count ?? 0) / POINT_HISTORY_PAGE_SIZE),
   );
   const page = Math.min(requestedPage, totalPages);
   if (page !== requestedPage)
@@ -125,7 +125,10 @@ export default async function PointsPage({
     .order("activity_date", { ascending: false })
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
-    .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+    .range(
+      (page - 1) * POINT_HISTORY_PAGE_SIZE,
+      page * POINT_HISTORY_PAGE_SIZE - 1,
+    );
   if (transactions.error) throw new Error("Failed to load points");
 
   return (

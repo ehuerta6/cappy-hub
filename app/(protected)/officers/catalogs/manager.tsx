@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { changeCatalog } from "./catalog-actions";
+import { changeCatalog } from "./actions";
 
 type Catalog = "position" | "branch";
 type CatalogRecord = { id: number; name: string };

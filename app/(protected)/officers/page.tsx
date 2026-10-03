@@ -18,7 +18,7 @@ import { WarningDecisionForm } from "./warning-forms";
 export default async function OfficersPage() {
   const actor = await getAuthorizationContext();
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data: officers, error } = await supabase
     .from("officers")
     .select("*, positions(name), officer_branches(branches(name))")
     .order("name");
@@ -30,12 +30,14 @@ export default async function OfficersPage() {
     .eq("decision", "pending");
   if (pendingApprovals.error)
     throw new Error("Failed to load warning approvals");
-  const warningIds = pendingApprovals.data.map((row) => row.warning_id);
-  const pendingWarnings = warningIds.length
+  const pendingWarningIds = pendingApprovals.data.map(
+    (approval) => approval.warning_id,
+  );
+  const pendingWarnings = pendingWarningIds.length
     ? await supabase
         .from("officer_warnings")
         .select("id,officer_id,reason,created_at")
-        .in("id", warningIds)
+        .in("id", pendingWarningIds)
         .eq("status", "pending")
     : null;
   if (pendingWarnings?.error)
@@ -65,7 +67,7 @@ export default async function OfficersPage() {
               className="space-y-2 rounded-lg border border-zinc-800 p-4"
             >
               <p className="font-semibold">
-                {data.find((officer) => officer.id === warning.officer_id)
+                {officers.find((officer) => officer.id === warning.officer_id)
                   ?.name ?? `Officer ${warning.officer_id}`}
               </p>
               <p className="whitespace-pre-wrap">{warning.reason}</p>
@@ -91,7 +93,7 @@ export default async function OfficersPage() {
             </tr>
           </thead>
           <tbody>
-            {data.map((officer) => (
+            {officers.map((officer) => (
               <tr key={officer.id}>
                 <td>
                   <Link href={`/officers/${officer.id}`}>{officer.name}</Link>
@@ -121,7 +123,7 @@ export default async function OfficersPage() {
           </tbody>
         </table>
       </TableFrame>
-      {data.length === 0 && <p>No officers yet.</p>}
+      {officers.length === 0 && <p>No officers yet.</p>}
     </div>
   );
 }

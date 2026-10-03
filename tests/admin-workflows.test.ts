@@ -17,7 +17,7 @@ import {
   changeApplicationRole,
   saveOfficer,
 } from "@/app/(protected)/officers/actions";
-import { changeCatalog } from "@/app/(protected)/catalog-actions";
+import { changeCatalog } from "@/app/(protected)/officers/catalogs/actions";
 
 const rpc = vi.fn().mockResolvedValue({ error: null });
 const previous = { error: "", success: "" };

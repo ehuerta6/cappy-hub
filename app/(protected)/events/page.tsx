@@ -35,12 +35,12 @@ export default async function EventsPage({
   query = showRemoved
     ? query.not("deleted_at", "is", null)
     : query.is("deleted_at", null);
-  const { data, error } = await query;
+  const { data: events, error } = await query;
   if (error) throw new Error("Failed to load events");
-  const yourEvents = data.filter((event) =>
+  const yourEvents = events.filter((event) =>
     event.event_officers.some((signup) => signup.officer_id === actor.id),
   );
-  const otherEvents = data.filter(
+  const otherEvents = events.filter(
     (event) =>
       !event.event_officers.some((signup) => signup.officer_id === actor.id),
   );
@@ -109,7 +109,7 @@ export default async function EventsPage({
                       <td>
                         <BranchBadges
                           branches={event.event_branches.map(
-                            (x) => x.branches.name,
+                            (eventBranch) => eventBranch.branches.name,
                           )}
                         />
                       </td>

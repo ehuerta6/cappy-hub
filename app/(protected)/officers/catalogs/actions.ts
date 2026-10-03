@@ -4,7 +4,7 @@ import { getAuthorizationContext, isAdmin } from "@/lib/authorization";
 import { mutationError } from "@/lib/mutation-error";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { catalogMutationInputSchema } from "./catalog-validation";
+import { catalogMutationInputSchema } from "./validation";
 
 export async function changeCatalog(
   _previous: { error: string; success: string },

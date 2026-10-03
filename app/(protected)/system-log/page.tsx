@@ -8,7 +8,7 @@ import { redirect } from "next/navigation";
 
 type AuditDetails =
   Database["public"]["Tables"]["audit_logs"]["Row"]["details"];
-const pageSize = 50;
+const SYSTEM_LOG_PAGE_SIZE = 50;
 
 function describeDetails(details: AuditDetails) {
   if (!details || typeof details !== "object" || Array.isArray(details))
@@ -51,7 +51,7 @@ export default async function SystemLogPage({
   const page =
     Number.isSafeInteger(requestedPage) &&
     requestedPage > 0 &&
-    requestedPage <= Math.floor(Number.MAX_SAFE_INTEGER / pageSize)
+    requestedPage <= Math.floor(Number.MAX_SAFE_INTEGER / SYSTEM_LOG_PAGE_SIZE)
       ? requestedPage
       : 1;
   const supabase = await createClient();
@@ -66,7 +66,7 @@ export default async function SystemLogPage({
     })
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
-    .range((page - 1) * pageSize, page * pageSize - 1);
+    .range((page - 1) * SYSTEM_LOG_PAGE_SIZE, page * SYSTEM_LOG_PAGE_SIZE - 1);
   if (error) throw new Error(`Failed to load System Log: ${error.message}`);
 
   const actorIds = [
@@ -152,7 +152,7 @@ export default async function SystemLogPage({
           {page > 1 && (
             <Link href={`/system-log?page=${page - 1}`}>Previous</Link>
           )}
-          {page * pageSize < total && (
+          {page * SYSTEM_LOG_PAGE_SIZE < total && (
             <Link href={`/system-log?page=${page + 1}`}>Next</Link>
           )}
         </div>

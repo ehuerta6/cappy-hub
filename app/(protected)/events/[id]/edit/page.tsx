@@ -16,13 +16,14 @@ export default async function EditEventPage({
 }) {
   const actor = await getAuthorizationContext();
   const supabase = await createClient();
-  const { id } = await params;
-  if (!/^-?[1-9]\d*$/.test(id)) notFound();
+  const { id: eventIdParam } = await params;
+  if (!/^-?[1-9]\d*$/.test(eventIdParam)) notFound();
+  const eventId = Number(eventIdParam);
   const [event, branches, eventTypes] = await Promise.all([
     supabase
       .from("events")
       .select("*,event_branches(branch_id)")
-      .eq("id", Number(id))
+      .eq("id", eventId)
       .maybeSingle(),
     supabase.from("branches").select("id,name").order("name"),
     supabase
@@ -37,13 +38,13 @@ export default async function EditEventPage({
   if (
     !canManageEvent(
       actor,
-      event.data.event_branches.map((x) => x.branch_id),
+      event.data.event_branches.map((eventBranch) => eventBranch.branch_id),
     )
   )
     redirect("/access-denied");
   return (
     <div className="space-y-6">
-      <ContextualBackLink href={`/events/${id}`}>
+      <ContextualBackLink href={`/events/${eventIdParam}`}>
         Back to event
       </ContextualBackLink>
       <PageHeader title="Edit event" />
@@ -58,7 +59,9 @@ export default async function EditEventPage({
               )
         }
         eventTypes={eventTypes.data}
-        branchIds={event.data.event_branches.map((x) => x.branch_id)}
+        branchIds={event.data.event_branches.map(
+          (eventBranch) => eventBranch.branch_id,
+        )}
       />
     </div>
   );
