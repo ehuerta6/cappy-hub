@@ -11,11 +11,13 @@ import PointActions from "./point-actions";
 export default function HistoryTable({
   transactions,
   isAdmin,
+  emptyMessage,
 }: {
   transactions: Tables<"point_history">[];
   isAdmin: boolean;
+  emptyMessage: string;
 }) {
-  if (!transactions.length) return <p>No matching point transactions.</p>;
+  if (!transactions.length) return <p>{emptyMessage}</p>;
   return (
     <table>
       <thead>

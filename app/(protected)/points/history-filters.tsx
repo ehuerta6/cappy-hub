@@ -1,9 +1,5 @@
-"use client";
-
-import { useState, useTransition } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ListFilterBar } from "@/components/ui";
 import { formatEventFilterOption } from "@/lib/presentation";
-import { pointHistoryUrl, type PointHistoryFilterKey } from "./history-url";
 
 type PointHistoryFilterControlsProps = {
   officers: { id: number; name: string }[];
@@ -13,6 +9,9 @@ type PointHistoryFilterControlsProps = {
   fromDate: string;
   toDate: string;
   searchQuery: string;
+  awardType?: string;
+  officerId?: number;
+  eventId?: number;
 };
 
 export default function PointHistoryFilterControls({
@@ -23,57 +22,49 @@ export default function PointHistoryFilterControls({
   fromDate,
   toDate,
   searchQuery,
+  awardType,
+  officerId,
+  eventId,
 }: PointHistoryFilterControlsProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
-  const [draftSearchQuery, setDraftSearchQuery] = useState(searchQuery);
-
-  const navigateWithFilter = (
-    filterKey: PointHistoryFilterKey,
-    filterValue: string,
-  ) => {
-    const nextUrl = pointHistoryUrl(pathname, searchParams.toString(), {
-      [filterKey]: filterValue,
-    });
-    startTransition(() => router.push(nextUrl, { scroll: false }));
-  };
-
-  const applySearch = (formData: FormData) => {
-    const query = String(formData.get("q") ?? "")
-      .trim()
-      .slice(0, 100);
-    const nextUrl = pointHistoryUrl(pathname, searchParams.toString(), {
-      q: query,
-    });
-    startTransition(() => router.push(nextUrl, { scroll: false }));
-  };
+  const active = Boolean(
+    searchQuery ||
+    awardType ||
+    officerId !== undefined ||
+    eventId !== undefined ||
+    fromDate ||
+    toDate ||
+    (isAdmin && status !== "active"),
+  );
 
   return (
-    <form
-      className="flex flex-wrap items-end gap-3"
-      onSubmit={(event) => {
-        event.preventDefault();
-        applySearch(new FormData(event.currentTarget));
-      }}
+    <ListFilterBar
+      key={JSON.stringify([
+        searchQuery,
+        awardType,
+        officerId,
+        eventId,
+        status,
+        fromDate,
+        toDate,
+      ])}
+      action="/points"
+      label="Point history filters"
+      active={active}
+      clearHref="/points"
     >
-      <label className="min-w-48 flex-1">
-        Search officer, reason, event, or task
+      <label className="w-full min-w-0 sm:w-auto sm:min-w-56 sm:flex-1">
+        Search point history
         <input
-          name="q"
           type="search"
-          value={draftSearchQuery}
-          onChange={(event) => setDraftSearchQuery(event.target.value)}
+          name="q"
+          defaultValue={searchQuery}
+          maxLength={100}
+          placeholder="Officer, reason, event, or task"
         />
       </label>
-      <label>
-        Type
-        <select
-          name="type"
-          value={searchParams.get("type") ?? ""}
-          onChange={(event) => navigateWithFilter("type", event.target.value)}
-        >
+      <label className="w-full min-w-0 sm:w-auto sm:min-w-36">
+        Award type
+        <select name="type" defaultValue={awardType ?? ""}>
           <option value="">All types</option>
           <option value="participation">Participation</option>
           <option value="task">Task</option>
@@ -81,15 +72,9 @@ export default function PointHistoryFilterControls({
           <option value="correction">Correction</option>
         </select>
       </label>
-      <label>
+      <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
         Officer
-        <select
-          name="officer"
-          value={searchParams.get("officer") ?? ""}
-          onChange={(event) =>
-            navigateWithFilter("officer", event.target.value)
-          }
-        >
+        <select name="officer" defaultValue={officerId ?? ""}>
           <option value="">All officers</option>
           {officers.map((officer) => (
             <option key={officer.id} value={officer.id}>
@@ -98,13 +83,9 @@ export default function PointHistoryFilterControls({
           ))}
         </select>
       </label>
-      <label className="min-w-52 flex-1">
+      <label className="w-full min-w-0 sm:w-auto sm:min-w-48 sm:flex-1">
         Event
-        <select
-          name="event"
-          value={searchParams.get("event") ?? ""}
-          onChange={(event) => navigateWithFilter("event", event.target.value)}
-        >
+        <select name="event" defaultValue={eventId ?? ""}>
           <option value="">All events</option>
           {events.map((event) => (
             <option key={event.id} value={event.id}>
@@ -114,54 +95,23 @@ export default function PointHistoryFilterControls({
         </select>
       </label>
       {isAdmin && (
-        <label>
+        <label className="w-full min-w-0 sm:w-auto sm:min-w-32">
           Status
-          <select
-            name="status"
-            value={status}
-            onChange={(event) =>
-              navigateWithFilter("status", event.target.value)
-            }
-          >
+          <select name="status" defaultValue={status}>
             <option value="active">Active</option>
             <option value="removed">Removed</option>
             <option value="all">All</option>
           </select>
         </label>
       )}
-      <label>
-        From
-        <input
-          aria-label="From activity date"
-          name="from"
-          type="date"
-          value={fromDate}
-          onChange={(event) => navigateWithFilter("from", event.target.value)}
-        />
+      <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
+        From activity date
+        <input name="from" type="date" defaultValue={fromDate} />
       </label>
-      <label>
-        To
-        <input
-          aria-label="To activity date"
-          name="to"
-          type="date"
-          value={toDate}
-          onChange={(event) => navigateWithFilter("to", event.target.value)}
-        />
+      <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
+        To activity date
+        <input name="to" type="date" defaultValue={toDate} />
       </label>
-      <button type="submit" disabled={isPending}>
-        {isPending ? "Filtering…" : "Apply filters"}
-      </button>
-      <button
-        type="button"
-        disabled={isPending}
-        onClick={() => startTransition(() => router.push(pathname))}
-      >
-        Clear filters
-      </button>
-      <span className="sr-only" aria-live="polite">
-        {isPending ? "Filtering point history" : ""}
-      </span>
-    </form>
+    </ListFilterBar>
   );
 }

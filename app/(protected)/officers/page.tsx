@@ -7,22 +7,63 @@ import { createClient } from "@/lib/supabase/server";
 import {
   ActionLink,
   BranchBadges,
+  ListFilterBar,
   PageHeader,
   SectionHeading,
   StatusBadge,
   TableFrame,
 } from "@/components/ui";
 import { formatLabel } from "@/lib/presentation";
+import { searchOrFilter } from "@/lib/list-search";
+import { officerListFiltersSchema } from "./filter-validation";
 import { WarningDecisionForm } from "./warning-forms";
 
-export default async function OfficersPage() {
+type OfficerListSearchParams = Record<string, string | string[] | undefined>;
+
+export default async function OfficersPage({
+  searchParams,
+}: {
+  searchParams: Promise<OfficerListSearchParams>;
+}) {
   const actor = await getAuthorizationContext();
+  const params = await searchParams;
+  const filters = officerListFiltersSchema.parse(params);
+  const { q: search, status, position: positionId, branch: branchId } = filters;
   const supabase = await createClient();
-  const { data: officers, error } = await supabase
+  const officerSelection =
+    "*,positions(name),officer_branches(branch_id,branches(name)),filter_branch:officer_branches(branch_id)";
+
+  let officersQuery = supabase
     .from("officers")
-    .select("*, positions(name), officer_branches(branches(name))")
+    .select(officerSelection)
     .order("name");
-  if (error) throw new Error(`Failed to load officers: ${error.message}`);
+  if (search)
+    officersQuery = officersQuery.or(
+      searchOrFilter(search, ["name", "utep_email", "personal_email"]),
+    );
+  if (status) officersQuery = officersQuery.eq("status", status);
+  if (positionId !== undefined)
+    officersQuery = officersQuery.eq("position_id", positionId);
+  if (branchId !== undefined)
+    officersQuery = officersQuery
+      .eq("filter_branch.branch_id", branchId)
+      .not("filter_branch", "is", null);
+
+  const [officersResult, officerCountResult, positionsResult, branchesResult] =
+    await Promise.all([
+      officersQuery,
+      supabase.from("officers").select("id", { count: "exact", head: true }),
+      supabase.from("positions").select("id,name").order("name"),
+      supabase.from("branches").select("id,name").order("name"),
+    ]);
+  if (
+    officersResult.error ||
+    officerCountResult.error ||
+    positionsResult.error ||
+    branchesResult.error
+  )
+    throw new Error("Failed to load officers");
+
   const pendingApprovals = await supabase
     .from("warning_approvals")
     .select("warning_id,approver_role")
@@ -42,6 +83,26 @@ export default async function OfficersPage() {
     : null;
   if (pendingWarnings?.error)
     throw new Error("Failed to load pending warnings");
+
+  const warningOfficerIds = [
+    ...new Set(
+      (pendingWarnings?.data ?? []).map((warning) => warning.officer_id),
+    ),
+  ];
+  const warningOfficers = warningOfficerIds.length
+    ? await supabase
+        .from("officers")
+        .select("id,name")
+        .in("id", warningOfficerIds)
+    : null;
+  if (warningOfficers?.error)
+    throw new Error("Failed to load officers awaiting a warning decision");
+  const warningOfficerNames = new Map(
+    (warningOfficers?.data ?? []).map((officer) => [officer.id, officer.name]),
+  );
+
+  const hasFilters = Boolean(search || status || positionId || branchId);
+  const officers = officersResult.data;
   return (
     <div className="space-y-6">
       <PageHeader
@@ -58,6 +119,54 @@ export default async function OfficersPage() {
           Manage positions and branches
         </Link>
       )}
+      <ListFilterBar
+        key={JSON.stringify(filters)}
+        action="/officers"
+        label="Officer filters"
+        active={hasFilters}
+        clearHref="/officers"
+      >
+        <label className="w-full min-w-0 sm:w-auto sm:min-w-56 sm:flex-1">
+          Search officers
+          <input
+            type="search"
+            name="q"
+            defaultValue={search}
+            maxLength={100}
+            placeholder="Name or email"
+          />
+        </label>
+        <label className="w-full min-w-0 sm:w-auto sm:min-w-36">
+          Status
+          <select name="status" defaultValue={status ?? ""}>
+            <option value="">All statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </label>
+        <label className="w-full min-w-0 sm:w-auto sm:min-w-44">
+          Position
+          <select name="position" defaultValue={positionId ?? ""}>
+            <option value="">All positions</option>
+            {positionsResult.data.map((position) => (
+              <option key={position.id} value={position.id}>
+                {position.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
+          Branch
+          <select name="branch" defaultValue={branchId ?? ""}>
+            <option value="">All branches</option>
+            {branchesResult.data.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {formatLabel(branch.name)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </ListFilterBar>
       {pendingWarnings?.data && pendingWarnings.data.length > 0 && (
         <section className="space-y-3">
           <SectionHeading title="Warnings awaiting your decision" />
@@ -66,9 +175,9 @@ export default async function OfficersPage() {
               key={warning.id}
               className="space-y-2 rounded-lg border border-border p-4"
             >
-              <p className="font-semibold">
-                {officers.find((officer) => officer.id === warning.officer_id)
-                  ?.name ?? `Officer ${warning.officer_id}`}
+              <p className="font-semibold text-foreground">
+                {warningOfficerNames.get(warning.officer_id) ??
+                  `Officer ${warning.officer_id}`}
               </p>
               <p className="whitespace-pre-wrap">{warning.reason}</p>
               <p className="text-sm text-muted">
@@ -79,49 +188,58 @@ export default async function OfficersPage() {
           ))}
         </section>
       )}
-      <TableFrame>
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>UTEP email</th>
-              <th>Personal email</th>
-              <th>Position</th>
-              <th>Classification</th>
-              <th>Branches</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {officers.map((officer) => (
-              <tr key={officer.id}>
-                <td>
-                  <Link href={`/officers/${officer.id}`}>{officer.name}</Link>
-                </td>
-                <td className="text-muted">{officer.utep_email ?? "—"}</td>
-                <td className="text-muted">{officer.personal_email ?? "—"}</td>
-                <td>{officer.positions.name}</td>
-                <td>
-                  {officer.classification
-                    ? formatLabel(officer.classification)
-                    : "Not specified"}
-                </td>
-                <td>
-                  <BranchBadges
-                    branches={officer.officer_branches.map(
-                      (membership) => membership.branches.name,
-                    )}
-                  />
-                </td>
-                <td>
-                  <StatusBadge status={officer.status} />
-                </td>
+      {officers.length === 0 ? (
+        <p>
+          {hasFilters && (officerCountResult.count ?? 0) > 0
+            ? "No officers match these filters."
+            : "No officers yet."}
+        </p>
+      ) : (
+        <TableFrame>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">UTEP email</th>
+                <th scope="col">Personal email</th>
+                <th scope="col">Position</th>
+                <th scope="col">Classification</th>
+                <th scope="col">Branches</th>
+                <th scope="col">Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </TableFrame>
-      {officers.length === 0 && <p>No officers yet.</p>}
+            </thead>
+            <tbody>
+              {officers.map((officer) => (
+                <tr key={officer.id}>
+                  <td>
+                    <Link href={`/officers/${officer.id}`}>{officer.name}</Link>
+                  </td>
+                  <td className="text-muted">{officer.utep_email ?? "—"}</td>
+                  <td className="text-muted">
+                    {officer.personal_email ?? "—"}
+                  </td>
+                  <td>{officer.positions.name}</td>
+                  <td>
+                    {officer.classification
+                      ? formatLabel(officer.classification)
+                      : "Not specified"}
+                  </td>
+                  <td>
+                    <BranchBadges
+                      branches={officer.officer_branches.map(
+                        (membership) => membership.branches.name,
+                      )}
+                    />
+                  </td>
+                  <td>
+                    <StatusBadge status={officer.status} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableFrame>
+      )}
     </div>
   );
 }

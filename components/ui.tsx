@@ -131,3 +131,45 @@ export function TableFrame({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
+export function ListFilterBar({
+  action,
+  label,
+  active,
+  clearHref,
+  children,
+}: {
+  action: string;
+  label: string;
+  active: boolean;
+  clearHref: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-surface/40 p-3 sm:p-4">
+      <form
+        action={action}
+        method="get"
+        role="search"
+        aria-label={label}
+        className="!flex w-full !max-w-none flex-wrap items-end gap-3"
+      >
+        {children}
+        <div className="flex min-h-10 flex-wrap items-center gap-3">
+          <button type="submit" className="min-h-10">
+            Apply filters
+          </button>
+          {active && (
+            <Link
+              href={clearHref}
+              aria-label={`Clear current ${label.toLowerCase()}`}
+              className="inline-flex min-h-10 items-center rounded-md border border-border-strong px-3 py-2 text-sm font-medium text-secondary underline-offset-4 hover:bg-hover hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted"
+            >
+              Clear filters
+            </Link>
+          )}
+        </div>
+      </form>
+    </div>
+  );
+}

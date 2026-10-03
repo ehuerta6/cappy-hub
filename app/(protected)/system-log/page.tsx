@@ -1,13 +1,18 @@
 import { canViewSystemLog, getAuthorizationContext } from "@/lib/authorization";
-import { PageHeader, TableFrame } from "@/components/ui";
+import { PageHeader, ListFilterBar, TableFrame } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/database.types";
 import { formatLabel } from "@/lib/presentation";
+import { searchOrFilter, literalSearchPattern } from "@/lib/list-search";
+import { listPageUrl } from "@/lib/list-url";
+import { denverTimestamp } from "@/lib/event-time";
+import { systemLogFiltersSchema } from "./filter-validation";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 type AuditDetails =
   Database["public"]["Tables"]["audit_logs"]["Row"]["details"];
+type SystemLogSearchParams = Record<string, string | string[] | undefined>;
 const SYSTEM_LOG_PAGE_SIZE = 50;
 
 function describeDetails(details: AuditDetails) {
@@ -41,55 +46,123 @@ function describeDetails(details: AuditDetails) {
   return "View details";
 }
 
+function nextDate(date: string) {
+  const next = new Date(`${date}T00:00:00Z`);
+  next.setUTCDate(next.getUTCDate() + 1);
+  return next.toISOString().slice(0, 10);
+}
+
 export default async function SystemLogPage({
   searchParams,
-}: PageProps<"/system-log">) {
+}: {
+  searchParams: Promise<SystemLogSearchParams>;
+}) {
   const actor = await getAuthorizationContext();
   if (!canViewSystemLog(actor)) redirect("/access-denied");
-  const rawPage = (await searchParams).page;
-  const requestedPage = typeof rawPage === "string" ? Number(rawPage) : 1;
-  const page =
-    Number.isSafeInteger(requestedPage) &&
-    requestedPage > 0 &&
-    requestedPage <= Math.floor(Number.MAX_SAFE_INTEGER / SYSTEM_LOG_PAGE_SIZE)
-      ? requestedPage
-      : 1;
-  const supabase = await createClient();
+
+  const params = await searchParams;
+  const filters = systemLogFiltersSchema.parse(params);
   const {
-    data: entries,
-    count,
-    error,
-  } = await supabase
-    .from("audit_logs")
-    .select("id,actor_id,action,entity_type,entity_id,details,created_at", {
-      count: "exact",
-    })
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .range((page - 1) * SYSTEM_LOG_PAGE_SIZE, page * SYSTEM_LOG_PAGE_SIZE - 1);
+    q: search,
+    actor: actorFilter,
+    action,
+    entity,
+    from: fromDate,
+    to: toDate,
+    page: requestedPage,
+    dateRangeIsReversed,
+  } = filters;
+  const supabase = await createClient();
+  const fromBoundary =
+    !dateRangeIsReversed && fromDate
+      ? denverTimestamp(fromDate, "00:00")
+      : null;
+  const toNextDate = !dateRangeIsReversed && toDate ? nextDate(toDate) : null;
+  const toBoundary = toNextDate ? denverTimestamp(toNextDate, "00:00") : null;
+  const filterSearch = new URLSearchParams();
+  if (search) filterSearch.set("q", search);
+  if (actorFilter) filterSearch.set("actor", actorFilter);
+  if (action) filterSearch.set("action", action);
+  if (entity) filterSearch.set("entity", entity);
+  if (fromDate) filterSearch.set("from", fromDate);
+  if (toDate) filterSearch.set("to", toDate);
+
+  const buildLogQuery = (includeFilters: boolean, countOnly = false) => {
+    let query = supabase
+      .from("audit_logs")
+      .select(
+        "id,actor_id,action,entity_type,entity_id,details,created_at",
+        countOnly ? { count: "exact", head: true } : undefined,
+      );
+    if (includeFilters) {
+      if (search)
+        query = query.or(
+          searchOrFilter(search, ["action", "entity_type", "entity_id"]),
+        );
+      if (actorFilter === "system") query = query.is("actor_id", null);
+      else if (actorFilter) query = query.eq("actor_id", actorFilter);
+      if (action)
+        query = query.filter("action", "imatch", literalSearchPattern(action));
+      if (entity) query = query.eq("entity_type", entity);
+      if (!dateRangeIsReversed && fromBoundary)
+        query = query.gte("created_at", fromBoundary);
+      if (!dateRangeIsReversed && toBoundary)
+        query = query.lt("created_at", toBoundary);
+    }
+    if (!countOnly)
+      query = query
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false });
+    return query;
+  };
+
+  const [filteredCount, visibleCount, actorResult] = await Promise.all([
+    buildLogQuery(true, true),
+    buildLogQuery(false, true),
+    supabase
+      .from("officers")
+      .select("auth_user_id,name")
+      .not("auth_user_id", "is", null)
+      .order("name"),
+  ]);
+  if (filteredCount.error || visibleCount.error || actorResult.error)
+    throw new Error("Failed to load System Log");
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil((filteredCount.count ?? 0) / SYSTEM_LOG_PAGE_SIZE),
+  );
+  const page = Math.min(requestedPage, totalPages);
+  if (page !== requestedPage)
+    redirect(listPageUrl("/system-log", filterSearch, page));
+
+  const { data: entries, error } = await buildLogQuery(true).range(
+    (page - 1) * SYSTEM_LOG_PAGE_SIZE,
+    page * SYSTEM_LOG_PAGE_SIZE - 1,
+  );
   if (error) throw new Error(`Failed to load System Log: ${error.message}`);
 
-  const actorIds = [
-    ...new Set(
-      entries
-        .map((entry) => entry.actor_id)
-        .filter((id): id is string => id !== null),
-    ),
-  ];
-  const officerResult = actorIds.length
-    ? await supabase
-        .from("officers")
-        .select("auth_user_id,name")
-        .in("auth_user_id", actorIds)
-    : null;
-  if (officerResult?.error) throw new Error("Failed to load log actors");
   const officerNames = new Map(
-    (officerResult?.data ?? []).map((officer) => [
-      officer.auth_user_id,
-      officer.name,
-    ]),
+    actorResult.data.map((officer) => [officer.auth_user_id, officer.name]),
   );
-  const total = count ?? 0;
+
+  const actors = [
+    ...new Map(
+      actorResult.data
+        .filter(
+          (officer): officer is typeof officer & { auth_user_id: string } =>
+            officer.auth_user_id !== null,
+        )
+        .map((officer) => [officer.auth_user_id, officer]),
+    ).values(),
+  ];
+  const hasFilters = Boolean(
+    search || actorFilter || action || entity || fromDate || toDate,
+  );
+  const emptyMessage =
+    hasFilters && (visibleCount.count ?? 0) > 0
+      ? "No System Log entries match these filters."
+      : "No System Log entries yet.";
 
   return (
     <div className="space-y-6">
@@ -97,65 +170,146 @@ export default async function SystemLogPage({
         title="System Log"
         description="Changes made in Cappy Hub, newest first."
       />
-      <TableFrame>
-        <table>
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>Actor</th>
-              <th>Action</th>
-              <th>Entity</th>
-              <th>Details</th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((entry) => (
-              <tr key={entry.id}>
-                <td className="whitespace-nowrap text-muted">
-                  {new Date(entry.created_at).toLocaleString("en-US", {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                    timeZone: "America/Denver",
-                  })}
-                </td>
-                <td>
-                  {entry.actor_id === null
-                    ? "System"
-                    : (officerNames.get(entry.actor_id) ??
-                      `Account ${entry.actor_id.slice(0, 8)}…`)}
-                </td>
-                <td>{formatLabel(entry.action.replaceAll(".", " "))}</td>
-                <td>
-                  {formatLabel(entry.entity_type)} #{entry.entity_id}
-                </td>
-                <td>
-                  <details>
-                    <summary className="cursor-pointer">
-                      {describeDetails(entry.details)}
-                    </summary>
-                    <pre className="mt-2 max-w-md overflow-x-auto whitespace-pre-wrap text-xs text-muted">
-                      {JSON.stringify(entry.details, null, 2)}
-                    </pre>
-                  </details>
-                </td>
-              </tr>
+      <ListFilterBar
+        key={JSON.stringify(filters)}
+        action="/system-log"
+        label="System Log filters"
+        active={hasFilters}
+        clearHref="/system-log"
+      >
+        <label className="w-full min-w-0 sm:w-auto sm:min-w-56 sm:flex-1">
+          Search log
+          <input
+            type="search"
+            name="q"
+            defaultValue={search}
+            maxLength={100}
+            placeholder="Action or record ID"
+          />
+        </label>
+        <label className="w-full min-w-0 sm:w-auto sm:min-w-44">
+          Actor
+          <select name="actor" defaultValue={actorFilter ?? ""}>
+            <option value="">All actors</option>
+            <option value="system">System</option>
+            {actors.map((officer) => (
+              <option key={officer.auth_user_id} value={officer.auth_user_id}>
+                {officer.name}
+              </option>
             ))}
-          </tbody>
-        </table>
-      </TableFrame>
-      {entries.length === 0 && <p>No audit entries on this page.</p>}
-      <div className="flex items-center justify-between text-sm text-muted">
+          </select>
+        </label>
+        <label className="w-full min-w-0 sm:w-auto sm:min-w-44">
+          Action contains
+          <input
+            type="search"
+            name="action"
+            defaultValue={action}
+            maxLength={80}
+            placeholder="e.g. event.cancelled"
+          />
+        </label>
+        <label className="w-full min-w-0 sm:w-auto sm:min-w-44">
+          Entity type
+          <select name="entity" defaultValue={entity ?? ""}>
+            <option value="">All entity types</option>
+            <option value="application_config">
+              Application configuration
+            </option>
+            <option value="branch">Branch</option>
+            <option value="event">Event</option>
+            <option value="event_location">Event location</option>
+            <option value="event_series">Event series</option>
+            <option value="event_type">Event type</option>
+            <option value="officer">Officer</option>
+            <option value="point_transaction">Point transaction</option>
+            <option value="position">Position</option>
+            <option value="task">Task</option>
+            <option value="task_series">Task series</option>
+            <option value="warning">Warning</option>
+          </select>
+        </label>
+        <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
+          From date
+          <input name="from" type="date" defaultValue={fromDate ?? ""} />
+        </label>
+        <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
+          To date
+          <input name="to" type="date" defaultValue={toDate ?? ""} />
+        </label>
+      </ListFilterBar>
+      {dateRangeIsReversed && (
+        <p role="status">Choose a From date on or before the To date.</p>
+      )}
+      {entries.length === 0 ? (
+        <p>{emptyMessage}</p>
+      ) : (
+        <TableFrame>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Time</th>
+                <th scope="col">Actor</th>
+                <th scope="col">Action</th>
+                <th scope="col">Entity</th>
+                <th scope="col">Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((entry) => (
+                <tr key={entry.id}>
+                  <td className="whitespace-nowrap text-muted">
+                    {new Date(entry.created_at).toLocaleString("en-US", {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                      timeZone: "America/Denver",
+                    })}
+                  </td>
+                  <td>
+                    {entry.actor_id === null
+                      ? "System"
+                      : (officerNames.get(entry.actor_id) ??
+                        `Account ${entry.actor_id.slice(0, 8)}…`)}
+                  </td>
+                  <td>{formatLabel(entry.action.replaceAll(".", " "))}</td>
+                  <td>
+                    {formatLabel(entry.entity_type)} #{entry.entity_id}
+                  </td>
+                  <td>
+                    <details>
+                      <summary className="cursor-pointer">
+                        {describeDetails(entry.details)}
+                      </summary>
+                      <pre className="mt-2 max-w-md overflow-x-auto whitespace-pre-wrap text-xs text-muted">
+                        {JSON.stringify(entry.details, null, 2)}
+                      </pre>
+                    </details>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableFrame>
+      )}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
         <span>
-          Page {page} · {total} entries
+          Page {page} · {filteredCount.count ?? 0} entries
         </span>
-        <div className="flex gap-4">
+        <nav
+          aria-label="System Log pages"
+          className="flex flex-wrap items-center gap-4"
+        >
           {page > 1 && (
-            <Link href={`/system-log?page=${page - 1}`}>Previous</Link>
+            <Link href={listPageUrl("/system-log", filterSearch, page - 1)}>
+              Previous
+            </Link>
           )}
-          {page * SYSTEM_LOG_PAGE_SIZE < total && (
-            <Link href={`/system-log?page=${page + 1}`}>Next</Link>
+          {page < totalPages && (
+            <Link href={listPageUrl("/system-log", filterSearch, page + 1)}>
+              Next
+            </Link>
           )}
-        </div>
+        </nav>
       </div>
     </div>
   );

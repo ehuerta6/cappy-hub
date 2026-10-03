@@ -84,7 +84,9 @@ const from = vi.fn((table: string) => {
           ? transactions
           : table === "officer_point_totals"
             ? { total_points: 12.5 }
-            : { half_year_points: 99 },
+            : table === "dashboard_summary"
+              ? { half_year_points: 99 }
+              : [],
     error: null,
   };
   const query = {
@@ -122,7 +124,7 @@ beforeEach(() => {
 const renderEvents = async () =>
   renderToStaticMarkup(await EventsPage({ searchParams: Promise.resolve({}) }));
 
-it("groups relationships into distinct sections from one event query", async () => {
+it("groups relationships into distinct sections from the filtered event query", async () => {
   const html = await renderEvents();
   const your = html.split('aria-label="Your events"')[1].split("</section>")[0];
   const other = html
@@ -136,7 +138,7 @@ it("groups relationships into distinct sections from one event query", async () 
   expect(other).toContain('aria-label="Sign up for Available event"');
   expect(your).not.toContain("Sign up for");
   expect(from.mock.calls.filter(([table]) => table === "events")).toHaveLength(
-    1,
+    2,
   );
 });
 
@@ -177,8 +179,7 @@ it("offers signup while happening, but never for past, cancelled, removed or pro
 it("shows useful empty messages without empty tables", async () => {
   events = [];
   const html = await renderEvents();
-  expect(html).toContain("You are not signed up for any events.");
-  expect(html).toContain("No other events available.");
+  expect(html).toContain("No events yet.");
   expect(html).not.toContain("<table");
 });
 

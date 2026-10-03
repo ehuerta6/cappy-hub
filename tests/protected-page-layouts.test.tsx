@@ -169,8 +169,16 @@ it("retains Task assignment, completion and separate approver controls", () => {
 });
 
 it("does not add contextual Back links to Officer or Task main pages", async () => {
-  expect(renderToStaticMarkup(await OfficersPage())).not.toContain("Back to");
-  expect(renderToStaticMarkup(await TasksPage())).not.toContain("Back to");
+  expect(
+    renderToStaticMarkup(
+      await OfficersPage({ searchParams: Promise.resolve({}) }),
+    ),
+  ).not.toContain("Back to");
+  expect(
+    renderToStaticMarkup(
+      await TasksPage({ searchParams: Promise.resolve({}) }),
+    ),
+  ).not.toContain("Back to");
 });
 
 it("groups Event details, files and participation while retaining management controls and history", async () => {

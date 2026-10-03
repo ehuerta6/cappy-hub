@@ -6,7 +6,8 @@ import TransactionForm from "./transaction-form";
 import HistoryTable from "./history-table";
 import PointHistoryFilterControls from "./history-filters";
 import RateForm from "./rate-form";
-import { pointHistoryUrl } from "./history-url";
+import { listPageUrl } from "@/lib/list-url";
+import { literalSearchPattern } from "@/lib/list-search";
 import {
   pointHistoryFiltersSchema,
   resolvePointHistoryStatus,
@@ -29,9 +30,9 @@ export default async function PointsPage({
   const actor = await getAuthorizationContext();
   const admin = canManagePoints(actor);
   const params = await searchParams;
-  const rawPointHistoryFilters = pointHistoryFiltersSchema.safeParse(params);
-  const validatedPointHistoryFilters = rawPointHistoryFilters.success
-    ? rawPointHistoryFilters.data
+  const parsedFilters = pointHistoryFiltersSchema.safeParse(params);
+  const filters = parsedFilters.success
+    ? parsedFilters.data
     : pointHistoryFiltersSchema.parse({});
   const {
     q: search,
@@ -42,31 +43,37 @@ export default async function PointsPage({
     to: toDate,
     page: requestedPage,
     dateRangeIsReversed,
-  } = validatedPointHistoryFilters;
-  const status = resolvePointHistoryStatus(
-    validatedPointHistoryFilters.status,
-    admin,
-  );
+  } = filters;
+  const status = resolvePointHistoryStatus(filters.status, admin);
 
   const supabase = await createClient();
-  const buildPointHistoryQuery = (selectOptions?: {
-    count: "exact";
-    head: true;
-  }) => {
-    let history = supabase.from("point_history").select("*", selectOptions);
-    if (status === "active") history = history.is("removed_at", null);
-    if (status === "removed") history = history.not("removed_at", "is", null);
-    if (search) {
-      const literal = search.replace(/[\\%_]/g, "\\$&");
-      history = history.ilike("search_text", `%${literal}%`);
+  const buildPointHistoryQuery = (
+    includeFilters: boolean,
+    countOnly = false,
+  ) => {
+    let history = supabase
+      .from("point_history")
+      .select("*", countOnly ? { count: "exact", head: true } : undefined);
+    if ((!admin || includeFilters) && status === "active")
+      history = history.is("removed_at", null);
+    if (includeFilters && status === "removed")
+      history = history.not("removed_at", "is", null);
+    if (includeFilters) {
+      if (search)
+        history = history.filter(
+          "search_text",
+          "imatch",
+          literalSearchPattern(search),
+        );
+      if (awardType) history = history.eq("award_type", awardType);
+      if (officerId !== undefined)
+        history = history.eq("officer_id", officerId);
+      if (eventId !== undefined) history = history.eq("event_id", eventId);
+      if (!dateRangeIsReversed && fromDate)
+        history = history.gte("activity_date", fromDate);
+      if (!dateRangeIsReversed && toDate)
+        history = history.lte("activity_date", toDate);
     }
-    if (awardType) history = history.eq("award_type", awardType);
-    if (officerId !== undefined) history = history.eq("officer_id", officerId);
-    if (eventId !== undefined) history = history.eq("event_id", eventId);
-    if (!dateRangeIsReversed && fromDate)
-      history = history.gte("activity_date", fromDate);
-    if (!dateRangeIsReversed && toDate)
-      history = history.lte("activity_date", toDate);
     return history;
   };
 
@@ -80,33 +87,42 @@ export default async function PointsPage({
   if (fromDate) currentFilterSearch.set("from", fromDate);
   if (toDate) currentFilterSearch.set("to", toDate);
 
-  const [historyCount, totals, officers, events, recentEvents, configuration] =
-    await Promise.all([
-      buildPointHistoryQuery({ count: "exact", head: true }),
-      supabase
-        .from("officer_point_totals")
-        .select("*")
-        .order("total_points", { ascending: false })
-        .order("name", { ascending: true }),
-      supabase.from("officers").select("id,name").order("name"),
-      supabase
-        .from("events")
-        .select("id,name,event_date")
-        .order("event_date", { ascending: false }),
-      supabase
-        .from("events")
-        .select("id,name")
-        .is("deleted_at", null)
-        .order("event_date", { ascending: false })
-        .limit(5),
-      supabase
-        .from("application_config")
-        .select("participation_points_per_hour")
-        .eq("id", 1)
-        .single(),
-    ]);
+  const [
+    historyCount,
+    visibleHistoryCount,
+    totals,
+    officers,
+    events,
+    recentEvents,
+    configuration,
+  ] = await Promise.all([
+    buildPointHistoryQuery(true, true),
+    buildPointHistoryQuery(false, true),
+    supabase
+      .from("officer_point_totals")
+      .select("*")
+      .order("total_points", { ascending: false })
+      .order("name", { ascending: true }),
+    supabase.from("officers").select("id,name").order("name"),
+    supabase
+      .from("events")
+      .select("id,name,event_date")
+      .order("event_date", { ascending: false }),
+    supabase
+      .from("events")
+      .select("id,name")
+      .is("deleted_at", null)
+      .order("event_date", { ascending: false })
+      .limit(5),
+    supabase
+      .from("application_config")
+      .select("participation_points_per_hour")
+      .eq("id", 1)
+      .single(),
+  ]);
   if (
     historyCount.error ||
+    visibleHistoryCount.error ||
     totals.error ||
     officers.error ||
     events.error ||
@@ -121,11 +137,9 @@ export default async function PointsPage({
   );
   const page = Math.min(requestedPage, totalPages);
   if (page !== requestedPage)
-    redirect(
-      pointHistoryUrl("/points", currentFilterSearch.toString(), {}, page),
-    );
+    redirect(listPageUrl("/points", currentFilterSearch, page));
 
-  const transactions = await buildPointHistoryQuery()
+  const transactions = await buildPointHistoryQuery(true)
     .order("activity_date", { ascending: false })
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
@@ -134,6 +148,15 @@ export default async function PointsPage({
       page * POINT_HISTORY_PAGE_SIZE - 1,
     );
   if (transactions.error) throw new Error("Failed to load points");
+
+  const historyEmptyMessage =
+    (visibleHistoryCount.count ?? 0) > 0
+      ? "No point transactions match these filters."
+      : status === "active"
+        ? "No active point transactions yet."
+        : status === "removed"
+          ? "No removed point transactions."
+          : "No point transactions yet.";
 
   return (
     <div className="space-y-8">
@@ -157,8 +180,8 @@ export default async function PointsPage({
           <table>
             <thead>
               <tr>
-                <th>Officer</th>
-                <th>Total points</th>
+                <th scope="col">Officer</th>
+                <th scope="col">Total points</th>
               </tr>
             </thead>
             <tbody>
@@ -193,7 +216,6 @@ export default async function PointsPage({
           description="Search and filter all transactions, 25 per page."
         />
         <PointHistoryFilterControls
-          key={search}
           officers={officers.data}
           events={events.data}
           isAdmin={admin}
@@ -201,26 +223,26 @@ export default async function PointsPage({
           fromDate={fromDate ?? ""}
           toDate={toDate ?? ""}
           searchQuery={search}
+          awardType={awardType}
+          officerId={officerId}
+          eventId={eventId}
         />
         {dateRangeIsReversed && (
           <p role="status">Choose a From date on or before the To date.</p>
         )}
         <TableFrame>
-          <HistoryTable transactions={transactions.data} isAdmin={admin} />
+          <HistoryTable
+            transactions={transactions.data}
+            isAdmin={admin}
+            emptyMessage={historyEmptyMessage}
+          />
         </TableFrame>
         <nav
           aria-label="Point history pages"
-          className="flex items-center gap-4 text-sm"
+          className="flex flex-wrap items-center gap-4 text-sm"
         >
           {page > 1 && (
-            <Link
-              href={pointHistoryUrl(
-                "/points",
-                currentFilterSearch.toString(),
-                {},
-                page - 1,
-              )}
-            >
+            <Link href={listPageUrl("/points", currentFilterSearch, page - 1)}>
               Previous
             </Link>
           )}
@@ -228,14 +250,7 @@ export default async function PointsPage({
             Page {page} of {totalPages}
           </span>
           {page < totalPages && (
-            <Link
-              href={pointHistoryUrl(
-                "/points",
-                currentFilterSearch.toString(),
-                {},
-                page + 1,
-              )}
-            >
+            <Link href={listPageUrl("/points", currentFilterSearch, page + 1)}>
               Next
             </Link>
           )}
