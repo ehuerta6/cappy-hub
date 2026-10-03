@@ -88,7 +88,8 @@ export default async function TaskDetailPage({
             canManage={canManageTask}
             officers={officers.data}
           />
-          {canManageTask &&
+          {task.recurrence_series_id !== null &&
+          canManageTask &&
           (!assignment || assignment.completed_at === null) ? (
             <TaskRemoveForm taskId={task.id} />
           ) : null}

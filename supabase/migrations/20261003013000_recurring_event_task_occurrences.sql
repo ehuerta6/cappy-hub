@@ -49,6 +49,112 @@ create policy "Approved officers read event series" on public.event_series
 create policy "Approved officers read task series" on public.task_series
   for select to authenticated using ((select private.current_active_officer_id()) is not null);
 
+-- The application uses rrule for parsing and expansion. This bounded database
+-- cross-check protects authenticated RPC callers for the DAILY/WEEKLY MVP.
+create function private.assert_recurrence_dates(p_rule text,p_dates date[]) returns void
+language plpgsql set search_path = '' as $$
+declare frequency text; recurrence_interval integer; byday_text text;
+  weekdays integer[]; start_day date; until_day date; occurrence_count integer;
+  expected date[]; maximum_cycle integer;
+begin
+  if p_rule is null or p_rule !~
+    '^RRULE:FREQ=(DAILY|WEEKLY);INTERVAL=[1-9][0-9]*(;BYDAY=(MO|TU|WE|TH|FR|SA|SU)(,(MO|TU|WE|TH|FR|SA|SU))*)?;(COUNT=[1-9][0-9]*|UNTIL=[0-9]{8})$' then
+    raise exception 'Invalid recurrence definition';
+  end if;
+  if p_dates is null or array_lower(p_dates,1)<>1 or cardinality(p_dates)<2 or
+    cardinality(p_dates)>500 or exists(select 1 from unnest(p_dates) d where d is null) or
+    cardinality(p_dates)<>(select count(distinct d) from unnest(p_dates) d) or
+    p_dates[1]<>(select min(d) from unnest(p_dates) d) then
+    raise exception 'Invalid recurrence occurrence dates';
+  end if;
+
+  frequency := substring(p_rule from 'FREQ=(DAILY|WEEKLY)');
+  recurrence_interval := substring(p_rule from 'INTERVAL=([0-9]+)')::integer;
+  byday_text := substring(p_rule from ';BYDAY=([^;]+)');
+  if recurrence_interval>52 or (frequency='WEEKLY' and byday_text is null) or
+    (frequency='DAILY' and byday_text is not null) then
+    raise exception 'Invalid recurrence definition';
+  end if;
+  if byday_text is not null then
+    select array_agg(case weekday
+      when 'MO' then 1 when 'TU' then 2 when 'WE' then 3 when 'TH' then 4
+      when 'FR' then 5 when 'SA' then 6 when 'SU' then 7 end order by ordinal)
+      into weekdays
+      from unnest(string_to_array(byday_text,',')) with ordinality as selected(weekday,ordinal);
+    if cardinality(weekdays)<>(select count(distinct weekday)
+      from unnest(string_to_array(byday_text,',')) weekday) then
+      raise exception 'Invalid recurrence definition';
+    end if;
+  end if;
+
+  start_day := p_dates[1];
+  if p_rule like '%;COUNT=%' then
+    occurrence_count := substring(p_rule from ';COUNT=([0-9]+)$')::integer;
+    if occurrence_count<2 or occurrence_count>500 or cardinality(p_dates)<>occurrence_count then
+      raise exception 'Recurrence count does not match generated occurrences';
+    end if;
+  else
+    begin
+      until_day := to_date(substring(p_rule from ';UNTIL=([0-9]{8})$'),'YYYYMMDD');
+    exception when others then
+      raise exception 'Invalid recurrence end date';
+    end;
+    if to_char(until_day,'YYYYMMDD')<>substring(p_rule from ';UNTIL=([0-9]{8})$') then
+      raise exception 'Invalid recurrence end date';
+    end if;
+    if until_day<start_day then raise exception 'Invalid recurrence end date'; end if;
+  end if;
+
+  if frequency='DAILY' then
+    if p_rule like '%;COUNT=%' then
+      select array_agg(start_day + (n * recurrence_interval)::integer order by n)
+        into expected from generate_series(0,occurrence_count-1) as offsets(n);
+    else
+      occurrence_count := ((until_day-start_day)/recurrence_interval)+1;
+      if occurrence_count<2 or occurrence_count>500 then
+        raise exception 'Invalid recurring occurrence count';
+      end if;
+      select array_agg(start_day + (n * recurrence_interval)::integer order by n)
+        into expected from generate_series(0,occurrence_count-1) as offsets(n);
+    end if;
+  else
+    if not (extract(isodow from start_day)::integer = any(weekdays)) then
+      raise exception 'Recurrence start date does not match BYDAY';
+    end if;
+    if p_rule like '%;COUNT=%' then
+      maximum_cycle := occurrence_count;
+    else
+      maximum_cycle := greatest(0,floor((until_day-(start_day-(extract(isodow from start_day)::integer-1)))::numeric /
+        (7*recurrence_interval))::integer);
+      if maximum_cycle>=500 then raise exception 'Invalid recurring occurrence count'; end if;
+    end if;
+    select array_agg(candidate order by candidate) into expected
+      from (
+        select candidate from (
+          select (start_day-(extract(isodow from start_day)::integer-1)) +
+            (cycles.n * 7 * recurrence_interval) + (selected.weekday-1) as candidate
+          from generate_series(0,maximum_cycle) as cycles(n)
+          cross join unnest(weekdays) as selected(weekday)
+        ) candidates
+        where candidate>=start_day and (until_day is null or candidate<=until_day)
+        order by candidate limit 501
+      ) limited_candidates;
+    if p_rule like '%;COUNT=%' then expected := expected[1:occurrence_count]; end if;
+    if expected is null or cardinality(expected)<2 or cardinality(expected)>500 then
+      raise exception 'Invalid recurring occurrence count';
+    end if;
+    if p_rule like '%;COUNT=%' and cardinality(expected)<>occurrence_count then
+      raise exception 'Invalid recurring occurrence count';
+    end if;
+  end if;
+
+  if expected is distinct from p_dates then
+    raise exception 'Occurrence dates do not match recurrence definition';
+  end if;
+end;
+$$;
+revoke all on function private.assert_recurrence_dates(text,date[]) from public,anon,authenticated;
+
 create function private.create_recurring_event(
   p_name text,p_description text,p_event_type_id bigint,p_location text,
   p_branch_ids bigint[],p_slides_url text,p_meeting_notes_url text,
@@ -82,6 +188,7 @@ begin
   if p_recurrence_rule like '%;UNTIL=%' and
     p_event_dates[cardinality(p_event_dates)]>(to_date(substring(p_recurrence_rule from ';UNTIL=([0-9]{8})$'),'YYYYMMDD')) then
     raise exception 'Occurrence exceeds recurrence end date'; end if;
+  perform private.assert_recurrence_dates(p_recurrence_rule,p_event_dates);
   if not private.can_manage_branches(coalesce(p_branch_ids,'{}'::bigint[])) then
     raise exception 'Event outside branch scope'; end if;
 
@@ -157,6 +264,7 @@ begin
   if p_recurrence_rule like '%;UNTIL=%' and
     p_due_dates[cardinality(p_due_dates)]>(to_date(substring(p_recurrence_rule from ';UNTIL=([0-9]{8})$'),'YYYYMMDD')) then
     raise exception 'Task exceeds recurrence end date'; end if;
+  perform private.assert_recurrence_dates(p_recurrence_rule,p_due_dates);
   if not private.can_manage_branches(array[p_branch_id]) then
     raise exception 'Task outside branch scope'; end if;
 
@@ -205,6 +313,8 @@ begin
   if actor_id is null then raise exception 'Unauthorized'; end if;
   select * into task_row from public.tasks where id=p_task_id for update;
   if not found then raise exception 'Task not found'; end if;
+  if task_row.recurrence_series_id is null then
+    raise exception 'Only recurring Task occurrences can be removed'; end if;
   if not private.can_manage_branches(array[task_row.branch_id]) then
     raise exception 'Task outside branch scope'; end if;
   if task_row.removed_at is not null then return; end if;
@@ -221,6 +331,94 @@ $$;
 create function public.remove_task(p_task_id bigint) returns void
 language sql security invoker set search_path = '' as $$
   select private.remove_task(p_task_id)
+$$;
+
+-- Serialize workflow mutations against removal and reject every subsequent
+-- workflow transition once the occurrence has been soft removed.
+create or replace function private.assign_task(p_task_id bigint,p_officer_id bigint) returns void
+language plpgsql security definer set search_path = '' as $$
+declare task_row public.tasks; actor_id bigint := private.current_active_officer_id();
+begin
+  if actor_id is null then raise exception 'Unauthorized'; end if;
+  select * into task_row from public.tasks where id=p_task_id for update;
+  if not found then raise exception 'Task not found'; end if;
+  if task_row.removed_at is not null then raise exception 'Task has been removed'; end if;
+  if p_officer_id is distinct from actor_id and
+    not private.can_manage_branches(array[task_row.branch_id]) then
+    raise exception 'Cannot assign another officer'; end if;
+  if not exists(select 1 from public.officers where id=p_officer_id and status='active') then
+    raise exception 'Target officer is not active'; end if;
+  insert into public.task_assignments(task_id,officer_id,assigned_by)
+    values(p_task_id,p_officer_id,actor_id);
+  perform private.write_audit_log('task.assigned','task',p_task_id::text,
+    pg_catalog.jsonb_build_object('officer_id',p_officer_id,'assigned_by',actor_id));
+end;
+$$;
+
+create or replace function private.award_task(p_task_id bigint) returns void
+language plpgsql security definer set search_path = '' as $$
+declare task_row public.tasks; assignment public.task_assignments; award_id bigint;
+begin
+  select * into task_row from public.tasks where id=p_task_id for update;
+  if not found then raise exception 'Task not found'; end if;
+  if task_row.removed_at is not null then raise exception 'Task has been removed'; end if;
+  select * into assignment from public.task_assignments where task_id=p_task_id;
+  if assignment.completed_at is null or
+    (task_row.approval_required and assignment.approved_at is null) then
+    raise exception 'Task is not awardable'; end if;
+  insert into public.point_transactions(officer_id,task_id,points,reason,award_type,created_by)
+    values(assignment.officer_id,p_task_id,task_row.points,'Task completion: '||task_row.title,
+      'task',null)
+    on conflict(task_id) where award_type='task' do nothing returning id into award_id;
+  if award_id is not null then
+    perform private.write_audit_log('points.task_created','point_transaction',award_id::text,
+      pg_catalog.jsonb_build_object('task_id',p_task_id,'officer_id',assignment.officer_id,
+        'points',task_row.points));
+  end if;
+end;
+$$;
+
+create or replace function private.complete_task(p_task_id bigint) returns void
+language plpgsql security definer set search_path = '' as $$
+declare task_row public.tasks; assignment public.task_assignments;
+  actor_id bigint := private.current_active_officer_id();
+begin
+  if actor_id is null then raise exception 'Unauthorized'; end if;
+  select * into task_row from public.tasks where id=p_task_id for update;
+  if not found then raise exception 'Task not found'; end if;
+  if task_row.removed_at is not null then raise exception 'Task has been removed'; end if;
+  select * into assignment from public.task_assignments where task_id=p_task_id for update;
+  if not found then raise exception 'Task is not assigned'; end if;
+  if assignment.officer_id<>actor_id then raise exception 'Only the assignee can complete this task'; end if;
+  if assignment.completed_at is not null then raise exception 'Task already completed'; end if;
+  update public.task_assignments set completed_at=pg_catalog.clock_timestamp() where task_id=p_task_id;
+  perform private.write_audit_log('task.completed','task',p_task_id::text,
+    pg_catalog.jsonb_build_object('officer_id',actor_id));
+  if not task_row.approval_required then perform private.award_task(p_task_id); end if;
+end;
+$$;
+
+create or replace function private.approve_task(p_task_id bigint) returns void
+language plpgsql security definer set search_path = '' as $$
+declare task_row public.tasks; assignment public.task_assignments;
+  actor_id bigint := private.current_active_officer_id();
+begin
+  if actor_id is null then raise exception 'Unauthorized'; end if;
+  select * into task_row from public.tasks where id=p_task_id for update;
+  if not found then raise exception 'Task not found'; end if;
+  if task_row.removed_at is not null then raise exception 'Task has been removed'; end if;
+  if not private.can_manage_branches(array[task_row.branch_id]) then
+    raise exception 'Task outside branch scope'; end if;
+  select * into assignment from public.task_assignments where task_id=p_task_id for update;
+  if assignment.completed_at is null or not task_row.approval_required or assignment.approved_at is not null then
+    raise exception 'Task is not awaiting approval'; end if;
+  if assignment.officer_id=actor_id then raise exception 'Assignee cannot approve own task'; end if;
+  update public.task_assignments set approved_at=pg_catalog.clock_timestamp(),approved_by=actor_id
+    where task_id=p_task_id;
+  perform private.write_audit_log('task.approved','task',p_task_id::text,
+    pg_catalog.jsonb_build_object('approved_by',actor_id,'officer_id',assignment.officer_id));
+  perform private.award_task(p_task_id);
+end;
 $$;
 
 revoke all on function private.create_recurring_event(text,text,bigint,text,bigint[],text,text,uuid,text,date[],timestamptz[],timestamptz[]),

@@ -32,6 +32,45 @@ select is((select count(*) from events where recurrence_key between '2099-03-06'
   'recurring Event creation materializes three independent Events');
 select is((select count(distinct recurrence_series_id) from events where recurrence_key between '2099-03-06' and '2099-03-08'),1::bigint,
   'Event occurrences share only their series metadata');
+select throws_ok($$select create_recurring_event(
+  'Skipped date','Invalid DAILY expansion',(select id from event_types where name='Workshop'),
+  'Campus','{}'::bigint[],null,null,'00000000-0000-4000-8000-000000000101',
+  'RRULE:FREQ=DAILY;INTERVAL=1;COUNT=3',
+  array['2099-04-01'::date,'2099-04-03','2099-04-04'],
+  array['2099-04-01 10:00-06'::timestamptz,'2099-04-03 10:00-06','2099-04-04 10:00-06'],
+  array['2099-04-01 11:00-06'::timestamptz,'2099-04-03 11:00-06','2099-04-04 11:00-06'])$$,
+  'P0001','Occurrence dates do not match recurrence definition',
+  'Event RPC rejects skipped dates even when COUNT cardinality matches');
+select throws_ok($$select create_recurring_event(
+  'Extra date','Invalid UNTIL expansion',(select id from event_types where name='Workshop'),
+  'Campus','{}'::bigint[],null,null,'00000000-0000-4000-8000-000000000102',
+  'RRULE:FREQ=DAILY;INTERVAL=1;UNTIL=20990403',
+  array['2099-04-01'::date,'2099-04-02','2099-04-03','2099-04-04'],
+  array['2099-04-01 10:00-06'::timestamptz,'2099-04-02 10:00-06','2099-04-03 10:00-06','2099-04-04 10:00-06'],
+  array['2099-04-01 11:00-06'::timestamptz,'2099-04-02 11:00-06','2099-04-03 11:00-06','2099-04-04 11:00-06'])$$,
+  'P0001','Occurrence exceeds recurrence end date',
+  'Event RPC rejects occurrences beyond inclusive UNTIL');
+select throws_ok($$select create_recurring_task('Wrong weekdays','Invalid BYDAY expansion','Post',
+  (select id from branches where name='intro'),1,false,
+  '00000000-0000-4000-8000-000000000103',
+  'RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE;COUNT=2',
+  array['2099-04-07'::date,'2099-04-08'])$$,
+  'P0001','Recurrence start date does not match BYDAY',
+  'Task RPC rejects a DTSTART on a weekday outside BYDAY');
+select throws_ok($$select create_recurring_task('Skipped daily date','Invalid interval expansion','Post',
+  (select id from branches where name='intro'),1,false,
+  '00000000-0000-4000-8000-000000000104',
+  'RRULE:FREQ=DAILY;INTERVAL=2;COUNT=3',
+  array['2099-04-01'::date,'2099-04-03','2099-04-06'])$$,
+  'P0001','Occurrence dates do not match recurrence definition',
+  'Task RPC rejects dates that violate DAILY interval');
+select throws_ok($$select create_recurring_task('Early stop','Incomplete UNTIL expansion','Post',
+  (select id from branches where name='intro'),1,false,
+  '00000000-0000-4000-8000-000000000105',
+  'RRULE:FREQ=DAILY;INTERVAL=1;UNTIL=20990404',
+  array['2099-04-01'::date,'2099-04-02','2099-04-03'])$$,
+  'P0001','Occurrence dates do not match recurrence definition',
+  'Task RPC rejects an UNTIL expansion that stops early');
 reset role;
 select throws_ok($$update events set recurrence_key='2099-03-06'
   where recurrence_key='2099-03-07'$$,'23505',null,
@@ -105,11 +144,32 @@ select is((select count(*) from point_transactions p join tasks t on t.id=p.task
   'Task point award uniqueness prevents duplicate occurrence points');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000981',true);
 set local role authenticated;
+select lives_ok($$select assign_task((select id from tasks where recurrence_key='2099-09-23'),-982)$$,
+  'an unfinished recurring Task can have an assignment before removal');
 select lives_ok($$select remove_task((select id from tasks where recurrence_key='2099-09-23'))$$,
   'an unfinished Task occurrence can be removed independently');
+select throws_ok($$select assign_task((select id from tasks where recurrence_key='2099-09-23'),-982)$$,
+  'P0001','Task has been removed','removed Task cannot be assigned through the RPC');
+select throws_ok($$select approve_task((select id from tasks where recurrence_key='2099-09-23'))$$,
+  'P0001','Task has been removed','removed Task cannot be approved through the RPC');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000982',true);
+select throws_ok($$select complete_task((select id from tasks where recurrence_key='2099-09-23'))$$,
+  'P0001','Task has been removed','removed Task cannot be completed through the RPC');
 reset role;
+select throws_ok($$select private.award_task((select id from tasks where recurrence_key='2099-09-23'))$$,
+  'P0001','Task has been removed','removed Task cannot be awarded through the trusted function');
 select isnt((select removed_at from tasks where recurrence_key='2099-09-23'),null::timestamptz,
   'removed occurrence is retained with a removal timestamp');
+select is((select completed_at from task_assignments where task_id=
+  (select id from tasks where recurrence_key='2099-09-23')),null::timestamptz,
+  'blocked completion leaves the Task unfinished');
+select is((select count(*) from point_transactions where task_id=
+  (select id from tasks where recurrence_key='2099-09-23') and award_type='task'),0::bigint,
+  'blocked point award leaves no Task transaction');
+select is((select count(*) from audit_logs where entity_type='task' and
+  entity_id=(select id::text from tasks where recurrence_key='2099-09-23') and
+  action in ('task.completed','task.approved')),0::bigint,
+  'rejected removed-Task workflows create no completion or approval audit');
 select is((select removed_at from tasks where recurrence_key='2099-09-28'),null::timestamptz,
   'removing one Task leaves later occurrences active');
 select is((select count(*) from audit_logs where entity_type='event' and entity_id=
@@ -120,6 +180,17 @@ select is((select count(*) from audit_logs where entity_type='task' and entity_i
   'removal audit identifies the individual Task occurrence');
 select is((select count(*) from audit_logs where action in ('event.series_created','task.series_created')),
   2::bigint,'both recurrence series have audit records');
+
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000981',true);
+set local role authenticated;
+select set_config('test.standalone_task_id',save_task('Standalone test','Must not be removable',
+  'Post',(select id from branches where name='intro'),'2099-10-01',1,false)::text,true);
+select throws_ok($$select remove_task(current_setting('test.standalone_task_id')::bigint)$$,
+  'P0001','Only recurring Task occurrences can be removed',
+  'remove_task rejects standalone Tasks at the trusted database boundary');
+reset role;
+select is((select removed_at from tasks where id=current_setting('test.standalone_task_id')::bigint),
+  null::timestamptz,'rejected standalone removal leaves the Task active');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000982',true);
 set local role authenticated;
