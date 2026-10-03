@@ -26,22 +26,26 @@ insert into officers(id,name,utep_email,position_id,status,application_role,auth
 insert into officer_branches(officer_id,branch_id)
 select -334,id from branches where name='intro'
 union all select -335,id from branches where name='icpc';
+with denver_today as (
+  select (now() at time zone 'America/Denver')::date as local_date
+), fixtures(id,name,day_offset,start_time,end_time,status,rate,is_removed) as (
+  values
+    (-331,'Bulk future',1,time '09:00',time '11:00','upcoming',null::numeric,false),
+    (-332,'Bulk Intro',1,time '09:00',time '11:00','upcoming',null::numeric,false),
+    (-333,'Bulk ICPC',1,time '09:00',time '11:00','upcoming',null::numeric,false),
+    (-334,'Bulk processed past',-1,time '09:00',time '10:30','past',4::numeric,false),
+    (-335,'Bulk unprocessed past',-1,time '09:00',time '11:00','past',null::numeric,false),
+    (-336,'Bulk cancelled',-1,time '09:00',time '10:00','cancelled',null::numeric,false),
+    (-337,'Bulk removed',-1,time '09:00',time '10:00','past',null::numeric,true)
+)
 insert into events(id,name,description,location,event_type_id,starts_at,ends_at,status,
- participation_points_per_hour_at_end,deleted_at) values
- (-331,'Bulk future','Test event','TBA',(select id from event_types where name='Meeting'),
-  now()+interval '1 day',now()+interval '1 day 2 hours','upcoming',null,null),
- (-332,'Bulk Intro','Test event','TBA',(select id from event_types where name='Meeting'),
-  now()+interval '1 day',now()+interval '1 day 2 hours','upcoming',null,null),
- (-333,'Bulk ICPC','Test event','TBA',(select id from event_types where name='Meeting'),
-  now()+interval '1 day',now()+interval '1 day 2 hours','upcoming',null,null),
- (-334,'Bulk processed past','Test event','TBA',(select id from event_types where name='Meeting'),
-  now()-interval '3 hours',now()-interval '90 minutes','past',4,null),
- (-335,'Bulk unprocessed past','Test event','TBA',(select id from event_types where name='Meeting'),
-  now()-interval '3 hours',now()-interval '1 hour','past',null,null),
- (-336,'Bulk cancelled','Test event','TBA',(select id from event_types where name='Meeting'),
-  now()-interval '3 hours',now()-interval '1 hour','cancelled',null,null),
- (-337,'Bulk removed','Test event','TBA',(select id from event_types where name='Meeting'),
-  now()-interval '3 hours',now()-interval '1 hour','past',null,now());
+ participation_points_per_hour_at_end,deleted_at)
+select f.id,f.name,'Test event','TBA',(select id from event_types where name='Meeting'),
+  ((d.local_date+f.day_offset)::timestamp+f.start_time) at time zone 'America/Denver',
+  ((d.local_date+f.day_offset)::timestamp+f.end_time) at time zone 'America/Denver',
+  f.status,f.rate,case when f.is_removed then
+    ((d.local_date+f.day_offset)::timestamp+f.end_time) at time zone 'America/Denver' end
+from denver_today d cross join fixtures f;
 insert into event_branches(event_id,branch_id)
 select -332,id from branches where name='intro'
 union all select -333,id from branches where name='icpc';
@@ -187,9 +191,14 @@ select ok(exists(select 1 from audit_logs where action='points.participation_cre
   and (details->>'points')::numeric=198),
   'each award keeps its standard point creation audit');
 
+with denver_today as (
+  select (now() at time zone 'America/Denver')::date as local_date
+)
 insert into events(id,name,description,location,event_type_id,starts_at,ends_at,status)
-values (-338,'Bulk atomicity','Test event','TBA',(select id from event_types where name='Meeting'),
-  now()-interval '2 hours',now()-interval '1 hour','past');
+select -338,'Bulk atomicity','Test event','TBA',(select id from event_types where name='Meeting'),
+  ((local_date-1)::timestamp+time '09:00') at time zone 'America/Denver',
+  ((local_date-1)::timestamp+time '10:00') at time zone 'America/Denver','past'
+from denver_today;
 alter table audit_logs add constraint reject_bulk_event_audit
   check (action <> 'event.officers_bulk_added') not valid;
 select throws_ok($$select bulk_add_event_officers(-338,array[-338]::bigint[])$$,
