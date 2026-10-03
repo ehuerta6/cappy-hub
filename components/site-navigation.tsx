@@ -22,7 +22,7 @@ export default function SiteNavigation({
 }) {
   const pathname = usePathname();
   const visibleLinks = isAdmin
-    ? [...links, { href: "/system-log", label: "System Log" }]
+    ? [...links, { href: "/admin", label: "Admin" }]
     : links;
 
   return (

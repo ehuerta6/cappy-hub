@@ -200,7 +200,7 @@ it("places the single sign out form and officer context inside the protected hea
   expect(html.match(/Sign out/g)).toHaveLength(1);
   expect(html.split("</header>")[1].split("<script>")[0]).toBe("Page content");
   expect(header).toContain('aria-current="page"');
-  expect(header).not.toContain("System Log");
+  expect(header).not.toContain(">Admin</a>");
   vi.mocked(requireCurrentOfficer).mockResolvedValue({
     ...actor,
     applicationRole: "admin",
@@ -209,7 +209,7 @@ it("places the single sign out form and officer context inside the protected hea
     renderToStaticMarkup(
       await ProtectedLayout({ children: "", params: Promise.resolve({}) }),
     ),
-  ).toContain("System Log");
+  ).toContain('href="/admin"');
 });
 
 it("renders a real accessible self-signup form with only the event ID", () => {
