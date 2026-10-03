@@ -44,6 +44,15 @@ npm test
 
 Do not use production data for development or testing.
 
+## Checks required to merge into `main`
+
+The active **Protect Main** GitHub ruleset should require these exact status checks:
+
+- `Quality checks` — includes the Playwright browser smoke suite.
+- `Verify Preview login` — produced by the separate **Preview runtime smoke** workflow for same-repository PRs.
+
+When either required check fails, GitHub blocks merging until it passes. Review the failed Actions run for details; a Playwright failure may also include a `playwright-results-<run id>` artifact. The current ruleset has no required checks configured yet. In **Settings → Rules → Protect Main**, add the two contexts above to its required status checks. Keep its existing pull request, review, conversation-resolution, force-push, and deletion protections in place.
+
 ## Commit and push
 
 Use a short, meaningful commit message, for example `feat: add officer search`, `fix: prevent signup after event closes`, or `docs: improve contributor setup`.
