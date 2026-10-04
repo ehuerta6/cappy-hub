@@ -431,11 +431,11 @@ it("preserves the full System Log row and provides a keyboard-scroll region", as
   expect(html).toContain('aria-label="System Log entries"');
   expect(html).toContain('tabindex="0"');
   expect(html).toContain("<table");
-  for (const heading of ["Time", "Actor", "Action", "Entity", "Details"])
+  for (const heading of ["Time", "Actor", "Activity", "Record", "Details"])
     expect(html).toContain(`<th scope="col">${heading}</th>`);
   expect(html).toContain("System");
-  expect(html).toContain("Event #8");
   expect(html).toContain("Synthetic workshop room");
+  expect(html).toContain("Technical details");
   expect(html).toContain('type="date"');
 });
 

@@ -1,50 +1,17 @@
 import { canViewSystemLog, getAuthorizationContext } from "@/lib/authorization";
 import { PageHeader, ListFilterBar, TableFrame } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
-import type { Database } from "@/lib/database.types";
-import { formatLabel } from "@/lib/presentation";
 import { searchOrFilter, literalSearchPattern } from "@/lib/list-search";
 import { listPageUrl } from "@/lib/list-url";
 import { denverTimestamp } from "@/lib/event-time";
+import { presentAuditEntry } from "@/lib/system-log-presentation";
 import { systemLogFiltersSchema } from "./filter-validation";
 import Link from "next/link";
+import type { Route } from "next";
 import { redirect } from "next/navigation";
 
-type AuditDetails =
-  Database["public"]["Tables"]["audit_logs"]["Row"]["details"];
 type SystemLogSearchParams = Record<string, string | string[] | undefined>;
 const SYSTEM_LOG_PAGE_SIZE = 50;
-
-function describeDetails(details: AuditDetails) {
-  if (!details || typeof details !== "object" || Array.isArray(details))
-    return "View details";
-  const values = details as Record<string, AuditDetails>;
-  if (values.old_role && values.new_role)
-    return `${values.old_role} → ${values.new_role}`;
-  if (values.before && values.after) {
-    const before = values.before as Record<string, AuditDetails>;
-    const after = values.after as Record<string, AuditDetails>;
-    const changed = Object.keys(after).filter(
-      (key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]),
-    );
-    return changed.length ? `Changed ${changed.join(", ")}` : "View changes";
-  }
-  if (values.points != null)
-    return `${values.points} points for officer #${values.officer_id}`;
-  if (values.target_officer_id != null)
-    return `Officer #${values.target_officer_id}`;
-  if (values.officer_name) return String(values.officer_name);
-  if (
-    values.after &&
-    typeof values.after === "object" &&
-    !Array.isArray(values.after)
-  ) {
-    const after = values.after as Record<string, AuditDetails>;
-    if (after.name) return String(after.name);
-  }
-  if (values.name) return String(values.name);
-  return "View details";
-}
 
 function nextDate(date: string) {
   const next = new Date(`${date}T00:00:00Z`);
@@ -145,6 +112,83 @@ export default async function SystemLogPage({
   const officerNames = new Map(
     actorResult.data.map((officer) => [officer.id, officer.name]),
   );
+  const eventIds = new Set<number>();
+  const taskIds = new Set<number>();
+  for (const entry of entries) {
+    const details =
+      entry.details !== null &&
+      typeof entry.details === "object" &&
+      !Array.isArray(entry.details)
+        ? (entry.details as Record<string, unknown>)
+        : undefined;
+    const entityId = Number(entry.entity_id);
+    if (Number.isSafeInteger(entityId)) {
+      if (entry.entity_type === "event") eventIds.add(entityId);
+      if (entry.entity_type === "task") taskIds.add(entityId);
+    }
+    for (const source of [
+      details,
+      details?.after as Record<string, unknown> | undefined,
+      details?.before as Record<string, unknown> | undefined,
+    ]) {
+      for (const [key, ids] of [
+        ["event_id", eventIds],
+        [
+          entry.entity_type === "event_series"
+            ? "selected_occurrence_id"
+            : "event_id",
+          eventIds,
+        ],
+        ["task_id", taskIds],
+        [
+          entry.entity_type === "task_series"
+            ? "selected_occurrence_id"
+            : "task_id",
+          taskIds,
+        ],
+      ] as const) {
+        const value = source?.[key];
+        const relatedId =
+          typeof value === "number"
+            ? value
+            : typeof value === "string" && /^-?\d+$/.test(value)
+              ? Number(value)
+              : undefined;
+        if (relatedId !== undefined && Number.isSafeInteger(relatedId))
+          ids.add(relatedId);
+      }
+    }
+  }
+  const [eventResult, taskResult] = await Promise.all([
+    eventIds.size > 0
+      ? supabase
+          .from("events")
+          .select("id,name")
+          .in("id", [...eventIds])
+      : Promise.resolve({ data: [], error: null }),
+    taskIds.size > 0
+      ? supabase
+          .from("tasks")
+          .select("id,title")
+          .in("id", [...taskIds])
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (eventResult.error || taskResult.error)
+    throw new Error("Failed to load System Log record context");
+  const eventNames = new Map(
+    eventResult.data.map((event) => [event.id, event.name]),
+  );
+  const taskNames = new Map(
+    taskResult.data.map((task) => [task.id, task.title]),
+  );
+  const eventContext = {
+    officerNames,
+    eventNames,
+    taskNames,
+    availableEventIds: new Set(eventNames.keys()),
+    availableTaskIds: new Set(taskNames.keys()),
+    availableOfficerIds: new Set(officerNames.keys()),
+  };
   const hasFilters = Boolean(
     search || actorFilter || action || entity || fromDate || toDate,
   );
@@ -157,7 +201,7 @@ export default async function SystemLogPage({
     <div className="space-y-6">
       <PageHeader
         title="System Log"
-        description="Changes made in Cappy Hub, newest first."
+        description="Review who changed each record and what changed, newest first."
       />
       <ListFilterBar
         key={JSON.stringify(filters)}
@@ -189,13 +233,13 @@ export default async function SystemLogPage({
           </select>
         </label>
         <label className="w-full min-w-0 sm:w-auto sm:min-w-44">
-          Action contains
+          Activity or action code
           <input
             type="search"
             name="action"
             defaultValue={action}
             maxLength={80}
-            placeholder="e.g. event.cancelled"
+            placeholder="e.g. signup or event.cancelled"
           />
         </label>
         <label className="w-full min-w-0 sm:w-auto sm:min-w-44">
@@ -239,45 +283,73 @@ export default async function SystemLogPage({
               <tr>
                 <th scope="col">Time</th>
                 <th scope="col">Actor</th>
-                <th scope="col">Action</th>
-                <th scope="col">Entity</th>
+                <th scope="col">Activity</th>
+                <th scope="col">Record</th>
                 <th scope="col">Details</th>
               </tr>
             </thead>
             <tbody>
-              {entries.map((entry) => (
-                <tr key={entry.id}>
-                  <td className="whitespace-nowrap text-muted">
-                    {new Date(entry.created_at).toLocaleString("en-US", {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                      timeZone: "America/Denver",
-                    })}
-                  </td>
-                  <td>
-                    {entry.actor_officer_id !== null
-                      ? (officerNames.get(entry.actor_officer_id) ??
-                        `Officer #${entry.actor_officer_id}`)
-                      : entry.actor_id === null
-                        ? "System"
-                        : `Unmapped account ${entry.actor_id.slice(0, 8)}…`}
-                  </td>
-                  <td>{formatLabel(entry.action.replaceAll(".", " "))}</td>
-                  <td>
-                    {formatLabel(entry.entity_type)} #{entry.entity_id}
-                  </td>
-                  <td>
-                    <details>
-                      <summary className="flex min-h-11 cursor-pointer items-center">
-                        {describeDetails(entry.details)}
-                      </summary>
-                      <pre className="mt-2 max-w-md overflow-x-auto whitespace-pre-wrap text-xs text-muted">
-                        {JSON.stringify(entry.details, null, 2)}
-                      </pre>
-                    </details>
-                  </td>
-                </tr>
-              ))}
+              {entries.map((entry) => {
+                const presentation = presentAuditEntry(entry, eventContext);
+                return (
+                  <tr key={entry.id}>
+                    <td className="whitespace-nowrap text-muted">
+                      {new Date(entry.created_at).toLocaleString("en-US", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                        timeZone: "America/Denver",
+                      })}
+                    </td>
+                    <td>
+                      {entry.actor_officer_id !== null
+                        ? (officerNames.get(entry.actor_officer_id) ??
+                          `Officer #${entry.actor_officer_id}`)
+                        : entry.actor_id === null
+                          ? "System"
+                          : `Unmapped account ${entry.actor_id.slice(0, 8)}…`}
+                    </td>
+                    <td>{presentation.activity}</td>
+                    <td>
+                      {presentation.record.href ? (
+                        <Link href={presentation.record.href as Route}>
+                          {presentation.record.label}
+                        </Link>
+                      ) : (
+                        presentation.record.label
+                      )}
+                    </td>
+                    <td>
+                      {presentation.changes.length === 0 ? (
+                        <p>{presentation.detailSummary}</p>
+                      ) : (
+                        <ul className="mt-1 space-y-1 text-xs text-muted">
+                          {presentation.changes.map((change) => (
+                            <li key={change.label}>
+                              {change.label}: {change.value}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <details className="mt-1 text-xs text-muted">
+                        <summary className="min-h-8 cursor-pointer">
+                          Technical details
+                        </summary>
+                        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                          <dt>Action</dt>
+                          <dd>{entry.action}</dd>
+                          <dt>Entity type</dt>
+                          <dd>{entry.entity_type}</dd>
+                          <dt>Entity ID</dt>
+                          <dd>{entry.entity_id}</dd>
+                        </dl>
+                        <pre className="mt-2 max-w-md overflow-x-auto whitespace-pre-wrap">
+                          {JSON.stringify(entry.details, null, 2)}
+                        </pre>
+                      </details>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </TableFrame>

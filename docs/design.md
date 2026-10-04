@@ -488,12 +488,12 @@ The following sections describe the actual product workflows and the design dire
 ### System Log
 
 - **Purpose:** Let admins review recorded changes made in Cappy Hub.
-- **Existing functionality that MUST be preserved — CURRENT:** Admin-only access; filters for search, actor/System, action text, entity type, and date range; newest-first rows; 50 records per page. Table fields are Time, Actor, Action, Entity, and Details. Details can expand to show structured JSON. Dates use America/Denver. Previous/Next preserve filters and the footer shows page and filtered entry count.
+- **Existing functionality that MUST be preserved — CURRENT:** Admin-only access; filters for search, actor/System, action text, entity type, and date range; newest-first rows; 50 records per page. Table fields are Time, Actor, Activity, Record, and Details. Known audit actions use centralized human-readable activity text and record context, preferring names in saved audit details and resolving current Event, Task, or Officer names where needed. Before/after values appear as readable field changes. Action and entity identifiers and raw JSON remain available under “Technical details”; unknown or legacy actions use a readable fallback. Dates use America/Denver. Previous/Next preserve filters and the footer shows page and filtered entry count.
 - **Information hierarchy:** Title/short description; compact filters; audit table; page count/navigation.
 - **Recommended layout:** Treat as a dense administrative table. Give time, actor, action, and entity readable widths; let details expand without widening the whole page unnecessarily.
 - **Primary action:** Search/filter the log.
-- **Secondary actions:** Expand details; navigate pages.
-- **Data presentation:** Neutral text with subtle row separators; formatted time; collapsible detail summary and structured payload.
+- **Secondary actions:** Expand Technical details; navigate pages.
+- **Data presentation:** Neutral text with subtle row separators; formatted time; human-readable activity and record context; concise changed-field summary; collapsible technical identifiers and structured payload.
 - **Minimalism notes:** Keep the page factual and quiet. Use “System Log” and supported field names; no decorative technical claims.
 - **Do not add:** Fake sync/real-time indicators, cryptographic/ledger language, ingest status, analytics, or unaudited detail widgets.
 
