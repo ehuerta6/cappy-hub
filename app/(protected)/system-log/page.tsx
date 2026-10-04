@@ -331,7 +331,7 @@ export default async function SystemLogPage({
                         </ul>
                       )}
                       <details className="mt-1 text-xs text-muted">
-                        <summary className="min-h-8 cursor-pointer">
+                        <summary className="min-h-11 cursor-pointer">
                           Technical details
                         </summary>
                         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
