@@ -448,6 +448,27 @@ it("preserves the full System Log row and provides a keyboard-scroll region", as
   expect(html).toContain('type="date"');
 });
 
+it("keeps removed Task titles in System Log without linking removed Task rows", async () => {
+  rows.audit_logs = [
+    {
+      id: 22,
+      actor_id: null,
+      actor_officer_id: null,
+      action: "task.removed",
+      entity_type: "task",
+      entity_id: 19,
+      details: { title: "Removed recurring task" },
+      created_at: "2026-10-03T12:00:00.000Z",
+    },
+  ];
+
+  const html = await render(SystemLogPage);
+
+  expect(html).toContain("Removed recurring task");
+  expect(html).not.toContain('href="/tasks/19"');
+  has(forTable("tasks")[0], "is", "removed_at", null);
+});
+
 it.each([PointsPage, SystemLogPage])(
   "clamps out-of-range pagination while preserving URL filters",
   async (Page) => {

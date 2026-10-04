@@ -170,6 +170,7 @@ export default async function SystemLogPage({
       ? supabase
           .from("tasks")
           .select("id,title")
+          .is("removed_at", null)
           .in("id", [...taskIds])
       : Promise.resolve({ data: [], error: null }),
   ]);

@@ -99,6 +99,43 @@ it("combines point awards with their Officer and Event context", () => {
   });
 });
 
+it("keeps a removed Task's historical title without linking to its detail route", () => {
+  const result = presentAuditEntry(
+    {
+      action: "task.removed",
+      entity_type: "task",
+      entity_id: 17,
+      details: { title: "Prepare interview kit" },
+    },
+    {
+      taskNames: new Map(),
+      availableTaskIds: new Set(),
+    },
+  );
+
+  expect(result.record).toEqual({ label: "Prepare interview kit" });
+});
+
+it("links a Task when its current record is still available", () => {
+  const result = presentAuditEntry(
+    {
+      action: "task.updated",
+      entity_type: "task",
+      entity_id: 18,
+      details: {},
+    },
+    {
+      taskNames: new Map([[18, "Review solutions"]]),
+      availableTaskIds: new Set([18]),
+    },
+  );
+
+  expect(result.record).toEqual({
+    label: "Review solutions",
+    href: "/tasks/18",
+  });
+});
+
 it("names the affected Officer in a warning entry", () => {
   const result = presentAuditEntry({
     action: "warning.created",
