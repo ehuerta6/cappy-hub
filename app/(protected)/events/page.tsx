@@ -64,6 +64,11 @@ export default async function EventsPage({
       else query = query.is("deleted_at", null);
     }
 
+    // Keep the default browsing groups focused on current events. Cancelled
+    // and removed history remains available through its explicit filters.
+    if (!countOnly && !showRemoved && status === undefined)
+      query = query.neq("status", "cancelled");
+
     if (!countOnly && status === "upcoming")
       query = query.neq("status", "cancelled").gt("starts_at", nowIso);
     if (!countOnly && status === "happening")
