@@ -196,6 +196,15 @@ it.each(["upcoming", "happening", "past", "cancelled"])(
   },
 );
 
+it("keeps cancelled Events out of the default browsing groups", async () => {
+  await render(EventsPage);
+  const eventsQuery = forTable("events").find(({ calls }) =>
+    calls.some(([method]) => method === "order"),
+  )!;
+  has(eventsQuery, "is", "deleted_at", null);
+  has(eventsQuery, "neq", "status", "cancelled");
+});
+
 it("limits removed Event history to admins even for forged URLs", async () => {
   let html = await render(EventsPage, { status: "removed" });
   has(forTable("events")[0], "not", "deleted_at", "is", null);

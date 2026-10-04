@@ -85,6 +85,10 @@ export default async function OfficerDetailPage({
     : null;
   if (warnings?.error) throw new Error("Failed to load warnings");
   const visibleWarnings = warnings?.data ?? [];
+  const associatedEvents = events.data.filter(
+    ({ events: event }) =>
+      event && !event.deleted_at && event.status !== "cancelled",
+  );
   const selectedStatus = ["pending", "approved", "rejected"].includes(
     warningStatus ?? "",
   )
@@ -279,9 +283,9 @@ export default async function OfficerDetailPage({
           className="min-w-0 rounded-lg border border-border p-4"
         >
           <SectionHeading title="Associated events" />
-          {!events.data.length && <p>No associated events yet.</p>}
+          {!associatedEvents.length && <p>No associated events yet.</p>}
           <ul>
-            {events.data.map(({ events: event }) => (
+            {associatedEvents.map(({ events: event }) => (
               <li
                 key={event.id}
                 className="flex flex-wrap items-center gap-2 border-b border-border py-2 text-sm"
