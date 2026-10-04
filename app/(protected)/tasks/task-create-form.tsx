@@ -76,6 +76,8 @@ export default function TaskCreateForm({
           requestKey={recurrenceRequestKey}
           recordType="Task"
           editing
+          selectedKey={task?.recurrence_key}
+          selectedDate={task?.due_date}
           values={state.values}
           fieldErrors={fieldErrors}
         />
@@ -226,6 +228,7 @@ export default function TaskCreateForm({
           recordType="Task"
           values={state.values}
           fieldErrors={fieldErrors}
+          firstDate={submittedValue(state.values, "due_date", "")}
         />
       )}
       <ActionFeedback state={state} />

@@ -1,7 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import type { RecurrenceInput } from "@/lib/recurrence";
+import { useEffect, useRef, useState } from "react";
+import {
+  expandRecurrenceDates,
+  recurrenceEditStart,
+  type RecurrenceEditScope,
+  type RecurrenceInput,
+} from "@/lib/recurrence";
 import {
   submittedValue,
   submittedValues,
@@ -25,13 +30,23 @@ export function RecurrenceFields({
   initial,
   values,
   fieldErrors = {},
+  firstDate = "",
+  editPreview,
 }: {
   recordType: "Event" | "Task";
   initial?: RecurrenceInput;
   values?: FormValues;
   fieldErrors?: FormFieldErrors;
+  firstDate?: string;
+  editPreview?: {
+    scope: RecurrenceEditScope;
+    seriesStart: string;
+    selectedKey: string;
+    selectedDate: string;
+  };
 }) {
   const prefix = recordType.toLowerCase();
+  const fieldsRef = useRef<HTMLFieldSetElement>(null);
   const [frequency, setFrequency] = useState(() =>
     submittedValue(
       values,
@@ -46,8 +61,84 @@ export function RecurrenceFields({
       initial?.until ? "until" : "count",
     ),
   );
+  const [interval, setInterval] = useState(() =>
+    submittedValue(
+      values,
+      "recurrence_interval",
+      String(initial?.interval ?? 1),
+    ),
+  );
+  const [count, setCount] = useState(() =>
+    submittedValue(values, "recurrence_count", String(initial?.count ?? 12)),
+  );
+  const [until, setUntil] = useState(() =>
+    submittedValue(values, "recurrence_until", initial?.until ?? ""),
+  );
+  const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>(() =>
+    values
+      ? submittedValues(values, "recurrence_weekdays")
+      : (initial?.weekdays ?? []),
+  );
+  const [previewDate, setPreviewDate] = useState(firstDate);
+
+  useEffect(() => {
+    const form = fieldsRef.current?.closest("form");
+    if (!form) return;
+    const name = recordType === "Event" ? "event_date" : "due_date";
+    const updateDate = () => {
+      const input = form.elements.namedItem(name) as HTMLInputElement | null;
+      setPreviewDate(input?.value ?? "");
+    };
+    updateDate();
+    form.addEventListener("input", updateDate);
+    form.addEventListener("change", updateDate);
+    return () => {
+      form.removeEventListener("input", updateDate);
+      form.removeEventListener("change", updateDate);
+    };
+  }, [recordType]);
+
+  let previewDates: string[] | null = null;
+  if (frequency === "daily" || frequency === "weekly") {
+    const recurrence: RecurrenceInput = {
+      frequency,
+      interval: Number(interval),
+      weekdays:
+        frequency === "weekly"
+          ? (selectedWeekdays as RecurrenceInput["weekdays"])
+          : [],
+      count: endMode === "count" ? Number(count) : null,
+      until: endMode === "until" ? until : null,
+    };
+    try {
+      if (previewDate && (!initial || editPreview)) {
+        const startDate = editPreview
+          ? recurrenceEditStart({
+              ...editPreview,
+              editedDate: previewDate,
+            })
+          : previewDate;
+        previewDates = expandRecurrenceDates(
+          startDate,
+          recurrence,
+          Boolean(editPreview),
+        );
+      }
+    } catch {
+      // This preview is informational; server validation remains authoritative.
+    }
+  }
+
+  const dateLabel = (date: string) =>
+    new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(new Date(`${date}T12:00:00Z`));
+
   return (
-    <fieldset className="sm:col-span-2 space-y-3">
+    <fieldset ref={fieldsRef} className="sm:col-span-2 space-y-3">
       <legend>Repeat</legend>
       <label>
         Repeat
@@ -87,13 +178,14 @@ export function RecurrenceFields({
               min="1"
               max="52"
               step="1"
-              defaultValue={submittedValue(
-                values,
-                "recurrence_interval",
-                String(initial?.interval ?? 1),
-              )}
+              value={interval}
+              onChange={(event) => setInterval(event.target.value)}
               required
             />
+            <span>
+              {frequency === "daily" ? "day" : "week"}
+              {Number(interval) === 1 ? "" : "s"}
+            </span>
             <FieldError id={`${prefix}-recurrence-interval-error`}>
               {fieldErrors.recurrence_interval}
             </FieldError>
@@ -115,13 +207,13 @@ export function RecurrenceFields({
                       type="checkbox"
                       name="recurrence_weekdays"
                       value={value}
-                      defaultChecked={
-                        values
-                          ? submittedValues(
-                              values,
-                              "recurrence_weekdays",
-                            ).includes(value)
-                          : initial?.weekdays.includes(value)
+                      checked={selectedWeekdays.includes(value)}
+                      onChange={(event) =>
+                        setSelectedWeekdays((selected) =>
+                          event.target.checked
+                            ? [...selected, value]
+                            : selected.filter((day) => day !== value),
+                        )
                       }
                     />
                     {label}
@@ -155,7 +247,7 @@ export function RecurrenceFields({
           </label>
           {endMode === "count" ? (
             <label>
-              Occurrences ({initial ? "1" : "2"}–500)
+              Occurrences (records generated; {initial ? "1" : "2"}–500)
               <input
                 name="recurrence_count"
                 type="number"
@@ -168,11 +260,8 @@ export function RecurrenceFields({
                 min={initial ? 1 : 2}
                 max="500"
                 step="1"
-                defaultValue={submittedValue(
-                  values,
-                  "recurrence_count",
-                  String(initial?.count ?? 12),
-                )}
+                value={count}
+                onChange={(event) => setCount(event.target.value)}
                 required
               />
               <FieldError id={`${prefix}-recurrence-count-error`}>
@@ -191,11 +280,8 @@ export function RecurrenceFields({
                     ? `${prefix}-recurrence-until-error`
                     : undefined
                 }
-                defaultValue={submittedValue(
-                  values,
-                  "recurrence_until",
-                  initial?.until ?? "",
-                )}
+                value={until}
+                onChange={(event) => setUntil(event.target.value)}
                 required
               />
               <FieldError id={`${prefix}-recurrence-until-error`}>
@@ -208,6 +294,32 @@ export function RecurrenceFields({
             its own workflow and points. Recurring occurrences support
             individual, following, and whole-series changes.
           </p>
+          <section aria-label="Schedule preview" aria-live="polite">
+            <p className="font-semibold">Schedule preview</p>
+            {previewDates ? (
+              <>
+                <ol>
+                  {previewDates.slice(0, 5).map((date) => (
+                    <li key={date}>{dateLabel(date)}</li>
+                  ))}
+                </ol>
+                {previewDates.length > 5 && (
+                  <p>Showing the first 5 dates of {previewDates.length}.</p>
+                )}
+                <p>
+                  {previewDates.length}{" "}
+                  {previewDates.length === 1 ? "occurrence" : "occurrences"}
+                  {" · "}Last occurrence: {dateLabel(previewDates.at(-1)!)}
+                </p>
+              </>
+            ) : (
+              <p>
+                {initial && !editPreview
+                  ? "A schedule preview is unavailable for this edit scope."
+                  : "Complete valid recurrence details and choose a first date to preview the schedule."}
+              </p>
+            )}
+          </section>
         </>
       )}
     </fieldset>

@@ -109,6 +109,8 @@ export default function EventForm({
           requestKey={mutationRequestKey}
           recordType="Event"
           editing
+          selectedKey={event?.recurrence_key}
+          selectedDate={event?.event_date}
           values={state.values}
           fieldErrors={fieldErrors}
         />
@@ -380,6 +382,7 @@ export default function EventForm({
           recordType="Event"
           values={state.values}
           fieldErrors={fieldErrors}
+          firstDate={submittedValue(state.values, "event_date", "")}
         />
       )}
 

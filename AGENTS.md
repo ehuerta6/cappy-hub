@@ -18,11 +18,12 @@
 - Respect Row Level Security and enforce permissions in trusted database or server paths. Do not weaken authorization to make a feature work or rely only on hidden UI controls.
 - Never expose Supabase service-role credentials to browser code. Never use production data for development or tests; keep `supabase/seed.sql` synthetic and out of production.
 - Rebuild locally and regenerate/check database types when schema changes require it. Follow the database commands in `README.md` and `package.json`.
+- Use `local-database-workflow` whenever running the full test suite containing pgTAP, using local Supabase, switching between database-test and seeded-development states, or diagnosing local database connection/state failures. Never run full `npm test` against an arbitrary local database state.
 
 ## Delivery
 
 - Do not develop directly on `main`. Follow the branch, Conventional Commit, validation, and PR conventions in `README.md`; keep PRs focused.
-- Use the applicable workflow skill when a task needs detailed steps: `implement-issue`, `database-change`, `verify-change`, or `review-pr`. Their bodies are loaded only when needed.
+- Use the applicable workflow skill when a task needs detailed steps: `implement-issue`, `database-change`, `local-database-workflow`, `verify-change`, or `review-pr`. Their bodies are loaded only when needed.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

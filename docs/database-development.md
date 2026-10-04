@@ -134,7 +134,7 @@ npm run db:reset
 npm test
 ```
 
-`db:reset` recreates only the local test database and skips seed data. `db:start` omits Auth, API, Studio, and other services used by the full local app environment.
+`db:start` starts the reduced local database stack; it does not reset existing rows. `db:reset` recreates only the local test database from migrations and skips synthetic seed data. The full `npm test` includes `tests/database.test.ts`, which runs `supabase test db --local` against PostgreSQL at `127.0.0.1:54322`. These pgTAP tests create their own fixtures and require the isolated migrations-only state above. Never run the full suite against an arbitrary existing local database; reset first unless the immediately preceding command already guarantees that clean state. The reduced stack omits Auth, API, Studio, and other services used by the full local app environment.
 
 `npm run test:db:upgrade` exercises a historical populated database upgrade, then resets the local database to the latest migrations without seed data. It discards current local rows and Auth accounts; run `npm run local:reset` afterward if you want to restore the full local development dataset. `npm run test:local-seed` loads synthetic seed rows into the local database and expects it to be empty; do not run it over existing local development data.
 

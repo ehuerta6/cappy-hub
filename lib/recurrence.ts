@@ -12,6 +12,29 @@ export type RecurrenceInput = {
   until: string | null;
 };
 
+export type RecurrenceEditScope = "following" | "series";
+
+/** Resolves the first date for an edit preview and its matching server mutation. */
+export function recurrenceEditStart({
+  scope,
+  seriesStart,
+  selectedKey,
+  selectedDate,
+  editedDate,
+}: {
+  scope: RecurrenceEditScope;
+  seriesStart: string;
+  selectedKey: string;
+  selectedDate: string;
+  editedDate: string;
+}) {
+  const start = scope === "following" ? selectedKey : seriesStart;
+  const offset = Temporal.PlainDate.from(selectedDate).until(
+    Temporal.PlainDate.from(editedDate),
+  ).days;
+  return Temporal.PlainDate.from(start).add({ days: offset }).toString();
+}
+
 const rruleDate = (date: Temporal.PlainDate) =>
   new Date(Date.UTC(date.year, date.month - 1, date.day, 12));
 

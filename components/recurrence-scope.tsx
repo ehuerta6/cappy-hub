@@ -22,6 +22,8 @@ export function RecurrenceScope({
   requestKey,
   recordType,
   editing = false,
+  selectedKey,
+  selectedDate,
   values,
   fieldErrors,
 }: {
@@ -29,6 +31,8 @@ export function RecurrenceScope({
   requestKey: string;
   recordType: "Event" | "Task";
   editing?: boolean;
+  selectedKey?: string | null;
+  selectedDate?: string;
   values?: FormValues;
   fieldErrors?: FormFieldErrors;
 }) {
@@ -95,6 +99,17 @@ export function RecurrenceScope({
                 initial={recurrenceFromRule(series.recurrence_rule)}
                 values={values}
                 fieldErrors={fieldErrors}
+                firstDate={selectedDate ?? ""}
+                editPreview={
+                  series.starts_on && selectedKey && selectedDate
+                    ? {
+                        scope: scope === "following" ? "following" : "series",
+                        seriesStart: series.starts_on,
+                        selectedKey,
+                        selectedDate,
+                      }
+                    : undefined
+                }
               />
             </>
           )}

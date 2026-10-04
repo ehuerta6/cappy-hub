@@ -14,6 +14,8 @@ For **This and following occurrences**, the selected recurrence key is the inclu
 
 The repeating-schedule count applies to the chosen scope. A date change shifts the scope's canonical starting date by the selected occurrence's date difference. Weekly edits must include that new first weekday. Changing an interval, weekdays, COUNT or UNTIL uses the existing recurrence expander; the database independently cross-checks the resulting dates. The schedule may contain one remaining occurrence after maintenance, while creation still requires two.
 
+The shared Event and Task forms label the interval unit in days or weeks and distinguish that interval from the number of records generated. Before creation or a supported series edit, a read-only preview shows the first five dates, total count and final date. It uses the same date expansion and scope start-date rules as submission. Incomplete or invalid inputs suppress the schedule until it can be generated safely; server and database validation remain authoritative.
+
 Shortening a schedule logically removes its surplus rows. Those rows remain attached to the historical segment outside its new bounds. They retain all relationships and history, and do not participate in later edits of that active segment. Following removal truncates the original rule and bounds; full removal retires it. No scheduler re-expands these definitions.
 
 ## Protected state and transactions

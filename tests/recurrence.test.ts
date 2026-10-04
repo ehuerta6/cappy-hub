@@ -7,6 +7,7 @@ import {
 import {
   canonicalRecurrenceRule,
   expandRecurrenceDates,
+  recurrenceEditStart,
   type RecurrenceInput,
 } from "@/lib/recurrence";
 
@@ -17,6 +18,27 @@ const recurrence = (values: Partial<RecurrenceInput>): RecurrenceInput => ({
   count: 3,
   until: null,
   ...values,
+});
+
+it("keeps recurring edit preview starts aligned with scope and date shifts", () => {
+  expect(
+    recurrenceEditStart({
+      scope: "following",
+      seriesStart: "2026-10-06",
+      selectedKey: "2027-01-19",
+      selectedDate: "2027-01-20",
+      editedDate: "2027-01-22",
+    }),
+  ).toBe("2027-01-21");
+  expect(
+    recurrenceEditStart({
+      scope: "series",
+      seriesStart: "2026-10-06",
+      selectedKey: "2027-01-19",
+      selectedDate: "2027-01-20",
+      editedDate: "2027-01-22",
+    }),
+  ).toBe("2026-10-08");
 });
 
 it("expands daily recurrence and includes the first date", () => {

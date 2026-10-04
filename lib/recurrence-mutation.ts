@@ -1,10 +1,10 @@
 import * as zod from "zod";
-import { Temporal } from "temporal-polyfill";
 import { createClient } from "@/lib/supabase/server";
 import { safeIntegerStringSchema } from "@/lib/validation";
 import {
   canonicalRecurrenceRule,
   expandRecurrenceDates,
+  recurrenceEditStart,
   recurrenceFromRule,
 } from "@/lib/recurrence";
 import {
@@ -126,11 +126,13 @@ export async function recurrenceMutation(
       };
     }
     if (dateField in patch) {
-      const currentDate = snapshot.date;
-      const offset = Temporal.PlainDate.from(currentDate).until(
-        Temporal.PlainDate.from(String(patch[dateField])),
-      ).days;
-      start = Temporal.PlainDate.from(start).add({ days: offset }).toString();
+      start = recurrenceEditStart({
+        scope: input.scope,
+        seriesStart: snapshot.start,
+        selectedKey: snapshot.key,
+        selectedDate: snapshot.date,
+        editedDate: String(patch[dateField]),
+      });
       delete patch[dateField];
     }
     if (form.get("change_recurrence") === "on") {

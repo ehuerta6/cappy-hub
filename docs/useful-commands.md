@@ -5,6 +5,8 @@
 npm run local:start
 npm run local:setup
 npm run local:reset
+npm run build
+npm run test:e2e
 npm run local:stop
 npm run dev
 
@@ -17,12 +19,14 @@ npm run lint
 npm run typecheck
 
 # Tests and production build
-npm test
 npm run build
 
-# Database-only test stack
+# Full tests, including pgTAP (migrations-only local database)
 npm run db:start
 npm run db:reset
+npm test
+
+# Other database checks (see database-development.md for safe order)
 npm run test:db:upgrade
 npm run test:local-seed
 

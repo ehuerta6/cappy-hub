@@ -29,18 +29,20 @@ Before opening a PR, run:
 npm run lint
 npm run format:check
 npm run typecheck
-npm test
 npm run build
 ```
 
-If formatting needs correction, run `npm run format` and review the resulting diff.
-
-Some database tests require the local test stack:
+Before running the full `npm test` suite, use the migrations-only local database state:
 
 ```bash
 npm run db:start
+npm run db:reset
 npm test
 ```
+
+`db:start` does not reset rows. `db:reset` clears the local database and replays migrations without synthetic seed data, which is required by pgTAP fixtures. For interactive app development and Playwright, use `npm run local:reset` instead; that creates the separate seeded local app state. See [Local Database Workflow](../.ai/skills/local-database-workflow/SKILL.md) for state transitions and failure diagnosis.
+
+If formatting needs correction, run `npm run format` and review the resulting diff.
 
 Do not use production data for development or testing.
 
