@@ -133,9 +133,10 @@ select lives_ok($$select assign_task((select id from tasks where recurrence_key=
 select is((select count(*) from task_assignments a join tasks t on t.id=a.task_id
   where t.recurrence_key='2099-09-23'),0::bigint,
   'assignment does not leak to another Task occurrence');
-select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000982',true);
-select lives_ok($$select complete_task((select id from tasks where recurrence_key='2099-09-21'))$$,
-  'the assignee can complete their Task occurrence');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000981',true);
+select lives_ok($$select set_task_assignment_completion(
+  (select id from tasks where recurrence_key='2099-09-21'),-982,true)$$,
+  'a manager completes the recurring Task through the supported workflow');
 reset role;
 select is((select count(*) from point_transactions p join tasks t on t.id=p.task_id
   where t.recurrence_key='2099-09-21' and p.award_type='task'),1::bigint,
@@ -154,14 +155,11 @@ select lives_ok($$select remove_task((select id from tasks where recurrence_key=
   'an unfinished Task occurrence can be removed independently');
 select throws_ok($$select assign_task((select id from tasks where recurrence_key='2099-09-23'),-982)$$,
   'P0001','Task has been removed','removed Task cannot be assigned through the RPC');
-select throws_ok($$select approve_task((select id from tasks where recurrence_key='2099-09-23'))$$,
-  'P0001','Task has been removed','removed Task cannot be approved through the RPC');
-select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000982',true);
-select throws_ok($$select complete_task((select id from tasks where recurrence_key='2099-09-23'))$$,
-  'P0001','Task has been removed','removed Task cannot be completed through the RPC');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000981',true);
+select throws_ok($$select set_task_assignment_completion(
+  (select id from tasks where recurrence_key='2099-09-23'),-982,true)$$,
+  'P0001','Task has been removed','removed recurring Task cannot be completed through the supported workflow');
 reset role;
-select throws_ok($$select private.award_task((select id from tasks where recurrence_key='2099-09-23'))$$,
-  'P0001','Task has been removed','removed Task cannot be awarded through the trusted function');
 select isnt((select removed_at from tasks where recurrence_key='2099-09-23'),null::timestamptz,
   'removed occurrence is retained with a removal timestamp');
 select is((select completed_at from task_assignments where task_id=

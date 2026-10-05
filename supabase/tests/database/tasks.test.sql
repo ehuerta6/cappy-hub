@@ -30,12 +30,33 @@ values
  (-9714,'Removed past Task','Processor must skip removed Tasks','Flyer',(select id from branches where name='intro'),current_setting('test.denver_today')::date-2,5,false,-972,now(),-972),
  (-9715,'Legacy Task','Old deployed completion and approval RPCs','Story',(select id from branches where name='intro'),current_setting('test.denver_today')::date-1,2.5,true,-972,null,null),
  (-9716,'Processor Task','Completed assignment for scheduled processing','Airtable',(select id from branches where name='intro'),current_setting('test.denver_today')::date-1,6,false,-972,null,null),
- (-9717,'Removable Task','Eligible standalone removal','Flyer',(select id from branches where name='intro'),current_setting('test.denver_today')::date+4,2,false,-972,null,null);
+ (-9717,'Removable Task','Eligible standalone removal','Flyer',(select id from branches where name='intro'),current_setting('test.denver_today')::date+4,2,false,-972,null,null),
+ (-9718,'Historical Task','Preserved approval and point history','Story',(select id from branches where name='intro'),current_setting('test.denver_today')::date-3,2.5,true,-972,null,null);
 insert into task_officer_assignments(task_id,officer_id,assigned_by,completed_at)
 values
  (-9714,-973,-972,now()-interval '2 days'),
  (-9716,-973,-972,now()-interval '2 days'),
  (-9716,-974,-972,null);
+-- Seed representative historical approval and award rows as existing data.
+insert into task_assignments(task_id,officer_id,assigned_by,assigned_at,completed_at,approved_at,approved_by)
+values(-9718,-973,-972,now()-interval '5 days',now()-interval '4 days',now()-interval '3 days',-972);
+insert into point_transactions(officer_id,task_id,points,reason,award_type,created_by)
+values(-973,-9718,2.5,'Historical Task award','task','00000000-0000-4000-8000-000000000972');
+
+select ok(not has_function_privilege('anon','public.complete_task(bigint)','EXECUTE')
+  and not has_function_privilege('authenticated','public.complete_task(bigint)','EXECUTE')
+  and not has_function_privilege('anon','public.approve_task(bigint)','EXECUTE')
+  and not has_function_privilege('authenticated','public.approve_task(bigint)','EXECUTE')
+  and not has_function_privilege('anon','private.complete_task(bigint)','EXECUTE')
+  and not has_function_privilege('authenticated','private.complete_task(bigint)','EXECUTE')
+  and not has_function_privilege('anon','private.approve_task(bigint)','EXECUTE')
+  and not has_function_privilege('authenticated','private.approve_task(bigint)','EXECUTE')
+  and not has_function_privilege('anon','private.award_task(bigint)','EXECUTE')
+  and not has_function_privilege('authenticated','private.award_task(bigint)','EXECUTE')
+  and has_function_privilege('postgres','private.complete_task(bigint)','EXECUTE')
+  and has_function_privilege('postgres','private.approve_task(bigint)','EXECUTE')
+  and has_function_privilege('postgres','private.award_task(bigint)','EXECUTE'),
+  'legacy Task completion, approval, and award helpers are unavailable to clients but remain defined for trusted calls');
 
 select ok(not has_function_privilege('anon','private.process_due_tasks()','EXECUTE')
   and not has_function_privilege('authenticated','private.process_due_tasks()','EXECUTE')
@@ -204,7 +225,8 @@ reset role;
 select is((select count(*) from audit_logs where entity_type='task' and entity_id='-9713' and action='task.removed'),1::bigint,
  'standalone removal is audited once');
 
--- The prior application's stable public RPC signatures remain callable during rollout.
+-- The compatibility assignment RPC remains available, but its obsolete
+-- completion and approval mutations are retired for every authenticated user.
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000972',true);
 set local role authenticated;
 select lives_ok($$select assign_task(-9715,-973)$$,'legacy assignment RPC remains callable');
@@ -213,18 +235,30 @@ select is((select count(*) from task_officer_assignments where task_id=-9715 and
  'legacy assignment writes synchronize into the canonical relation');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000973',true);
 set local role authenticated;
-select lives_ok($$select complete_task(-9715)$$,'legacy completion RPC remains callable during rollout');
+select throws_ok($$select complete_task(-9715)$$,'42501',null,
+ 'assigned Officer cannot invoke the retired legacy completion RPC');
+select throws_ok($$select private.complete_task(-9715)$$,'42501',null,
+ 'assigned Officer cannot invoke the retired private completion helper');
+select is((select completed_at from task_officer_assignments where task_id=-9715 and officer_id=-973),null::timestamptz,
+ 'denied legacy completion leaves the canonical assignment Not completed');
 select is((select count(*) from point_transactions where task_id=-9715 and award_type='task'),0::bigint,
- 'legacy approval-required completion does not award before approval');
+ 'denied legacy completion produces no Task point award');
+select throws_ok($$select approve_task(-9715)$$,'42501',null,
+ 'authenticated manager cannot invoke the retired legacy approval RPC');
+select throws_ok($$select private.approve_task(-9715)$$,'42501',null,
+ 'authenticated manager cannot invoke the retired private approval helper');
+select throws_ok($$select private.award_task(-9715)$$,'42501',null,
+ 'authenticated user cannot invoke the retired private award helper');
 reset role;
-select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000972',true);
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000973',true);
 set local role authenticated;
-select lives_ok($$select approve_task(-9715)$$,'legacy approval RPC remains callable during rollout');
+select is((select approved_at is not null and approved_by=-972
+  from task_officer_assignments where task_id=-9718 and officer_id=-973),true,
+ 'Officer can still read historical Task approval values');
+select is((select count(*) from point_history where task_id=-9718 and officer_id=-973
+  and award_type='task' and points=2.5 and reason='Historical Task award'),1::bigint,
+ 'Officer can still read historical Task point history');
 reset role;
-select is((select approved_at is not null and approved_by=-972 from task_officer_assignments where task_id=-9715 and officer_id=-973),true,
- 'legacy approval data synchronizes and remains stored canonically');
-select is((select count(*) from point_transactions where task_id=-9715 and officer_id=-973 and award_type='task' and removed_at is null),1::bigint,
- 'legacy award path uses the new Task and Officer conflict target');
 
 select * from finish();
 rollback;

@@ -149,13 +149,12 @@ reset role;
 select pg_temp.fixture('task-history','task');
 update tasks set due_date=(pg_catalog.statement_timestamp() at time zone 'America/Denver')::date-1
   where id=pg_temp.id('task-history',3);
-set local role authenticated;
-select assign_task(pg_temp.id('task-history',3),-683);
-select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000683',true);
-select complete_task(pg_temp.id('task-history',3));
-select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000681',true);
-select approve_task(pg_temp.id('task-history',3));
-reset role;
+-- Model existing completion, approval, and point history independently of the
+-- retired client RPCs so recurrence edits must preserve the stored records.
+insert into task_assignments(task_id,officer_id,assigned_by,assigned_at,completed_at,approved_at,approved_by)
+values(pg_temp.id('task-history',3),-683,-681,now()-interval '5 days',now()-interval '4 days',now()-interval '3 days',-681);
+insert into point_transactions(officer_id,task_id,points,reason,award_type,created_by)
+values(-683,pg_temp.id('task-history',3),3,'Historical recurring Task award','task','00000000-0000-4000-8000-000000000681');
 create temporary table preserved_task_state as select to_jsonb(a) as assignment,
  (select to_jsonb(p) from point_transactions p where task_id=a.task_id) as points from task_assignments a where task_id=pg_temp.id('task-history',3);
 set local role authenticated;

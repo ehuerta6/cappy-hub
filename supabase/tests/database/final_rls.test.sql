@@ -67,6 +67,12 @@ select ok(has_function_privilege('authenticated','public.self_assign_task(bigint
   and not has_any_column_privilege('authenticated','public.task_officer_assignments','UPDATE')
   and not has_table_privilege('authenticated','public.task_officer_assignments','DELETE'),
   'new Task read access and trusted mutation RPCs are granted without raw writes');
+select ok(not has_function_privilege('authenticated','public.complete_task(bigint)','EXECUTE')
+  and not has_function_privilege('authenticated','public.approve_task(bigint)','EXECUTE')
+  and not has_function_privilege('authenticated','private.complete_task(bigint)','EXECUTE')
+  and not has_function_privilege('authenticated','private.approve_task(bigint)','EXECUTE')
+  and not has_function_privilege('authenticated','private.award_task(bigint)','EXECUTE'),
+  'legacy Task completion, approval, and award helpers are not executable by authenticated clients');
 select ok(not exists(select 1 from pg_catalog.pg_proc p
   join pg_catalog.pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and has_function_privilege('authenticated',p.oid,'EXECUTE')
@@ -100,9 +106,7 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       'public.save_event_with_links(text,text,bigint,text,date,timestamptz,timestamptz,bigint[],bigint,text,text)'::regprocedure,
       'public.save_task(text,text,text,bigint,date,numeric,boolean)'::regprocedure,
       'public.assign_task(bigint,bigint)'::regprocedure,
-      'public.complete_task(bigint)'::regprocedure,
-      'public.approve_task(bigint)'::regprocedure
-      ,'public.create_recurring_event(text,text,bigint,text,bigint[],text,text,uuid,text,date[],timestamptz[],timestamptz[])'::regprocedure
+      'public.create_recurring_event(text,text,bigint,text,bigint[],text,text,uuid,text,date[],timestamptz[],timestamptz[])'::regprocedure
       ,'public.create_recurring_task(text,text,text,bigint,numeric,boolean,uuid,text,date[])'::regprocedure
       ,'public.remove_task(bigint)'::regprocedure
       ,'public.mutate_recurring_event(bigint,text,text,uuid,bigint,integer,jsonb,text,date[])'::regprocedure
