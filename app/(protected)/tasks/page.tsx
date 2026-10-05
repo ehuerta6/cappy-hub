@@ -236,7 +236,7 @@ export default async function TasksPage({
   };
 
   return (
-    <div className="space-y-6">
+    <div data-page-width="wide" className="space-y-5">
       <PageHeader
         title="Tasks"
         description="Task assignments, due dates, and completion."

@@ -159,12 +159,12 @@ export default async function PointsPage({
           : "No point transactions yet.";
 
   return (
-    <div className="space-y-8">
+    <div data-page-width="wide" className="space-y-6">
       <PageHeader
         title="Points"
         description="Finished events receive participation awards automatically from the scheduled database processor."
       />
-      <section className="space-y-3">
+      <section className="space-y-2">
         <SectionHeading title="Point configuration" />
         <p>
           Current participation rate:{" "}
@@ -180,17 +180,21 @@ export default async function PointsPage({
           <table>
             <thead>
               <tr>
+                <th scope="col">Rank</th>
                 <th scope="col">Officer</th>
-                <th scope="col">Total points</th>
+                <th scope="col" className="text-right">
+                  Total points
+                </th>
               </tr>
             </thead>
             <tbody>
-              {totals.data.map((officer) => (
+              {totals.data.map((officer, index) => (
                 <tr key={officer.id}>
+                  <td className="w-20 tabular-nums text-muted">{index + 1}</td>
                   <td>
                     <Link href={`/officers/${officer.id}`}>{officer.name}</Link>
                   </td>
-                  <td>
+                  <td className="text-right">
                     <PointValue value={officer.total_points ?? 0} />
                   </td>
                 </tr>

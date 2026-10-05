@@ -310,7 +310,9 @@ it("places the single sign out form and officer context inside the protected hea
   expect(header).toContain("min-h-11");
   expect(header).toContain("Local Officer");
   expect(html.match(/Sign out/g)).toHaveLength(1);
-  expect(html.split("</header>")[1].split("<script>")[0]).toBe("Page content");
+  expect(html.split("</header>")[1].split("<script>")[0]).toBe(
+    '<div class="protected-page-width">Page content</div>',
+  );
   expect(header).toContain('aria-current="page"');
   expect(header).not.toContain(">Admin</a>");
   vi.mocked(requireCurrentOfficer).mockResolvedValue({
@@ -395,10 +397,13 @@ it("summarizes all upcoming events in a named list with signup context and full-
   expect(list).toContain('href="/events/12"');
   expect(list).toContain("Signed up");
   expect(list).toContain("Not signed up");
+  expect(list).toMatch(/class="text-info">Signed up/);
+  expect(list).toMatch(/class="text-muted">Not signed up/);
   expect(list).toContain("1 officer");
   expect(list).toContain('href="/events"');
   expect(html).toContain('href="/points"');
   expect(html).not.toContain("<table");
+  expect(html).toContain('data-page-width="wide"');
 });
 
 it("summarizes signed point values with officer and event/task links or a manual reason", async () => {

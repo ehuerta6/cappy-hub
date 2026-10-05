@@ -48,8 +48,8 @@ export default function CalendarView({
   }, []);
 
   return (
-    <div className="calendar-shell min-w-0 rounded-lg border border-border bg-surface p-3 sm:p-5">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+    <div className="calendar-shell min-w-0 rounded-md border border-border bg-surface p-3 sm:p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <fieldset className="calendar-filters">
           <legend className="sr-only">Show Calendar entries</legend>
           {(["event", "task"] as const).map((kind) => (

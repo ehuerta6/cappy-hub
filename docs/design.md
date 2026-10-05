@@ -153,7 +153,7 @@ Success, info, and danger also have matching border tokens in `globals.css`. The
 
 ## 7. Spacing, shape, and density
 
-**CURRENT:** The protected content is centered at `max-w-6xl` (72rem/1152px) with responsive side padding. Typical sections use 16–24px gaps, cards/filters use modest padding, controls have 6px corners, and panels/table frames generally have 8px corners. There are no general drop shadows. The current shared badge is fully rounded.
+**CURRENT:** Protected content uses a centered 72rem (1152px) reading width by default. Dashboard, Events, Tasks, Calendar, Officers, Points, Admin, and System Log can use a centered 80rem (1280px) width for data-heavy work. The shell keeps responsive side padding. Typical sections use 16–24px gaps, filters use compact padding, controls have 6px corners, and panels/table frames generally have 6–8px corners. There are no general drop shadows. Status and branch badges use compact fully rounded shapes.
 
 **DESIGN DECISION:** Use a simple 4px spacing rhythm (4, 8, 12, 16, 24, 32px). Keep common radii small to medium, roughly 6–10px, and borders close to 1px. Use almost no shadows. Keep full pills limited to short statuses or compact branch labels; do not make buttons, filter controls, or every field pill-shaped.
 
@@ -235,7 +235,7 @@ Use neutral badges for branches. Keep officer position and classification as pla
 
 ## 14. Tables
 
-Tables are a core pattern for directory, event, point, and audit work. **CURRENT:** Global table styling uses a subtly distinct header, muted uppercase labels, 1px horizontal separators, 12px vertical / 16px horizontal cell padding, no vertical gridlines, a light row hover, and links that inherit the neutral theme rather than browser blue. Tables have a 38rem minimum width inside a horizontal overflow frame.
+Tables are a core pattern for directory, event, point, and audit work. **CURRENT:** Global table styling uses a subtly distinct header, muted uppercase labels, 1px horizontal separators, 8px vertical / 12px horizontal compact cell padding and 10px vertical / 14px horizontal standard cell padding, no vertical gridlines, a light row hover, and links that inherit the neutral theme rather than browser blue. Tables have a 38rem minimum width inside a horizontal overflow frame.
 
 **DESIGN DECISION:** Keep tables task-oriented and horizontally efficient. Use compact but readable rows, muted labels, subtle separators and hover, no heavy grid, no vertical borders, and tabular numerals for points, counts, and dates where useful. Give record names and important values enough room; allow horizontal scroll instead of truncating every column. Do not expose database columns just because they exist, and do not remove useful existing information without an explicit product decision. On narrow screens retain headers and horizontal scroll so a user can understand which value belongs to which column.
 
@@ -586,3 +586,4 @@ Every generated redesign must preserve the existing screen's access rules, actua
 - **2026-10-03 — Design quality refinement.** Added Cappy Hub's purpose/agency/responsibility/familiarity/flexibility/simplicity/craft/delight review lens, plus practical accessibility, interaction, writing, icon, motion, anti-generic, and approval guidance. Broad principles from the external [Apple Design Skill](https://github.com/dickwu/apple-design-skill) were used only as a reference and adapted for a browser-based internal admin tool; no skill files were copied or installed, no dependency was added, and no application behavior changed.
 - **2026-10-04 — Task management parity.** Updated the current Task list, assignment/completion, standalone edit/removal, Dashboard and due-date points behavior for Issue #129. The approval workflow remains only in legacy database compatibility and historical records.
 - **2026-10-04 — Task list presentation parity.** Removed descriptions and Points from Task list rows, formatted due dates for concise display, and matched the row assignment action to Event signup. Search, Task detail, and points behavior remain unchanged for Issue #136.
+- **2026-10-04 — Administrative presentation refinement.** Widened data-heavy protected pages while retaining the narrower reading width elsewhere, compacted table and filter spacing, refined Dashboard participation color, added a derived Rank to sorted Points totals, and simplified Admin links. Routes, data, workflows, and permissions remain unchanged for Issue #128.

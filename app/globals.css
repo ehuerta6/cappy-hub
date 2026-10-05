@@ -149,8 +149,14 @@
   th,
   td {
     border-bottom: 1px solid var(--border);
-    padding: 0.75rem 1rem;
+    padding: 0.625rem 0.875rem;
     vertical-align: middle;
+  }
+
+  .table-frame--compact th,
+  .table-frame--compact td {
+    padding-block: 0.5rem;
+    padding-inline: 0.75rem;
   }
 
   tbody tr:last-child td {
@@ -300,6 +306,45 @@
   outline-offset: 2px;
 }
 
+.protected-page-width {
+  width: 100%;
+  max-width: 72rem;
+  margin-inline: auto;
+}
+
+.protected-page-width:has([data-page-width="wide"]) {
+  max-width: 80rem;
+}
+
+.system-log-table {
+  table-layout: fixed;
+}
+
+.system-log-table th:nth-child(1),
+.system-log-table td:nth-child(1) {
+  width: 15%;
+}
+
+.system-log-table th:nth-child(2),
+.system-log-table td:nth-child(2) {
+  width: 13%;
+}
+
+.system-log-table th:nth-child(3),
+.system-log-table td:nth-child(3) {
+  width: 30%;
+}
+
+.system-log-table th:nth-child(4),
+.system-log-table td:nth-child(4) {
+  width: 20%;
+}
+
+.system-log-table th:nth-child(5),
+.system-log-table td:nth-child(5) {
+  width: 22%;
+}
+
 @media (max-width: 1279px) {
   .table-frame--compact > table {
     min-width: 0;
@@ -309,7 +354,7 @@
   .table-frame--compact th,
   .table-frame--compact td {
     overflow-wrap: anywhere;
-    padding: 0.625rem 0.75rem;
+    padding: 0.5rem 0.625rem;
   }
 }
 
@@ -369,8 +414,8 @@
 
 .calendar-shell .calendar-toolbar {
   flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
 }
 
 .calendar-shell .calendar-title {

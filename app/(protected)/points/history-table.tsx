@@ -72,7 +72,7 @@ export default function HistoryTable({
 }) {
   if (!transactions.length) return <p>{emptyMessage}</p>;
   return (
-    <table>
+    <table className="point-history-table">
       <thead>
         <tr className="grid grid-cols-1 md:table-row">
           <th scope="col" className="xl:hidden">

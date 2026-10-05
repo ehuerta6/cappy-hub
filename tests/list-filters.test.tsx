@@ -744,7 +744,7 @@ it("keeps officer identity, status and contact information in a semantic table",
   ];
   const html = await render(OfficersPage);
   expect(html).toContain("<table");
-  expect(html).toContain('<th scope="col">Name</th>');
+  expect(html).toMatch(/<th[^>]*scope="col"[^>]*>Name<\/th>/);
   for (const heading of [
     "UTEP email",
     "Personal email",

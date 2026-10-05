@@ -24,7 +24,7 @@ export default async function ProtectedLayout({ children }: LayoutProps<"/">) {
           </div>
         }
       />
-      {children}
+      <div className="protected-page-width">{children}</div>
     </>
   );
 }

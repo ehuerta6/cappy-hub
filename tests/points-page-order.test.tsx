@@ -1,4 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
 
 const { getAuthorizationContext, createClient, ordersByTable } = vi.hoisted(
   () => ({
@@ -44,7 +45,13 @@ beforeEach(() => {
         }),
         then: (resolve: (value: unknown) => unknown) =>
           Promise.resolve({
-            data: table === "point_history" ? [] : [],
+            data:
+              table === "officer_point_totals"
+                ? [
+                    { id: 7, name: "First Officer", total_points: 12 },
+                    { id: 2, name: "Second Officer", total_points: 8 },
+                  ]
+                : [],
             error: null,
             count: 0,
           }).then(resolve),
@@ -67,4 +74,16 @@ it("keeps the Officer selector alphabetical", async () => {
   await PointsPage({ searchParams: Promise.resolve({}) });
 
   expect(ordersByTable.get("officers")).toEqual([{ column: "name" }]);
+});
+
+it("renders Rank from the existing sorted totals without changing their order", async () => {
+  const html = renderToStaticMarkup(
+    await PointsPage({ searchParams: Promise.resolve({}) }),
+  );
+
+  expect(html).toContain('<th scope="col">Rank</th>');
+  expect(html).toMatch(/>1<\/td><td><a[^>]*>First Officer<\/a>/);
+  expect(html).toMatch(/>2<\/td><td><a[^>]*>Second Officer<\/a>/);
+  expect(html).toContain('class="w-20 tabular-nums text-muted"');
+  expect(html).toContain('class="text-right"><span class="tabular-nums');
 });

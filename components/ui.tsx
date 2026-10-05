@@ -140,7 +140,7 @@ export function Badge({
 }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${badgeTone[tone]}`}
+      className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-xs font-medium leading-4 ${badgeTone[tone]}`}
     >
       {children}
     </span>
@@ -221,13 +221,13 @@ export function ListFilterBar({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-surface/40 p-3 sm:p-4">
+    <div className="rounded-lg border border-border bg-surface/40 p-3">
       <form
         action={action}
         method="get"
         role="search"
         aria-label={label}
-        className="!flex w-full !max-w-none flex-wrap items-end gap-3"
+        className="!flex w-full !max-w-none flex-wrap items-end gap-2.5"
       >
         {children}
         <div className="flex w-full min-h-10 flex-wrap items-center gap-3 sm:w-auto">

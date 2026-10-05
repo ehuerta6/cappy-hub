@@ -106,7 +106,7 @@ export default async function OfficersPage({
   const hasFilters = Boolean(search || status || positionId || branchId);
   const officers = officersResult.data;
   return (
-    <div className="space-y-6">
+    <div data-page-width="wide" className="space-y-5">
       <PageHeader
         title="Officers"
         description="Club directory and branch memberships."
@@ -202,14 +202,16 @@ export default async function OfficersPage({
           <table>
             <thead>
               <tr>
-                <th scope="col">Name</th>
-                <th scope="col" className="hidden xl:table-cell">
+                <th scope="col" className="min-w-36">
+                  Name
+                </th>
+                <th scope="col" className="hidden min-w-48 xl:table-cell">
                   UTEP email
                 </th>
-                <th scope="col" className="hidden xl:table-cell">
+                <th scope="col" className="hidden min-w-48 xl:table-cell">
                   Personal email
                 </th>
-                <th scope="col" className="hidden xl:table-cell">
+                <th scope="col" className="hidden min-w-44 xl:table-cell">
                   Position
                 </th>
                 <th scope="col" className="hidden xl:table-cell">
@@ -280,10 +282,10 @@ export default async function OfficersPage({
                       </details>
                     </div>
                   </td>
-                  <td className="hidden xl:table-cell text-muted">
+                  <td className="hidden break-all text-muted xl:table-cell">
                     {officer.utep_email ?? "—"}
                   </td>
-                  <td className="hidden xl:table-cell text-muted">
+                  <td className="hidden break-all text-muted xl:table-cell">
                     {officer.personal_email ?? "—"}
                   </td>
                   <td className="hidden xl:table-cell">

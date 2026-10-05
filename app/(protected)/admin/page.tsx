@@ -45,21 +45,19 @@ export default async function AdminPage() {
   if (!isAdmin(actor)) notFound();
 
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-8 px-4 py-8 sm:px-6">
+    <div data-page-width="wide" className="space-y-5">
       <PageHeader
         title="Admin"
         description="Application-wide administration for Coding Interview Club."
       />
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-x-8 sm:grid-cols-2">
         {adminAreas.map((area) => (
           <section
             key={area.href}
-            className="flex flex-col items-start gap-4 rounded-lg border border-border bg-surface/40 p-5"
+            className="flex flex-col items-start gap-2 border-t border-border py-4 first:border-0 first:pt-0 sm:[&:nth-child(2)]:border-0"
           >
-            <div className="space-y-2">
-              <h2 className="text-lg font-semibold">{area.title}</h2>
-              <p className="text-sm text-muted">{area.description}</p>
-            </div>
+            <h2 className="font-semibold">{area.title}</h2>
+            <p className="text-sm">{area.description}</p>
             <Link
               className="text-sm font-medium text-foreground underline"
               href={area.href}
@@ -69,6 +67,6 @@ export default async function AdminPage() {
           </section>
         ))}
       </div>
-    </main>
+    </div>
   );
 }

@@ -84,7 +84,9 @@ const task = {
   recurrence_series_id: 3,
   due_date: "2099-10-08",
 };
+let officersForList: Record<string, unknown>[];
 beforeEach(() => {
+  officersForList = [];
   vi.mocked(useActionState).mockReturnValue([
     { error: "", success: "" },
     vi.fn(),
@@ -126,7 +128,10 @@ beforeEach(() => {
           error: null,
         }),
         then: (resolve: (value: unknown) => unknown) =>
-          Promise.resolve({ data: [], error: null }).then(resolve),
+          Promise.resolve({
+            data: table === "officers" ? officersForList : [],
+            error: null,
+          }).then(resolve),
       };
       return query;
     },
@@ -276,6 +281,39 @@ it("does not add contextual Back links to Officer or Task main pages", async () 
       await TasksPage({ searchParams: Promise.resolve({}) }),
     ),
   ).not.toContain("Back to");
+});
+
+it("keeps all Officer directory columns distinct and marks the directory as wide", async () => {
+  officersForList = [
+    {
+      id: 7,
+      name: "Synthetic Officer",
+      utep_email: "synthetic@utep.edu",
+      personal_email: "officer@example.com",
+      classification: "senior",
+      positions: { name: "President" },
+      officer_branches: [{ branches: { name: "Intro" } }],
+      status: "active",
+    },
+  ];
+
+  const html = renderToStaticMarkup(
+    await OfficersPage({ searchParams: Promise.resolve({}) }),
+  );
+
+  expect(html).toContain('data-page-width="wide"');
+  for (const heading of [
+    "Name",
+    "UTEP email",
+    "Personal email",
+    "Position",
+    "Classification",
+    "Branches",
+    "Status",
+  ])
+    expect(html).toContain(`>${heading}</th>`);
+  expect(html).toContain("synthetic@utep.edu");
+  expect(html).toContain("officer@example.com");
 });
 
 it("groups Event details, files and participation while retaining management controls and history", async () => {

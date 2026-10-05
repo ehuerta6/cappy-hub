@@ -28,7 +28,7 @@ export default async function CalendarPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div data-page-width="wide" className="space-y-5">
       <PageHeader
         title="Calendar"
         description="Events and Task due dates. Select an entry to open its record."

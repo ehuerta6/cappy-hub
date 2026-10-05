@@ -199,7 +199,7 @@ export default async function SystemLogPage({
       : "No System Log entries yet.";
 
   return (
-    <div className="space-y-6">
+    <div data-page-width="wide" className="space-y-5">
       <PageHeader
         title="System Log"
         description="Review who changed each record and what changed, newest first."
@@ -279,7 +279,7 @@ export default async function SystemLogPage({
         <p>{emptyMessage}</p>
       ) : (
         <TableFrame label="System Log entries">
-          <table>
+          <table className="system-log-table">
             <thead>
               <tr>
                 <th scope="col">Time</th>

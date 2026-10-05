@@ -1,0 +1,128 @@
+import { expect, test, type Page } from "@playwright/test";
+
+async function signInAsAdmin(page: Page) {
+  await page.goto("/login");
+  await page.getByRole("button", { name: "Admin", exact: true }).click();
+  await expect(page).toHaveURL((url) => url.pathname === "/");
+}
+
+async function expectNoPageOverflow(page: Page) {
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+}
+
+test("administrative pages remain usable across desktop and compact widths", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+
+  const wideScreens = [
+    ["/", "Dashboard"],
+    ["/events", "Events"],
+    ["/tasks", "Tasks"],
+    ["/calendar", "Calendar"],
+    ["/officers", "Officers"],
+    ["/points", "Points"],
+    ["/admin", "Admin"],
+    ["/system-log", "System Log"],
+  ] as const;
+
+  for (const [path, heading] of wideScreens) {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto(path);
+    await expect(
+      page.getByRole("heading", { name: heading }).first(),
+    ).toBeVisible();
+    const shell = page.locator(".protected-page-width");
+    await expect(shell).toBeVisible();
+    const width = await shell.evaluate(
+      (element) => element.getBoundingClientRect().width,
+    );
+    expect(width).toBeGreaterThanOrEqual(1200);
+    expect(width).toBeLessThanOrEqual(1280);
+    await expectNoPageOverflow(page);
+  }
+
+  await page.goto("/officers");
+  for (const name of [
+    "Name",
+    "UTEP email",
+    "Personal email",
+    "Position",
+    "Classification",
+    "Branches",
+    "Status",
+  ])
+    await expect(
+      page.getByRole("columnheader", { name, exact: true }),
+    ).toBeVisible();
+
+  await page.goto("/points");
+  const totals = page.getByRole("table").first();
+  for (const name of ["Rank", "Officer", "Total points"])
+    await expect(
+      totals.getByRole("columnheader", { name, exact: true }),
+    ).toBeVisible();
+
+  await page.goto("/calendar");
+  await expect(page.getByRole("checkbox", { name: "Events" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Tasks" })).toBeVisible();
+
+  await page.goto("/admin");
+  for (const name of [
+    "Manage officers",
+    "Manage positions and branches",
+    "Open points administration",
+    "View system log",
+  ])
+    await expect(page.getByRole("link", { name, exact: true })).toBeVisible();
+
+  await page.goto("/system-log");
+  await expect(
+    page.getByRole("searchbox", { name: "Search log" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Technical details", { exact: true }).first(),
+  ).toBeVisible();
+
+  await page.goto("/events");
+  await page.getByRole("button", { name: "Switch to light theme" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(
+    page.getByRole("heading", { name: "Events", exact: true }),
+  ).toBeVisible();
+  await expectNoPageOverflow(page);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/events");
+  for (const [path, heading] of wideScreens) {
+    await page.goto(path);
+    await expect(
+      page.getByRole("heading", { name: heading }).first(),
+    ).toBeVisible();
+    await expectNoPageOverflow(page);
+  }
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const [path, heading] of wideScreens) {
+    await page.goto(path);
+    await expect(
+      page.getByRole("heading", { name: heading }).first(),
+    ).toBeVisible();
+    await expectNoPageOverflow(page);
+  }
+  await page.goto("/tasks");
+  await expect(
+    page.getByRole("button", { name: "Assign this task to me" }).first(),
+  ).toBeVisible();
+  await page.goto("/officers");
+  await expect(
+    page.getByText("Contact details", { exact: true }).first(),
+  ).toBeVisible();
+  await page.goto("/calendar");
+  await expect(page.getByRole("checkbox", { name: "Events" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Tasks" })).toBeVisible();
+});

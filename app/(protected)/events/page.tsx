@@ -220,7 +220,7 @@ export default async function EventsPage({
   );
 
   return (
-    <div className="space-y-6">
+    <div data-page-width="wide" className="space-y-5">
       <PageHeader
         title="Events"
         description="Club events and participation."

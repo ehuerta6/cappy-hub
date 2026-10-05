@@ -47,7 +47,7 @@ export default async function DashboardPage() {
   if (summary.error || events.error || transactions.error || total.error)
     throw new Error("Failed to load dashboard");
   return (
-    <div className="space-y-4">
+    <div data-page-width="wide" className="space-y-4">
       <header className="grid min-w-0 gap-4 border-b border-border pb-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
         <section aria-label="Dashboard context" className="min-w-0">
           <h1 className="text-xs font-medium uppercase tracking-[0.08em] text-muted">
@@ -220,7 +220,15 @@ export default async function DashboardPage() {
                         ? "officer"
                         : "officers"}
                     </span>
-                    <span className="text-secondary">
+                    <span
+                      className={
+                        event.event_officers.some(
+                          (signup) => signup.officer_id === officer.id,
+                        )
+                          ? "text-info"
+                          : "text-muted"
+                      }
+                    >
                       {participationLabel(
                         event.event_officers.some(
                           (signup) => signup.officer_id === officer.id,
@@ -235,7 +243,7 @@ export default async function DashboardPage() {
         </section>
         <section
           aria-label="Recent point activity"
-          className="min-w-0 border-t border-border pt-4 lg:border-l lg:border-t-0 lg:py-0 lg:pl-6"
+          className="min-w-0 border-t border-border pt-4 lg:border-l lg:border-t-0 lg:py-0 lg:pl-5"
         >
           <SectionHeading
             title="Recent point activity"

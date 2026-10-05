@@ -33,7 +33,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         />
       </head>
       <body className="flex min-h-full flex-col bg-background font-sans text-foreground antialiased">
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-16 pt-8 sm:px-6 sm:pt-10">
+        <main className="w-full flex-1 px-4 pb-12 pt-6 sm:px-6 sm:pt-8">
           {children}
         </main>
       </body>
