@@ -14,7 +14,7 @@ import {
   SuccessNotice,
   TableFrame,
 } from "@/components/ui";
-import { formatLabel } from "@/lib/presentation";
+import { formatLabel, formatTaskDueDate } from "@/lib/presentation";
 import { searchOrFilter } from "@/lib/list-search";
 import { currentDenverWeek } from "@/lib/current-denver-week";
 import { organizeTaskList } from "@/lib/task-list";
@@ -148,9 +148,6 @@ export default async function TasksPage({
                   Branch
                 </th>
                 <th scope="col" className="hidden xl:table-cell">
-                  Points
-                </th>
-                <th scope="col" className="hidden xl:table-cell">
                   Officers
                 </th>
                 <th scope="col" className="hidden xl:table-cell">
@@ -177,28 +174,16 @@ export default async function TasksPage({
                       >
                         {task.title}
                       </Link>
-                      <p className="hidden text-sm text-muted xl:block">
-                        {task.description}
-                      </p>
-                      <details className="mt-1 xl:hidden">
-                        <summary className="flex min-h-11 cursor-pointer items-center text-sm text-secondary">
-                          Description
-                        </summary>
-                        <p className="whitespace-pre-wrap break-words text-sm">
-                          {task.description}
-                        </p>
-                      </details>
-                      <div className="mt-2 flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-sm text-muted xl:hidden">
-                        <span>Due: {task.due_date}</span>
+                      <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted xl:hidden">
+                        <span>Due: {formatTaskDueDate(task.due_date)}</span>
                         <span>Type: {formatLabel(task.task_type)}</span>
                         <BranchBadges branches={[task.branches.name]} />
-                        <span>Points: {task.points}</span>
                         <span>Officers: {progress}</span>
-                        <span>Status: {taskState}</span>
+                        <StatusBadge status={taskState} />
                       </div>
                     </td>
                     <td className="hidden whitespace-nowrap xl:table-cell">
-                      {task.due_date}
+                      {formatTaskDueDate(task.due_date)}
                     </td>
                     <td className="hidden xl:table-cell">
                       {formatLabel(task.task_type)}
@@ -206,7 +191,6 @@ export default async function TasksPage({
                     <td className="hidden xl:table-cell">
                       <BranchBadges branches={[task.branches.name]} />
                     </td>
-                    <td className="hidden xl:table-cell">{task.points}</td>
                     <td className="hidden xl:table-cell tabular-nums">
                       {progress}
                     </td>

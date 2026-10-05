@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import { organizeTaskList } from "@/lib/task-list";
+import { formatTaskDueDate } from "@/lib/presentation";
 
 const task = (
   id: number,
@@ -71,4 +72,14 @@ it("keeps due Sunday current and moves Monday to Upcoming after Denver week roll
     after.view === "current" && after.thisWeek.map(({ id }) => id),
   ).toEqual([2]);
   expect(after.view === "current" && after.upcoming).toEqual([]);
+});
+
+it("formats Task due dates as concise Denver calendar dates without UTC shifts", () => {
+  const now = new Date("2026-10-05T06:00:00.000Z");
+
+  expect(formatTaskDueDate("2026-10-07", now)).toBe("Oct 7");
+  expect(formatTaskDueDate("2027-10-07", now)).toBe("Oct 7, 2027");
+  expect(
+    formatTaskDueDate("2026-01-01", new Date("2026-01-01T07:30:00Z")),
+  ).toBe("Jan 1");
 });

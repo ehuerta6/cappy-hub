@@ -32,6 +32,21 @@ export function formatCalendarDate(value: string) {
   );
 }
 
+/** Format a Task SQL due date without shifting its Denver calendar date. */
+export function formatTaskDueDate(value: string, now = new Date()) {
+  const taskYear = Number(value.slice(0, 4));
+  const currentDenverYear = Number(
+    new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      timeZone: "America/Denver",
+    }).format(now),
+  );
+  const formatted = formatCalendarDate(value);
+  return taskYear === currentDenverYear
+    ? formatted.replace(/, \d{4}$/, "")
+    : formatted;
+}
+
 export function formatEventFilterOption(name: string, eventDate: string) {
   return `${name} — ${formatCalendarDate(eventDate)}`;
 }

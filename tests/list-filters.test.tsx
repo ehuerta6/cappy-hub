@@ -31,7 +31,7 @@ vi.mock("@/app/(protected)/events/event-controls", () => ({
 vi.mock("@/app/(protected)/tasks/task-action-form", () => ({
   default: () => (
     <form>
-      <button>Self-assign</button>
+      <button className="whitespace-nowrap px-3 py-1.5">Assign to me</button>
     </form>
   ),
 }));
@@ -472,7 +472,7 @@ it("groups current Tasks by Denver week before splitting multi-Officer assignmen
     expect(html).not.toContain("Yesterday task");
     expect(html).not.toContain("Removed future task");
     expect(html).not.toContain('aria-label="Past tasks"');
-    expect(html).toContain("Self-assign");
+    expect(html).toContain("Assign to me");
   } finally {
     vi.useRealTimers();
   }
@@ -540,6 +540,9 @@ it("keeps Past separate from workflow status and preserves all assignment rows",
     has(query, "eq", "branch_id", 2);
     expect(query.calls.find(([method]) => method === "or")?.[1]).toContain(
       "title.imatch",
+    );
+    expect(query.calls.find(([method]) => method === "or")?.[1]).toContain(
+      "description.imatch",
     );
     expect(query.calls[0][1]).toContain(
       "task_officer_assignments(officer_id,completed_at",
@@ -777,13 +780,23 @@ it("shows Task-specific details and self-assignment only in Other tasks", async 
   const html = await render(TasksPage);
   expect(html).toContain("<table");
   expect(html).toContain('<th scope="col">Task</th>');
-  expect(html).toContain("Due: 2099-10-08");
+  for (const heading of ["Due", "Type", "Branch", "Officers", "Status"])
+    expect(html).toContain(`>${heading}</th>`);
+  expect(html).toContain(">Action</th>");
+  expect(html).toContain("Due: Oct 8, 2099");
   expect(html).toContain("Officers: 0 officers");
-  expect(html).toContain("Status: Open");
+  expect(html).toContain(">Open</span>");
   expect(html).toContain(">Intro</span>");
-  expect(html).toContain("Points: 3");
-  expect(html).toContain("Description</summary>");
-  expect(html).toContain("Self-assign");
+  expect(html).not.toContain(">Points</th>");
+  expect(html).not.toContain(">3</td>");
+  expect(html).not.toContain(
+    "Add the schedule, speaker names, and room details.",
+  );
+  expect(html).not.toContain("Self-assign");
+  expect(html).toContain("Assign to me");
+  expect(html).toContain("whitespace-nowrap px-3 py-1.5");
+  expect(html).toContain("Oct 8, 2099");
+  expect(html).not.toContain("2099-10-08");
   expect(html).not.toContain("Select officer");
   expect(html).toContain('aria-label="Your tasks"');
   expect(html).toContain('aria-label="Other tasks"');

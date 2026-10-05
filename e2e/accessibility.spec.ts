@@ -84,6 +84,54 @@ test("Task detail completion controls are labeled, keyboard operable, and respon
   await expectNoAxeViolations(page);
 });
 
+test("Task list stays concise and accessible at desktop and mobile widths", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+  await page.goto("/tasks");
+
+  const taskLink = page.getByRole("link", {
+    name: "Make intro flyer",
+    exact: true,
+  });
+  const taskRow = page.getByRole("row").filter({ has: taskLink });
+  const assignmentAction = taskRow.getByRole("button", {
+    name: "Assign this task to me",
+    exact: true,
+  });
+
+  await expect(taskLink).toBeVisible();
+  await expect(taskRow).not.toContainText(
+    "Prepare a flyer for the next intro workshop.",
+  );
+  await expect(
+    page.getByRole("columnheader", { name: "Points", exact: true }),
+  ).toHaveCount(0);
+  await expect(taskRow.getByRole("cell").nth(1)).toHaveText(
+    /^[A-Z][a-z]{2} \d{1,2}(, \d{4})?$/,
+  );
+  await expect(assignmentAction).toBeVisible();
+  await expect(assignmentAction).toHaveText("Assign to me");
+  await expect(assignmentAction).toHaveClass(/whitespace-nowrap/);
+  await expect(assignmentAction).toHaveClass(/px-3/);
+  await expect(assignmentAction).toHaveClass(/py-1\.5/);
+  await expectNoAxeViolations(page);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(taskRow.getByText(/^Due: /)).toBeVisible();
+  await expect(taskRow.getByText("Type: Flyer", { exact: true })).toBeVisible();
+  await expect(taskRow.getByText("Intro", { exact: true })).toBeVisible();
+  await expect(
+    taskRow.getByText("Officers: 0 officers", { exact: true }),
+  ).toBeVisible();
+  await expect(taskRow.getByText("Open", { exact: true })).toBeVisible();
+  await expect(assignmentAction).toBeVisible();
+  await expect(taskRow).not.toContainText(
+    "Prepare a flyer for the next intro workshop.",
+  );
+  await expectNoAxeViolations(page);
+});
+
 test("Event and Task forms preview the same long weekly schedule", async ({
   page,
 }) => {

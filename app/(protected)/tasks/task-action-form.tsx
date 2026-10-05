@@ -11,10 +11,15 @@ export default function TaskSelfAssignForm({ taskId }: { taskId: number }) {
     initialFormActionState,
   );
   return (
-    <form action={action} className="flex flex-wrap items-center gap-2">
+    <form action={action} className="gap-2">
       <input type="hidden" name="task_id" value={taskId} />
-      <button className="shrink-0" type="submit" disabled={pending}>
-        {pending ? "Assigning…" : "Self-assign"}
+      <button
+        className="whitespace-nowrap px-3 py-1.5"
+        type="submit"
+        disabled={pending}
+        aria-label="Assign this task to me"
+      >
+        {pending ? "Assigning…" : "Assign to me"}
       </button>
       <ActionFeedback state={state} />
     </form>
