@@ -1,6 +1,5 @@
-import { Temporal } from "temporal-polyfill";
 import type { Tables } from "./database.types";
-import { denverParts } from "./event-time";
+import { currentDenverWeek } from "./current-denver-week";
 
 export type EventListStatus =
   "upcoming" | "happening" | "past" | "cancelled" | undefined;
@@ -21,21 +20,13 @@ export type EventListItem = Pick<
   event_officers: { officer_id: number }[];
 };
 
-export function currentEventWeek(now: Date) {
-  const today = Temporal.PlainDate.from(denverParts(now).date);
-  return {
-    today: today.toString(),
-    sunday: today.add({ days: 7 - today.dayOfWeek }).toString(),
-  };
-}
-
 export function organizeEventList(
   events: EventListItem[],
   status: EventListStatus,
   now: Date,
 ) {
   const nowMs = now.getTime();
-  const { today, sunday } = currentEventWeek(now);
+  const { today, sunday } = currentDenverWeek(now);
   const visible = events.filter((event) => {
     if (event.deleted_at) return false;
     if (status === "cancelled") return event.status === "cancelled";

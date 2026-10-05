@@ -218,6 +218,18 @@ test("manager adds multiple Officers and controls independent Task completion an
       name: taskTitle,
       exact: true,
     });
+    await expect(taskLink).toHaveCount(0);
+    const managerTaskFilters = managerPage.getByRole("search", {
+      name: "Task filters",
+    });
+    await managerTaskFilters.getByLabel("View").selectOption("past");
+    await managerTaskFilters
+      .getByRole("button", { name: "Apply filters" })
+      .click();
+    await managerPage.waitForURL(
+      (url) =>
+        url.pathname === "/tasks" && url.searchParams.get("view") === "past",
+    );
     await expect(taskLink).toBeVisible();
     await taskLink.click();
     await expect(
@@ -270,11 +282,14 @@ test("manager adds multiple Officers and controls independent Task completion an
     const taskFilters = officerPage.getByRole("search", {
       name: "Task filters",
     });
+    await taskFilters.getByLabel("View").selectOption("past");
     await taskFilters.getByLabel("Search tasks").fill(taskTitle);
     await taskFilters.getByRole("button", { name: "Apply filters" }).click();
     await officerPage.waitForURL(
       (url) =>
-        url.pathname === "/tasks" && url.searchParams.get("q") === taskTitle,
+        url.pathname === "/tasks" &&
+        url.searchParams.get("view") === "past" &&
+        url.searchParams.get("q") === taskTitle,
     );
     await officerPage
       .getByRole("link", { name: taskTitle, exact: true })

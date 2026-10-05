@@ -122,11 +122,19 @@ beforeEach(() => {
         // Points baseline includes its authorization-sensitive removed predicate.
         const pointsBaseline =
           table === "point_history" && record.calls.length === 2;
+        const tasksBaseline = table === "tasks" && head;
+        const data = rows[table] ?? [];
         return Promise.resolve({
-          data: rows[table] ?? [],
+          data:
+            table === "tasks"
+              ? data.map((row) => ({
+                  removed_at: null,
+                  ...(row as Record<string, unknown>),
+                }))
+              : data,
           error: null,
           count: head
-            ? isBaseline || pointsBaseline
+            ? isBaseline || pointsBaseline || tasksBaseline
               ? visibleCount
               : filteredCount
             : undefined,
@@ -362,6 +370,7 @@ it.each(["open", "in_progress", "complete"])(
     )!;
     has(query, "is", "removed_at", null);
     has(query, "eq", "branch_id", 3);
+    expect(query.calls).toContainEqual(["gte", "due_date", expect.any(String)]);
     expect(query.calls[0][1]).toContain("task_officer_assignments(");
     expect(html).not.toContain("Awaiting approval");
     expect(html).not.toContain("Mark complete");
@@ -370,6 +379,233 @@ it.each(["open", "in_progress", "complete"])(
     if (status === "in_progress")
       expect(html).toContain("Other Officer&#x27;s task");
     if (status === "complete") expect(html).toContain("Completed team task");
+  },
+);
+
+it("groups current Tasks by Denver week before splitting multi-Officer assignments", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-10-05T06:00:00.000Z"));
+  try {
+    rows.tasks = [
+      {
+        id: 1,
+        title: "Today's work",
+        description: "Assigned to this Officer",
+        task_type: "one_time",
+        branch_id: 2,
+        due_date: "2026-10-05",
+        points: 2,
+        branches: { name: "intro" },
+        task_officer_assignments: [{ officer_id: 1, completed_at: null }],
+      },
+      {
+        id: 2,
+        title: "Sunday deadline",
+        description: "Assigned to other Officers",
+        task_type: "one_time",
+        branch_id: 2,
+        due_date: "2026-10-11",
+        points: 3,
+        branches: { name: "intro" },
+        task_officer_assignments: [
+          { officer_id: 2, completed_at: null },
+          { officer_id: 3, completed_at: null },
+        ],
+      },
+      {
+        id: 3,
+        title: "Next Monday task",
+        description: "Upcoming work",
+        task_type: "one_time",
+        branch_id: 2,
+        due_date: "2026-10-12",
+        points: 4,
+        branches: { name: "intro" },
+        task_officer_assignments: [
+          { officer_id: 2, completed_at: "2026-10-01T12:00:00Z" },
+        ],
+      },
+      {
+        id: 4,
+        title: "Yesterday task",
+        description: "Past work",
+        task_type: "one_time",
+        branch_id: 2,
+        due_date: "2026-10-04",
+        points: 1,
+        branches: { name: "intro" },
+        task_officer_assignments: [],
+      },
+      {
+        id: 5,
+        title: "Removed future task",
+        description: "Hidden work",
+        task_type: "one_time",
+        branch_id: 2,
+        due_date: "2026-10-12",
+        removed_at: "2026-10-01T00:00:00Z",
+        points: 1,
+        branches: { name: "intro" },
+        task_officer_assignments: [],
+      },
+    ];
+
+    const html = await render(TasksPage);
+    const query = forTable("tasks").find(({ calls }) =>
+      calls.some(([method]) => method === "order"),
+    )!;
+    has(query, "is", "removed_at", null);
+    has(query, "gte", "due_date", "2026-10-05");
+    has(query, "order", "due_date", { ascending: true });
+    has(query, "order", "id", { ascending: true });
+    expect(query.calls[0][1]).toContain("task_officer_assignments(");
+    expect(html).toContain("This week&#x27;s tasks");
+    expect(html).toContain("Upcoming tasks");
+    expect(html).toContain('aria-label="Your tasks"');
+    expect(html).toContain('aria-label="Other tasks"');
+    expect(html.indexOf("Today&#x27;s work")).toBeLessThan(
+      html.indexOf("Sunday deadline"),
+    );
+    expect(html.indexOf("Sunday deadline")).toBeLessThan(
+      html.indexOf("Next Monday task"),
+    );
+    expect(html).not.toContain("Yesterday task");
+    expect(html).not.toContain("Removed future task");
+    expect(html).not.toContain('aria-label="Past tasks"');
+    expect(html).toContain("Self-assign");
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("keeps Past separate from workflow status and preserves all assignment rows", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-10-05T06:00:00.000Z"));
+  try {
+    rows.tasks = [
+      {
+        id: 21,
+        title: "Past completed flyer",
+        description: "Past complete task",
+        task_type: "one_time",
+        branch_id: 2,
+        due_date: "2026-10-04",
+        points: 3,
+        branches: { name: "intro" },
+        task_officer_assignments: [
+          { officer_id: 1, completed_at: "2026-10-03T12:00:00Z" },
+          { officer_id: 2, completed_at: "2026-10-03T13:00:00Z" },
+        ],
+      },
+      {
+        id: 22,
+        title: "Past flyer teammate task",
+        description: "Other Officer completed flyer task",
+        task_type: "one_time",
+        branch_id: 2,
+        due_date: "2026-10-03",
+        points: 2,
+        branches: { name: "intro" },
+        task_officer_assignments: [
+          { officer_id: 2, completed_at: "2026-10-02T12:00:00Z" },
+        ],
+      },
+      {
+        id: 23,
+        title: "Due today",
+        description: "Current task",
+        task_type: "one_time",
+        branch_id: 2,
+        due_date: "2026-10-05",
+        points: 2,
+        branches: { name: "intro" },
+        task_officer_assignments: [
+          { officer_id: 1, completed_at: "2026-10-03T12:00:00Z" },
+          { officer_id: 2, completed_at: "2026-10-03T13:00:00Z" },
+        ],
+      },
+    ];
+
+    const html = await render(TasksPage, {
+      view: "past",
+      status: "complete",
+      branch: "2",
+      assignee: "2",
+      q: "flyer",
+    });
+    const query = forTable("tasks").find(({ calls }) =>
+      calls.some(([method]) => method === "order"),
+    )!;
+    has(query, "lt", "due_date", "2026-10-05");
+    has(query, "eq", "branch_id", 2);
+    expect(query.calls.find(([method]) => method === "or")?.[1]).toContain(
+      "title.imatch",
+    );
+    expect(query.calls[0][1]).toContain(
+      "task_officer_assignments(officer_id,completed_at",
+    );
+    expect(html).toContain("Past tasks");
+    expect(html).not.toContain("This week&#x27;s tasks");
+    expect(html).not.toContain("Upcoming tasks");
+    expect(html).toContain("Past completed flyer");
+    expect(html).toContain("Past flyer teammate task");
+    expect(html).not.toContain("Due today");
+    expect(html).toContain("2/2 completed");
+    expect(html).not.toContain("Self-assign");
+    expect(html).toContain(
+      "returnTo=%2Ftasks%3Fq%3Dflyer%26view%3Dpast%26status%3Dcomplete%26branch%3D2%26assignee%3D2",
+    );
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it.each([
+  ["open", [], "Past open Task"],
+  ["in_progress", [{ officer_id: 2, completed_at: null }], "Past active Task"],
+  [
+    "complete",
+    [{ officer_id: 2, completed_at: "2026-10-03T12:00:00Z" }],
+    "Past complete Task",
+  ],
+] as const)(
+  "filters Past Tasks independently by %s workflow status",
+  async (status, assignments, title) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-05T06:00:00.000Z"));
+    try {
+      rows.tasks = [
+        {
+          id: 30,
+          title,
+          description: title,
+          task_type: "one_time",
+          branch_id: 2,
+          due_date: "2026-10-04",
+          points: 2,
+          branches: { name: "intro" },
+          task_officer_assignments: assignments,
+        },
+        {
+          id: 31,
+          title: "Current decoy",
+          description: "Must stay outside Past",
+          task_type: "one_time",
+          branch_id: 2,
+          due_date: "2026-10-05",
+          points: 2,
+          branches: { name: "intro" },
+          task_officer_assignments: assignments,
+        },
+      ];
+
+      const html = await render(TasksPage, { view: "past", status });
+      expect(html).toContain(title);
+      expect(html).not.toContain("Current decoy");
+      expect(html).not.toContain("Awaiting approval");
+    } finally {
+      vi.useRealTimers();
+    }
   },
 );
 
@@ -462,6 +698,8 @@ it.each([OfficersPage, EventsPage, TasksPage, PointsPage, SystemLogPage])(
     const empty = await render(Page);
     if (Page === EventsPage)
       expect(empty).toMatch(/No events this week|No upcoming events/);
+    else if (Page === TasksPage)
+      expect(empty).toMatch(/No tasks due this week|No upcoming tasks/);
     else expect(empty).toMatch(/No .*yet/);
     expect(empty).not.toContain("Clear filters");
   },

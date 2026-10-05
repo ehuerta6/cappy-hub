@@ -20,12 +20,9 @@ import {
 import { formatLabel } from "@/lib/presentation";
 import { searchOrFilter } from "@/lib/list-search";
 import { eventListFiltersSchema } from "./filter-validation";
+import { currentDenverWeek } from "@/lib/current-denver-week";
 import { SelfSignupForm } from "./event-controls";
-import {
-  currentEventWeek,
-  organizeEventList,
-  type EventListItem,
-} from "@/lib/event-list";
+import { organizeEventList, type EventListItem } from "@/lib/event-list";
 
 type EventListSearchParams = Record<string, string | string[] | undefined>;
 
@@ -45,7 +42,7 @@ export default async function EventsPage({
   const { q: search, type: typeId, branch: branchId } = parsedFilters;
   const now = new Date();
   const nowIso = now.toISOString();
-  const { today } = currentEventWeek(now);
+  const { today } = currentDenverWeek(now);
   const supabase = await createClient();
   const eventSelection =
     "*,event_types(name),event_branches(branch_id,branches(name)),filter_branch:event_branches(branch_id),event_officers(officer_id)";

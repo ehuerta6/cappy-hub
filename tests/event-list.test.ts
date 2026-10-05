@@ -1,9 +1,6 @@
 import { expect, it } from "vitest";
-import {
-  currentEventWeek,
-  organizeEventList,
-  type EventListItem,
-} from "@/lib/event-list";
+import { currentDenverWeek } from "@/lib/current-denver-week";
+import { organizeEventList, type EventListItem } from "@/lib/event-list";
 import { eventListFiltersSchema } from "@/app/(protected)/events/filter-validation";
 
 const now = new Date("2026-10-07T00:00:00.000Z"); // Tuesday, 6 PM in Denver
@@ -33,10 +30,12 @@ const event = (
 it.each([
   [new Date("2026-10-05T18:00:00.000Z"), "2026-10-05", "2026-10-11"],
   [new Date("2026-10-11T18:00:00.000Z"), "2026-10-11", "2026-10-11"],
+  [new Date("2026-10-12T05:59:00.000Z"), "2026-10-11", "2026-10-11"],
+  [new Date("2026-10-12T06:00:00.000Z"), "2026-10-12", "2026-10-18"],
   [new Date("2026-10-05T05:59:00.000Z"), "2026-10-04", "2026-10-04"],
   [new Date("2026-10-05T06:00:00.000Z"), "2026-10-05", "2026-10-11"],
 ])("uses Denver week dates for %s", (instant, today, sunday) => {
-  expect(currentEventWeek(instant)).toEqual({ today, sunday });
+  expect(currentDenverWeek(instant)).toEqual({ today, sunday });
 });
 
 it("groups this week and upcoming events, excludes ended/cancelled/removed, and sorts nearest first", () => {

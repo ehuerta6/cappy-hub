@@ -45,11 +45,19 @@ it("parses each page's domain filters", () => {
   ).toMatchObject({ status: undefined, type: 2, branch: 3 });
   expect(
     taskListFiltersSchema.parse({
+      view: "past",
       status: "in_progress",
       assignee: "2",
       branch: "3",
     }),
-  ).toMatchObject({ status: "in_progress", assignee: 2, branch: 3 });
+  ).toMatchObject({
+    view: "past",
+    status: "in_progress",
+    assignee: 2,
+    branch: 3,
+  });
+  expect(taskListFiltersSchema.parse({ view: "current" }).view).toBeUndefined();
+  expect(taskListFiltersSchema.parse({ view: "next" }).view).toBeUndefined();
   expect(
     taskListFiltersSchema.parse({ status: "awaiting" }).status,
   ).toBeUndefined();

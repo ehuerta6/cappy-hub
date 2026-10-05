@@ -103,6 +103,18 @@ it("omits repeated query values just as list schemas do", () => {
   ).toBe("/tasks?branch=2");
 });
 
+it("preserves the explicit Past Task view with workflow and assignment filters", () => {
+  expect(
+    listReturnUrl("/tasks", {
+      q: "flyer",
+      view: "past",
+      status: "complete",
+      branch: "2",
+      assignee: "123",
+    }),
+  ).toBe("/tasks?q=flyer&view=past&status=complete&branch=2&assignee=123");
+});
+
 it("does not retain the removed Event browse parameter", () => {
   expect(
     listReturnUrl("/events", { q: "meeting", removed: "1", branch: "2" }),

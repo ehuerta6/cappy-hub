@@ -12,6 +12,9 @@ const taskListStatusSchema = searchParamStringSchema.transform((value) =>
 
 export const taskListFiltersSchema = zod.object({
   q: searchParamStringSchema.transform((value) => value.trim().slice(0, 100)),
+  view: searchParamStringSchema.transform((value) =>
+    value === "past" ? "past" : undefined,
+  ),
   status: taskListStatusSchema,
   branch: optionalListIdSchema,
   assignee: optionalListIdSchema,
