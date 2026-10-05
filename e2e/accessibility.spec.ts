@@ -120,11 +120,15 @@ test("Task list stays concise and accessible at desktop and mobile widths", asyn
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(taskRow.getByText(/^Due: /)).toBeVisible();
   await expect(taskRow.getByText("Type: Flyer", { exact: true })).toBeVisible();
-  await expect(taskRow.getByText("Intro", { exact: true })).toBeVisible();
+  await expect(
+    taskRow.getByRole("cell").first().getByText("Intro", { exact: true }),
+  ).toBeVisible();
   await expect(
     taskRow.getByText("Officers: 0 officers", { exact: true }),
   ).toBeVisible();
-  await expect(taskRow.getByText("Open", { exact: true })).toBeVisible();
+  await expect(
+    taskRow.getByRole("cell").first().getByText("Open", { exact: true }),
+  ).toBeVisible();
   await expect(assignmentAction).toBeVisible();
   await expect(taskRow).not.toContainText(
     "Prepare a flyer for the next intro workshop.",
