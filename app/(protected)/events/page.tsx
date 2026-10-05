@@ -1,7 +1,6 @@
 import { formatEventSchedule } from "@/lib/presentation";
 import {
   getAuthorizationContext,
-  isAdmin,
   isLead,
   canSeeAllBranches,
 } from "@/lib/authorization";
@@ -22,6 +21,11 @@ import { formatLabel } from "@/lib/presentation";
 import { searchOrFilter } from "@/lib/list-search";
 import { eventListFiltersSchema } from "./filter-validation";
 import { SelfSignupForm } from "./event-controls";
+import {
+  currentEventWeek,
+  organizeEventList,
+  type EventListItem,
+} from "@/lib/event-list";
 
 type EventListSearchParams = Record<string, string | string[] | undefined>;
 
@@ -31,23 +35,17 @@ export default async function EventsPage({
   searchParams: Promise<EventListSearchParams>;
 }) {
   const actor = await getAuthorizationContext();
-  const admin = isAdmin(actor);
   const params = await searchParams;
-  const returnTo = listReturnUrl("/events", params);
-  const parsedFilters = eventListFiltersSchema.parse({
+  const parsedFilters = eventListFiltersSchema.parse(params);
+  const returnTo = listReturnUrl("/events", {
     ...params,
-    status: params.status ?? (params.removed === "1" ? "removed" : undefined),
+    status: parsedFilters.status,
   });
-  // A non-admin request for removed history is ignored, and the active-row
-  // predicate below stays in place regardless of any user-supplied status.
-  const status =
-    parsedFilters.status === "removed" && !admin
-      ? undefined
-      : parsedFilters.status;
+  const status = parsedFilters.status;
   const { q: search, type: typeId, branch: branchId } = parsedFilters;
-  const showRemoved = admin && status === "removed";
   const now = new Date();
   const nowIso = now.toISOString();
+  const { today } = currentEventWeek(now);
   const supabase = await createClient();
   const eventSelection =
     "*,event_types(name),event_branches(branch_id,branches(name)),filter_branch:event_branches(branch_id),event_officers(officer_id)";
@@ -59,27 +57,24 @@ export default async function EventsPage({
         eventSelection,
         countOnly ? { count: "exact", head: true } : undefined,
       );
-    if (!countOnly || !admin) {
-      if (showRemoved) query = query.not("deleted_at", "is", null);
-      else query = query.is("deleted_at", null);
-    }
+    query = query.is("deleted_at", null);
 
-    // Keep the default browsing groups focused on current events. Cancelled
-    // and removed history remains available through its explicit filters.
-    if (!countOnly && !showRemoved && status === undefined)
-      query = query.neq("status", "cancelled");
+    if (status === undefined)
+      query = query
+        .neq("status", "cancelled")
+        .gte("event_date", today)
+        .gt("ends_at", nowIso);
 
-    if (!countOnly && status === "upcoming")
+    if (status === "upcoming")
       query = query.neq("status", "cancelled").gt("starts_at", nowIso);
-    if (!countOnly && status === "happening")
+    if (status === "happening")
       query = query
         .neq("status", "cancelled")
         .lte("starts_at", nowIso)
         .gt("ends_at", nowIso);
-    if (!countOnly && status === "past")
+    if (status === "past")
       query = query.neq("status", "cancelled").lte("ends_at", nowIso);
-    if (!countOnly && status === "cancelled")
-      query = query.eq("status", "cancelled");
+    if (status === "cancelled") query = query.eq("status", "cancelled");
 
     if (!countOnly) {
       if (search)
@@ -91,7 +86,12 @@ export default async function EventsPage({
         query = query
           .eq("filter_branch.branch_id", branchId)
           .not("filter_branch", "is", null);
-      query = query.order("event_date", { ascending: false });
+      query =
+        status === "past"
+          ? query.order("ends_at", { ascending: false })
+          : status === "cancelled"
+            ? query.order("event_date", { ascending: false })
+            : query.order("starts_at", { ascending: true });
     }
     return query;
   };
@@ -111,15 +111,116 @@ export default async function EventsPage({
   )
     throw new Error("Failed to load events");
 
-  const events = eventsResult.data;
-  const yourEvents = events.filter((event) =>
-    event.event_officers.some((signup) => signup.officer_id === actor.id),
-  );
-  const otherEvents = events.filter(
-    (event) =>
-      !event.event_officers.some((signup) => signup.officer_id === actor.id),
-  );
+  const events = eventsResult.data as EventListItem[];
+  const organizedEvents = organizeEventList(events, status, now);
+  const splitEvents = (items: EventListItem[]) => ({
+    your: items.filter((event) =>
+      event.event_officers.some((signup) => signup.officer_id === actor.id),
+    ),
+    other: items.filter(
+      (event) =>
+        !event.event_officers.some((signup) => signup.officer_id === actor.id),
+    ),
+  });
   const hasFilters = Boolean(search || status || typeId || branchId);
+  const maySignUp = (title: string) =>
+    title === "Other events" &&
+    (status === undefined || status === "upcoming" || status === "happening");
+  const renderGroup = (title: string, groupEvents: EventListItem[]) => (
+    <section key={title} aria-label={title} className="space-y-3">
+      <h3 className="font-semibold text-foreground">{title}</h3>
+      {!groupEvents.length ? (
+        <p>No events in this group.</p>
+      ) : (
+        <TableFrame compact>
+          <table>
+            <thead>
+              <tr className="grid grid-cols-1 md:table-row">
+                <th scope="col">Event</th>
+                <th scope="col" className="hidden xl:table-cell">
+                  Schedule (El Paso)
+                </th>
+                <th scope="col" className="hidden xl:table-cell">
+                  Type
+                </th>
+                <th scope="col" className="hidden xl:table-cell">
+                  Branches
+                </th>
+                <th scope="col" className="hidden xl:table-cell">
+                  Officers
+                </th>
+                <th scope="col" className="hidden xl:table-cell">
+                  Status
+                </th>
+                {maySignUp(title) && <th scope="col">Action</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {groupEvents.map((event) => (
+                <tr key={event.id} className="grid grid-cols-1 md:table-row">
+                  <td className="min-w-0">
+                    <Link
+                      href={withReturnTo(`/events/${event.id}`, returnTo)}
+                      className="block break-words"
+                    >
+                      {event.name}
+                    </Link>
+                    <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted xl:hidden">
+                      <span>
+                        {formatEventSchedule(event.starts_at, event.ends_at)}
+                      </span>
+                      <span>{event.event_types.name}</span>
+                      <BranchBadges
+                        branches={event.event_branches.map(
+                          (eventBranch) => eventBranch.branches.name,
+                        )}
+                      />
+                      <span>
+                        {event.event_officers.length}{" "}
+                        {event.event_officers.length === 1
+                          ? "officer"
+                          : "officers"}
+                      </span>
+                      <StatusBadge status={eventStatus(event, now.getTime())} />
+                    </div>
+                  </td>
+                  <td className="hidden xl:table-cell">
+                    {formatEventSchedule(event.starts_at, event.ends_at)}
+                  </td>
+                  <td className="hidden xl:table-cell">
+                    {event.event_types.name}
+                  </td>
+                  <td className="hidden xl:table-cell">
+                    <BranchBadges
+                      branches={event.event_branches.map(
+                        (eventBranch) => eventBranch.branches.name,
+                      )}
+                    />
+                  </td>
+                  <td className="hidden xl:table-cell tabular-nums">
+                    {event.event_officers.length}
+                  </td>
+                  <td className="hidden xl:table-cell">
+                    <StatusBadge status={eventStatus(event, now.getTime())} />
+                  </td>
+                  {maySignUp(title) && (
+                    <td className="min-w-0">
+                      {eventSignupOpen(event, now.getTime()) && (
+                        <SelfSignupForm
+                          eventId={event.id}
+                          eventName={event.name}
+                        />
+                      )}
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableFrame>
+      )}
+    </section>
+  );
 
   return (
     <div className="space-y-6">
@@ -153,12 +254,11 @@ export default async function EventsPage({
         <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
           Status
           <select name="status" defaultValue={status ?? ""}>
-            <option value="">All statuses</option>
+            <option value="">Current events</option>
             <option value="upcoming">Upcoming</option>
             <option value="happening">Happening</option>
             <option value="past">Past</option>
             <option value="cancelled">Cancelled</option>
-            {admin && <option value="removed">Removed</option>}
           </select>
         </label>
         <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
@@ -185,133 +285,70 @@ export default async function EventsPage({
         </label>
       </ListFilterBar>
 
-      {events.length === 0 ? (
+      {organizedEvents.view === "current" ? (
+        <>
+          {!organizedEvents.thisWeek.length &&
+          !organizedEvents.upcoming.length &&
+          hasFilters &&
+          (eventCountResult.count ?? 0) > 0 ? (
+            <p>No events match these filters.</p>
+          ) : (
+            <>
+              <section aria-label="This week's events" className="space-y-4">
+                <SectionHeading title="This week's events" />
+                {!organizedEvents.thisWeek.length ? (
+                  <p>No events this week.</p>
+                ) : (
+                  <>
+                    {renderGroup(
+                      "Your events",
+                      splitEvents(organizedEvents.thisWeek).your,
+                    )}
+                    {renderGroup(
+                      "Other events",
+                      splitEvents(organizedEvents.thisWeek).other,
+                    )}
+                  </>
+                )}
+              </section>
+              <section aria-label="Upcoming events" className="space-y-4">
+                <SectionHeading title="Upcoming events" />
+                {!organizedEvents.upcoming.length ? (
+                  <p>No upcoming events.</p>
+                ) : (
+                  <>
+                    {renderGroup(
+                      "Your events",
+                      splitEvents(organizedEvents.upcoming).your,
+                    )}
+                    {renderGroup(
+                      "Other events",
+                      splitEvents(organizedEvents.upcoming).other,
+                    )}
+                  </>
+                )}
+              </section>
+            </>
+          )}
+        </>
+      ) : organizedEvents.events.length === 0 ? (
         <p>
           {hasFilters && (eventCountResult.count ?? 0) > 0
             ? "No events match these filters."
-            : showRemoved
-              ? "No removed events."
-              : "No events yet."}
+            : status === "past"
+              ? "No past events."
+              : status === "cancelled"
+                ? "No cancelled events."
+                : "No events in this group."}
         </p>
       ) : (
-        [
-          {
-            title: "Your events",
-            events: yourEvents,
-            empty: "No events in this group.",
-            allowSignup: false,
-          },
-          {
-            title: "Other events",
-            events: otherEvents,
-            empty: "No events in this group.",
-            allowSignup: true,
-          },
-        ].map(({ title, events: groupEvents, empty, allowSignup }) => (
-          <section key={title} aria-label={title}>
-            <SectionHeading title={title} />
-            {!groupEvents.length ? (
-              <p>{empty}</p>
-            ) : (
-              <TableFrame compact>
-                <table>
-                  <thead>
-                    <tr className="grid grid-cols-1 md:table-row">
-                      <th scope="col">Event</th>
-                      <th scope="col" className="hidden xl:table-cell">
-                        Schedule (El Paso)
-                      </th>
-                      <th scope="col" className="hidden xl:table-cell">
-                        Type
-                      </th>
-                      <th scope="col" className="hidden xl:table-cell">
-                        Branches
-                      </th>
-                      <th scope="col" className="hidden xl:table-cell">
-                        Officers
-                      </th>
-                      <th scope="col" className="hidden xl:table-cell">
-                        Status
-                      </th>
-                      {allowSignup && <th scope="col">Action</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {groupEvents.map((event) => (
-                      <tr
-                        key={event.id}
-                        className="grid grid-cols-1 md:table-row"
-                      >
-                        <td className="min-w-0">
-                          <Link
-                            href={withReturnTo(`/events/${event.id}`, returnTo)}
-                            className="block break-words"
-                          >
-                            {event.name}
-                          </Link>
-                          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted xl:hidden">
-                            <span>
-                              {formatEventSchedule(
-                                event.starts_at,
-                                event.ends_at,
-                              )}
-                            </span>
-                            <span>{event.event_types.name}</span>
-                            <BranchBadges
-                              branches={event.event_branches.map(
-                                (eventBranch) => eventBranch.branches.name,
-                              )}
-                            />
-                            <span>
-                              {event.event_officers.length}{" "}
-                              {event.event_officers.length === 1
-                                ? "officer"
-                                : "officers"}
-                            </span>
-                            <StatusBadge
-                              status={eventStatus(event, now.getTime())}
-                            />
-                          </div>
-                        </td>
-                        <td className="hidden xl:table-cell">
-                          {formatEventSchedule(event.starts_at, event.ends_at)}
-                        </td>
-                        <td className="hidden xl:table-cell">
-                          {event.event_types.name}
-                        </td>
-                        <td className="hidden xl:table-cell">
-                          <BranchBadges
-                            branches={event.event_branches.map(
-                              (eventBranch) => eventBranch.branches.name,
-                            )}
-                          />
-                        </td>
-                        <td className="hidden xl:table-cell tabular-nums">
-                          {event.event_officers.length}
-                        </td>
-                        <td className="hidden xl:table-cell">
-                          <StatusBadge
-                            status={eventStatus(event, now.getTime())}
-                          />
-                        </td>
-                        {allowSignup && (
-                          <td className="min-w-0">
-                            {eventSignupOpen(event, now.getTime()) && (
-                              <SelfSignupForm
-                                eventId={event.id}
-                                eventName={event.name}
-                              />
-                            )}
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </TableFrame>
-            )}
-          </section>
-        ))
+        <>
+          {renderGroup("Your events", splitEvents(organizedEvents.events).your)}
+          {renderGroup(
+            "Other events",
+            splitEvents(organizedEvents.events).other,
+          )}
+        </>
       )}
     </div>
   );

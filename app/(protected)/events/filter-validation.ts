@@ -5,7 +5,7 @@ import {
 } from "@/lib/search-params";
 
 const eventListStatusSchema = searchParamStringSchema.transform((value) =>
-  (["upcoming", "happening", "past", "cancelled", "removed"] as const).find(
+  (["upcoming", "happening", "past", "cancelled"] as const).find(
     (status) => status === value,
   ),
 );

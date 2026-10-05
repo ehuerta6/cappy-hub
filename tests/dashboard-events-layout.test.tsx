@@ -113,8 +113,16 @@ const from = vi.fn((table: string) => {
       operations.push(["neq", args]);
       return query;
     },
+    gte: (...args: unknown[]) => {
+      operations.push(["gte", args]);
+      return query;
+    },
     is: (...args: unknown[]) => {
       operations.push(["is", args]);
+      return query;
+    },
+    lte: (...args: unknown[]) => {
+      operations.push(["lte", args]);
       return query;
     },
     not: (...args: unknown[]) => {
@@ -222,7 +230,8 @@ it("offers signup while happening, but never for past, cancelled, removed or pro
 it("shows useful empty messages without empty tables", async () => {
   events = [];
   const html = await renderEvents();
-  expect(html).toContain("No events yet.");
+  expect(html).toContain("No events this week.");
+  expect(html).toContain("No upcoming events.");
   expect(html).not.toContain("<table");
 });
 

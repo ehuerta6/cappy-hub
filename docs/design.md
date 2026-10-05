@@ -216,7 +216,7 @@ Do not turn every action into a filled button. Keep control text specific to the
 
 **CURRENT statuses:**
 
-- Events: Upcoming, Happening, Past, Cancelled, and (for admins) Removed. Event status is computed from cancellation/removal and the event's start/end times.
+- Events: Upcoming, Happening, Past, and Cancelled. Event detail can also identify a removed Event; removed Events have no list-browsing filter. Event status is computed from cancellation/removal and the event's start/end times.
 - Officers: Active and Inactive.
 - Warnings: Pending, Approved, and Rejected.
 - Tasks: Open (no assignments), In progress (at least one assignment and at least one not completed), and Complete (at least one assignment and all completed). Officer counts also show progress such as `2/3 completed`.
@@ -245,7 +245,7 @@ Tables are a core pattern for directory, event, point, and audit work. **CURRENT
 
 | List           | Existing search and filters                                                                                               |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Events         | Search name, description, or location; status (including Removed for admins); event type; branch.                         |
+| Events         | Search name, description, or location; status (Upcoming, Happening, Past, or Cancelled); event type; branch.              |
 | Officers       | Search name or either email; status; position; branch.                                                                    |
 | Tasks          | Search title or description; status; branch; assignee.                                                                    |
 | Points history | Search officer/reason/event/task; award type; officer; event; activity-date range; admins also filter Active/Removed/All. |
@@ -332,9 +332,9 @@ The following sections describe the actual product workflows and the design dire
 ### Events list
 
 - **Purpose:** Find events, see which ones the current officer joined, and sign up for open events.
-- **Existing functionality that MUST be preserved — CURRENT:** Search name/description/location; filter by Upcoming, Happening, Past, Cancelled, and admin-only Removed, plus event type and branch. Default “Your events” and “Other events” results exclude cancelled records; the explicit Cancelled and admin-only Removed filters remain available for existing history workflows. Valid upcoming, happening, and past Events remain visible as before. Rows show event name, El Paso schedule, type, branches, signup count, status, and—only for Other events when signup is open—a signup action. Opening an event preserves the current filter context for the contextual return link. New event is shown to users allowed to create for their branch scope.
-- **Information hierarchy:** Title and authorized New event action; filter bar; Your events; Other events.
-- **Recommended layout:** Keep the two named table groups after filters. Do not add a participation column because the groups already communicate participation.
+- **Existing functionality that MUST be preserved — CURRENT:** Search name/description/location; filter by Upcoming, Happening, Past, and Cancelled, plus event type and branch. With no historical status selected, show only active Events from today through Sunday and later Events, ordered nearest first. Organize default results as This week's events and Upcoming events, each containing Your events and Other events. Past appears only when Past is explicitly selected; Cancelled appears only when Cancelled is selected. There is no Removed Event list view; removed records and their history remain preserved. Rows show event name, El Paso schedule, type, branches, signup count, status, and—only for eligible Other events when signup is open—a signup action. Opening an event preserves the current filter context for the contextual return link. New event is shown to users allowed to create for their branch scope.
+- **Information hierarchy:** Title and authorized New event action; filter bar; This week's events and Upcoming events; Your events and Other events within each current section. Explicit Past and Cancelled filters show the selected history view without current temporal sections.
+- **Recommended layout:** Keep the temporal sections and named participation subgroups after filters. Do not add a participation column because the groups already communicate participation. Show nearest current Events first and a concise section-level empty message where a time group is empty.
 - **Primary action:** Sign up in an eligible Other events row; New event for authorized users.
 - **Secondary actions:** Open an event by selecting its name; apply or clear filters.
 - **Data presentation:** Two compact tables using the shared table, neutral branch labels, readable schedule text, and semantic status.

@@ -105,9 +105,20 @@ beforeEach(() => {
           ([method, , opts]) =>
             method === "select" && (opts as { head?: boolean })?.head,
         );
-        const isBaseline = !record.calls.some(([method]) =>
-          ["or", "filter", "eq", "gte", "lte", "gt", "lt"].includes(method),
-        );
+        const isBaseline =
+          (table === "events" &&
+            !record.calls.some(
+              ([method, column]) =>
+                method === "or" ||
+                method === "filter" ||
+                (method === "eq" &&
+                  ["event_type_id", "filter_branch.branch_id"].includes(
+                    String(column),
+                  )),
+            )) ||
+          !record.calls.some(([method]) =>
+            ["or", "filter", "eq", "gte", "lte", "gt", "lt"].includes(method),
+          );
         // Points baseline includes its authorization-sensitive removed predicate.
         const pointsBaseline =
           table === "point_history" && record.calls.length === 2;
@@ -171,9 +182,7 @@ it.each(["upcoming", "happening", "past", "cancelled"])(
       ).toBe(true);
     }
     expect(
-      forTable("events")[1].calls.some(
-        ([method]) => method === "neq" || method === "lte",
-      ),
+      forTable("events")[1].calls.some(([method]) => method === "order"),
     ).toBe(false);
   },
 );
@@ -185,17 +194,106 @@ it("keeps cancelled Events out of the default browsing groups", async () => {
   )!;
   has(eventsQuery, "is", "deleted_at", null);
   has(eventsQuery, "neq", "status", "cancelled");
+  expect(eventsQuery.calls).toContainEqual([
+    "gte",
+    "event_date",
+    expect.any(String),
+  ]);
+  expect(eventsQuery.calls).toContainEqual([
+    "gt",
+    "ends_at",
+    expect.any(String),
+  ]);
+  expect(eventsQuery.calls).toContainEqual([
+    "order",
+    "starts_at",
+    { ascending: true },
+  ]);
 });
 
-it("limits removed Event history to admins even for forged URLs", async () => {
-  let html = await render(EventsPage, { status: "removed" });
-  has(forTable("events")[0], "not", "deleted_at", "is", null);
-  expect(html).toContain('value="removed"');
-  queries = [];
-  admin = false;
-  html = await render(EventsPage, { status: "removed" });
-  for (const query of forTable("events")) has(query, "is", "deleted_at", null);
+it("combines search, type, and Branch filters with current temporal sections", async () => {
+  rows.events = [
+    {
+      id: 7,
+      name: "Workshop",
+      event_date: "2099-10-08",
+      status: "scheduled",
+      deleted_at: null,
+      participation_points_per_hour_at_end: null,
+      event_types: { name: "Workshop" },
+      event_branches: [],
+      event_officers: [],
+      starts_at: "2099-10-08T23:00:00Z",
+      ends_at: "2099-10-09T01:00:00Z",
+    },
+  ];
+  const html = await render(EventsPage, {
+    q: "workshop",
+    type: "2",
+    branch: "3",
+  });
+  const query = forTable("events").find(({ calls }) =>
+    calls.some(([method]) => method === "order"),
+  )!;
+  expect(query.calls.find(([method]) => method === "or")?.[1]).toContain(
+    "name.imatch",
+  );
+  has(query, "eq", "event_type_id", 2);
+  has(query, "eq", "filter_branch.branch_id", 3);
+  expect(html).toContain("This week&#x27;s events");
+  expect(html).toContain("Upcoming events");
+});
+
+it("preserves an explicit Past filter in Event return context", async () => {
+  rows.events = [
+    {
+      id: 7,
+      name: "Past event",
+      event_date: "2020-10-08",
+      status: "scheduled",
+      deleted_at: null,
+      participation_points_per_hour_at_end: 0,
+      event_types: { name: "Workshop" },
+      event_branches: [],
+      event_officers: [],
+      starts_at: "2020-10-08T23:00:00Z",
+      ends_at: "2020-10-09T01:00:00Z",
+    },
+  ];
+  const html = await render(EventsPage, { status: "past", branch: "2" });
+  expect(html).toContain(
+    'href="/events/7?returnTo=%2Fevents%3Fstatus%3Dpast%26branch%3D2"',
+  );
+  expect(html).not.toContain("This week&#x27;s events");
+  expect(html).not.toContain("Upcoming events");
+});
+
+it("does not offer Removed Event browsing and keeps forged removed URLs active-only", async () => {
+  rows.events = [
+    {
+      id: 7,
+      name: "Active event",
+      event_date: "2099-10-08",
+      status: "scheduled",
+      deleted_at: null,
+      participation_points_per_hour_at_end: null,
+      event_types: { name: "Workshop" },
+      event_branches: [],
+      event_officers: [],
+      starts_at: "2099-10-08T23:00:00Z",
+      ends_at: "2099-10-09T01:00:00Z",
+    },
+  ];
+  const html = await render(EventsPage, {
+    status: "removed",
+    removed: "1",
+    branch: "2",
+  });
+  has(forTable("events")[0], "is", "deleted_at", null);
   expect(html).not.toContain('value="removed"');
+  expect(html).toContain("This week&#x27;s events");
+  expect(html).toContain("Upcoming events");
+  expect(html).toContain("returnTo=%2Fevents%3Fbranch%3D2");
 });
 
 it.each(["open", "in_progress", "complete"])(
@@ -362,7 +460,9 @@ it.each([OfficersPage, EventsPage, TasksPage, PointsPage, SystemLogPage])(
     queries = [];
     visibleCount = 0;
     const empty = await render(Page);
-    expect(empty).toMatch(/No .*yet/);
+    if (Page === EventsPage)
+      expect(empty).toMatch(/No events this week|No upcoming events/);
+    else expect(empty).toMatch(/No .*yet/);
     expect(empty).not.toContain("Clear filters");
   },
 );
@@ -507,11 +607,7 @@ it.each([PointsPage, SystemLogPage])(
   },
 );
 
-it("keeps legacy removed Event URLs admin-only", async () => {
-  await render(EventsPage, { removed: "1" });
-  has(forTable("events")[0], "not", "deleted_at", "is", null);
-  queries = [];
-  admin = false;
+it("keeps removed Event records out of legacy removed URLs", async () => {
   await render(EventsPage, { removed: "1" });
   for (const query of forTable("events")) has(query, "is", "deleted_at", null);
 });
@@ -552,6 +648,7 @@ it.each([
       event_types: { name: "Workshop" },
       event_branches: [],
       event_officers: [],
+      event_date: "2099-10-08",
       starts_at: "2099-10-08T23:00:00Z",
       ends_at: "2099-10-09T01:00:00Z",
     },

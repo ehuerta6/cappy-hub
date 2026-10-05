@@ -8,7 +8,7 @@ export type NavigationSearchParams = Record<
 
 const listRoutes = {
   "/officers": ["q", "status", "position", "branch"],
-  "/events": ["q", "status", "type", "branch", "removed"],
+  "/events": ["q", "status", "type", "branch"],
   "/tasks": ["q", "status", "branch", "assignee"],
   "/points": ["q", "type", "officer", "event", "status", "from", "to", "page"],
   "/system-log": ["q", "actor", "action", "entity", "from", "to", "page"],

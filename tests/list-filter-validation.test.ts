@@ -42,7 +42,7 @@ it("parses each page's domain filters", () => {
   ).toMatchObject({ status: "inactive", position: 2, branch: 3 });
   expect(
     eventListFiltersSchema.parse({ status: "removed", type: "2", branch: "3" }),
-  ).toMatchObject({ status: "removed", type: 2, branch: 3 });
+  ).toMatchObject({ status: undefined, type: 2, branch: 3 });
   expect(
     taskListFiltersSchema.parse({
       status: "in_progress",

@@ -103,6 +103,12 @@ it("omits repeated query values just as list schemas do", () => {
   ).toBe("/tasks?branch=2");
 });
 
+it("does not retain the removed Event browse parameter", () => {
+  expect(
+    listReturnUrl("/events", { q: "meeting", removed: "1", branch: "2" }),
+  ).toBe("/events?q=meeting&branch=2");
+});
+
 it("labels a Point History return clearly without exposing the query string", () => {
   const html = renderToStaticMarkup(
     <ContextualBackLink href="/events" returnTo="/points?q=meeting&page=3">
