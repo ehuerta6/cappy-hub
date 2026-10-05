@@ -9,7 +9,7 @@ import {
   changedFormFields,
   type RecurrenceSeries,
 } from "@/components/recurrence-scope";
-import { createTask, editRecurringTask } from "./actions";
+import { createTask, editRecurringTask, editStandaloneTask } from "./actions";
 import { RecurrenceFields } from "@/components/recurrence-fields";
 
 export default function TaskCreateForm({
@@ -26,7 +26,7 @@ export default function TaskCreateForm({
   series?: RecurrenceSeries;
 }) {
   const [state, action, pending] = useActionState(
-    task ? editRecurringTask : createTask,
+    task ? (series ? editRecurringTask : editStandaloneTask) : createTask,
     initialFormActionState,
   );
   const fieldErrors = state.fieldErrors ?? {};
@@ -39,7 +39,6 @@ export default function TaskCreateForm({
         branch_id: String(task.branch_id),
         due_date: task.due_date,
         points: String(task.points),
-        approval_required: task.approval_required ? "on" : "",
       }
     : {};
   return (
@@ -208,20 +207,6 @@ export default function TaskCreateForm({
           )}
         />
         <FieldError id="task-points-error">{fieldErrors.points}</FieldError>
-      </label>
-      <label>
-        <input
-          name="approval_required"
-          type="checkbox"
-          defaultChecked={
-            submittedValue(
-              state.values,
-              "approval_required",
-              task?.approval_required ? "on" : "",
-            ) === "on"
-          }
-        />{" "}
-        Require lead approval before points are awarded
       </label>
       {!task && (
         <RecurrenceFields

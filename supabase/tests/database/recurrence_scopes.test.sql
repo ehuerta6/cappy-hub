@@ -147,6 +147,8 @@ select is((select status from events where id=pg_temp.id('event-cancel',3)),'can
 select lives_ok($$select pg_temp.mutate('event-cancel',1,'series','cancel')$$,'cancel entire series');
 reset role;
 select pg_temp.fixture('task-history','task');
+update tasks set due_date=(pg_catalog.statement_timestamp() at time zone 'America/Denver')::date-1
+  where id=pg_temp.id('task-history',3);
 set local role authenticated;
 select assign_task(pg_temp.id('task-history',3),-683);
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000683',true);
@@ -161,7 +163,8 @@ select lives_ok($$select pg_temp.mutate('task-history',2,'occurrence','edit','{"
 select is((select title from tasks where id=pg_temp.id('task-history',1)),'task-history','individual Task edit leaves sibling title');
 select lives_ok($$select pg_temp.mutate('task-history',2,'following','edit','{"description":"Future details"}')$$,'following Task field edit');
 select is((select description from tasks where id=pg_temp.id('task-history',1)),'Details','earlier Task details unchanged');
-select lives_ok($$select pg_temp.mutate('task-history',1,'series','edit','{}','RRULE:FREQ=DAILY;INTERVAL=1;COUNT=3',array['2099-04-01'::date,'2099-04-02','2099-04-03'])$$,'awarded Task due-date change preserves completion approval and points');
+select throws_ok($$select pg_temp.mutate('task-history',1,'series','edit','{}','RRULE:FREQ=DAILY;INTERVAL=1;COUNT=3',array['2099-04-01'::date,'2099-04-02','2099-04-03'])$$,
+ 'P0001','Completed or awarded Task due dates cannot be edited','recurring schedule cannot rewrite awarded Task due-date history');
 select lives_ok($$select pg_temp.mutate('task-history',1,'series','edit','{"title":"Series title"}')$$,'whole-series Task field edit preserves workflow');
 select throws_ok($$select pg_temp.mutate('task-history',1,'series','edit','{"points":8}')$$,'P0001','Completed or awarded Task point settings cannot be edited','awarded Task point settings protect entire edit atomically');
 select is((select points from tasks where id=pg_temp.id('task-history',1)),3::numeric,'rejected point edit leaves earlier Task unchanged');

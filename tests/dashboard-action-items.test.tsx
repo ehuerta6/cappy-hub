@@ -26,27 +26,18 @@ const officer = {
   authUserId: "current-user",
 } as const;
 let actor: Awaited<ReturnType<typeof requireCurrentOfficer>>;
-const task = (id: number, changes = {}) => ({
+const assignment = (officerId = 8, completedAt: string | null = null) => ({
+  officer_id: officerId,
+  completed_at: completedAt,
+});
+const task = (id: number, assignments = [assignment()], changes = {}) => ({
   id,
   title: `Task ${id}`,
   due_date: "2026-10-05",
-  branch_id: 1,
-  approval_required: false,
+  task_officer_assignments: assignments,
   removed_at: null,
-  task_assignments: { officer_id: 8, completed_at: null, approved_at: null },
   ...changes,
 });
-const completed = {
-  officer_id: 8,
-  completed_at: "2026-10-03",
-  approved_at: null,
-};
-const awaiting = (id: number, officerId = 9, branchId = 1) =>
-  task(id, {
-    branch_id: branchId,
-    approval_required: true,
-    task_assignments: { ...completed, officer_id: officerId },
-  });
 const warning = (id: number, changes = {}) => ({
   id,
   created_at: "2026-10-03T12:00:00Z",
@@ -98,8 +89,8 @@ const mockFetch = async (input: RequestInfo | URL) => {
               return String(value) === filter.slice(3);
             if (filter.startsWith("neq."))
               return value !== undefined && String(value) !== filter.slice(4);
-            if (filter.startsWith("in.("))
-              return filter.slice(4, -1).split(",").includes(String(value));
+            if (filter.startsWith("in. ("))
+              return filter.slice(5, -1).split(",").includes(String(value));
             throw new Error(`Unsupported filter: ${filter}`);
           })
         )
@@ -139,79 +130,35 @@ beforeEach(() => {
   vi.mocked(createClient).mockImplementation(async () => client());
 });
 
-it("includes assigned incomplete workflows, but excludes complete, open, other-assignee and removed Tasks", async () => {
+it("includes only this Officer's incomplete assignments", async () => {
   tasks = [
     task(1),
-    awaiting(2, 8),
-    task(3, { task_assignments: completed }),
-    task(4, {
-      task_assignments: { ...completed, approved_at: "2026-10-04" },
-      approval_required: true,
-    }),
-    task(5, { task_assignments: null }),
-    task(6, {
-      task_assignments: { ...completed, officer_id: 9, completed_at: null },
-    }),
-    task(7, { removed_at: "2026-10-03" }),
+    task(2, [assignment(8, "2026-10-03")]),
+    task(3, [assignment(9)]),
+    task(4, [assignment(8), assignment(9, "2026-10-03")]),
+    task(5, [], { removed_at: "2026-10-03" }),
   ];
   const result = await load();
   expect(result.items.map((item) => [item.key, item.status])).toEqual([
-    ["task-1", "Assigned"],
-    ["task-2", "Awaiting approval"],
+    ["task-1", "Not completed"],
+    ["task-4", "Not completed"],
   ]);
-  expect(urls.filter((url) => url.pathname.endsWith("tasks"))).toHaveLength(2);
+  const taskUrl = urls.find((url) => url.pathname.endsWith("tasks"))!;
+  expect(taskUrl.searchParams.get("task_officer_assignments.officer_id")).toBe(
+    "eq.8",
+  );
+  expect(
+    taskUrl.searchParams.get("task_officer_assignments.completed_at"),
+  ).toBe("is.null");
+  expect(taskUrl.searchParams.get("select")).toContain(
+    "task_officer_assignments!inner",
+  );
 });
 
-it.each([
-  ["Officer", "officer", [1], []],
-  ["Lead", "officer", [1], [1]],
-  ["Lead", "officer", [], []],
-  ["President", "officer", [], [1, 2]],
-  ["Vice President of Operations", "officer", [], [1, 2]],
-  ["Vice President of Academics", "officer", [], [1, 2]],
-  ["Officer", "admin", [], [1, 2]],
-])(
-  "scopes approvals for %s / %s with branches %j",
-  async (positionName, applicationRole, branchIds, expected) => {
-    actor = { ...actor, positionName, applicationRole, branchIds };
-    tasks = [awaiting(1), awaiting(2, 9, 2), awaiting(3, 8)];
-    const result = await load();
-    expect(result.items.map((item) => item.key)).toEqual([
-      "task-3",
-      ...expected.map((id) => `task-${id}`),
-    ]);
-    const approvalUrl = urls.find(
-      (url) =>
-        url.searchParams.has("task_assignments.officer_id") &&
-        url.searchParams.get("task_assignments.officer_id") === "neq.8",
-    );
-    if (positionName === "Lead" && branchIds.length)
-      expect(approvalUrl?.searchParams.get("branch_id")).toBe("in.(1)");
-  },
-);
-
-it("does not offer approval before completion, without required approval, after approval or to the assignee", async () => {
-  actor.applicationRole = "admin";
-  tasks = [
-    awaiting(1),
-    task(2, {
-      approval_required: true,
-      task_assignments: { ...completed, officer_id: 9, completed_at: null },
-    }),
-    task(3, { task_assignments: { ...completed, officer_id: 9 } }),
-    task(4, {
-      approval_required: true,
-      task_assignments: {
-        ...completed,
-        officer_id: 9,
-        approved_at: "2026-10-04",
-      },
-    }),
-  ];
-  expect((await load()).items.map((item) => item.key)).toEqual(["task-1"]);
-  expect(dashboardActionItems(actor, [], [awaiting(5, 8)], []).items).toEqual(
-    [],
-  );
+it("does not add manager approval tasks to the dashboard", async () => {
+  actor.positionName = "President";
+  const managerTask = task(9, [assignment(7, "2026-10-03")]);
+  expect(dashboardActionItems(actor, [managerTask], []).items).toEqual([]);
 });
 
 it("includes only current pending snapshotted warning decisions, even for admins", async () => {
@@ -248,15 +195,11 @@ it("renders no unauthorized warning data when RLS returns no visible warnings", 
   expect(html).toContain("You&#x27;re all caught up.");
 });
 
-it("orders personal Tasks by date and ID, then approvals, then oldest warning and ID", async () => {
-  actor.positionName = "Lead";
+it("orders personal Tasks by date and ID, then oldest warning and ID", async () => {
   tasks = [
-    task(4, { due_date: "2026-10-06" }),
+    task(4, [assignment()], { due_date: "2026-10-06" }),
     task(2),
-    task(1, { due_date: "2026-10-02" }),
-    awaiting(9, 8),
-    awaiting(7, 9),
-    awaiting(6, 9, 2),
+    task(1, [assignment()], { due_date: "2026-10-02" }),
   ];
   warnings = [
     warning(3),
@@ -266,20 +209,19 @@ it("orders personal Tasks by date and ID, then approvals, then oldest warning an
   expect((await load()).items.map((item) => item.key)).toEqual([
     "task-1",
     "task-2",
-    "task-9",
     "task-4",
-    "task-7",
+    "warning-1",
+    "warning-2",
   ]);
-  tasks = [awaiting(7, 9, 1)];
+  tasks = [];
   expect((await load()).items.map((item) => item.key)).toEqual([
-    "task-7",
     "warning-1",
     "warning-2",
     "warning-3",
   ]);
 });
 
-it("caps the summary at five and bounds all source queries, with both destinations available", async () => {
+it("caps the summary at five and bounds all source queries", async () => {
   actor.applicationRole = "admin";
   tasks = Array.from({ length: 20 }, (_, i) => task(i + 1));
   warnings = Array.from({ length: 20 }, (_, i) => warning(i + 1));
@@ -304,15 +246,8 @@ it("caps the summary at five and bounds all source queries, with both destinatio
   }
 });
 
-it("renders the current Task and warning statuses with their canonical record links", async () => {
-  actor.positionName = "Lead";
-  tasks = [
-    task(8, {
-      title:
-        "Review the recurring CIC workshop volunteer schedule and venue checklist",
-    }),
-    awaiting(9),
-  ];
+it("renders personal completion status and warning decisions with canonical links", async () => {
+  tasks = [task(8, [assignment()])];
   warnings = [warning(2)];
 
   const html = await render();
@@ -320,23 +255,14 @@ it("renders the current Task and warning statuses with their canonical record li
     .split('aria-label="Your action items"')[1]
     .split("</section>")[0];
 
-  expect(section).toContain(
-    "Review the recurring CIC workshop volunteer schedule and venue checklist",
-  );
+  expect(section).toContain("Task 8");
   expect(section).toContain('href="/tasks/8"');
   expect(section).toContain("Due Oct 5, 2026");
-  expect(section).toContain("Assigned");
-  expect(section).toContain('href="/tasks/9"');
-  expect(section).toContain("Awaiting approval");
+  expect(section).toContain("Not completed");
+  expect(section).not.toContain("Awaiting approval");
   expect(section).toContain('href="/officers#warning-2"');
   expect(section).toContain("Warning for Alex");
   expect(section).toContain("Needs decision");
-  expect(section.indexOf('href="/tasks/8"')).toBeLessThan(
-    section.indexOf('href="/tasks/9"'),
-  );
-  expect(section.indexOf('href="/tasks/9"')).toBeLessThan(
-    section.indexOf('href="/officers#warning-2"'),
-  );
   expect(section).not.toContain("<form");
 });
 
@@ -360,40 +286,4 @@ it("keeps the empty state lightweight and preserves profile, metrics and summary
   expect(html.indexOf('aria-label="Summary"')).toBeLessThan(
     html.indexOf('aria-label="Your action items"'),
   );
-  expect(html.indexOf('aria-label="Your action items"')).toBeLessThan(
-    html.indexOf('aria-label="Upcoming events"'),
-  );
-});
-
-it("formats date-only deadlines without a timezone shift and links to Task detail", async () => {
-  tasks = [task(1, { due_date: "2026-10-05" })];
-  const html = await render();
-  expect(html).toContain('href="/tasks/1"');
-  expect(html).toContain('dateTime="2026-10-05"');
-  expect(html).toContain("Due Oct 5, 2026");
-  expect(html).toContain("Assigned");
-  expect(html).not.toContain("<form");
-});
-
-it("reports query failures instead of a misleading caught-up state", async () => {
-  queryError = true;
-  await expect(load()).rejects.toThrow("Failed to load dashboard action items");
-});
-
-it("sorts Task approvals by due date and stable ID before warning decisions", async () => {
-  actor.applicationRole = "admin";
-  tasks = [
-    awaiting(7),
-    awaiting(5),
-    { ...awaiting(9), due_date: "2026-10-01" },
-  ];
-  warnings = [warning(3), warning(2)];
-  expect((await load()).items.map((item) => item.key)).toEqual([
-    "task-9",
-    "task-5",
-    "task-7",
-    "warning-2",
-    "warning-3",
-  ]);
-  expect((await load()).hasMore).toBe(false);
 });

@@ -29,9 +29,9 @@ vi.mock("@/app/(protected)/events/event-controls", () => ({
   SelfSignupForm: () => null,
 }));
 vi.mock("@/app/(protected)/tasks/task-action-form", () => ({
-  default: ({ label }: { label: string }) => (
+  default: () => (
     <form>
-      <button>{label}</button>
+      <button>Self-assign</button>
     </form>
   ),
 }));
@@ -53,7 +53,6 @@ let queries: Query[];
 let visibleCount: number;
 let filteredCount: number;
 let admin: boolean;
-let completeIds: boolean;
 const actor = {
   id: 1,
   authUserId: "00000000-0000-0000-0000-000000000001",
@@ -67,7 +66,6 @@ beforeEach(() => {
   visibleCount = 4;
   filteredCount = 0;
   admin = true;
-  completeIds = false;
   vi.mocked(getAuthorizationContext).mockImplementation(
     async () =>
       ({ ...actor, applicationRole: admin ? "admin" : "officer" }) as never,
@@ -114,23 +112,7 @@ beforeEach(() => {
         const pointsBaseline =
           table === "point_history" && record.calls.length === 2;
         return Promise.resolve({
-          data:
-            completeIds &&
-            table === "tasks" &&
-            String(record.calls[0][1]).startsWith("id,task_assignments!inner")
-              ? [
-                  {
-                    id: record.calls.some(
-                      ([method, column, value]) =>
-                        method === "eq" &&
-                        column === "approval_required" &&
-                        value === true,
-                    )
-                      ? 12
-                      : 11,
-                  },
-                ]
-              : (rows[table] ?? []),
+          data: rows[table] ?? [],
           error: null,
           count: head
             ? isBaseline || pointsBaseline
@@ -216,10 +198,62 @@ it("limits removed Event history to admins even for forged URLs", async () => {
   expect(html).not.toContain('value="removed"');
 });
 
-it.each(["open", "assigned", "awaiting", "complete"])(
-  "filters Tasks using the existing %s workflow",
+it.each(["open", "in_progress", "complete"])(
+  "filters Tasks using the %s assignment summary",
   async (status) => {
-    await render(TasksPage, {
+    rows.tasks = [
+      {
+        id: 8,
+        title: "No assignment",
+        description: "Open task",
+        task_type: "Flyer",
+        branch_id: 3,
+        due_date: "2099-10-08",
+        points: 3,
+        branches: { name: "intro" },
+        task_officer_assignments: [],
+      },
+      {
+        id: 9,
+        title: "Other Officer's task",
+        description: "Mixed state",
+        task_type: "Post",
+        branch_id: 3,
+        due_date: "2099-10-09",
+        points: 4,
+        branches: { name: "intro" },
+        task_officer_assignments: [
+          {
+            officer_id: 2,
+            completed_at: null,
+            officers: { id: 2, name: "Other" },
+          },
+        ],
+      },
+      {
+        id: 10,
+        title: "Completed team task",
+        description: "Complete",
+        task_type: "Airtable",
+        branch_id: 3,
+        due_date: "2099-10-10",
+        points: 5,
+        branches: { name: "intro" },
+        task_officer_assignments: [
+          {
+            officer_id: 2,
+            completed_at: "2099-10-01",
+            officers: { id: 2, name: "Other" },
+          },
+          {
+            officer_id: 3,
+            completed_at: "2099-10-02",
+            officers: { id: 3, name: "Third" },
+          },
+        ],
+      },
+    ];
+    const html = await render(TasksPage, {
       status,
       q: "slides",
       branch: "3",
@@ -230,20 +264,14 @@ it.each(["open", "assigned", "awaiting", "complete"])(
     )!;
     has(query, "is", "removed_at", null);
     has(query, "eq", "branch_id", 3);
-    if (status !== "open") has(query, "eq", "task_assignments.officer_id", 2);
-    if (status === "open") has(query, "is", "task_assignments", null);
-    if (status === "assigned")
-      has(query, "is", "task_assignments.completed_at", null);
-    if (status === "awaiting") {
-      has(query, "eq", "approval_required", true);
-      has(query, "not", "task_assignments.completed_at", "is", null);
-      has(query, "is", "task_assignments.approved_at", null);
-    }
-    if (status === "complete") {
-      has(forTable("tasks")[0], "eq", "approval_required", false);
-      has(forTable("tasks")[1], "eq", "approval_required", true);
-      has(query, "eq", "id", 0);
-    }
+    expect(query.calls[0][1]).toContain("task_officer_assignments(");
+    expect(html).not.toContain("Awaiting approval");
+    expect(html).not.toContain("Mark complete");
+    expect(html).not.toContain(">Approve<");
+    if (status === "open") expect(html).toContain("No assignment");
+    if (status === "in_progress")
+      expect(html).toContain("Other Officer&#x27;s task");
+    if (status === "complete") expect(html).toContain("Completed team task");
   },
 );
 
@@ -394,7 +422,7 @@ it("keeps officer identity, status and contact information in a semantic table",
   expect(html).toContain('href="mailto:emi@example.test"');
 });
 
-it("keeps task schedule, ownership and workflow actions together in the list row", async () => {
+it("shows Task-specific details and self-assignment only in Other tasks", async () => {
   rows.tasks = [
     {
       id: 7,
@@ -404,22 +432,23 @@ it("keeps task schedule, ownership and workflow actions together in the list row
       branches: { name: "intro" },
       branch_id: 2,
       points: 3,
-      approval_required: true,
       due_date: "2099-10-08",
-      task_assignments: null,
+      task_officer_assignments: [],
     },
   ];
   const html = await render(TasksPage);
   expect(html).toContain("<table");
   expect(html).toContain('<th scope="col">Task</th>');
   expect(html).toContain("Due: 2099-10-08");
-  expect(html).toContain("Assignee: Unassigned");
+  expect(html).toContain("Officers: 0 officers");
   expect(html).toContain("Status: Open");
-  expect(html).toContain("Branch: intro");
+  expect(html).toContain(">Intro</span>");
   expect(html).toContain("Points: 3");
   expect(html).toContain("Description</summary>");
   expect(html).toContain("Self-assign");
-  expect(html).toContain("Assign");
+  expect(html).not.toContain("Select officer");
+  expect(html).toContain('aria-label="Your tasks"');
+  expect(html).toContain('aria-label="Other tasks"');
 });
 
 it("preserves the full System Log row and provides a keyboard-scroll region", async () => {
@@ -478,15 +507,6 @@ it.each([PointsPage, SystemLogPage])(
   },
 );
 
-it("combines both valid completion paths before filtering Tasks", async () => {
-  completeIds = true;
-  await render(TasksPage, { status: "complete" });
-  const query = forTable("tasks").find(({ calls }) =>
-    calls.some(([method]) => method === "order"),
-  )!;
-  has(query, "in", "id", [11, 12]);
-});
-
 it("keeps legacy removed Event URLs admin-only", async () => {
   await render(EventsPage, { removed: "1" });
   has(forTable("events")[0], "not", "deleted_at", "is", null);
@@ -542,9 +562,13 @@ it.each([
     {
       id: 7,
       title: "Task",
+      description: "Description",
+      task_type: "Post",
+      due_date: "2099-10-08",
+      points: 3,
       branches: { name: "Intro" },
       branch_id: 2,
-      task_assignments: null,
+      task_officer_assignments: [],
     },
   ],
 ] as const)(

@@ -45,11 +45,14 @@ it("parses each page's domain filters", () => {
   ).toMatchObject({ status: "removed", type: 2, branch: 3 });
   expect(
     taskListFiltersSchema.parse({
-      status: "awaiting",
+      status: "in_progress",
       assignee: "2",
       branch: "3",
     }),
-  ).toMatchObject({ status: "awaiting", assignee: 2, branch: 3 });
+  ).toMatchObject({ status: "in_progress", assignee: 2, branch: 3 });
+  expect(
+    taskListFiltersSchema.parse({ status: "awaiting" }).status,
+  ).toBeUndefined();
 });
 
 it("validates log actors, entity types, dates and bounded pages safely", () => {

@@ -11,7 +11,15 @@ import { redirect } from "next/navigation";
 import { getAuthorizationContext } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { createTask, updateTask } from "@/app/(protected)/tasks/actions";
+import {
+  bulkAssignTaskOfficers,
+  createTask,
+  editStandaloneTask,
+  removeTask,
+  removeTaskAssignment,
+  selfAssignTask,
+  setTaskAssignmentCompletion,
+} from "@/app/(protected)/tasks/actions";
 
 const rpc = vi.fn();
 const taskForm = () => {
@@ -22,7 +30,6 @@ const taskForm = () => {
   data.set("branch_id", "-5");
   data.set("due_date", "2026-10-15");
   data.set("points", "1.5");
-  data.set("approval_required", "on");
   data.set("recurrence_request_key", "00000000-0000-4000-8000-000000000002");
   return data;
 };
@@ -55,7 +62,7 @@ it("submits task creation values to the existing RPC", async () => {
     p_branch_id: -5,
     p_due_date: "2026-10-15",
     p_points: 1.5,
-    p_approval_required: true,
+    p_approval_required: false,
   });
   expect(revalidatePath).toHaveBeenCalledWith("/tasks");
   expect(redirect).toHaveBeenCalledWith("/tasks?feedback=task-created#task-9");
@@ -74,75 +81,120 @@ it("creates separate recurring Task due-date rows", async () => {
     p_task_type: "Flyer",
     p_branch_id: -5,
     p_points: 1.5,
-    p_approval_required: true,
+    p_approval_required: false,
     p_recurrence_rule: "RRULE:FREQ=DAILY;INTERVAL=2;COUNT=3",
     p_request_key: "00000000-0000-4000-8000-000000000002",
     p_due_dates: ["2026-10-15", "2026-10-17", "2026-10-19"],
   });
 });
 
-it("requires an assigned officer only for the assign task action", async () => {
-  const invalidAssignment = new FormData();
-  invalidAssignment.set("task_id", "-9");
-  invalidAssignment.set("operation", "assign");
-  expect(
-    await updateTask({ error: "", success: "" }, invalidAssignment),
-  ).toMatchObject({
-    error: "Officer not found",
-    fieldErrors: { officer_id: "Officer not found" },
-    values: { task_id: "-9", operation: "assign", officer_id: "" },
-  });
-  expect(rpc).not.toHaveBeenCalled();
-
-  const completion = new FormData();
-  completion.set("task_id", "-9");
-  completion.set("operation", "complete");
-  expect(await updateTask({ error: "", success: "" }, completion)).toEqual({
+it("self-assigns the current Officer through the trusted Task RPC", async () => {
+  const form = new FormData();
+  form.set("task_id", "-9");
+  expect(await selfAssignTask({ error: "", success: "" }, form)).toEqual({
     error: "",
-    success: "Task completed",
+    success: "Task assignment saved",
   });
-  expect(rpc).toHaveBeenCalledWith("complete_task", { p_task_id: -9 });
+  expect(rpc).toHaveBeenCalledWith("self_assign_task", { p_task_id: -9 });
+  expect(revalidatePath).toHaveBeenCalledWith("/tasks");
+  expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
 });
 
-it("preserves assignment and approval RPC arguments", async () => {
-  const assignmentForm = new FormData();
-  assignmentForm.set("task_id", "-9");
-  assignmentForm.set("operation", "assign");
-  assignmentForm.set("officer_id", "-10");
-  expect(await updateTask({ error: "", success: "" }, assignmentForm)).toEqual({
-    error: "",
-    success: "Task assigned",
+it("validates and bulk-adds multiple Officers through the trusted RPC", async () => {
+  const form = new FormData();
+  form.set("task_id", "-9");
+  form.append("officer_ids", "-10");
+  form.append("officer_ids", "-11");
+  rpc.mockResolvedValue({
+    data: { added_officer_ids: [-10], already_assigned_officer_ids: [-11] },
+    error: null,
   });
-  expect(rpc).toHaveBeenCalledWith("assign_task", {
+  expect(
+    await bulkAssignTaskOfficers({ error: "", success: "" }, form),
+  ).toEqual({
+    error: "",
+    success: "1 officer added; 1 already assigned",
+  });
+  expect(rpc).toHaveBeenCalledWith("bulk_assign_task_officers", {
+    p_task_id: -9,
+    p_officer_ids: [-10, -11],
+  });
+});
+
+it("requires at least one unique Officer for bulk assignment", async () => {
+  const form = new FormData();
+  form.set("task_id", "-9");
+  form.append("officer_ids", "-10");
+  form.append("officer_ids", "-10");
+  expect(
+    await bulkAssignTaskOfficers({ error: "", success: "" }, form),
+  ).toMatchObject({ error: "Select each officer once" });
+  expect(rpc).not.toHaveBeenCalled();
+});
+
+it.each(["true", "false"])(
+  "sets manager-controlled completion to %s",
+  async (completed) => {
+    const form = new FormData();
+    form.set("task_id", "-9");
+    form.set("officer_id", "-10");
+    form.set("completed", completed);
+    expect(
+      await setTaskAssignmentCompletion({ error: "", success: "" }, form),
+    ).toMatchObject({
+      error: "",
+      success:
+        completed === "true" ? "Marked completed" : "Marked not completed",
+    });
+    expect(rpc).toHaveBeenCalledWith("set_task_assignment_completion", {
+      p_task_id: -9,
+      p_officer_id: -10,
+      p_completed: completed === "true",
+    });
+  },
+);
+
+it("removes only the selected assignment through the trusted RPC", async () => {
+  const form = new FormData();
+  form.set("task_id", "-9");
+  form.set("officer_id", "-10");
+  expect(await removeTaskAssignment({ error: "", success: "" }, form)).toEqual({
+    error: "",
+    success: "Officer removed from task",
+  });
+  expect(rpc).toHaveBeenCalledWith("remove_task_assignment", {
     p_task_id: -9,
     p_officer_id: -10,
   });
-  expect(revalidatePath).toHaveBeenCalledWith("/tasks/-9");
-
-  rpc.mockClear();
-  const approvalForm = new FormData();
-  approvalForm.set("task_id", "-9");
-  approvalForm.set("operation", "approve");
-  expect(await updateTask({ error: "", success: "" }, approvalForm)).toEqual({
-    error: "",
-    success: "Task approved",
-  });
-  expect(rpc).toHaveBeenCalledWith("approve_task", { p_task_id: -9 });
-  expect(revalidatePath).toHaveBeenCalledWith("/tasks/-9");
 });
 
-it("returns a controlled message for an unknown task action", async () => {
-  const invalidAction = new FormData();
-  invalidAction.set("task_id", "1");
-  invalidAction.set("operation", "unknown");
-  expect(
-    await updateTask({ error: "", success: "" }, invalidAction),
-  ).toMatchObject({
-    error: "Unknown task action",
-    fieldErrors: { operation: "Unknown task action" },
-    values: { task_id: "1", operation: "unknown", officer_id: "" },
+it("edits standalone Task details and preserves the filtered-list return path", async () => {
+  const form = taskForm();
+  form.set("task_id", "9");
+  form.set("returnTo", "/tasks?q=flyer&branch=2");
+  await editStandaloneTask({ error: "", success: "" }, form);
+  expect(rpc).toHaveBeenCalledWith("update_task_details", {
+    p_task_id: 9,
+    p_title: " Flyer ",
+    p_description: " Prepare the flyer ",
+    p_task_type: "Flyer",
+    p_branch_id: -5,
+    p_due_date: "2026-10-15",
+    p_points: 1.5,
   });
-  expect(rpc).not.toHaveBeenCalled();
+  expect(redirect).toHaveBeenCalledWith(
+    "/tasks/9?returnTo=%2Ftasks%3Fq%3Dflyer%26branch%3D2&feedback=task-updated",
+  );
+});
+
+it("removes a standalone Task through its logical-removal RPC", async () => {
+  const form = new FormData();
+  form.set("task_id", "9");
+  expect(await removeTask({ error: "", success: "" }, form)).toEqual({
+    error: "",
+    success: "Task removed",
+  });
+  expect(rpc).toHaveBeenCalledWith("remove_task", { p_task_id: 9 });
 });
 
 it("recurring Task editing submits only changed fields to its trusted RPC", async () => {

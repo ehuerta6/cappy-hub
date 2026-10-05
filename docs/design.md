@@ -24,9 +24,9 @@ The external design reference named in the changelog is only an influence on gen
 | Events              | `/events`                              | Search/filter, participation-based groups, event status and signup actions.                                 |
 | Event detail        | `/events/[id]`                         | Event information, participation, manager actions, and event point history.                                 |
 | Create/edit event   | `/events/new`, `/events/[id]/edit`     | Event fields and recurring-series controls where applicable.                                                |
-| Tasks               | `/tasks`                               | Search/filter, assignment and approval statuses, and available task actions.                                |
-| Task detail         | `/tasks/[id]`                          | Task information, assignment/progress workflow, and recurring-task actions where applicable.                |
-| Create/edit task    | `/tasks/new`, `/tasks/[id]/edit`       | New tasks can repeat; the edit route is for recurring tasks.                                                |
+| Tasks               | `/tasks`                               | Search/filter, Your tasks and Other tasks, assignment counts, and available task actions.                   |
+| Task detail         | `/tasks/[id]`                          | Task details, per-Officer completion management, and recurring-task actions where applicable.               |
+| Create/edit task    | `/tasks/new`, `/tasks/[id]/edit`       | New tasks can repeat; authorized managers edit standalone and recurring Tasks.                              |
 | Calendar            | `/calendar`                            | FullCalendar month grid on desktop and month list on compact screens, with Event/Task visibility toggles.   |
 | Officers            | `/officers`                            | Directory filters, officer table, and warning decisions awaiting the current user.                          |
 | Officer detail      | `/officers/[id]`                       | Profile, application access, warnings when visible, associated events, and points.                          |
@@ -45,7 +45,7 @@ The external design reference named in the changelog is only an influence on gen
 
 **CURRENT:** Protected pages require a current officer account. The compact top navigation links to Dashboard, Events, Tasks, Calendar, Officers, and Points. Admin appears there only when the current application role is `admin`. The right side shows the theme toggle, current officer name, and Sign out. System Log and Officer catalogs are not top-level navigation destinations; existing links into them come from Admin and Officers respectively.
 
-**CURRENT:** Admin-only tasks include the Admin landing page, officer/catalog management, point configuration and manual point actions, and System Log. Event/task creation and management also depend on branch visibility: admins and the President/Vice Presidents can see/manage all branches; a Lead can manage work in their assigned branches. Ordinary event signup, task self-assignment, and task completion are exposed according to the individual workflow. Preserve the server-enforced permissions; visual hiding is not a substitute for them.
+**CURRENT:** Admin-only tasks include the Admin landing page, officer/catalog management, point configuration and manual point actions, and System Log. Event/Task creation and management also depend on branch visibility: admins and the President/Vice Presidents can manage all branches; a Lead can manage work in their assigned branches. Active Officers may self-assign Tasks; only authorized managers control completion. Preserve the server-enforced permissions; visual hiding is not a substitute for them.
 
 ## 3. Design principles
 
@@ -195,7 +195,7 @@ The shared UI is deliberately small. Reuse these roles and keep their use consis
 | `ContextualBackLink` | Destination-specific return navigation on secondary pages, with safe list context when supplied. | Name the actual parent; preserve the originating list state when supplied; never imply browser history. |
 | `ThemeToggle`        | Switches between the existing light and dark themes.                                             | Keep its accessible name explicit about the destination theme.                                          |
 
-Other workflows are implemented near their owning screens: `TaskWorkflow`, recurrence fields/scope controls, warning forms, and point-action forms. Keep these actions close to their records. `ConfirmationDialog` is a small shared native HTML dialog for the existing consequential actions; it is not a general-purpose modal framework. There is no general-purpose card system to imitate.
+Other workflows are implemented near their owning screens: Task assignment/completion controls, recurrence fields/scope controls, warning forms, and point-action forms. Keep these actions close to their records. `ConfirmationDialog` is a small shared native HTML dialog for the existing consequential actions; it is not a general-purpose modal framework. There is no general-purpose card system to imitate.
 
 ## 11. Buttons and actions
 
@@ -219,11 +219,11 @@ Do not turn every action into a filled button. Keep control text specific to the
 - Events: Upcoming, Happening, Past, Cancelled, and (for admins) Removed. Event status is computed from cancellation/removal and the event's start/end times.
 - Officers: Active and Inactive.
 - Warnings: Pending, Approved, and Rejected.
-- Tasks: Open, Assigned, Awaiting approval, and Complete.
+- Tasks: Open (no assignments), In progress (at least one assignment and at least one not completed), and Complete (at least one assignment and all completed). Officer counts also show progress such as `2/3 completed`.
 - Points history: Active, Removed, or All is an admin filter state; award types are Participation, Task, Manual, and Correction, not statuses.
 - Calendar: Events and Task due dates are entry categories, not workflow statuses.
 
-`StatusBadge` currently maps lowercase `active`, `happening`, and `approved` to green; `upcoming` and `pending` to blue; `cancelled`, `rejected`, and `removed` to red; unrecognized values to neutral. Task list statuses are plain text, and title-cased task statuses passed to `StatusBadge` on detail currently render neutral. Preserve the words even if the tone is refined later.
+`StatusBadge` currently maps lowercase `active`, `happening`, and `approved` to green; `upcoming` and `pending` to blue; `cancelled`, `rejected`, and `removed` to red; unrecognized values to neutral. Task rows use plain text and Task detail uses a neutral badge for Open, In progress, or Complete. Preserve the words even if the tone is refined later.
 
 Use neutral badges for branches. Keep officer position and classification as plain text. Do not turn every field, award type, or ordinary metadata into a colored pill. If a table contains many branches, an optional compact display such as “General · ICPC · Intro +2” is acceptable only when the full branch list remains discoverable and the count is accessible.
 
@@ -258,14 +258,14 @@ Tables are a core pattern for directory, event, point, and audit work. **CURRENT
 
 ## 16. Forms and dialogs
 
-Long workflows belong on dedicated pages, with a contextual return link. Small, focused actions can stay inline beside the record they affect. **CURRENT:** Event cancellation/removal, recurring Task removal, Point transaction removal, and warning approval/rejection/deletion use the shared in-app `ConfirmationDialog`, built on native HTML `<dialog>`. Recurring Event/Task actions show the selected occurrence scope from the existing form state. Other operations should be described according to their actual behavior, not assumed to share that confirmation pattern.
+Long workflows belong on dedicated pages, with a contextual return link. Small, focused actions can stay inline beside the record they affect. **CURRENT:** Event cancellation/removal, standalone and recurring Task removal, Point transaction removal, and warning approval/rejection/deletion use the shared in-app `ConfirmationDialog`, built on native HTML `<dialog>`. Recurring Event/Task actions show the selected occurrence scope from the existing form state. Other operations should be described according to their actual behavior, not assumed to share that confirmation pattern.
 
 **DESIGN DECISION:** Group long forms into clear sections using the field names and relationships already present. Use two columns on desktop only for natural pairs; collapse to one column on narrow screens. Prefer existing constrained choices over unnecessary free typing. Keep labels explicit and optional/required status faithful to current validation. Validate close to the relevant field or action. Do not infer required fields or change validation rules for a proposed layout. Any dialog used for a future focused action must have a clear name and exit, work by keyboard, and avoid stacking with another dialog.
 
 | Existing form                       | Current fields and constraints to preserve                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Event create/edit                   | Required name, description, event type, location, one El Paso date, start/end times, and branches unless an authorized global event may have none. Slides URL and meeting-notes URL are optional. Event type options currently include Meeting, Social, and Workshop; location suggestions come from the location catalog. Creation supports recurrence. Editing a recurring event includes occurrence/following/all-scope controls and changed-field behavior. |
-| Task create/edit                    | Required title, description, task type (Flyer, LinkedIn, Airtable, Story, or Post), branch, due date, and points; lead approval before points is a checkbox. Creation can repeat daily or weekly, with interval and end options. The edit route is only for recurring tasks and supports recurrence scope.                                                                                                                                                      |
+| Task create/edit                    | Required title, description, task type (Flyer, LinkedIn, Airtable, Story, or Post), branch, due date, and points. Creation can repeat daily or weekly, with interval and end options. Authorized managers edit standalone tasks directly; recurring tasks support occurrence scope. There is no approval field.                                                                                                                                                 |
 | Officer add/edit                    | Required name and position; at least one email address must be provided, though each UTEP/personal email field is individually optional. Classification and branches are optional. Status appears on edit only. Application role is managed separately on the officer detail.                                                                                                                                                                                   |
 | Point configuration                 | Admin-only edit of participation points per hour; current rate remains visible to other users.                                                                                                                                                                                                                                                                                                                                                                  |
 | Manual point transaction/correction | Admin-only officer, points, reason, manual/correction type, and optional event link. Older events can be searched before choosing an event.                                                                                                                                                                                                                                                                                                                     |
@@ -320,7 +320,7 @@ The following sections describe the actual product workflows and the design dire
 ### Dashboard
 
 - **Purpose:** Give each signed-in officer a useful current view and direct access to work that needs attention.
-- **Existing functionality that MUST be preserved — CURRENT:** Shows the current officer's name, club position, personal total points, and View profile link; three club summary metrics (active officers, upcoming events, points this half-year); a note defining January–June/July–December in America/Denver and that points include signed corrections; up to five personal action items from assigned tasks, task approvals, and pending warning decisions; all upcoming non-cancelled/non-removed events with schedule, signup status, and officer count; and the latest ten active point transactions with officer, related event/task or reason, points, and date. Links lead to the full owning area. The action-item list reports when more than five items exist.
+- **Existing functionality that MUST be preserved — CURRENT:** Shows the current officer's name, club position, personal total points, and View profile link; three club summary metrics (active officers, upcoming events, points this half-year); a note defining January–June/July–December in America/Denver and that points include signed corrections; up to five personal action items from the current officer's incomplete Task assignments and pending warning decisions; all upcoming non-cancelled/non-removed events with schedule, signup status, and officer count; and the latest ten active point transactions with officer, related event/task or reason, points, and date. Links lead to the full owning area. The action-item list reports when more than five items exist.
 - **Information hierarchy:** Page title/profile access; compact summary metrics and their explanation; action items; then upcoming events and recent point activity.
 - **Recommended layout:** Keep the metrics in one modest row, action items as a simple divided list, and the two recent-activity sections side by side on wide screens. Let them stack on narrow screens.
 - **Primary action:** No single global action; each action-item row is a direct link to its task or warning decision.
@@ -367,39 +367,39 @@ The following sections describe the actual product workflows and the design dire
 
 ### Tasks list
 
-- **Purpose:** Assign, complete, and approve officer work.
-- **Existing functionality that MUST be preserved — CURRENT:** Search title/description; filter by Open, Assigned, Awaiting approval, Complete, branch, and assignee. Non-removed tasks are listed in due-date order. Table columns are Task/title and description, Type, Branch, Due, Points, Assignee, Status, and Actions. Available actions vary by assignment, current officer, approval requirement, and branch-management permission: self-assign, manager assign, mark own task complete, or manager approve another officer's completed task. Opening a task from this list preserves its filter context through detail and recurring-task edit. New task follows current branch permissions.
-- **Information hierarchy:** Page title/New task; filters; task table with status and immediately available action.
-- **Recommended layout:** Keep the table wide enough for task, due date, points, assignee, status, and action without forcing rows into cards. On narrow screens allow horizontal scroll.
-- **Primary action:** New task for authorized users; otherwise the row's current self-assign/complete/approve action when applicable.
-- **Secondary actions:** Open the task detail from its title; apply/clear filters; assign to an officer when permitted.
-- **Data presentation:** Table with task description subordinate to title, type/branch metadata, due date, points, assignee, status text, and compact workflow controls.
-- **Minimalism notes:** Keep action controls compact and row-specific; do not hide assignment or approval state to reduce width. Distinguish task points from event participation points.
-- **Do not add:** Event signup controls, event statuses, recurring schedule filters not present, fake task ownership metrics, or list pagination (none currently exists).
+- **Purpose:** Find assigned and unassigned work, then open a Task to manage its Officers and completion.
+- **Existing functionality that MUST be preserved — CURRENT:** Search title/description; filter by Open, In progress, Complete, branch, and assignee. Non-removed tasks are listed in due-date order in **Your tasks** (the current Officer has an assignment) and **Other tasks** (they do not). A Task assigned to other Officers remains in Other tasks for this Officer. Table columns are Task/title and description, Type, Branch, Due, Points, Officer count/completion summary, Task status, and—only in Other tasks—a self-assign action. There is no row-level manager assignment or self-completion. Opening a task preserves filter context through detail and edit. New task follows current branch permissions.
+- **Information hierarchy:** Page title/New task; filters; Your tasks; Other tasks.
+- **Recommended layout:** Keep two named compact tables after filters. On narrow screens keep the full task-specific information readable.
+- **Primary action:** New task for authorized users; self-assign in an eligible Other tasks row.
+- **Secondary actions:** Open a Task by selecting its name; apply or clear filters.
+- **Data presentation:** Task title and description, type/branch metadata, due date, points, a progress label such as `0 officers` or `2/3 completed`, and Open/In progress/Complete state.
+- **Minimalism notes:** Assignment and completion detail belongs on the Task page. Keep row actions compact and do not present a mixed Task as complete.
+- **Do not add:** Event signup controls, approval statuses, manager assignment controls in list rows, fake ownership metrics, or list pagination (none currently exists).
 
 ### Task detail
 
-- **Purpose:** Understand a work item and act on its assignment/progress state.
-- **Existing functionality that MUST be preserved — CURRENT:** Contextual link to Tasks that returns to the originating filtered list when opened from one; description, task type, branch, due date, points; assignee and status; whether approval is required; assignment/progress controls appropriate to actor and state. Recurring occurrences explain that due date, assignment, completion, approval, and points belong to this task. A manager can edit a recurring task and remove an eligible recurring occurrence according to current conditions. The list context survives the edit flow and successful save.
-- **Information hierarchy:** Task title and return link; task details; assignment/progress and its available control.
-- **Recommended layout:** Two grouped detail sections with the action adjacent to assignment/progress. Keep recurring explanation close to the scope-sensitive action.
-- **Primary action:** Self-assign, Mark complete, or Approve, only when the workflow allows it.
-- **Secondary actions:** Edit recurring task or remove eligible recurring task for a manager.
-- **Data presentation:** Definition-list metadata, plain-language status, assignment and approval text, compact action form.
-- **Minimalism notes:** Keep approval requirement separate from task status; do not imply points are awarded before the existing workflow completes.
-- **Do not add:** Non-recurring task edit controls, actions for another officer's assignment, fabricated approval steps, or event-only detail fields.
+- **Purpose:** Understand a work item, see every assigned Officer, and manage each completion state where authorized.
+- **Existing functionality that MUST be preserved — CURRENT:** Contextual link to Tasks that returns to the originating filtered list; Task description, type, branch, due date, points and recurrence information; all Officers and their independent Completed / Not completed states; current Officer assignment state; self-assignment when not assigned; manager bulk add, completion control and safe removal of an unprotected assignment. Only authorized managers can change completion. An assignment's state can be changed before or after the due date. Recurring occurrences explain that assignments, completion and points belong to that occurrence. Authorized managers can edit standalone Tasks and eligible recurring Tasks, and logically remove eligible Tasks. Return context survives editing.
+- **Information hierarchy:** Task title and return link; Task details; Officers/completion; scoped edit/removal controls.
+- **Recommended layout:** Two grouped detail sections on desktop (Task details and Officers/completion), with controls adjacent to the assignment they affect. Keep recurring explanation close to scope-sensitive actions.
+- **Primary action:** Self-assign when unassigned; otherwise a manager changes the selected Officer's completion state.
+- **Secondary actions:** Bulk add or safely remove an Officer; edit or logically remove the Task for a manager.
+- **Data presentation:** Definition-list metadata, semantic Task status, compact Officers table, explicit completion labels, and checkbox controls for managers.
+- **Minimalism notes:** Completion belongs to each assignment. Points are awarded only after the due date passes in America/Denver. There is no approval step.
+- **Do not add:** Officer self-completion, approval buttons/status, Task-level assigned-versus-complete precedence for mixed completion, or Event-only detail fields.
 
 ### Create/edit Task
 
-- **Purpose:** Create a work item or change supported fields of a recurring task.
-- **Existing functionality that MUST be preserved — CURRENT:** New task page allows authorized all-branch users or Leads with branches. It includes title, description, task type, branch, due date, points, approval-required checkbox, and optional daily/weekly recurrence. `/tasks/[id]/edit` is specifically for recurring tasks, is manager-only, and exposes occurrence/following/all scope. There is no current non-recurring task edit page.
-- **Information hierarchy:** Return link and title; task description/details; due date and points; approval requirement; recurrence group for new/series edits; validation and save.
-- **Recommended layout:** Keep title/description easy to scan; pair Type with Branch and Due date with Points on desktop where the design fits. Place approval requirement close to points/progress. Collapse to one column on narrow screens.
-- **Primary action:** Create task or Save task, with pending feedback.
-- **Secondary actions:** Recurrence-scope controls when editing; contextual return to Tasks or the task.
-- **Data presentation:** Labeled inputs/selects, an explicit approval checkbox, recurrence fieldset and recurrence scope explanation.
-- **Minimalism notes:** Do not style this as an Event form; task assignment and points are core to its distinct workflow.
-- **Do not add:** Individual assignee selection during task creation, a fake draft/publish flow, event scheduling fields, or a non-recurring edit workflow.
+- **Purpose:** Create a work item or change supported fields of a standalone or recurring Task.
+- **Existing functionality that MUST be preserved — CURRENT:** New task page allows authorized all-branch users or Leads with branches. It includes title, description, task type, branch, due date, points, and optional daily/weekly recurrence. Authorized managers can edit standalone Tasks; recurring Tasks retain occurrence/following/all scope. Points cannot be changed after a completion or Task award exists, preserving earned history. Assignment is managed after creation on Task detail. There is no approval field or approval workflow.
+- **Information hierarchy:** Return link and title; Task description/details; due date and points; recurrence group for new/series edits; validation and save.
+- **Recommended layout:** Keep title/description easy to scan; pair Type with Branch and Due date with Points on desktop where the design fits. Collapse to one column on narrow screens.
+- **Primary action:** Create Task or Save Task, with pending feedback.
+- **Secondary actions:** Recurrence-scope controls when editing; contextual return to Tasks or the Task.
+- **Data presentation:** Labeled inputs/selects, recurrence fieldset and recurrence scope explanation.
+- **Minimalism notes:** Do not style this as an Event form; Task assignment and due-date points are core to its distinct workflow.
+- **Do not add:** Individual assignee selection during Task creation, a fake draft/publish flow, approval terminology, or event scheduling fields.
 
 ### Calendar
 
@@ -584,3 +584,4 @@ Every generated redesign must preserve the existing screen's access rules, actua
 
 - **2026-10-03 — Initial source-of-truth document.** Recorded the current application surfaces and workflows from the repository; established calm, clean, subtly capybara-inspired visual direction. No application behavior or code is changed by this document.
 - **2026-10-03 — Design quality refinement.** Added Cappy Hub's purpose/agency/responsibility/familiarity/flexibility/simplicity/craft/delight review lens, plus practical accessibility, interaction, writing, icon, motion, anti-generic, and approval guidance. Broad principles from the external [Apple Design Skill](https://github.com/dickwu/apple-design-skill) were used only as a reference and adapted for a browser-based internal admin tool; no skill files were copied or installed, no dependency was added, and no application behavior changed.
+- **2026-10-04 — Task management parity.** Updated the current Task list, assignment/completion, standalone edit/removal, Dashboard and due-date points behavior for Issue #129. The approval workflow remains only in legacy database compatibility and historical records.

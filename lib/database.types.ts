@@ -717,6 +717,86 @@ export type Database = {
           },
         ];
       };
+      task_officer_assignments: {
+        Row: {
+          approved_at: string | null;
+          approved_by: number | null;
+          assigned_at: string;
+          assigned_by: number;
+          completed_at: string | null;
+          officer_id: number;
+          task_id: number;
+        };
+        Insert: {
+          approved_at?: string | null;
+          approved_by?: number | null;
+          assigned_at?: string;
+          assigned_by: number;
+          completed_at?: string | null;
+          officer_id: number;
+          task_id: number;
+        };
+        Update: {
+          approved_at?: string | null;
+          approved_by?: number | null;
+          assigned_at?: string;
+          assigned_by?: number;
+          completed_at?: string | null;
+          officer_id?: number;
+          task_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "task_officer_assignments_approved_by_fkey";
+            columns: ["approved_by"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_officer_assignments_approved_by_fkey";
+            columns: ["approved_by"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_officer_assignments_assigned_by_fkey";
+            columns: ["assigned_by"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_officer_assignments_assigned_by_fkey";
+            columns: ["assigned_by"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_officer_assignments_officer_id_fkey";
+            columns: ["officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_officer_assignments_officer_id_fkey";
+            columns: ["officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_officer_assignments_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       task_series: {
         Row: {
           created_at: string;
@@ -1061,6 +1141,10 @@ export type Database = {
         Args: { p_event_id: number; p_officer_ids: number[] };
         Returns: Json;
       };
+      bulk_assign_task_officers: {
+        Args: { p_officer_ids: number[]; p_task_id: number };
+        Returns: Json;
+      };
       cancel_event: { Args: { p_event_id: number }; Returns: undefined };
       change_event_signup: {
         Args: { p_event_id: number; p_officer_id: number; p_remove?: boolean };
@@ -1157,6 +1241,10 @@ export type Database = {
         Returns: boolean;
       };
       remove_task: { Args: { p_task_id: number }; Returns: undefined };
+      remove_task_assignment: {
+        Args: { p_officer_id: number; p_task_id: number };
+        Returns: undefined;
+      };
       rename_branch: {
         Args: { p_id: number; p_name: string };
         Returns: undefined;
@@ -1228,13 +1316,30 @@ export type Database = {
         };
         Returns: number;
       };
+      self_assign_task: { Args: { p_task_id: number }; Returns: undefined };
       set_officer_application_role: {
         Args: { p_officer_id: number; p_role: string };
         Returns: undefined;
       };
       set_participation_rate: { Args: { p_rate: number }; Returns: undefined };
+      set_task_assignment_completion: {
+        Args: { p_completed: boolean; p_officer_id: number; p_task_id: number };
+        Returns: undefined;
+      };
       update_point_transaction: {
         Args: { p_points: number; p_transaction_id: number };
+        Returns: undefined;
+      };
+      update_task_details: {
+        Args: {
+          p_branch_id: number;
+          p_description: string;
+          p_due_date: string;
+          p_points: number;
+          p_task_id: number;
+          p_task_type: string;
+          p_title: string;
+        };
         Returns: undefined;
       };
     };

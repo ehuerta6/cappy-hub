@@ -1,8 +1,10 @@
 # Maintaining recurring Events and Tasks
 
-Every occurrence remains a real Event or Task row. Standalone Task details stay immutable. Recurring records offer **This occurrence**, **This and following occurrences**, and **All occurrences** for editing and removal; Events also offer cancellation. Restoration remains an individual Event workflow.
+Every occurrence remains a real Event or Task row. Authorized managers can edit standalone Tasks directly and logically remove eligible standalone Tasks. Recurring records offer **This occurrence**, **This and following occurrences**, and **All occurrences** for editing and removal; Events also offer cancellation. Restoration remains an individual Event workflow.
 
-Only changed form fields apply to the selected scope. Existing per-occurrence overrides in other fields remain intact. Assignments, signups, completion, approval, cancellation, awards and audit history are never copied or reset. Completed or awarded Tasks cannot have their points or approval requirements changed. Their other recurring details can be edited without recalculating awards.
+Only changed form fields apply to the selected scope. Existing per-occurrence overrides in other fields remain intact. Assignments, signups, completion, historical approval fields, cancellation, awards and audit history are never copied or reset. Completed or awarded Tasks cannot have their points changed. Their other recurring details can be edited without recalculating awards.
+
+Task assignments belong to one materialized occurrence. A Task can have multiple Officers, each with independent Completed / Not completed state. Only authorized managers change completion. Each Completed assignment earns the configured Task points after its due date has passed in America/Denver; a scheduled database processor handles due Tasks even when the application is closed. Changing completion after the due date reconciles that Officer's award immediately. Reversing completion logically removes the award, and completing again reactivates the same Task/Officer transaction.
 
 ## Schedule segments and identity
 
@@ -22,7 +24,7 @@ Shortening a schedule logically removes its surplus rows. Those rows remain atta
 
 Event removal remains logical, including for processed past Events: signups, saved processing rates and point history remain stored. Editing never recalculates their points. Event cancellation follows the existing protection against ended or processed Events. Already cancelled or removed siblings require no cancellation change.
 
-Task removal follows the existing unfinished/unawarded rule. If any selected Task is protected, the whole operation fails, including schedule shortening that would remove that Task. Removed siblings stay removed and keep their details during edit operations; the series audit explicitly lists their IDs. No operation physically deletes occurrences or history.
+Task removal follows the existing unfinished/unawarded rule. If any selected Task is protected, the whole operation fails, including schedule shortening that would remove that Task. Completed assignments and any Task Point transaction protect a Task from removal; managers can correct completion before removing an unawarded assignment. Removed siblings stay removed and keep their details during edit operations; the series audit explicitly lists their IDs. No operation physically deletes occurrences or history.
 
 Trusted mutations lock the series and all its rows before applying changes. Workflow RPCs lock those same rows. Revisions reject stale submissions, and private request receipts allow an exact retry to return its original result without repeating the split, expansion or audit. A reused request key with different input or actor is rejected. All row changes, series metadata, audits and receipts commit or roll back together.
 

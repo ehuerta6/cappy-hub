@@ -228,16 +228,16 @@ select lives_ok($$select save_event_with_links('Accepted Workshop','Description'
   'trusted Event API accepts Workshop');
 reset role;
 select private.process_finished_events();
-select is((select total_points from officer_point_totals where id=90001),7.25::numeric,
-  'historical signed point total includes active legacy Event history, excluding the removed award');
+select is((select total_points from officer_point_totals where id=90001),11.25::numeric,
+  'historical signed point total includes active Event and Task history, excluding the removed award');
 select throws_ok($$insert into officers(name,position_id,personal_email) values
   ('Duplicate historical contact',(select id from positions where name='Officer'),'HISTORY@MINERS.UTEP.EDU')$$,
   '23505',null,'historical UTEP contact is protected across email fields');
 select hasnt_column('positions','can_manage_branch_events','obsolete capability flag is gone');
 select hasnt_column('events','flyer_status','flyer event column is gone');
 select hasnt_column('application_config','flyer_completion_points','flyer configuration is gone');
-select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),18::bigint,
-  'final schema contains Events and Tasks tables');
+select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),19::bigint,
+  'final schema contains expanded Task assignment data');
 select is((select count(*) from events where recurrence_series_id is not null and id not in (90680,90681)),0::bigint,
   'existing Events remain standalone after the additive recurrence migration');
 select is((select count(*) from tasks where recurrence_series_id is not null and id not in (90680,90681)),0::bigint,
@@ -250,6 +250,13 @@ select is((select jsonb_agg(to_jsonb(t) order by id) from tasks t where id in (9
  (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.recurring_tasks),'scope migration preserves existing recurring Task rows');
 select is((select to_jsonb(a) from task_assignments a where task_id=90680),(select row from upgrade_fixture.recurring_assignment),'scope migration preserves assignment completion and approval');
 select is((select to_jsonb(p)-'created_by_officer_id'-'updated_by_officer_id'-'removed_by_officer_id' from point_transactions p where id=90680),(select row from upgrade_fixture.recurring_award),'scope migration preserves existing awarded Task points');
+select is((select to_jsonb(t) from tasks t where id=90790),(select row from upgrade_fixture.pre_task_standalone),'Task transition preserves standalone Task fields and creator');
+select is((select to_jsonb(a) from task_assignments a where task_id=90790),(select row from upgrade_fixture.pre_task_assignment),'legacy Task assignment retains completion and approval history');
+select is((select to_jsonb(a) from task_officer_assignments a where task_id=90790 and officer_id=90001),(select row from upgrade_fixture.pre_task_assignment),'canonical backfill preserves assignment and approval history');
+select is((select to_jsonb(p) from point_transactions p where id=90790),(select row from upgrade_fixture.pre_task_award),'Task Point history and actor attribution survive the transition');
+select is((select to_jsonb(a) from task_officer_assignments a where task_id=90680 and officer_id=90001),
+  (select row from upgrade_fixture.recurring_assignment),
+  'recurring assignment backfill retains completion and historical approval values');
 select is((select starts_on::text||'/'||ends_on::text from event_series where id=90680),'2099-10-01/2099-10-02','existing Event series bounds backfilled');
 select is((select starts_on::text||'/'||ends_on::text from task_series where id=90680),'2099-10-01/2099-10-02','existing Task series bounds backfilled');
 select * from finish();

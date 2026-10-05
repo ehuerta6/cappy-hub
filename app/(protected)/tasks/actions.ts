@@ -22,9 +22,12 @@ import {
 } from "@/lib/recurrence-mutation";
 import { recurrenceInput } from "@/lib/recurrence-validation";
 import {
+  bulkTaskAssignmentInputSchema,
   createTaskInputSchema,
-  taskActionInputSchema,
+  removeTaskAssignmentInputSchema,
   taskRecordInputSchema,
+  setTaskCompletionInputSchema,
+  taskDetailsInputSchema,
 } from "./validation";
 
 const taskFormFields = [
@@ -34,7 +37,6 @@ const taskFormFields = [
   "branch_id",
   "due_date",
   "points",
-  "approval_required",
   "recurrence_frequency",
   "recurrence_interval",
   "recurrence_weekdays",
@@ -57,7 +59,6 @@ export async function createTask(
     branch_id: formData.get("branch_id") ?? "",
     due_date: formData.get("due_date") ?? "",
     points: formData.get("points") ?? "",
-    approval_required: formData.get("approval_required") ?? "",
     recurrence_frequency: formData.get("recurrence_frequency") ?? "none",
     recurrence_request_key:
       formData.get("recurrence_request_key") ?? crypto.randomUUID(),
@@ -97,7 +98,7 @@ export async function createTask(
       p_task_type: validatedTaskInput.task_type,
       p_branch_id: validatedTaskInput.branch_id,
       p_points: validatedTaskInput.points,
-      p_approval_required: validatedTaskInput.approval_required,
+      p_approval_required: false,
       p_request_key: validatedTaskInput.recurrence_request_key,
       p_recurrence_rule: canonicalRecurrenceRule(recurrence),
       p_due_dates: dates,
@@ -120,7 +121,7 @@ export async function createTask(
     p_branch_id: validatedTaskInput.branch_id,
     p_due_date: validatedTaskInput.due_date,
     p_points: validatedTaskInput.points,
-    p_approval_required: validatedTaskInput.approval_required,
+    p_approval_required: false,
   });
   if (error)
     return formFailure(
@@ -134,53 +135,138 @@ export async function createTask(
   redirect(withSuccessNotice(`/tasks#task-${data}`, "task-created"));
 }
 
-export async function updateTask(_previous: FormActionState, form: FormData) {
+export async function selfAssignTask(
+  _previous: FormActionState,
+  form: FormData,
+) {
   await getAuthorizationContext();
-  const rawTaskActionInput = {
+  const validation = taskRecordInputSchema.safeParse({
     task_id: form.get("task_id") ?? "",
-    operation: form.get("operation") ?? "",
-    officer_id: form.get("officer_id") ?? "",
-  };
-  const validationResult = taskActionInputSchema.safeParse(rawTaskActionInput);
-  if (!validationResult.success)
-    return validationFailure(validationResult.error, form, [
-      "task_id",
-      "operation",
-      "officer_id",
-    ]);
-  const validatedTaskActionInput = validationResult.data;
+  });
+  if (!validation.success)
+    return validationFailure(validation.error, form, ["task_id"]);
   const supabase = await createClient();
-  let mutationResponse;
-  if (validatedTaskActionInput.operation === "assign") {
-    mutationResponse = await supabase.rpc("assign_task", {
-      p_task_id: validatedTaskActionInput.task_id,
-      p_officer_id: validatedTaskActionInput.officer_id,
-    });
-  } else if (validatedTaskActionInput.operation === "complete") {
-    mutationResponse = await supabase.rpc("complete_task", {
-      p_task_id: validatedTaskActionInput.task_id,
-    });
-  } else {
-    mutationResponse = await supabase.rpc("approve_task", {
-      p_task_id: validatedTaskActionInput.task_id,
-    });
-  }
-  if (mutationResponse.error)
-    return formFailure(mutationError(mutationResponse.error.message), form, [
+  const { error } = await supabase.rpc("self_assign_task", {
+    p_task_id: validation.data.task_id,
+  });
+  if (error)
+    return formFailure(mutationError(error.message), form, ["task_id"]);
+  revalidatePath("/tasks");
+  revalidatePath("/", "layout");
+  return { error: "", success: "Task assignment saved" };
+}
+
+export async function bulkAssignTaskOfficers(
+  _previous: FormActionState,
+  form: FormData,
+) {
+  await getAuthorizationContext();
+  const validation = bulkTaskAssignmentInputSchema.safeParse({
+    task_id: form.get("task_id") ?? "",
+    officer_ids: form.getAll("officer_ids"),
+  });
+  if (!validation.success)
+    return validationFailure(
+      validation.error,
+      form,
+      ["task_id", "officer_ids"],
+      ["officer_ids"],
+    );
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("bulk_assign_task_officers", {
+    p_task_id: validation.data.task_id,
+    p_officer_ids: validation.data.officer_ids,
+  });
+  if (error)
+    return formFailure(
+      mutationError(error.message),
+      form,
+      ["task_id", "officer_ids"],
+      undefined,
+      ["officer_ids"],
+    );
+  const result = data as {
+    added_officer_ids?: number[];
+    already_assigned_officer_ids?: number[];
+  };
+  revalidatePath("/tasks");
+  revalidatePath(`/tasks/${validation.data.task_id}`);
+  revalidatePath("/", "layout");
+  const added = result.added_officer_ids?.length ?? 0;
+  const existing = result.already_assigned_officer_ids?.length ?? 0;
+  return {
+    error: "",
+    success: `${added} ${added === 1 ? "officer added" : "officers added"}${existing ? `; ${existing} already assigned` : ""}`,
+  };
+}
+
+export async function setTaskAssignmentCompletion(
+  _previous: FormActionState,
+  form: FormData,
+) {
+  await getAuthorizationContext();
+  const validation = setTaskCompletionInputSchema.safeParse({
+    task_id: form.get("task_id") ?? "",
+    officer_id: form.get("officer_id") ?? "",
+    completed: form.get("completed") ?? "",
+  });
+  if (!validation.success)
+    return validationFailure(validation.error, form, [
       "task_id",
-      "operation",
+      "officer_id",
+      "completed",
+    ]);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_task_assignment_completion", {
+    p_task_id: validation.data.task_id,
+    p_officer_id: validation.data.officer_id,
+    p_completed: validation.data.completed,
+  });
+  if (error)
+    return formFailure(mutationError(error.message), form, [
+      "task_id",
+      "officer_id",
+      "completed",
+    ]);
+  revalidatePath("/tasks");
+  revalidatePath(`/tasks/${validation.data.task_id}`);
+  revalidatePath("/points");
+  revalidatePath("/system-log");
+  revalidatePath("/", "layout");
+  return {
+    error: "",
+    success: validation.data.completed
+      ? "Marked completed"
+      : "Marked not completed",
+  };
+}
+
+export async function removeTaskAssignment(
+  _previous: FormActionState,
+  form: FormData,
+) {
+  await getAuthorizationContext();
+  const validation = removeTaskAssignmentInputSchema.safeParse({
+    task_id: form.get("task_id") ?? "",
+    officer_id: form.get("officer_id") ?? "",
+  });
+  if (!validation.success)
+    return validationFailure(validation.error, form, ["task_id", "officer_id"]);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("remove_task_assignment", {
+    p_task_id: validation.data.task_id,
+    p_officer_id: validation.data.officer_id,
+  });
+  if (error)
+    return formFailure(mutationError(error.message), form, [
+      "task_id",
       "officer_id",
     ]);
-  const taskId = validatedTaskActionInput.task_id;
   revalidatePath("/tasks");
-  revalidatePath(`/tasks/${taskId}`);
-  const success =
-    validatedTaskActionInput.operation === "assign"
-      ? "Task assigned"
-      : validatedTaskActionInput.operation === "complete"
-        ? "Task completed"
-        : "Task approved";
-  return { error: "", success };
+  revalidatePath(`/tasks/${validation.data.task_id}`);
+  revalidatePath("/system-log");
+  revalidatePath("/", "layout");
+  return { error: "", success: "Officer removed from task" };
 }
 
 export async function removeTask(_previous: FormActionState, form: FormData) {
@@ -214,7 +300,55 @@ export async function removeTask(_previous: FormActionState, form: FormData) {
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${validation.data.task_id}`);
   revalidatePath("/calendar");
-  return { error: "", success: "Task occurrence removed" };
+  return {
+    error: "",
+    success: form.has("recurrence_series_id")
+      ? "Task occurrence removed"
+      : "Task removed",
+  };
+}
+
+export async function editStandaloneTask(
+  _previous: FormActionState,
+  form: FormData,
+) {
+  await getAuthorizationContext();
+  const id = taskRecordInputSchema.safeParse({ task_id: form.get("task_id") });
+  const validation = taskDetailsInputSchema.safeParse({
+    ...Object.fromEntries(form.entries()),
+  });
+  if (!id.success)
+    return formFailure(id.error.issues[0].message, form, [
+      "task_id",
+      ...taskFormFields,
+    ]);
+  if (!validation.success)
+    return validationFailure(validation.error, form, [
+      "task_id",
+      ...taskFormFields.slice(0, 6),
+    ]);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("update_task_details", {
+    p_task_id: id.data.task_id,
+    p_title: validation.data.title,
+    p_description: validation.data.description,
+    p_task_type: validation.data.task_type,
+    p_branch_id: validation.data.branch_id,
+    p_due_date: validation.data.due_date,
+    p_points: validation.data.points,
+  });
+  if (error)
+    return formFailure(mutationError(error.message), form, [
+      "task_id",
+      ...taskFormFields.slice(0, 6),
+    ]);
+  revalidatePath("/", "layout");
+  redirect(
+    withSuccessNotice(
+      withReturnTo(`/tasks/${id.data.task_id}`, form.get("returnTo")),
+      "task-updated",
+    ),
+  );
 }
 
 export async function editRecurringTask(
@@ -225,7 +359,6 @@ export async function editRecurringTask(
   const id = taskRecordInputSchema.safeParse({ task_id: form.get("task_id") });
   const validation = createTaskInputSchema.safeParse({
     ...Object.fromEntries(form.entries()),
-    approval_required: form.get("approval_required") ?? "",
     recurrence_weekdays: form.getAll("recurrence_weekdays"),
   });
   if (!id.success)

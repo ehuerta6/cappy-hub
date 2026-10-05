@@ -10,7 +10,7 @@ vi.mock("@/lib/authorization", () => ({
   getAuthorizationContext: vi.fn(),
   canManageOfficers: () => true,
   isAdmin: () => true,
-  canManageEvent: () => true,
+  canManageEvent: vi.fn(() => true),
   canSeeAllBranches: () => true,
   isLead: () => false,
 }));
@@ -23,7 +23,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import { createClient } from "@/lib/supabase/server";
-import { getAuthorizationContext } from "@/lib/authorization";
+import { canManageEvent, getAuthorizationContext } from "@/lib/authorization";
 import TaskEdit from "@/app/(protected)/tasks/[id]/edit/page";
 import HistoryTable from "@/app/(protected)/points/history-table";
 import type { Tables } from "@/lib/database.types";
@@ -35,10 +35,6 @@ import EventEdit from "@/app/(protected)/events/[id]/edit/page";
 import OfficersPage from "@/app/(protected)/officers/page";
 import TasksPage from "@/app/(protected)/tasks/page";
 import TaskDetail from "@/app/(protected)/tasks/[id]/page";
-import {
-  TaskWorkflow,
-  taskStatus,
-} from "@/app/(protected)/tasks/task-workflow";
 import TaskActionForm from "@/app/(protected)/tasks/task-action-form";
 import { formatEventSchedule } from "@/lib/presentation";
 
@@ -71,7 +67,20 @@ const task = {
   branch_id: 1,
   points: 2,
   approval_required: true,
-  task_assignments: null,
+  task_officer_assignments: [
+    {
+      officer_id: 1,
+      assigned_at: "2026-10-01T12:00:00Z",
+      completed_at: null,
+      officers: { id: 1, name: "Synthetic Officer" },
+    },
+    {
+      officer_id: 2,
+      assigned_at: "2026-10-02T12:00:00Z",
+      completed_at: "2026-10-03T12:00:00Z",
+      officers: { id: 2, name: "Other Officer" },
+    },
+  ],
   recurrence_series_id: 3,
   due_date: "2099-10-08",
 };
@@ -82,6 +91,7 @@ beforeEach(() => {
     false,
   ] as never);
   vi.mocked(getAuthorizationContext).mockResolvedValue({ id: 1 } as never);
+  vi.mocked(canManageEvent).mockReturnValue(true);
   vi.mocked(createClient).mockResolvedValue({
     from: (table: string) => {
       const query = {
@@ -176,7 +186,7 @@ it("shows a controlled Task created notice on the filtered Task list", async () 
   expect(html).toContain('name="q" value="workshop"');
 });
 
-it("disables a Task action while it is running and names the pending action", () => {
+it("disables self-assignment while its action is running", () => {
   vi.mocked(useActionState).mockReturnValue([
     { error: "", success: "" },
     vi.fn(),
@@ -185,12 +195,10 @@ it("disables a Task action while it is running and names the pending action", ()
   const html = renderToStaticMarkup(
     createElement(TaskActionForm, {
       taskId: 7,
-      operation: "approve",
-      label: "Approve",
     }),
   );
   expect(html).toContain("disabled");
-  expect(html).toContain("Approving…");
+  expect(html).toContain("Assigning…");
 });
 
 it("formats compact schedules in El Paso time including the correct local date", () => {
@@ -211,36 +219,46 @@ it("formats compact schedules in El Paso time including the correct local date",
   ).toBe("Oct 8 · 11:00 PM–Oct 9 · 7:00 AM");
 });
 
-it("retains Task assignment, completion and separate approver controls", () => {
-  const render = (
-    assignment: Parameters<typeof TaskWorkflow>[0]["assignment"],
-    canManage = false,
-    actorId = 1,
-  ) =>
-    renderToStaticMarkup(
-      createElement(TaskWorkflow, {
-        task,
-        assignment,
-        actorId,
-        canManage,
-        officers: [],
-      }),
-    );
-  expect(render(null)).toContain("Self-assign");
-  expect(render(null)).not.toContain("Select officer");
-  expect(render(null, true)).toContain("Select officer");
-  const assigned = { officer_id: 1, completed_at: null, approved_at: null };
-  expect(taskStatus(task, assigned)).toBe("Assigned");
-  expect(render(assigned)).toContain("Mark complete");
-  expect(render(assigned, true, 2)).not.toContain("Mark complete");
-  const completed = { ...assigned, completed_at: "2026-10-08" };
-  expect(taskStatus(task, completed)).toBe("Awaiting approval");
-  expect(render(completed, true)).not.toContain(">Approve<");
-  expect(render(completed, false, 2)).not.toContain(">Approve<");
-  expect(render(completed, true, 2)).toContain(">Approve<");
-  expect(taskStatus(task, { ...completed, approved_at: "2026-10-09" })).toBe(
-    "Complete",
+it("allows an authorized manager to edit a standalone Task", async () => {
+  Object.assign(task, { recurrence_series_id: null });
+  const html = renderToStaticMarkup(
+    await TaskEdit({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({ returnTo: "/tasks?status=open" }),
+    }),
   );
+  expect(html).toContain("Edit task");
+  expect(html).toContain('name="title"');
+  expect(html).not.toContain("This occurrence");
+  expect(html).toContain('name="returnTo" value="/tasks?status=open"');
+  Object.assign(task, { recurrence_series_id: 3 });
+});
+
+it("shows per-Officer completion controls to managers and read-only state to Officers", async () => {
+  const props = {
+    params: Promise.resolve({ id: "7" }),
+    searchParams: Promise.resolve({}),
+  };
+  const managerHtml = renderToStaticMarkup(await TaskDetail(props));
+  expect(managerHtml).toContain('aria-label="Officers"');
+  expect(managerHtml).toContain("Synthetic Officer");
+  expect(managerHtml).toContain("Other Officer");
+  expect(managerHtml).toContain('aria-label="Completed for Synthetic Officer"');
+  expect(managerHtml).toContain('aria-label="Completed for Other Officer"');
+  expect(managerHtml).not.toContain("Mark complete");
+  expect(managerHtml).not.toContain("Awaiting approval");
+  expect(managerHtml).not.toContain(">Approve<");
+
+  vi.mocked(canManageEvent).mockReturnValue(false);
+  const officerHtml = renderToStaticMarkup(await TaskDetail(props));
+  expect(officerHtml).toContain("Your assignment: Not completed");
+  expect(officerHtml).toContain("Not completed");
+  expect(officerHtml).toContain("Completed");
+  expect(officerHtml).not.toContain(
+    'aria-label="Completed for Synthetic Officer"',
+  );
+  expect(officerHtml).not.toContain('aria-label="Completed for Other Officer"');
+  expect(officerHtml).not.toContain("Remove assignment");
 });
 
 it("does not add contextual Back links to Officer or Task main pages", async () => {

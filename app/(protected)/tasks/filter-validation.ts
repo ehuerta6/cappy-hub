@@ -5,7 +5,7 @@ import {
 } from "@/lib/search-params";
 
 const taskListStatusSchema = searchParamStringSchema.transform((value) =>
-  (["open", "assigned", "awaiting", "complete"] as const).find(
+  (["open", "in_progress", "complete"] as const).find(
     (status) => status === value,
   ),
 );

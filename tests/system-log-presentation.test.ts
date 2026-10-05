@@ -136,6 +136,144 @@ it("links a Task when its current record is still available", () => {
   });
 });
 
+it.each([
+  [
+    "task.officer_added",
+    "Added Noel Lozano to Prepare interview kit",
+    "Added Noel Lozano",
+  ],
+  [
+    "task.officer_removed",
+    "Removed Noel Lozano from Prepare interview kit",
+    "Removed Noel Lozano",
+  ],
+])(
+  "presents %s with the affected Officer and Task",
+  (action, activity, summary) => {
+    const result = presentAuditEntry(
+      {
+        action,
+        entity_type: "task",
+        entity_id: 18,
+        details: {
+          task_title: "Prepare interview kit",
+          officer_id: 42,
+          actor_id: 7,
+        },
+      },
+      {
+        officerNames: new Map([[42, "Noel Lozano"]]),
+        availableTaskIds: new Set([18]),
+      },
+    );
+    expect(result.activity).toBe(activity);
+    expect(result.record).toEqual({
+      label: "Prepare interview kit",
+      href: "/tasks/18",
+    });
+    expect(result.detailSummary).toBe(summary);
+  },
+);
+
+it.each([
+  [
+    "Not completed",
+    "Completed",
+    "Marked Noel Lozano's assignment complete for Prepare interview kit",
+  ],
+  [
+    "Completed",
+    "Not completed",
+    "Marked Noel Lozano's assignment not completed for Prepare interview kit",
+  ],
+])(
+  "presents task completion change from %s to %s",
+  (before, after, activity) => {
+    const result = presentAuditEntry(
+      {
+        action: "task.completion_changed",
+        entity_type: "task",
+        entity_id: 18,
+        details: {
+          task_title: "Prepare interview kit",
+          officer_id: 42,
+          before: { status: before },
+          after: { status: after },
+        },
+      },
+      { officerNames: new Map([[42, "Noel Lozano"]]) },
+    );
+    expect(result.activity).toBe(activity);
+    expect(result.changes).toEqual([
+      { label: "Status", value: `${before} → ${after}` },
+    ]);
+    expect(result.detailSummary).toBe(`${after} for Noel Lozano`);
+  },
+);
+
+it.each([
+  [
+    "points.task_created",
+    "Awarded task points (5 points) for Noel Lozano · Prepare interview kit",
+  ],
+  [
+    "points.task_reactivated",
+    "Reactivated task points (5 points) for Noel Lozano · Prepare interview kit",
+  ],
+  [
+    "points.task_removed",
+    "Removed task points (5 points) for Noel Lozano · Prepare interview kit",
+  ],
+])("keeps %s task award activity human-readable", (action, activity) => {
+  const result = presentAuditEntry(
+    {
+      action,
+      entity_type: "point_transaction",
+      entity_id: 801,
+      details: {
+        task_id: 18,
+        task_title: "Prepare interview kit",
+        officer_id: 42,
+        points: 5,
+      },
+    },
+    {
+      officerNames: new Map([[42, "Noel Lozano"]]),
+      availableTaskIds: new Set([18]),
+    },
+  );
+  expect(result.activity).toBe(activity);
+  expect(result.record).toEqual({
+    label: "Prepare interview kit",
+    href: "/tasks/18",
+  });
+});
+
+it("continues to render historical completed and approved Task actions", () => {
+  expect(
+    presentAuditEntry(
+      {
+        action: "task.completed",
+        entity_type: "task",
+        entity_id: 18,
+        details: { title: "Prepare interview kit", officer_id: 42 },
+      },
+      { officerNames: new Map([[42, "Noel Lozano"]]) },
+    ).activity,
+  ).toBe("Noel Lozano completed Prepare interview kit");
+  expect(
+    presentAuditEntry(
+      {
+        action: "task.approved",
+        entity_type: "task",
+        entity_id: 18,
+        details: { title: "Prepare interview kit", officer_id: 42 },
+      },
+      { officerNames: new Map([[42, "Noel Lozano"]]) },
+    ).activity,
+  ).toBe("Prepare interview kit was approved for Noel Lozano");
+});
+
 it("names the affected Officer in a warning entry", () => {
   const result = presentAuditEntry({
     action: "warning.created",

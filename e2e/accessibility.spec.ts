@@ -15,7 +15,7 @@ async function expectNoAxeViolations(page: Page) {
 async function signInAsAdmin(page: Page) {
   await page.goto("/login");
   await page.getByRole("button", { name: "Admin", exact: true }).click();
-  await expect(page).toHaveURL("http://127.0.0.1:3100/");
+  await expect(page).toHaveURL((url) => url.pathname === "/");
 }
 
 test("local login has no detectable accessibility violations", async ({
@@ -52,6 +52,35 @@ test("new Task form has no detectable accessibility violations", async ({
   await page.goto("/tasks/new");
   await expect(page.getByRole("heading", { name: "New task" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Create task" })).toBeVisible();
+  await expectNoAxeViolations(page);
+});
+
+test("Task detail completion controls are labeled, keyboard operable, and responsive", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+  await page.goto("/tasks/-8002");
+  await expect(
+    page.getByRole("heading", { name: "Write LinkedIn recap" }),
+  ).toBeVisible();
+  const completion = page.getByRole("checkbox", {
+    name: "Completed for Local President",
+    exact: true,
+  });
+  await expect(completion).toBeVisible();
+  await expect(completion).toBeChecked();
+  await completion.focus();
+  await page.keyboard.press("Space");
+  await expect(completion).not.toBeChecked();
+  await page.keyboard.press("Space");
+  await expect(completion).toBeChecked();
+  await expectNoAxeViolations(page);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(
+    page.getByRole("region", { name: "Task details" }),
+  ).toBeVisible();
+  await expect(page.getByRole("region", { name: "Officers" })).toBeVisible();
   await expectNoAxeViolations(page);
 });
 

@@ -198,21 +198,28 @@ values
 
 insert into public.tasks (id,title,description,task_type,branch_id,due_date,points,approval_required,created_by)
 values
-  (-8001,'Make intro flyer','Prepare a flyer for the next intro workshop.','Flyer',(select id from public.branches where name='intro'),current_date+7,5,false,-1005),
-  (-8002,'Write LinkedIn recap','Draft a recap for the club page.','LinkedIn',(select id from public.branches where name='general'),current_date+8,4,true,-1002),
-  (-8003,'Update ICPC roster','Update the practice roster.','Airtable',(select id from public.branches where name='icpc'),current_date+3,3,false,-1006),
-  (-8004,'Post social story','Create a story for the mixer.','Story',(select id from public.branches where name='social'),current_date+2,2,true,-1007),
-  (-8005,'Publish workshop post','Prepare a post about the workshop.','Post',(select id from public.branches where name='intro'),current_date-2,6,false,-1005),
-  (-8006,'Prepare outreach flyer','Design a flyer for outreach tabling.','Flyer',(select id from public.branches where name='outreach'),current_date+5,5,true,-1008);
+  (-8001,'Make intro flyer','Prepare a flyer for the next intro workshop.','Flyer',(select id from public.branches where name='intro'),(now() at time zone 'America/Denver')::date+7,5,false,-1005),
+  (-8002,'Write LinkedIn recap','Draft a recap for the club page.','LinkedIn',(select id from public.branches where name='general'),(now() at time zone 'America/Denver')::date+8,4,false,-1002),
+  (-8003,'Update ICPC roster','Update the practice roster.','Airtable',(select id from public.branches where name='icpc'),(now() at time zone 'America/Denver')::date+3,3,false,-1006),
+  (-8004,'Post social story','Create a story for the mixer.','Story',(select id from public.branches where name='social'),(now() at time zone 'America/Denver')::date+2,2,false,-1007),
+  (-8005,'Publish workshop post','Prepare a post about the workshop.','Post',(select id from public.branches where name='intro'),(now() at time zone 'America/Denver')::date-2,6,false,-1005),
+  (-8006,'Prepare outreach flyer','Design a flyer for outreach tabling.','Flyer',(select id from public.branches where name='outreach'),(now() at time zone 'America/Denver')::date+5,5,false,-1008),
+  (-8007,'Past outreach checklist','Review the completed outreach checklist.','Airtable',(select id from public.branches where name='outreach'),(now() at time zone 'America/Denver')::date-4,4,false,-1008);
 insert into public.task_assignments(task_id,officer_id,assigned_by,completed_at,approved_at,approved_by)
 values
   (-8003,-1016,-1006,null,null,null),
+  (-8002,-1002,-1002,now()-interval '1 day',null,null),
   (-8004,-1017,-1007,now()-interval '1 day',null,null),
   (-8005,-1013,-1013,now()-interval '2 days',null,null),
-  (-8006,-1019,-1008,now()-interval '1 day',now(),-1008);
-insert into public.point_transactions(officer_id,task_id,points,reason,award_type)
+  (-8007,-1023,-1008,now()-interval '3 days',null,null);
+insert into public.task_officer_assignments
+  (task_id,officer_id,assigned_by,completed_at)
 values
-  (-1013,-8005,6,'Task completion: Publish workshop post','task'),
-  (-1019,-8006,5,'Task completion: Prepare outreach flyer','task');
+  (-8002,-1003,-1002,null),
+  (-8007,-1022,-1008,null);
+insert into public.point_transactions(officer_id,task_id,points,reason,award_type,created_by_officer_id)
+values
+  (-1013,-8005,6,'Task completion: Publish workshop post','task',-1005),
+  (-1023,-8007,4,'Task completion: Past outreach checklist','task',-1008);
 
 commit;

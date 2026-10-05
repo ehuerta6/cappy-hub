@@ -17,8 +17,8 @@ export function TaskRemoveForm({
   requestKey,
 }: {
   taskId: number;
-  series: RecurrenceSeries;
-  requestKey: string;
+  series?: RecurrenceSeries;
+  requestKey?: string;
 }) {
   const [state, action, pending] = useActionState(
     removeTask,
@@ -26,27 +26,37 @@ export function TaskRemoveForm({
   );
   return (
     <form action={action}>
-      <RecurrenceScope
-        series={series}
-        requestKey={requestKey}
-        recordType="Task"
-      />
+      {series && requestKey && (
+        <RecurrenceScope
+          series={series}
+          requestKey={requestKey}
+          recordType="Task"
+        />
+      )}
       <input type="hidden" name="task_id" value={taskId} />
       <ActionFeedback state={state} />
       <ConfirmationDialog
         title="Remove Task?"
-        description="This removes the Task in the selected scope according to current recurring-series rules. Protected completion and award history remains governed by existing workflow rules."
+        description={
+          series
+            ? "This removes the Task in the selected scope according to current recurring-series rules. Protected completion and award history remains in place."
+            : "This removes the Task from routine browsing. Protected completion and Point history cannot be removed."
+        }
         triggerLabel={pending ? "Removing…" : "Remove task"}
         confirmLabel="Remove Task"
         destructive
         pending={pending}
         triggerClassName="button-secondary"
-        context={{
-          label: "Scope",
-          fieldName: "scope",
-          values: recurrenceScopeLabels,
-          defaultValue: "occurrence",
-        }}
+        context={
+          series
+            ? {
+                label: "Scope",
+                fieldName: "scope",
+                values: recurrenceScopeLabels,
+                defaultValue: "occurrence",
+              }
+            : undefined
+        }
       />
     </form>
   );

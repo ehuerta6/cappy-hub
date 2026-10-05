@@ -10,7 +10,7 @@ import ContextualBackLink from "@/components/contextual-back-link";
 import { PageHeader } from "@/components/ui";
 import TaskCreateForm from "../../task-create-form";
 
-export default async function EditRecurringTaskPage({
+export default async function EditTaskPage({
   params,
   searchParams,
 }: {
@@ -27,34 +27,30 @@ export default async function EditRecurringTaskPage({
     .select("*")
     .eq("id", Number(id))
     .single();
-  if (
-    task.error ||
-    !task.data ||
-    task.data.removed_at ||
-    task.data.recurrence_series_id === null
-  )
-    notFound();
+  if (task.error || !task.data || task.data.removed_at) notFound();
   if (!canManageEvent(actor, [task.data.branch_id])) redirect("/access-denied");
   const [series, branches] = await Promise.all([
-    supabase
-      .from("task_series")
-      .select("id,revision,recurrence_rule,starts_on")
-      .eq("id", task.data.recurrence_series_id)
-      .single(),
+    task.data.recurrence_series_id === null
+      ? Promise.resolve({ data: null, error: null })
+      : supabase
+          .from("task_series")
+          .select("id,revision,recurrence_rule,starts_on")
+          .eq("id", task.data.recurrence_series_id)
+          .single(),
     supabase.from("branches").select("id,name").order("name"),
   ]);
   if (series.error || branches.error)
-    throw new Error("Failed to load recurring task form");
+    throw new Error("Failed to load Task edit form");
   return (
     <div className="space-y-6">
       <ContextualBackLink href={withReturnTo(`/tasks/${id}`, returnTo)}>
         Back to task
       </ContextualBackLink>
-      <PageHeader title="Edit recurring task" />
+      <PageHeader title={series.data ? "Edit recurring task" : "Edit task"} />
       <TaskCreateForm
         returnTo={returnTo}
         task={task.data}
-        series={series.data}
+        series={series.data ?? undefined}
         branches={branches.data}
         recurrenceRequestKey={crypto.randomUUID()}
       />

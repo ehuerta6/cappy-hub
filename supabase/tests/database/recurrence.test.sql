@@ -122,8 +122,12 @@ select is(create_recurring_task(
   'retrying Task materialization returns its original first occurrence');
 select is((select count(*) from tasks where recurrence_key between '2099-09-21' and '2099-09-28'),3::bigint,
   'recurring Task creation materializes independent date-only Tasks');
+reset role;
+update tasks set due_date=(pg_catalog.statement_timestamp() at time zone 'America/Denver')::date-1
+  where recurrence_key='2099-09-21';
 select is((select count(distinct recurrence_series_id) from tasks where recurrence_key between '2099-09-21' and '2099-09-28'),1::bigint,
   'Task occurrences share only their series metadata');
+set local role authenticated;
 select lives_ok($$select assign_task((select id from tasks where recurrence_key='2099-09-21'),-982)$$,
   'one Task occurrence can be assigned independently');
 select is((select count(*) from task_assignments a join tasks t on t.id=a.task_id
@@ -138,7 +142,7 @@ select is((select count(*) from point_transactions p join tasks t on t.id=p.task
   'Task completion awards points to the completed occurrence');
 insert into point_transactions(officer_id,task_id,points,reason,award_type)
   values(-982,(select id from tasks where recurrence_key='2099-09-21'),2.5,'Duplicate test','task')
-  on conflict(task_id) where award_type='task' do nothing;
+  on conflict(task_id,officer_id) where award_type='task' do nothing;
 select is((select count(*) from point_transactions p join tasks t on t.id=p.task_id
   where t.recurrence_key='2099-09-21' and p.award_type='task'),1::bigint,
   'Task point award uniqueness prevents duplicate occurrence points');
@@ -185,12 +189,11 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000981'
 set local role authenticated;
 select set_config('test.standalone_task_id',save_task('Standalone test','Must not be removable',
   'Post',(select id from branches where name='intro'),'2099-10-01',1,false)::text,true);
-select throws_ok($$select remove_task(current_setting('test.standalone_task_id')::bigint)$$,
-  'P0001','Only recurring Task occurrences can be removed',
-  'remove_task rejects standalone Tasks at the trusted database boundary');
+select lives_ok($$select remove_task(current_setting('test.standalone_task_id')::bigint)$$,
+  'remove_task allows eligible standalone Tasks at the trusted database boundary');
 reset role;
-select is((select removed_at from tasks where id=current_setting('test.standalone_task_id')::bigint),
-  null::timestamptz,'rejected standalone removal leaves the Task active');
+select isnt((select removed_at from tasks where id=current_setting('test.standalone_task_id')::bigint),
+  null::timestamptz,'standalone removal preserves the Task with a removal timestamp');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000982',true);
 set local role authenticated;

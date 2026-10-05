@@ -4,13 +4,20 @@ const eventTitle = "E2E Event - Core Workflow";
 const initialEventDescription =
   "Event created through the browser smoke suite.";
 const updatedEventDescription = "Updated through the rendered Event form.";
-const taskTitle = "E2E Task - Approval Workflow";
-const taskDescription = "Task completed and approved through the browser UI.";
+const taskTitle = "E2E Task - Officer Completion";
+const taskDescription =
+  "Task completion controlled by a manager in the browser UI.";
 
 async function signInLocally(page: Page, account: string) {
   await page.goto("/login");
   await expect(page.getByRole("heading", { name: "Cappy Hub" })).toBeVisible();
   await page.getByRole("button", { name: account, exact: true }).click();
+}
+
+async function expectPath(page: Page, pathname: string) {
+  await expect(page).toHaveURL(
+    (url) => url.pathname === pathname && url.search === "",
+  );
 }
 
 function futureDenverDate(daysAhead: number) {
@@ -28,6 +35,10 @@ function futureDenverDate(daysAhead: number) {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+function pastDenverDate(daysAgo: number) {
+  return futureDenverDate(-daysAgo);
+}
+
 test("protected access reaches local login and an active officer reaches Dashboard", async ({
   page,
 }) => {
@@ -37,7 +48,7 @@ test("protected access reaches local login and an active officer reaches Dashboa
 
   await page.getByRole("button", { name: "Admin", exact: true }).click();
 
-  await expect(page).toHaveURL("http://127.0.0.1:3100/");
+  await expectPath(page, "/");
   await expect(
     page.getByRole("heading", { name: "Dashboard", exact: true }),
   ).toBeVisible();
@@ -58,7 +69,7 @@ test("inactive local officer cannot enter the protected app", async ({
 }) => {
   await signInLocally(page, "Inactive Officer");
 
-  await expect(page).toHaveURL("http://127.0.0.1:3100/access-denied");
+  await expectPath(page, "/access-denied");
   await expect(
     page.getByRole("heading", { name: "Access denied", exact: true }),
   ).toBeVisible();
@@ -68,7 +79,7 @@ test("manager creates and updates an Event, adds an attendee, and confirms cance
   page,
 }) => {
   await signInLocally(page, "Admin");
-  await expect(page).toHaveURL("http://127.0.0.1:3100/");
+  await expectPath(page, "/");
 
   await page.getByRole("link", { name: "Events", exact: true }).click();
   await page.getByRole("link", { name: /New event/i }).click();
@@ -173,7 +184,7 @@ test("manager creates and updates an Event, adds an attendee, and confirms cance
   ).toHaveValue(eventTitle);
 });
 
-test("officer completes an assigned Task and a different manager approves its Point award", async ({
+test("manager adds multiple Officers and controls independent Task completion and points", async ({
   browser,
 }) => {
   const managerContext = await browser.newContext({
@@ -187,7 +198,7 @@ test("officer completes an assigned Task and a different manager approves its Po
 
   try {
     await signInLocally(managerPage, "Admin");
-    await expect(managerPage).toHaveURL("http://127.0.0.1:3100/");
+    await expectPath(managerPage, "/");
     await managerPage.getByRole("link", { name: "Tasks", exact: true }).click();
     await managerPage.getByRole("link", { name: /New task/i }).click();
 
@@ -195,13 +206,10 @@ test("officer completes an assigned Task and a different manager approves its Po
     await managerPage.getByLabel("Description").fill(taskDescription);
     await managerPage.getByLabel("Type").selectOption({ label: "Post" });
     await managerPage.getByLabel("Branch").selectOption({ label: "general" });
-    await managerPage.getByLabel("Due date").fill(futureDenverDate(90));
+    await managerPage.getByLabel("Due date").fill(pastDenverDate(2));
     await managerPage
       .getByRole("spinbutton", { name: "Points", exact: true })
       .fill("7");
-    await managerPage
-      .getByLabel("Require lead approval before points are awarded")
-      .check();
     await managerPage
       .getByRole("button", { name: "Create task", exact: true })
       .click();
@@ -215,23 +223,49 @@ test("officer completes an assigned Task and a different manager approves its Po
     await expect(
       managerPage.getByRole("heading", { name: taskTitle, exact: true }),
     ).toBeVisible();
-    await expect(managerPage.getByText("Open", { exact: true })).toBeVisible();
+    await expect(
+      managerPage
+        .getByRole("region", { name: "Task details" })
+        .getByText("Open"),
+    ).toBeVisible();
 
-    await managerPage
-      .getByRole("combobox", { name: "Assign officer" })
-      .selectOption({ label: "Local Officer" });
-    await managerPage
-      .getByRole("button", { name: "Assign", exact: true })
+    const officerSection = managerPage.getByRole("region", {
+      name: "Officers",
+    });
+    await officerSection
+      .getByRole("checkbox", { name: "Local Officer", exact: true })
+      .check();
+    await officerSection
+      .getByRole("checkbox", { name: "Avery Chen", exact: true })
+      .check();
+    await officerSection
+      .getByRole("button", { name: "Add selected officers", exact: true })
       .click();
     await expect(
-      managerPage.getByText("Assignee: Local Officer"),
+      officerSection.getByText("2 officers added", { exact: true }),
     ).toBeVisible();
-    await expect(
-      managerPage.getByText("Assigned", { exact: true }),
-    ).toBeVisible();
+    const localOfficerRow = officerSection
+      .getByRole("row")
+      .filter({ hasText: "Local Officer" });
+    const averyRow = officerSection
+      .getByRole("row")
+      .filter({ hasText: "Avery Chen" });
+    await expect(localOfficerRow).toContainText("Not completed");
+    await expect(averyRow).toContainText("Not completed");
+    await localOfficerRow
+      .getByRole("checkbox", {
+        name: "Completed for Local Officer",
+        exact: true,
+      })
+      .check();
+    await localOfficerRow
+      .getByRole("button", { name: "Save", exact: true })
+      .click();
+    await expect(localOfficerRow).toContainText("Marked completed");
+    await expect(averyRow).toContainText("Not completed");
 
     await signInLocally(officerPage, "Officer");
-    await expect(officerPage).toHaveURL("http://127.0.0.1:3100/");
+    await expectPath(officerPage, "/");
     await officerPage.getByRole("link", { name: "Tasks", exact: true }).click();
     const taskFilters = officerPage.getByRole("search", {
       name: "Task filters",
@@ -245,23 +279,20 @@ test("officer completes an assigned Task and a different manager approves its Po
     await officerPage
       .getByRole("link", { name: taskTitle, exact: true })
       .click();
-    await officerPage
-      .getByRole("button", { name: "Mark complete", exact: true })
-      .click();
     await expect(
-      officerPage.getByRole("button", { name: "Mark complete", exact: true }),
-    ).not.toBeVisible();
-
-    await managerPage.reload();
+      officerPage.getByRole("region", { name: "Officers" }),
+    ).toContainText("Your assignment: Completed");
     await expect(
-      managerPage.getByRole("button", { name: "Approve", exact: true }),
-    ).toBeVisible();
-    await managerPage
-      .getByRole("button", { name: "Approve", exact: true })
-      .click();
+      officerPage.getByLabel("Completed for Local Officer"),
+    ).toHaveCount(0);
+    await expect(officerPage.getByText("Awaiting approval")).toHaveCount(0);
     await expect(
-      managerPage.getByRole("button", { name: "Approve", exact: true }),
-    ).not.toBeVisible();
+      officerPage.getByRole("button", { name: "Approve" }),
+    ).toHaveCount(0);
+    await expect(
+      officerPage.getByRole("button", { name: "Mark complete" }),
+    ).toHaveCount(0);
+    await expect(averyRow).toContainText("Not completed");
 
     await managerPage
       .getByRole("link", { name: "Points", exact: true })

@@ -67,6 +67,8 @@ const knownActions: Record<string, string> = {
   "points.participation_created": "Awarded event participation points",
   "points.participation_removed": "Removed event participation points",
   "points.task_created": "Awarded task points",
+  "points.task_reactivated": "Reactivated task points",
+  "points.task_removed": "Removed task points",
   "points.transaction_removed": "Removed a points transaction",
   "points.transaction_updated": "Updated a points transaction",
   "position.created": "Created a position",
@@ -76,6 +78,9 @@ const knownActions: Record<string, string> = {
   "task.assigned": "Assigned an officer to a task",
   "task.completed": "Marked a task complete",
   "task.created": "Created a task",
+  "task.completion_changed": "Changed task completion",
+  "task.officer_added": "Added an officer to a task",
+  "task.officer_removed": "Removed an officer from a task",
   "task.removed": "Removed a task",
   "task.series_created": "Created a task series",
   "task.series_cancel": "Cancelled tasks in a series",
@@ -137,6 +142,8 @@ const pointActionVerbs: Record<string, string> = {
   "points.participation_created": "Awarded participation points",
   "points.participation_removed": "Removed participation points",
   "points.task_created": "Awarded task points",
+  "points.task_reactivated": "Reactivated task points",
+  "points.task_removed": "Removed task points",
   "points.transaction_removed": "Removed a points transaction",
   "points.transaction_updated": "Updated a points transaction",
 };
@@ -197,6 +204,8 @@ function formatValue(value: unknown, field?: string) {
       const date = new Date(value);
       if (!Number.isNaN(date.getTime())) return formatDateTime(value);
     }
+    if (field === "status" && value.toLowerCase() === "not completed")
+      return "Not completed";
     if (field === "application_role" || field === "status")
       return formatLabel(value);
     return value;
@@ -302,6 +311,14 @@ function sentenceFor(
     }
     case "task.assigned":
       return `Assigned ${personName} to ${recordName}`;
+    case "task.officer_added":
+      return `Added ${personName} to ${recordName}`;
+    case "task.officer_removed":
+      return `Removed ${personName} from ${recordName}`;
+    case "task.completion_changed":
+      return readString(asObject(detail?.after), ["status"]) === "Completed"
+        ? `Marked ${personName}'s assignment complete for ${recordName}`
+        : `Marked ${personName}'s assignment not completed for ${recordName}`;
     case "task.completed":
       return `${personName} completed ${recordName}`;
     case "task.approved":
@@ -313,6 +330,8 @@ function sentenceFor(
     case "points.participation_created":
     case "points.participation_removed":
     case "points.task_created":
+    case "points.task_reactivated":
+    case "points.task_removed":
     case "points.transaction_removed":
     case "points.transaction_updated": {
       const points =
@@ -491,6 +510,12 @@ export function presentAuditEntry(
     detailSummary = `Removed ${officerName ?? "Officer"}`;
   else if (entry.action === "task.assigned")
     detailSummary = `Assigned to ${officerName ?? "Officer"}`;
+  else if (entry.action === "task.officer_added")
+    detailSummary = `Added ${officerName ?? "Officer"}`;
+  else if (entry.action === "task.officer_removed")
+    detailSummary = `Removed ${officerName ?? "Officer"}`;
+  else if (entry.action === "task.completion_changed")
+    detailSummary = `${readString(asObject(details?.after), ["status"]) ?? "Updated"} for ${officerName ?? "Officer"}`;
   else if (entry.action === "task.completed")
     detailSummary = `Completed by ${officerName ?? "Officer"}`;
   else if (entry.action === "task.approved")

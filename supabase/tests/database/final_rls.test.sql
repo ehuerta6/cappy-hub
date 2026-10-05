@@ -48,6 +48,7 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
 -- One reviewed allowlist catches newly exposed RPCs without a brittle count.
 -- Required entry points are checked separately; private processing stays closed.
 select ok(not has_function_privilege('authenticated','private.process_finished_events()','EXECUTE')
+  and not has_function_privilege('authenticated','private.process_due_tasks()','EXECUTE')
   and has_function_privilege('authenticated','public.claim_current_officer_identity()','EXECUTE')
   and has_function_privilege('authenticated','public.save_event_with_links(text,text,bigint,text,date,timestamptz,timestamptz,bigint[],bigint,text,text)','EXECUTE')
   and has_function_privilege('authenticated','public.create_event_location(text)','EXECUTE')
@@ -56,6 +57,16 @@ select ok(not has_function_privilege('authenticated','private.process_finished_e
   and has_function_privilege('authenticated','public.change_event_signup(bigint,bigint,boolean)','EXECUTE')
   and has_function_privilege('authenticated','public.bulk_add_event_officers(bigint,bigint[])','EXECUTE'),
   'essential checked RPCs remain callable and private processing stays closed');
+select ok(has_function_privilege('authenticated','public.self_assign_task(bigint)','EXECUTE')
+  and has_function_privilege('authenticated','public.bulk_assign_task_officers(bigint,bigint[])','EXECUTE')
+  and has_function_privilege('authenticated','public.set_task_assignment_completion(bigint,bigint,boolean)','EXECUTE')
+  and has_function_privilege('authenticated','public.remove_task_assignment(bigint,bigint)','EXECUTE')
+  and has_function_privilege('authenticated','public.update_task_details(bigint,text,text,text,bigint,date,numeric)','EXECUTE')
+  and has_table_privilege('authenticated','public.task_officer_assignments','SELECT')
+  and not has_any_column_privilege('authenticated','public.task_officer_assignments','INSERT')
+  and not has_any_column_privilege('authenticated','public.task_officer_assignments','UPDATE')
+  and not has_table_privilege('authenticated','public.task_officer_assignments','DELETE'),
+  'new Task read access and trusted mutation RPCs are granted without raw writes');
 select ok(not exists(select 1 from pg_catalog.pg_proc p
   join pg_catalog.pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and has_function_privilege('authenticated',p.oid,'EXECUTE')
@@ -96,6 +107,11 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       ,'public.remove_task(bigint)'::regprocedure
       ,'public.mutate_recurring_event(bigint,text,text,uuid,bigint,integer,jsonb,text,date[])'::regprocedure
       ,'public.mutate_recurring_task(bigint,text,text,uuid,bigint,integer,jsonb,text,date[])'::regprocedure
+      ,'public.self_assign_task(bigint)'::regprocedure
+      ,'public.bulk_assign_task_officers(bigint,bigint[])'::regprocedure
+      ,'public.set_task_assignment_completion(bigint,bigint,boolean)'::regprocedure
+      ,'public.remove_task_assignment(bigint,bigint)'::regprocedure
+      ,'public.update_task_details(bigint,text,text,text,bigint,date,numeric)'::regprocedure
       ,'public.create_event_location(text)'::regprocedure
       ,'public.rename_event_location(bigint,text)'::regprocedure
       ,'public.delete_event_location(bigint)'::regprocedure
