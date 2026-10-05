@@ -46,7 +46,7 @@ Task assignment cardinality is an example of an expand-and-transition rollout. P
 
 #### Issue #135 Task RPC contract
 
-The production rollout check for PR #132 confirmed that `/login` served the expected Cappy Hub application at its deployed commit before the #135 contract migration was prepared. The legacy completion and approval RPCs remain defined for historical compatibility, but clients cannot execute either public RPC or the private implementation/award helpers. The new manager-controlled completion RPC owns current completion updates; assignment and approval history stays readable, and existing Task point history remains available.
+A direct read-only production check confirmed that `/login` returned the expected Cappy Hub login surface and revision header for main commit `07ed1d1413af6aa97c72b58f289d31cabbcd37cf` before the #135 contract migration was prepared. The legacy completion and approval RPCs remain defined for historical compatibility, but clients cannot execute either public RPC or the private implementation/award helpers. The new manager-controlled completion RPC owns current completion updates; assignment and approval history stays readable, and existing Task point history remains available.
 
 New migration files are checked by `scripts/check-destructive-migrations.mjs` for potentially rollout-incompatible operations. It considers only `.sql` migrations added relative to the CI base: the PR base SHA for pull requests, or the previous commit on pushes to `main` and `mvp`. Existing migrations are not re-scanned. The separate migration immutability check continues to reject edits, deletions, or renames of files already present in the base.
 
