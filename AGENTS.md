@@ -2,28 +2,75 @@
 
 ## Project and sources
 
-- Coding Interview Club (CIC) operates Cappy Hub, its internal administrative application. Officers, Events, and Points are core product areas; the Dashboard summarizes their data. Keep the application understandable for future CIC officers.
-- For product behavior, follow the current Product & Technical Specification when it is available. Then use the active GitHub Issue for change scope, existing implementation and patterns for integration, and `README.md` for development and contribution workflow. If these sources are silent or conflict, investigate or ask; do not invent requirements.
-- Read the surrounding code before editing. Confirm that a proposed feature serves Officers, Events, Points, Dashboard summaries, or an explicit documented workflow.
+- Coding Interview Club (CIC) operates Cappy Hub, its internal administrative application.
+- Officers, Events, and Points are core product domains. The Dashboard summarizes product data rather than becoming an independent system. Other workflows belong only when already established by the Product & Technical Specification or explicitly approved.
+- The current Cappy Hub Product & Technical Specification is the primary source of truth for product behavior, terminology, scope, and technical decisions.
+- After that, use the user's newest explicit decision, approved feature specifications, the active GitHub Issue and accepted clarifications, repository documentation and migrations, then existing code as evidence of current implementation.
+- Existing code does not automatically redefine intended product behavior.
+- When authoritative sources materially conflict, surface the conflict instead of silently inventing or choosing a requirement.
+- Read surrounding implementation before editing.
 
 ## Implementation
 
-- Prefer the simplest correct change. Keep work focused on the issue; avoid speculative features, unrelated refactors, new architecture, and dependencies without a concrete need.
-- Reuse established patterns and write readable code. Update meaningful tests when behavior changes.
-- The stack is Next.js, React, TypeScript, Supabase/PostgreSQL, Tailwind CSS, and Vitest. Refer to the code and `README.md` for details rather than assuming framework defaults.
+- The active GitHub Issue is the implementation scope boundary.
+- Prefer the smallest correct change that satisfies the documented requirement.
+- Reuse established project patterns before introducing new abstractions.
+- Avoid speculative features, unrelated refactors, unnecessary infrastructure, architecture changes, and dependencies without a concrete need.
+- Update meaningful tests when behavior changes.
+- Do not silently include additional work discovered while implementing an Issue. Surface it separately.
+- The frontend uses Next.js, React, TypeScript, and Tailwind CSS. The backend uses Supabase/PostgreSQL.
+- Inspect the repository and `package.json` before assuming framework versions, APIs, dependencies, scripts, or conventions.
+- For UI work, `docs/design.md` is the authority for visual and interaction direction. Product requirements and permissions always outrank design recommendations.
 
 ## Database and security
 
-- Make schema changes in reproducible `supabase/migrations/` files. Use keys, nullability, uniqueness, and constraints for important data integrity.
-- Respect Row Level Security and enforce permissions in trusted database or server paths. Do not weaken authorization to make a feature work or rely only on hidden UI controls.
-- Never expose Supabase service-role credentials to browser code. Never use production data for development or tests; keep `supabase/seed.sql` synthetic and out of production.
-- Rebuild locally and regenerate/check database types when schema changes require it. Follow the database commands in `README.md` and `package.json`.
-- Use `local-database-workflow` whenever running the full test suite containing pgTAP, using local Supabase, switching between database-test and seeded-development states, or diagnosing local database connection/state failures. Never run full `npm test` against an arbitrary local database state.
+- `supabase/migrations/` is the source of truth for database schema and reproducible database behavior.
+- `supabase/seed.sql` contains synthetic local development and test data only.
+- Use PostgreSQL keys, nullability, uniqueness, checks, foreign keys, and other appropriate constraints for invariants that must hold regardless of client behavior.
+- Keep Row Level Security enabled where required.
+- Enforce sensitive authorization at a trusted database or server boundary. Do not rely only on hidden or disabled UI controls.
+- Never expose Supabase service-role or other privileged credentials to browser code.
+- Never use production data for development or testing.
+- Never copy synthetic local data into production or deploy `supabase/seed.sql` to production.
+- Schema changes must be reproducible through migrations. Manual Supabase Dashboard or SQL editor changes are not the project source of truth.
+- Regenerate and check database types when schema changes require it.
+- Use `database-change` for schema, migrations, constraints, RLS, database functions, authorization, generated database types, or other persistent database behavior.
+- Use `local-database-workflow` for local Supabase state, pgTAP, database-backed test state, seeded development state, database connection failures, and transitions between those states.
+- Never run the full database-backed test suite against arbitrary local database state.
+
+## Workflow skills
+
+Reusable project workflows live in `.ai/skills/`.
+
+When a workflow applies, read its `SKILL.md` before performing that workflow.
+
+- unresolved product or technical decisions → `.ai/skills/grill-me/SKILL.md`
+- resolved decisions needing a durable feature specification → `.ai/skills/to-spec/SKILL.md`
+- approved work needing GitHub Issues → `.ai/skills/to-issues/SKILL.md`
+- implementing one approved Issue → `.ai/skills/implement-issue/SKILL.md`
+- substantial debugging → `.ai/skills/debug-with-evidence/SKILL.md`
+- schema, migrations, constraints, RLS, database functions, authorization, or generated database types → `.ai/skills/database-change/SKILL.md`
+- local Supabase or database-test state → `.ai/skills/local-database-workflow/SKILL.md`
+- final implementation validation → `.ai/skills/verify-change/SKILL.md`
+- independent implementation or Pull Request review → `.ai/skills/review-pr/SKILL.md`
+- UI/UX shaping, critique, audit, hardening, or polish → `.ai/skills/impeccable/SKILL.md`
+- continuing unfinished work in another chat, agent, or session → `.ai/skills/handoff/SKILL.md`
+
+Do not force a workflow onto a simple task.
+
+Project-specific requirements, repository documentation, and explicit user decisions override generic workflow defaults.
 
 ## Delivery
 
-- Do not develop directly on `main`. Follow the branch, Conventional Commit, validation, and PR conventions in `README.md`; keep PRs focused.
-- Use the applicable workflow skill when a task needs detailed steps: `implement-issue`, `database-change`, `local-database-workflow`, `verify-change`, or `review-pr`. Their bodies are loaded only when needed.
+- Do not develop directly on `main`.
+- Follow the repository's current development, Git, Pull Request, validation, and database documentation instead of duplicating those procedures here.
+- Keep each Issue, branch, and Pull Request focused on one logical change.
+- Use the repository's established commit and Pull Request conventions.
+- Link implementation Pull Requests to their Issue when applicable.
+- Do not claim a test, lint, typecheck, build, database check, browser check, or other validation passed unless it actually ran successfully.
+- Before considering meaningful implementation complete, verify the requested behavior, run the applicable repository checks, and inspect the final diff for unintended changes.
+- Do not merge unless explicitly authorized.
+- Keep the application and its documentation understandable for future CIC officers.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
