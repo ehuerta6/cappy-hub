@@ -461,8 +461,10 @@ it("groups current Tasks by Denver week before splitting multi-Officer assignmen
     expect(query.calls[0][1]).toContain("task_officer_assignments(");
     expect(html).toContain("This week&#x27;s tasks");
     expect(html).toContain("Upcoming tasks");
-    expect(html).toContain('aria-label="Your tasks"');
-    expect(html).toContain('aria-label="Other tasks"');
+    expect(html).toContain('aria-label="This week&#x27;s tasks: Your tasks"');
+    expect(html).toContain('aria-label="This week&#x27;s tasks: Other tasks"');
+    expect(html).toContain('aria-label="Upcoming tasks: Your tasks"');
+    expect(html).toContain('aria-label="Upcoming tasks: Other tasks"');
     expect(html.indexOf("Today&#x27;s work")).toBeLessThan(
       html.indexOf("Sunday deadline"),
     );
@@ -798,8 +800,8 @@ it("shows Task-specific details and self-assignment only in Other tasks", async 
   expect(html).toContain("Oct 8, 2099");
   expect(html).not.toContain("2099-10-08");
   expect(html).not.toContain("Select officer");
-  expect(html).toContain('aria-label="Your tasks"');
-  expect(html).toContain('aria-label="Other tasks"');
+  expect(html).toContain('aria-label="Upcoming tasks: Your tasks"');
+  expect(html).toContain('aria-label="Upcoming tasks: Other tasks"');
 });
 
 it("preserves the full System Log row and provides a keyboard-scroll region", async () => {
