@@ -73,9 +73,9 @@ Think of the result as a dependency graph:
 Parent spec
 ├── Issue A
 ├── Issue B
-│   └── Issue D
+│ └── Issue D
 └── Issue C
-    └── Issue E
+└── Issue E
 
 An issue is ready when all of its blockers are complete.
 
