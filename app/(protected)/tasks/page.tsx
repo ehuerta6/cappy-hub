@@ -134,7 +134,6 @@ export default async function TasksPage({
       aria-label={`${sectionTitle}: ${title}`}
       className="space-y-3"
     >
-      {" "}
       <h3 className="font-semibold text-foreground">{title}</h3>
       {groupTasks.length === 0 ? (
         <p>No tasks in this group.</p>
@@ -236,12 +235,7 @@ export default async function TasksPage({
       <section aria-label={title} className="space-y-4">
         <SectionHeading title={title} />
         {renderGroup(title, "Your tasks", groups.yourTasks, false)}
-        {renderGroup(
-          title,
-          "Other tasks",
-          groups.otherTasks,
-          allowSelfAssign,
-        )}{" "}
+        {renderGroup(title, "Other tasks", groups.otherTasks, allowSelfAssign)}
       </section>
     );
   };
