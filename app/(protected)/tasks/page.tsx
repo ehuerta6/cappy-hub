@@ -124,11 +124,17 @@ export default async function TasksPage({
   );
 
   const renderGroup = (
+    sectionTitle: string,
     title: string,
     groupTasks: typeof tasks,
     allowSelfAssign: boolean,
   ) => (
-    <section key={title} aria-label={title} className="space-y-3">
+    <section
+      key={title}
+      aria-label={`${sectionTitle}: ${title}`}
+      className="space-y-3"
+    >
+      {" "}
       <h3 className="font-semibold text-foreground">{title}</h3>
       {groupTasks.length === 0 ? (
         <p>No tasks in this group.</p>
@@ -229,8 +235,13 @@ export default async function TasksPage({
     return (
       <section aria-label={title} className="space-y-4">
         <SectionHeading title={title} />
-        {renderGroup("Your tasks", groups.yourTasks, false)}
-        {renderGroup("Other tasks", groups.otherTasks, allowSelfAssign)}
+        {renderGroup(title, "Your tasks", groups.yourTasks, false)}
+        {renderGroup(
+          title,
+          "Other tasks",
+          groups.otherTasks,
+          allowSelfAssign,
+        )}{" "}
       </section>
     );
   };
@@ -315,11 +326,13 @@ export default async function TasksPage({
           <section aria-label="Past tasks" className="space-y-4">
             <SectionHeading title="Past tasks" />
             {renderGroup(
+              "Past tasks",
               "Your tasks",
               splitTasks(organizedTasks.tasks).yourTasks,
               false,
             )}
             {renderGroup(
+              "Past tasks",
               "Other tasks",
               splitTasks(organizedTasks.tasks).otherTasks,
               false,
