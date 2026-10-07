@@ -1135,11 +1135,6 @@ export type Database = {
         };
         Returns: undefined;
       };
-      approve_task: { Args: { p_task_id: number }; Returns: undefined };
-      assign_task: {
-        Args: { p_officer_id: number; p_task_id: number };
-        Returns: undefined;
-      };
       bulk_add_event_officers: {
         Args: { p_event_id: number; p_officer_ids: number[] };
         Returns: Json;
@@ -1157,7 +1152,6 @@ export type Database = {
         Args: Record<PropertyKey, never>;
         Returns: number;
       };
-      complete_task: { Args: { p_task_id: number }; Returns: undefined };
       create_branch: { Args: { p_name: string }; Returns: number };
       create_event_location: { Args: { p_name: string }; Returns: number };
       create_event_type: { Args: { p_name: string }; Returns: number };
@@ -1265,19 +1259,6 @@ export type Database = {
         Returns: undefined;
       };
       restore_event: { Args: { p_event_id: number }; Returns: undefined };
-      save_event: {
-        Args: {
-          p_branch_ids: number[];
-          p_description: string;
-          p_ends_at: string;
-          p_event_id?: number;
-          p_event_type_id: number;
-          p_location: string;
-          p_name: string;
-          p_starts_at: string;
-        };
-        Returns: number;
-      };
       save_event_with_links: {
         Args: {
           p_branch_ids: number[];

@@ -63,16 +63,13 @@ select is((select count(*) from audit_logs where action='officer.role_changed'),
 select lives_ok($$select set_officer_application_role(-502,'officer')$$,
   'admin restores the officer role for the following access tests');
 
-select lives_ok($$select save_event('Audit Created Event','Test event',(select id from event_types where name='Meeting'),'TBA',
-  '2099-09-23 09:00-06','2099-09-23 10:00-06',null)$$,
+select lives_ok($$select save_event_with_links('Audit Created Event','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-23'::date,'2099-09-23 09:00-06','2099-09-23 10:00-06',null,null,null,null)$$,
   'event creation succeeds');
-select lives_ok($$select save_event('Audit Event Edited','Test event',(select id from event_types where name='Meeting'),'TBA',
-  '2099-09-20 09:00-06','2099-09-20 10:00-06',null,-501)$$,
+select lives_ok($$select save_event_with_links('Audit Event Edited','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 09:00-06','2099-09-20 10:00-06',null,-501,null,null)$$,
   'event edit succeeds');
 select is((select details #>> '{before,name}' from audit_logs where action='event.updated'),
   'Audit Event','event edit records previous name');
-select lives_ok($$select save_event('Audit Event Edited','Test event',(select id from event_types where name='Meeting'),'TBA',
-  '2099-09-20 09:00-06','2099-09-20 10:00-06',null,-501)$$,
+select lives_ok($$select save_event_with_links('Audit Event Edited','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 09:00-06','2099-09-20 10:00-06',null,-501,null,null)$$,
   'repeating the event save succeeds');
 select is((select count(*) from audit_logs where action='event.updated'),1::bigint,
   'no-op event save does not add noise');
