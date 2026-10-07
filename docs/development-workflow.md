@@ -50,10 +50,10 @@ Do not use production data for development or testing.
 
 The active **Protect Main** GitHub ruleset should require these exact status checks:
 
-- `Quality checks` — includes the Playwright browser smoke suite.
+- `Quality checks` — formatting, lint, type checks, database tests and migration verification, seed verification, and production build.
 - `Verify Preview login` — produced by the separate **Preview runtime smoke** workflow for same-repository PRs.
 
-When either required check fails, GitHub blocks merging until it passes. Review the failed Actions run for details; a Playwright failure may also include a `playwright-results-<run id>` artifact. The active **Protect Main** ruleset currently requires both contexts. Keep those checks and its existing pull request, review, conversation-resolution, force-push, and deletion protections in place.
+When either required check fails, GitHub blocks merging until it passes. Review the failed Actions run for details. The active **Protect Main** ruleset currently requires both contexts. Keep those checks and its existing pull request, review, conversation-resolution, force-push, and deletion protections in place.
 
 ## Commit and push
 
