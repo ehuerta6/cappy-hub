@@ -175,7 +175,7 @@ export async function searchEvents(term: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("events")
-    .select("id,name")
+    .select("id,name,event_date")
     .is("deleted_at", null)
     .ilike("name", `%${literal}%`)
     .order("event_date", { ascending: false })

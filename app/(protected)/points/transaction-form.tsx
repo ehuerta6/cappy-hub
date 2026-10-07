@@ -2,6 +2,7 @@
 import { useActionState, useState } from "react";
 import type { Tables } from "@/lib/database.types";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
+import { formatEventFilterOption } from "@/lib/presentation";
 import { ActionFeedback, FieldError, FormMessage } from "@/components/ui";
 import { addTransaction, searchEvents } from "./actions";
 export default function TransactionForm({
@@ -9,7 +10,7 @@ export default function TransactionForm({
   events,
 }: {
   officers: Pick<Tables<"officers">, "id" | "name">[];
-  events: Pick<Tables<"events">, "id" | "name">[];
+  events: Pick<Tables<"events">, "id" | "name" | "event_date">[];
 }) {
   const [search, setSearch] = useState("");
   const [older, setOlder] = useState(events);
@@ -134,7 +135,7 @@ export default function TransactionForm({
           <option value="">No event</option>
           {older.map((event) => (
             <option key={event.id} value={event.id}>
-              {event.name}
+              {formatEventFilterOption(event.name, event.event_date)}
             </option>
           ))}
         </select>
