@@ -11,6 +11,7 @@ import {
 } from "@/components/recurrence-scope";
 import { createTask, editRecurringTask, editStandaloneTask } from "./actions";
 import { RecurrenceFields } from "@/components/recurrence-fields";
+import { TASK_TYPES } from "@/lib/task-types";
 
 export default function TaskCreateForm({
   returnTo,
@@ -138,7 +139,7 @@ export default function TaskCreateForm({
           <option value="" disabled>
             Select task type
           </option>
-          {["Flyer", "LinkedIn", "Airtable", "Story", "Post"].map((type) => (
+          {TASK_TYPES.map((type) => (
             <option key={type}>{type}</option>
           ))}
         </select>

@@ -4,6 +4,7 @@ import {
   safeIntegerStringSchema,
 } from "@/lib/validation";
 import { recurrenceFieldsSchema } from "@/lib/recurrence-validation";
+import { taskTypeSchema } from "@/lib/task-types";
 
 export const createTaskInputSchema = zod
   .object({
@@ -16,9 +17,7 @@ export const createTaskInputSchema = zod
         (description) => description.trim().length > 0,
         "Enter a Task description",
       ),
-    task_type: zod.enum(["Flyer", "LinkedIn", "Airtable", "Story", "Post"], {
-      error: "Select a Task type",
-    }),
+    task_type: taskTypeSchema,
     branch_id: safeIntegerStringSchema("Select a branch"),
     due_date: zod.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a due date"),
     points: finiteNumberStringSchema("Enter a positive point value").refine(
@@ -38,9 +37,7 @@ export const taskDetailsInputSchema = zod.object({
       (description) => description.trim().length > 0,
       "Enter a Task description",
     ),
-  task_type: zod.enum(["Flyer", "LinkedIn", "Airtable", "Story", "Post"], {
-    error: "Select a Task type",
-  }),
+  task_type: taskTypeSchema,
   branch_id: safeIntegerStringSchema("Select a branch"),
   due_date: zod.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a due date"),
   points: finiteNumberStringSchema("Enter a positive point value").refine(
