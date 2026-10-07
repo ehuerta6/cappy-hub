@@ -14,7 +14,7 @@ import {
   StatusBadge,
   TableFrame,
 } from "@/components/ui";
-import { formatLabel } from "@/lib/presentation";
+import { formatDateTime, formatLabel } from "@/lib/presentation";
 import { searchOrFilter } from "@/lib/list-search";
 import { officerListFiltersSchema } from "./filter-validation";
 import { WarningDecisionForm } from "./warning-forms";
@@ -184,7 +184,7 @@ export default async function OfficersPage({
               </p>
               <p className="whitespace-pre-wrap">{warning.reason}</p>
               <p className="text-sm text-muted">
-                {new Date(warning.created_at).toLocaleString()}
+                {formatDateTime(warning.created_at)}
               </p>
               <WarningDecisionForm warningId={warning.id} />
             </article>
