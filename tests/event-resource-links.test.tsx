@@ -23,8 +23,11 @@ it("renders signup sheet only when present and preserves existing resource links
   const signupOnly = renderLinks({
     signupSheetUrl: "https://example.org/signup",
   });
-  expect(signupOnly).toContain("Open signup sheet");
+  expect(signupOnly).toContain("Open external roster / signup sheet");
   expect(signupOnly).toContain('href="https://example.org/signup"');
+  expect(signupOnly).toContain(
+    "External Google Sheet resource. Cappy Hub signups, capacity, waitlist, and participation are managed separately.",
+  );
   expect(signupOnly).not.toContain("Open slides");
   expect(signupOnly).not.toContain("Open notes");
 
@@ -35,5 +38,5 @@ it("renders signup sheet only when present and preserves existing resource links
   });
   expect(all).toContain("Open slides");
   expect(all).toContain("Open notes");
-  expect(all).toContain("Open signup sheet");
+  expect(all).toContain("Open external roster / signup sheet");
 });
