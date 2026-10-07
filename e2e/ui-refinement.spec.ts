@@ -14,6 +14,58 @@ async function expectNoPageOverflow(page: Page) {
   ).toBe(true);
 }
 
+test("Cappy Hub brand mark stays decorative and compact across themes and widths", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+
+  const brand = page.getByRole("link", { name: "Cappy Hub", exact: true });
+  const logo = brand.locator("img");
+  await expect(brand).toHaveCount(1);
+  await expect(brand).toHaveAttribute("href", "/");
+  await expect(logo).toHaveAttribute("src", /favicon\.ico/);
+  await expect(logo).toHaveAttribute("alt", "");
+  await expect(logo).toHaveAttribute("aria-hidden", "true");
+  await expect(logo).toBeVisible();
+
+  const imageSize = await logo.evaluate((image: HTMLImageElement) => ({
+    width: image.getBoundingClientRect().width,
+    height: image.getBoundingClientRect().height,
+    loaded: image.complete && image.naturalWidth > 0,
+  }));
+  expect(imageSize).toEqual({ width: 26, height: 26, loaded: true });
+  await expect(
+    page.getByRole("button", { name: "Switch to light theme" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+  await expectNoPageOverflow(page);
+
+  await page.getByRole("button", { name: "Switch to light theme" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(logo).toBeVisible();
+  await expectNoPageOverflow(page);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(brand).toBeVisible();
+  await expect(logo).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Switch to dark theme" }),
+  ).toBeVisible();
+  await expectNoPageOverflow(page);
+
+  await page.getByText("Section: Dashboard", { exact: true }).click();
+  await expect(
+    page
+      .getByRole("navigation", { name: "Main navigation" })
+      .getByRole("link", { name: "Dashboard", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Switch to dark theme" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expectNoPageOverflow(page);
+});
+
 test("administrative pages remain usable across desktop and compact widths", async ({
   page,
 }) => {

@@ -11,6 +11,24 @@ vi.mock("next/navigation", () => ({
 
 import SiteNavigation from "@/components/site-navigation";
 
+it("renders the CIC mark decoratively inside the Cappy Hub home link", () => {
+  const html = renderToStaticMarkup(
+    <SiteNavigation isAdmin={false} account={<span>Officer</span>} />,
+  );
+
+  expect(html).toMatch(
+    /<a[^>]*href="\/"[^>]*><img[^>]*alt=""[^>]*aria-hidden="true"[^>]*favicon\.ico[^>]*\/><span[^>]*>Cappy Hub<\/span><\/a>/,
+  );
+  expect(
+    html.match(
+      /<a[^>]*href="\/"[^>]*><img[^>]*alt=""[^>]*aria-hidden="true"[^>]*favicon\.ico[^>]*\/><span[^>]*>Cappy Hub<\/span><\/a>/g,
+    ),
+  ).toHaveLength(1);
+  expect(html).toContain('aria-label="Switch to light theme"');
+  expect(html).toContain(">Officer</span>");
+  expect(html).toContain('aria-label="Main navigation"');
+});
+
 it("shows Calendar in the protected navigation and marks it active", () => {
   const html = renderToStaticMarkup(
     <SiteNavigation isAdmin={false} account={<span>Officer</span>} />,

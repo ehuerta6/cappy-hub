@@ -3,6 +3,7 @@
 import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Route } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import ThemeToggle from "@/components/theme-toggle";
@@ -40,9 +41,17 @@ export default function SiteNavigation({
       <div className="mx-auto grid w-full max-w-6xl grid-cols-2 items-center gap-x-3 gap-y-3 px-4 py-3 sm:px-6 max-[240px]:grid-cols-1 lg:flex lg:gap-x-4">
         <Link
           href="/"
-          className="min-w-0 break-words text-sm font-semibold tracking-tight text-foreground hover:text-foreground"
+          className="flex min-w-0 items-center gap-2 text-sm font-semibold tracking-tight text-foreground hover:text-foreground"
         >
-          Cappy Hub
+          <Image
+            src="/favicon.ico"
+            alt=""
+            aria-hidden="true"
+            width={26}
+            height={26}
+            className="size-[26px] shrink-0"
+          />
+          <span className="min-w-0 break-words">Cappy Hub</span>
         </Link>
         <details className="min-w-0 lg:hidden">
           <summary
