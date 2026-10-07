@@ -33,3 +33,11 @@ it("does not show the obsolete upcoming-only Event edit message", () => {
     "This event cannot be edited",
   );
 });
+
+it("maps duplicate primary Event awards to a clear domain message", () => {
+  expect(
+    mutationError(
+      'duplicate key value violates unique constraint "one_active_primary_event_award_per_officer"',
+    ),
+  ).toBe("This Officer already has an active award for this Event.");
+});

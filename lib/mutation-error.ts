@@ -78,5 +78,7 @@ const safeMessages = new Set([
 ]);
 
 export function mutationError(message: string) {
+  if (message.includes("one_active_primary_event_award_per_officer"))
+    return "This Officer already has an active award for this Event.";
   return safeMessages.has(message) ? message : "Could not save changes";
 }
