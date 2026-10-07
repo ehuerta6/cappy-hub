@@ -48,7 +48,7 @@ Task assignment cardinality is an example of an expand-and-transition rollout. P
 
 A direct read-only production check confirmed that `/login` returned the expected Cappy Hub login surface and revision header for main commit `07ed1d1413af6aa97c72b58f289d31cabbcd37cf` before the #135 contract migration was prepared. The legacy completion and approval RPCs remain defined for historical compatibility, but clients cannot execute either public RPC or the private implementation/award helpers. The new manager-controlled completion RPC owns current completion updates; assignment and approval history stays readable, and existing Task point history remains available.
 
-New migration files are checked by `scripts/check-destructive-migrations.mjs` for potentially rollout-incompatible operations. It considers only `.sql` migrations added relative to the CI base: the PR base SHA for pull requests, or the previous commit on pushes to `main` and `mvp`. Existing migrations are not re-scanned. The separate migration immutability check continues to reject edits, deletions, or renames of files already present in the base.
+New migration files are checked by `scripts/check-destructive-migrations.mjs` for potentially rollout-incompatible operations. It considers only `.sql` migrations added relative to the CI base: the PR base SHA for pull requests, or the previous commit on pushes to `main`. Existing migrations are not re-scanned. The separate migration immutability check continues to reject edits, deletions, or renames of files already present in the base.
 
 The guard flags `DROP COLUMN`, `DROP TABLE`, table/column renames, public view/RPC renames, `ALTER COLUMN ... TYPE`, `DROP VIEW`, and `DROP FUNCTION` (which may remove a public RPC). It ignores SQL comments, quoted strings, and dollar-quoted function bodies so examples or text containing these phrases do not trigger it. For a reviewed contract-phase migration, put this explicit header at the beginning of that migration and give a concrete rationale of at least 30 characters:
 
@@ -64,7 +64,7 @@ Do not delete catalog rows referenced by historical records. For example, `event
 
 Keep authorization and important validation in trusted server actions or SQL functions, with database constraints for data integrity. UI filtering alone is not enforcement. Never disable RLS as a shortcut. Never edit a migration already applied to production; create a new migration for follow-up changes.
 
-CI compares migration files with the PR base on pull requests and with the previous commit on pushes to `main` or `mvp`. It allows new migration files and rejects modification, deletion, or renaming of migrations already present in that base. A direct push that changes an existing migration fails CI, so the production workflow does not continue. Protect `main` by requiring PRs so invalid changes are stopped before reaching the branch.
+CI compares migration files with the PR base on pull requests and with the previous commit on pushes to `main`. It allows new migration files and rejects modification, deletion, or renaming of migrations already present in that base. A direct push that changes an existing migration fails CI, so the production workflow does not continue. Protect `main` by requiring PRs so invalid changes are stopped before reaching the branch.
 
 ## Production deployment
 
