@@ -50,28 +50,18 @@ insert into officer_branches(officer_id,branch_id)
 values(-603,(select id from branches where name='position-identity-test'));
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000603',true);
 set local role authenticated;
-select lives_ok($$select save_event('Stable Lead','Test event',
-  (select id from event_types where name='Meeting'),'TBA',
-  '2099-09-20 09:00-06','2099-09-20 10:00-06',
-  array[(select id from branches where name='position-identity-test')])$$,
+select lives_ok($$select save_event_with_links('Stable Lead','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 09:00-06','2099-09-20 10:00-06',array[(select id from branches where name='position-identity-test')],null,null,null)$$,
   'renaming the baseline Lead label does not remove branch authorization');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000604',true);
-select throws_ok($$select save_event('Deceptive Lead','Test event',
-  (select id from event_types where name='Meeting'),'TBA',
-  '2099-09-20 11:00-06','2099-09-20 12:00-06',
-  array[(select id from branches where name='position-identity-test')])$$,
+select throws_ok($$select save_event_with_links('Deceptive Lead','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 11:00-06','2099-09-20 12:00-06',array[(select id from branches where name='position-identity-test')],null,null,null)$$,
   'P0001','Event outside branch scope',
   'custom Position named Lead does not get branch authorization');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000605',true);
-select throws_ok($$select save_event('Deceptive President','Test event',
-  (select id from event_types where name='Meeting'),'TBA',
-  '2099-09-20 13:00-06','2099-09-20 14:00-06','{}'::bigint[])$$,
+select throws_ok($$select save_event_with_links('Deceptive President','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 13:00-06','2099-09-20 14:00-06','{}'::bigint[],null,null,null)$$,
   'P0001','Event outside branch scope',
   'custom Position named President does not receive executive access');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000606',true);
-select lives_ok($$select save_event('Renamed President','Test event',
-  (select id from event_types where name='Meeting'),'TBA',
-  '2099-09-20 15:00-06','2099-09-20 16:00-06','{}'::bigint[])$$,
+select lives_ok($$select save_event_with_links('Renamed President','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 15:00-06','2099-09-20 16:00-06','{}'::bigint[],null,null,null)$$,
   'renaming the baseline President label preserves executive access');
 reset role;
 select is((select position_id from officers where id=-603),

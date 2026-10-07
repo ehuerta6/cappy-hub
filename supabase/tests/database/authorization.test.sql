@@ -42,11 +42,11 @@ select lives_ok($$select save_officer('Created PR3',17::bigint,'active',null,nul
  'admin can create an officer');
 select lives_ok($$select save_officer('Edited PR3',17::bigint,'active',null,-303,'officer-pr3@example.org')$$,
  'admin can edit officer');
-select lives_ok($$select save_event('Admin global','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-22 09:00-06','2099-09-22 10:00-06',null)$$,
+select lives_ok($$select save_event_with_links('Admin global','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-22'::date,'2099-09-22 09:00-06','2099-09-22 10:00-06',null,null,null,null)$$,
  'admin can create global event');
-select lives_ok($$select save_event('Admin branch','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-22 09:00-06','2099-09-22 10:00-06',array[3::bigint])$$,
+select lives_ok($$select save_event_with_links('Admin branch','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-22'::date,'2099-09-22 09:00-06','2099-09-22 10:00-06',array[3::bigint],null,null,null)$$,
  'admin can create branch event');
-select lives_ok($$select save_event('Admin global edit','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20 09:00-06','2099-09-20 10:00-06',null,-301)$$,
+select lives_ok($$select save_event_with_links('Admin global edit','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 09:00-06','2099-09-20 10:00-06',null,-301,null,null)$$,
  'admin can edit global event');
 select lives_ok($$select change_event_signup(-301,-302,false)$$,'admin can assign another officer to global event');
 select lives_ok($$select change_event_signup(-301,-302,true)$$,'admin can remove another officer from global event');
@@ -62,7 +62,7 @@ select lives_ok($$select cancel_event(-301)$$,'admin can cancel global event');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000303',true);
 select throws_ok($$select save_officer('No',17::bigint,'active',null,null,'no-pr3@example.org')$$,
  'P0001','Admin required','normal officer cannot create officer');
-select throws_ok($$select save_event('No','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-22 09:00-06','2099-09-22 10:00-06',null)$$,
+select throws_ok($$select save_event_with_links('No','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-22'::date,'2099-09-22 09:00-06','2099-09-22 10:00-06',null,null,null,null)$$,
  'P0001','Event outside branch scope','normal officer cannot create events');
 select lives_ok($$select change_event_signup(-302,-303,false)$$,'normal officer can self-signup');
 select lives_ok($$select change_event_signup(-302,-303,true)$$,'normal officer can self-signout');
@@ -72,17 +72,17 @@ select throws_ok($$select add_manual_transaction(-303,1,'No','manual')$$,'P0001'
  'normal officer cannot create manual points');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000302',true);
-select lives_ok($$select save_event('Lead shared','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-22 09:00-06','2099-09-22 10:00-06',array[(select id from branches where name='intro'),(select id from branches where name='icpc')])$$,
+select lives_ok($$select save_event_with_links('Lead shared','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-22'::date,'2099-09-22 09:00-06','2099-09-22 10:00-06',array[(select id from branches where name='intro'),(select id from branches where name='icpc')],null,null)$$,
  'Lead can create a multi-branch Event with an overlapping branch');
-select throws_ok($$select save_event('Lead global','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-22 09:00-06','2099-09-22 10:00-06',null)$$,
+select throws_ok($$select save_event_with_links('Lead global','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-22'::date,'2099-09-22 09:00-06','2099-09-22 10:00-06',null,null,null,null)$$,
  'P0001','Event outside branch scope','Lead cannot create global event');
-select lives_ok($$select save_event('Lead edit','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20 09:00-06','2099-09-20 10:00-06',array[1::bigint],-302)$$,
+select lives_ok($$select save_event_with_links('Lead edit','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 09:00-06','2099-09-20 10:00-06',array[1::bigint],-302,null,null)$$,
  'Lead may edit currently managed event');
-select throws_ok($$select save_event('Lead takeover','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20 09:00-06','2099-09-20 10:00-06',array[1::bigint],-303)$$,
+select throws_ok($$select save_event_with_links('Lead takeover','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 09:00-06','2099-09-20 10:00-06',array[1::bigint],-303,null,null)$$,
  'P0001','Event outside branch scope','Lead cannot take unrelated event by replacing branches');
-select throws_ok($$select save_event('Lead global takeover','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20 09:00-06','2099-09-20 10:00-06',array[1::bigint],-301)$$,
+select throws_ok($$select save_event_with_links('Lead global takeover','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 09:00-06','2099-09-20 10:00-06',array[1::bigint],-301,null,null)$$,
  'P0001','Event outside branch scope','Lead cannot take global event by adding own branch');
-select throws_ok($$select save_event('Lead makes global','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20 09:00-06','2099-09-20 10:00-06',null,-302)$$,
+select throws_ok($$select save_event_with_links('Lead makes global','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 09:00-06','2099-09-20 10:00-06',null,-302,null,null)$$,
  'P0001','Event outside branch scope','Lead cannot convert managed event to global');
 select lives_ok($$select change_event_signup(-302,-301,false)$$,'Lead can assign another officer on managed event');
 select lives_ok($$select change_event_signup(-302,-301,true)$$,'Lead can remove another officer on managed event');
@@ -101,7 +101,7 @@ select lives_ok($$select change_event_signup(-303,-301,false)$$,
  'Lead with multiple branches manages Event when one branch overlaps');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000305',true);
-select lives_ok($$select save_event('President global','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-23 09:00-06','2099-09-23 10:00-06',null)$$,
+select lives_ok($$select save_event_with_links('President global','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-23'::date,'2099-09-23 09:00-06','2099-09-23 10:00-06',null,null,null,null)$$,
  'Event executive can create global Event');
 
 reset role;

@@ -67,12 +67,16 @@ select ok(has_function_privilege('authenticated','public.self_assign_task(bigint
   and not has_any_column_privilege('authenticated','public.task_officer_assignments','UPDATE')
   and not has_table_privilege('authenticated','public.task_officer_assignments','DELETE'),
   'new Task read access and trusted mutation RPCs are granted without raw writes');
-select ok(not has_function_privilege('authenticated','public.complete_task(bigint)','EXECUTE')
-  and not has_function_privilege('authenticated','public.approve_task(bigint)','EXECUTE')
-  and not has_function_privilege('authenticated','private.complete_task(bigint)','EXECUTE')
-  and not has_function_privilege('authenticated','private.approve_task(bigint)','EXECUTE')
-  and not has_function_privilege('authenticated','private.award_task(bigint)','EXECUTE'),
-  'legacy Task completion, approval, and award helpers are not executable by authenticated clients');
+select ok(to_regprocedure('public.assign_task(bigint,bigint)') is null
+  and to_regprocedure('public.save_event(text,text,bigint,text,timestamptz,timestamptz,bigint[],bigint)') is null
+  and to_regprocedure('public.complete_task(bigint)') is null
+  and to_regprocedure('public.approve_task(bigint)') is null
+  and to_regprocedure('private.assign_task(bigint,bigint)') is null
+  and to_regprocedure('private.save_event(text,text,bigint,text,timestamptz,timestamptz,bigint[],bigint)') is null
+  and to_regprocedure('private.complete_task(bigint)') is null
+  and to_regprocedure('private.approve_task(bigint)') is null
+  and to_regprocedure('private.award_task(bigint)') is null,
+  'retired compatibility RPCs and unused private helpers are absent');
 select ok(not exists(select 1 from pg_catalog.pg_proc p
   join pg_catalog.pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and has_function_privilege('authenticated',p.oid,'EXECUTE')
@@ -80,7 +84,6 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       'public.change_event_signup(bigint,bigint,boolean)'::regprocedure,
       'public.bulk_add_event_officers(bigint,bigint[])'::regprocedure,
       'public.save_officer(text,bigint,text,bigint[],bigint,text,text,text)'::regprocedure,
-      'public.save_event(text,text,bigint,text,timestamptz,timestamptz,bigint[],bigint)'::regprocedure,
       'public.claim_current_officer_identity()'::regprocedure,
       'public.set_officer_application_role(bigint,text)'::regprocedure,
       'public.cancel_event(bigint)'::regprocedure,
@@ -105,7 +108,6 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       'public.remove_point_transaction(bigint)'::regprocedure,
       'public.save_event_with_links(text,text,bigint,text,date,timestamptz,timestamptz,bigint[],bigint,text,text)'::regprocedure,
       'public.save_task(text,text,text,bigint,date,numeric,boolean)'::regprocedure,
-      'public.assign_task(bigint,bigint)'::regprocedure,
       'public.create_recurring_event(text,text,bigint,text,bigint[],text,text,uuid,text,date[],timestamptz[],timestamptz[])'::regprocedure
       ,'public.create_recurring_task(text,text,text,bigint,numeric,boolean,uuid,text,date[])'::regprocedure
       ,'public.remove_task(bigint)'::regprocedure
@@ -245,7 +247,7 @@ select throws_ok($$delete from audit_logs where id=-401$$,
   '42501',null,'admin cannot delete audit history directly');
 select lives_ok($$select save_officer('RLS created',17,'active',null,null,'rls-created@example.org')$$,
   'admin officer-save RPC still works after raw writes are revoked');
-select lives_ok($$select save_event('RLS admin event','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-22 09:00-06','2099-09-22 10:00-06',null)$$,
+select lives_ok($$select save_event_with_links('RLS admin event','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-22'::date,'2099-09-22 09:00-06','2099-09-22 10:00-06',null)$$,
   'admin event-save RPC still creates global events');
 select lives_ok($$select add_manual_transaction(-403,1,'RLS admin correction','correction')$$,
   'admin points RPC still works');
