@@ -37,6 +37,7 @@ import TasksPage from "@/app/(protected)/tasks/page";
 import TaskDetail from "@/app/(protected)/tasks/[id]/page";
 import TaskActionForm from "@/app/(protected)/tasks/task-action-form";
 import { formatEventSchedule } from "@/lib/presentation";
+import { TASK_TYPES } from "@/lib/task-types";
 
 const officer = {
   id: 7,
@@ -238,6 +239,9 @@ it("allows an authorized manager to edit a standalone Task", async () => {
   );
   expect(html).toContain("Edit task");
   expect(html).toContain('name="title"');
+  for (const taskType of TASK_TYPES) {
+    expect(html).toContain(`<option>${taskType}</option>`);
+  }
   expect(html).not.toContain("This occurrence");
   expect(html).toContain('name="returnTo" value="/tasks?status=open"');
   Object.assign(task, { recurrence_series_id: 3 });

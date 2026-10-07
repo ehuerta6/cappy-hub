@@ -5,6 +5,33 @@ import {
   bulkTaskAssignmentInputSchema,
   setTaskCompletionInputSchema,
 } from "@/app/(protected)/tasks/validation";
+import { TASK_TYPES } from "@/lib/task-types";
+
+it("accepts every supported Task type for create and edit", () => {
+  const baseTask = {
+    title: "Task",
+    description: "Prepare the content",
+    branch_id: "-5",
+    due_date: "2026-10-15",
+    points: "1.5",
+  };
+
+  for (const taskType of TASK_TYPES) {
+    expect(
+      createTaskInputSchema.safeParse({ ...baseTask, task_type: taskType })
+        .success,
+    ).toBe(true);
+    expect(
+      taskDetailsInputSchema.safeParse({ ...baseTask, task_type: taskType })
+        .success,
+    ).toBe(true);
+  }
+
+  expect(
+    createTaskInputSchema.safeParse({ ...baseTask, task_type: "Other" })
+      .success,
+  ).toBe(false);
+});
 
 it("validates Task details without an approval field", () => {
   const validTask = {
