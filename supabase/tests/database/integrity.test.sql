@@ -105,8 +105,8 @@ select throws_ok($$update warning_approvals set decided_at=now() where warning_i
 select lives_ok($$update warning_approvals set decision='approved',decided_at=now() where warning_id=-1$$,
   'paired warning decision metadata is accepted');
 
-select is((select count(*) from event_types where available_for_new_events),3::bigint,
-  'only the three current Event Types are available for new Events');
+select is((select count(*) from event_types where available_for_new_events),4::bigint,
+  'the four current Event Types are available for new Events');
 insert into event_types(name) values('General') on conflict (lower(trim(name))) do nothing;
 insert into events(id,name,description,location,event_type_id,starts_at,ends_at) values
   (-3,'Legacy General','Historical Event','TBA',(select id from event_types where name='General'),

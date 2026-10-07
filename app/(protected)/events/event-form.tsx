@@ -62,6 +62,7 @@ export default function EventForm({
         event_type_id: String(event.event_type_id),
         slides_url: event.slides_url ?? "",
         meeting_notes_url: event.meeting_notes_url ?? "",
+        signup_sheet_url: event.signup_sheet_url ?? "",
         event_date: event.event_date,
         start_time: denverParts(event.starts_at).time,
         end_time: denverParts(event.ends_at).time,
@@ -244,6 +245,28 @@ export default function EventForm({
         />
         <FieldError id="event-meeting-notes-url-error">
           {fieldErrors.meeting_notes_url}
+        </FieldError>
+      </label>
+
+      <label>
+        Signup sheet URL (optional)
+        <input
+          name="signup_sheet_url"
+          type="url"
+          aria-invalid={Boolean(fieldErrors.signup_sheet_url)}
+          aria-describedby={
+            fieldErrors.signup_sheet_url
+              ? "event-signup-sheet-url-error"
+              : undefined
+          }
+          defaultValue={submittedValue(
+            state.values,
+            "signup_sheet_url",
+            event?.signup_sheet_url ?? "",
+          )}
+        />
+        <FieldError id="event-signup-sheet-url-error">
+          {fieldErrors.signup_sheet_url}
         </FieldError>
       </label>
 

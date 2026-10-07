@@ -42,6 +42,7 @@ const eventFormFields = [
   "branches",
   "slides_url",
   "meeting_notes_url",
+  "signup_sheet_url",
   "recurrence_frequency",
   "recurrence_interval",
   "recurrence_weekdays",
@@ -82,6 +83,7 @@ export async function saveEvent(
     branches: formData.getAll("branches"),
     slides_url: formData.get("slides_url") ?? "",
     meeting_notes_url: formData.get("meeting_notes_url") ?? "",
+    signup_sheet_url: formData.get("signup_sheet_url") ?? "",
     recurrence_frequency: formData.get("recurrence_frequency") ?? "none",
     recurrence_request_key:
       formData.get("recurrence_request_key") ?? crypto.randomUUID(),
@@ -136,6 +138,7 @@ export async function saveEvent(
           branch_ids: validatedEventInput.branches,
           slides_url: validatedEventInput.slides_url,
           meeting_notes_url: validatedEventInput.meeting_notes_url,
+          signup_sheet_url: validatedEventInput.signup_sheet_url,
         },
       );
       const { error } = await supabase.rpc("mutate_recurring_event", args);
@@ -212,6 +215,7 @@ export async function saveEvent(
       p_branch_ids: validatedEventInput.branches,
       p_slides_url: validatedEventInput.slides_url,
       p_meeting_notes_url: validatedEventInput.meeting_notes_url,
+      p_signup_sheet_url: validatedEventInput.signup_sheet_url,
       p_request_key: validatedEventInput.recurrence_request_key,
       p_recurrence_rule: canonicalRecurrenceRule(recurrence),
       p_event_dates: dates,
@@ -234,7 +238,7 @@ export async function saveEvent(
       ),
     );
   }
-  const { data, error } = await supabase.rpc("save_event_with_links", {
+  const { data, error } = await supabase.rpc("save_event_with_signup_sheet", {
     p_event_id: validatedEventInput.id,
     p_name: validatedEventInput.name,
     p_description: validatedEventInput.description,
@@ -246,6 +250,7 @@ export async function saveEvent(
     p_branch_ids: validatedEventInput.branches,
     p_slides_url: validatedEventInput.slides_url,
     p_meeting_notes_url: validatedEventInput.meeting_notes_url,
+    p_signup_sheet_url: validatedEventInput.signup_sheet_url,
   });
   if (error)
     return formFailure(
