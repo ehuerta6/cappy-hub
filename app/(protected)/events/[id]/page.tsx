@@ -8,6 +8,7 @@ import PointTransactionTable from "@/components/point-transaction-table";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import EventResourceLinks from "../event-resource-links";
 import {
   eventStatus,
   eventSignupOpen,
@@ -158,35 +159,11 @@ export default async function EventDetailPage({
               />
             </dd>
           </dl>
-          {(event.slides_url || event.meeting_notes_url) && (
-            <section>
-              <h3 className="mb-2 text-sm font-semibold text-foreground">
-                Links and files
-              </h3>
-              <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
-                {event.slides_url && (
-                  <a
-                    href={event.slides_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-9 items-center underline underline-offset-4"
-                  >
-                    Open slides
-                  </a>
-                )}
-                {event.meeting_notes_url && (
-                  <a
-                    href={event.meeting_notes_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-9 items-center underline underline-offset-4"
-                  >
-                    Open notes
-                  </a>
-                )}
-              </div>
-            </section>
-          )}
+          <EventResourceLinks
+            slidesUrl={event.slides_url}
+            meetingNotesUrl={event.meeting_notes_url}
+            signupSheetUrl={event.signup_sheet_url}
+          />
           {canManage && !event.deleted_at && (
             <div className="flex flex-wrap gap-3 [&>form]:w-auto">
               {status === "cancelled" && (

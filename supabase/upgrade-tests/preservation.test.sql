@@ -151,22 +151,26 @@ select is((select count(*) from events where id=90007),0::bigint,
 select is((select count(*) from event_types where name in ('General','Intro','ICPC')),3::bigint,
   'referenced legacy Event Type catalog values remain readable');
 select results_eq(
-  $$select id,name,created_at from event_types order by id$$,
+  $$select id,name,created_at from event_types where name <> 'Session' order by id$$,
   $$select (row->>'id')::bigint,row->>'name',(row->>'created_at')::timestamptz from upgrade_fixture.pre_hardening_event_types order by (row->>'id')::bigint$$,
   'Event Type IDs, labels and timestamps survive hardening');
-select is((select count(*) from event_types where available_for_new_events),3::bigint,
-  'only Meeting, Social and Workshop remain available for new Events');
+select is((select count(*) from event_types where available_for_new_events),4::bigint,
+  'Meeting, Social, Workshop and Session remain available for new Events');
+select is((select count(*) from event_types where name='Session' and available_for_new_events),1::bigint,
+  'Session is available for new Events after upgrade');
 select is((select count(*) from event_types where name in ('General','Intro','ICPC') and available_for_new_events),0::bigint,
   'historical Event Types are retired without deleting their rows');
 select results_eq(
   $$select e.id,e.event_type_id,t.name from events e join event_types t on t.id=e.event_type_id where e.id between 90004 and 90006 order by e.id$$,
   $$select (e.row->>'id')::bigint,(e.row->>'event_type_id')::bigint,t.row->>'name' from upgrade_fixture.pre_hardening_events e join upgrade_fixture.pre_hardening_event_types t on (t.row->>'id')::bigint=(e.row->>'event_type_id')::bigint where (e.row->>'id')::bigint between 90004 and 90006 order by (e.row->>'id')::bigint$$,
   'historical Events retain their exact type IDs and labels');
-select is((select jsonb_agg(to_jsonb(e)-'deleted_by_officer_id' order by id)
+select is((select jsonb_agg(to_jsonb(e)-'deleted_by_officer_id'-'signup_sheet_url' order by id)
   from events e where exists(select 1 from upgrade_fixture.pre_hardening_events f
     where (f.row->>'id')::bigint=e.id)),
   (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.pre_hardening_events),
-  'hardening leaves every Event row and lifecycle value intact');
+  'upgrade preserves every historical Event row and lifecycle value');
+select is((select count(*) from events e join upgrade_fixture.pre_hardening_events f on (f.row->>'id')::bigint=e.id where e.signup_sheet_url is not null),
+  0::bigint,'historical Events retain a null optional signup sheet');
 select is((select jsonb_agg(to_jsonb(p)-'created_by_officer_id'-'updated_by_officer_id'-'removed_by_officer_id' order by id)
   from point_transactions p where exists(select 1 from upgrade_fixture.pre_hardening_points f
     where (f.row->>'id')::bigint=p.id)),
@@ -256,7 +260,7 @@ select is((select count(*) from tasks where recurrence_series_id is not null and
   'existing Tasks remain standalone after the additive recurrence migration');
 select has_column('events','recurrence_key','Event occurrence identity is additive');
 select has_column('tasks','recurrence_key','Task occurrence identity is additive');
-select is((select jsonb_agg(to_jsonb(e)-'deleted_by_officer_id' order by id) from events e where id in (90680,90681)),
+select is((select jsonb_agg(to_jsonb(e)-'deleted_by_officer_id'-'signup_sheet_url' order by id) from events e where id in (90680,90681)),
  (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.recurring_events),'scope migration preserves existing recurring Event rows including cancellation');
 select is((select jsonb_agg(to_jsonb(t) order by id) from tasks t where id in (90680,90681)),
  (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.recurring_tasks),'scope migration preserves existing recurring Task rows');

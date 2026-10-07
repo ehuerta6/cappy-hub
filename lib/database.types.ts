@@ -284,6 +284,7 @@ export type Database = {
           participation_points_per_hour_at_end: number | null;
           recurrence_key: string | null;
           recurrence_series_id: number | null;
+          signup_sheet_url: string | null;
           slides_url: string | null;
           starts_at: string;
           status: string;
@@ -305,6 +306,7 @@ export type Database = {
           participation_points_per_hour_at_end?: number | null;
           recurrence_key?: string | null;
           recurrence_series_id?: number | null;
+          signup_sheet_url?: string | null;
           slides_url?: string | null;
           starts_at: string;
           status?: string;
@@ -326,6 +328,7 @@ export type Database = {
           participation_points_per_hour_at_end?: number | null;
           recurrence_key?: string | null;
           recurrence_series_id?: number | null;
+          signup_sheet_url?: string | null;
           slides_url?: string | null;
           starts_at?: string;
           status?: string;
@@ -1076,23 +1079,42 @@ export type Database = {
       create_event_location: { Args: { p_name: string }; Returns: number };
       create_event_type: { Args: { p_name: string }; Returns: number };
       create_position: { Args: { p_name: string }; Returns: number };
-      create_recurring_event: {
-        Args: {
-          p_branch_ids: number[];
-          p_description: string;
-          p_ends_at: string[];
-          p_event_dates: string[];
-          p_event_type_id: number;
-          p_location: string;
-          p_meeting_notes_url: string;
-          p_name: string;
-          p_recurrence_rule: string;
-          p_request_key: string;
-          p_slides_url: string;
-          p_starts_at: string[];
-        };
-        Returns: number;
-      };
+      create_recurring_event:
+        | {
+            Args: {
+              p_branch_ids: number[];
+              p_description: string;
+              p_ends_at: string[];
+              p_event_dates: string[];
+              p_event_type_id: number;
+              p_location: string;
+              p_meeting_notes_url: string;
+              p_name: string;
+              p_recurrence_rule: string;
+              p_request_key: string;
+              p_slides_url: string;
+              p_starts_at: string[];
+            };
+            Returns: number;
+          }
+        | {
+            Args: {
+              p_branch_ids: number[];
+              p_description: string;
+              p_ends_at: string[];
+              p_event_dates: string[];
+              p_event_type_id: number;
+              p_location: string;
+              p_meeting_notes_url: string;
+              p_name: string;
+              p_recurrence_rule: string;
+              p_request_key: string;
+              p_signup_sheet_url: string;
+              p_slides_url: string;
+              p_starts_at: string[];
+            };
+            Returns: number;
+          };
       create_recurring_task: {
         Args: {
           p_approval_required: boolean;
@@ -1190,6 +1212,23 @@ export type Database = {
           p_location: string;
           p_meeting_notes_url?: string;
           p_name: string;
+          p_slides_url?: string;
+          p_starts_at: string;
+        };
+        Returns: number;
+      };
+      save_event_with_signup_sheet: {
+        Args: {
+          p_branch_ids: number[];
+          p_description: string;
+          p_ends_at: string;
+          p_event_date: string;
+          p_event_id?: number;
+          p_event_type_id: number;
+          p_location: string;
+          p_meeting_notes_url?: string;
+          p_name: string;
+          p_signup_sheet_url: string;
           p_slides_url?: string;
           p_starts_at: string;
         };

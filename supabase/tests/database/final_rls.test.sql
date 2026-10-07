@@ -51,6 +51,7 @@ select ok(not has_function_privilege('authenticated','private.process_finished_e
   and not has_function_privilege('authenticated','private.process_due_tasks()','EXECUTE')
   and has_function_privilege('authenticated','public.claim_current_officer_identity()','EXECUTE')
   and has_function_privilege('authenticated','public.save_event_with_links(text,text,bigint,text,date,timestamptz,timestamptz,bigint[],bigint,text,text)','EXECUTE')
+  and has_function_privilege('authenticated','public.save_event_with_signup_sheet(text,text,bigint,text,date,timestamptz,timestamptz,bigint[],text,bigint,text,text)','EXECUTE')
   and has_function_privilege('authenticated','public.create_event_location(text)','EXECUTE')
   and has_function_privilege('authenticated','public.rename_event_location(bigint,text)','EXECUTE')
   and has_function_privilege('authenticated','public.delete_event_location(bigint)','EXECUTE')
@@ -107,8 +108,10 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       'public.update_point_transaction(bigint,numeric)'::regprocedure,
       'public.remove_point_transaction(bigint)'::regprocedure,
       'public.save_event_with_links(text,text,bigint,text,date,timestamptz,timestamptz,bigint[],bigint,text,text)'::regprocedure,
+      'public.save_event_with_signup_sheet(text,text,bigint,text,date,timestamptz,timestamptz,bigint[],text,bigint,text,text)'::regprocedure,
       'public.save_task(text,text,text,bigint,date,numeric,boolean)'::regprocedure,
       'public.create_recurring_event(text,text,bigint,text,bigint[],text,text,uuid,text,date[],timestamptz[],timestamptz[])'::regprocedure
+      ,'public.create_recurring_event(text,text,bigint,text,bigint[],text,text,text,uuid,text,date[],timestamptz[],timestamptz[])'::regprocedure
       ,'public.create_recurring_task(text,text,text,bigint,numeric,boolean,uuid,text,date[])'::regprocedure
       ,'public.remove_task(bigint)'::regprocedure
       ,'public.mutate_recurring_event(bigint,text,text,uuid,bigint,integer,jsonb,text,date[])'::regprocedure

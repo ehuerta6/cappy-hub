@@ -65,6 +65,22 @@ it("renders readable before and after values for an Officer role change", () => 
   ]);
 });
 
+it("labels signup sheet URL audit changes for officers", () => {
+  const result = presentAuditEntry({
+    action: "event.links_updated",
+    entity_type: "event",
+    entity_id: 123,
+    details: {
+      before: { signup_sheet_url: null },
+      after: { signup_sheet_url: "https://example.com/signup" },
+    },
+  });
+  expect(result.changes).toContainEqual({
+    label: "Signup sheet",
+    value: "none → https://example.com/signup",
+  });
+});
+
 it("uses lifecycle snapshots to show a readable Event status change", () => {
   const result = presentAuditEntry({
     action: "event.cancelled",
