@@ -41,7 +41,9 @@ test("new Event form has no detectable accessibility violations", async ({
   await signInAsAdmin(page);
   await page.goto("/events/new");
   await expect(page.getByRole("heading", { name: "New event" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Save event" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Create event", exact: true }),
+  ).toBeVisible();
   await expectNoAxeViolations(page);
 });
 
@@ -149,7 +151,7 @@ test("Event and Task forms preview the same long weekly schedule", async ({
     {
       path: "/events/new",
       dateLabel: "Date (El Paso)",
-      submitLabel: "Save event",
+      submitLabel: "Create event",
     },
     { path: "/tasks/new", dateLabel: "Due date", submitLabel: "Create task" },
   ]) {

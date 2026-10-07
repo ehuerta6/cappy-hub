@@ -389,7 +389,13 @@ export default function EventForm({
       <ActionFeedback state={state} />
 
       <button disabled={pending}>
-        {pending ? (event ? "Saving…" : "Creating…") : "Save event"}
+        {pending
+          ? event
+            ? "Saving…"
+            : "Creating…"
+          : event
+            ? "Save event"
+            : "Create event"}
       </button>
     </form>
   );
