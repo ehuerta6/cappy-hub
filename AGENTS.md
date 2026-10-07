@@ -4,7 +4,7 @@
 
 - Coding Interview Club (CIC) operates Cappy Hub, its internal administrative application.
 - Officers, Events, and Points are core product domains. The Dashboard summarizes product data rather than becoming an independent system. Other workflows belong only when already established by the Product & Technical Specification or explicitly approved.
-- The current Cappy Hub Product & Technical Specification is the primary source of truth for product behavior, terminology, scope, and technical decisions.
+- The current Cappy Hub **Product & Technical Specification** at [`docs/product/design-doc.md`](docs/product/design-doc.md) is the primary source of truth for product behavior, terminology, scope, and technical decisions.
 - After that, use the user's newest explicit decision, approved feature specifications, the active GitHub Issue and accepted clarifications, repository documentation and migrations, then existing code as evidence of current implementation.
 - Existing code does not automatically redefine intended product behavior.
 - When authoritative sources materially conflict, surface the conflict instead of silently inventing or choosing a requirement.
@@ -20,7 +20,7 @@
 - Do not silently include additional work discovered while implementing an Issue. Surface it separately.
 - The frontend uses Next.js, React, TypeScript, and Tailwind CSS. The backend uses Supabase/PostgreSQL.
 - Inspect the repository and `package.json` before assuming framework versions, APIs, dependencies, scripts, or conventions.
-- For UI work, `docs/design.md` is the authority for visual and interaction direction. Product requirements and permissions always outrank design recommendations.
+- For UI work, [`docs/design.md`](docs/design.md) is the separate authority for visual and interaction direction. Product requirements and permissions always outrank design recommendations.
 
 ## Database and security
 

@@ -6,6 +6,7 @@ The application uses Next.js, React, TypeScript, Supabase, PostgreSQL, Tailwind 
 
 ## Documentation
 
+- [Product & Technical Specification](docs/product/design-doc.md): canonical product behavior, domain lifecycles, authorization, and technical invariants.
 - [Getting started](docs/getting-started.md): prerequisites and first-time setup.
 - [Local development](docs/local-development.md): local Supabase, test accounts, Studio, and environment variables.
 - [Contributing](docs/contributing.md): issues, contribution scope, and proposing ideas.
