@@ -60,6 +60,14 @@ export default async function EventDetailPage({
   if (result.error || officers.error) throw new Error("Failed to load event");
   if (!result.data) notFound();
   const event = result.data;
+  const sortedEventOfficers = [...event.event_officers].sort(
+    (left, right) =>
+      left.officers.name.localeCompare(right.officers.name, "en", {
+        sensitivity: "base",
+      }) ||
+      left.officers.name.localeCompare(right.officers.name, "en") ||
+      left.officers.id - right.officers.id,
+  );
   const status = eventStatus(event);
   const signupOpen = eventSignupOpen(event);
   const past = status === "past";
@@ -223,7 +231,7 @@ export default async function EventDetailPage({
                     </tr>
                   </thead>
                   <tbody>
-                    {event.event_officers.map(({ officers: officer }) => (
+                    {sortedEventOfficers.map(({ officers: officer }) => (
                       <tr key={officer.id}>
                         <td>
                           <Link href={`/officers/${officer.id}`}>

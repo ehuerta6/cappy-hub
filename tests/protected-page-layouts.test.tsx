@@ -261,6 +261,26 @@ it("shows per-Officer completion controls to managers and read-only state to Off
   expect(managerHtml).not.toContain("Mark complete");
   expect(managerHtml).not.toContain("Awaiting approval");
   expect(managerHtml).not.toContain(">Approve<");
+  const assignmentRows = managerHtml
+    .split("<table>")[1]
+    .split("</table>")[0]
+    .match(/<tr>[\s\S]*?<\/tr>/g);
+  expect(assignmentRows).toHaveLength(3);
+  expect(assignmentRows?.[1]).toContain("Other Officer");
+  expect(assignmentRows?.[1]).toContain(
+    'aria-label="Completed for Other Officer"',
+  );
+  expect(assignmentRows?.[1]).toContain('name="officer_id" value="2"');
+  expect(assignmentRows?.[1]).toContain("History protected");
+  expect(assignmentRows?.[2]).toContain("Synthetic Officer");
+  expect(assignmentRows?.[2]).toContain(
+    'aria-label="Completed for Synthetic Officer"',
+  );
+  expect(assignmentRows?.[2]).toContain('name="officer_id" value="1"');
+  expect(assignmentRows?.[2]).toContain(
+    'aria-label="Remove Synthetic Officer from task"',
+  );
+  expect(assignmentRows?.[2]).toContain("Remove assignment");
 
   vi.mocked(canManageEvent).mockReturnValue(false);
   const officerHtml = renderToStaticMarkup(await TaskDetail(props));
@@ -349,7 +369,11 @@ it("groups Event details, files and participation while retaining management con
 
 it("renders populated Event participation as a compact semantic table", async () => {
   Object.assign(event, {
-    event_officers: [{ officers: { id: 1, name: "Synthetic Officer" } }],
+    event_officers: [
+      { officers: { id: 3, name: "Zulu Officer" } },
+      { officers: { id: 2, name: "Alpha Officer" } },
+      { officers: { id: 1, name: "Bravo Officer" } },
+    ],
   });
 
   const html = renderToStaticMarkup(
@@ -363,7 +387,20 @@ it("renders populated Event participation as a compact semantic table", async ()
   expect(participation).toContain('<table class="min-w-full">');
   expect(participation).toContain(">Officer</th>");
   expect(participation).toContain(">Signup</th>");
-  expect(participation).toContain("Synthetic Officer");
+  const signupRows = participation
+    .split('<table class="min-w-full">')[1]
+    .split("</table>")[0]
+    .match(/<tr>[\s\S]*?<\/tr>/g);
+  expect(signupRows).toHaveLength(4);
+  expect(signupRows?.[1]).toContain("Alpha Officer");
+  expect(signupRows?.[1]).toContain('name="officer_id" value="2"');
+  expect(signupRows?.[1]).toContain("Remove signup");
+  expect(signupRows?.[2]).toContain("Bravo Officer");
+  expect(signupRows?.[2]).toContain('name="officer_id" value="1"');
+  expect(signupRows?.[2]).toContain("Remove signup");
+  expect(signupRows?.[3]).toContain("Zulu Officer");
+  expect(signupRows?.[3]).toContain('name="officer_id" value="3"');
+  expect(signupRows?.[3]).toContain("Remove signup");
   expect(participation).toContain("Remove signup");
   expect(participation).not.toContain("No officers signed up.");
 
