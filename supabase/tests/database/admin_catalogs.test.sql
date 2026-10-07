@@ -24,6 +24,67 @@ select throws_ok($$select rename_position((select id from positions where name='
  'P0001','Required positions cannot be renamed','canonical Lead cannot be renamed');
 select throws_ok($$select delete_position((select id from positions where name='Lead'))$$,
  'P0001','Required positions cannot be deleted','canonical Lead cannot be deleted');
+-- The stable code protects the baseline row even if its presentation label
+-- changes, and a custom Position can reuse the old display name safely.
+reset role;
+update positions set name='Branch Lead' where code='lead';
+update positions set name='Club President' where code='president';
+insert into positions(name) values('Lead');
+insert into positions(name) values('President');
+insert into auth.users(id,email) values
+ ('00000000-0000-4000-8000-000000000605','deceptive-president@example.org'),
+ ('00000000-0000-4000-8000-000000000606','renamed-president@example.org');
+insert into officers(id,name,utep_email,position_id,application_role,status,auth_user_id)
+values (-604,'Custom Deceptive Lead','deceptive-lead@example.org',
+  (select id from positions where name='Lead' and code is null),'officer','active',
+  '00000000-0000-4000-8000-000000000604'),
+ (-605,'Custom Deceptive President','deceptive-president@example.org',
+  (select id from positions where name='President' and code is null),'officer','active',
+  '00000000-0000-4000-8000-000000000605'),
+ (-606,'Renamed Baseline President','renamed-president@example.org',
+  (select id from positions where code='president'),'officer','active',
+  '00000000-0000-4000-8000-000000000606');
+insert into branches(name) values('position-identity-test');
+insert into officer_branches(officer_id,branch_id)
+values(-603,(select id from branches where name='position-identity-test'));
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000603',true);
+set local role authenticated;
+select lives_ok($$select save_event('Stable Lead','Test event',
+  (select id from event_types where name='Meeting'),'TBA',
+  '2099-09-20 09:00-06','2099-09-20 10:00-06',
+  array[(select id from branches where name='position-identity-test')])$$,
+  'renaming the baseline Lead label does not remove branch authorization');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000604',true);
+select throws_ok($$select save_event('Deceptive Lead','Test event',
+  (select id from event_types where name='Meeting'),'TBA',
+  '2099-09-20 11:00-06','2099-09-20 12:00-06',
+  array[(select id from branches where name='position-identity-test')])$$,
+  'P0001','Event outside branch scope',
+  'custom Position named Lead does not get branch authorization');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000605',true);
+select throws_ok($$select save_event('Deceptive President','Test event',
+  (select id from event_types where name='Meeting'),'TBA',
+  '2099-09-20 13:00-06','2099-09-20 14:00-06','{}'::bigint[])$$,
+  'P0001','Event outside branch scope',
+  'custom Position named President does not receive executive access');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000606',true);
+select lives_ok($$select save_event('Renamed President','Test event',
+  (select id from event_types where name='Meeting'),'TBA',
+  '2099-09-20 15:00-06','2099-09-20 16:00-06','{}'::bigint[])$$,
+  'renaming the baseline President label preserves executive access');
+reset role;
+select is((select position_id from officers where id=-603),
+  (select id from positions where code='lead'),
+  'baseline Position keeps its ID and Officer relationship after label rename');
+select is((select count(*) from positions where code is not null),6::bigint,
+  'all six baseline Positions have machine identities');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000601',true);
+select throws_ok($$select rename_position((select id from positions where code='lead'),'Other')$$,
+ 'P0001','Required positions cannot be renamed','machine identity keeps baseline rename protection');
+select throws_ok($$select delete_position((select id from positions where code='lead'))$$,
+ 'P0001','Required positions cannot be deleted','machine identity keeps baseline delete protection');
+reset role;
 select lives_ok($$select rename_position((select id from positions where name='Mentor'),'Senior Mentor')$$,
  'admin renames position');
 select throws_ok($$select rename_position((select id from positions where name='Senior Mentor'),'  OFFICER  ')$$,

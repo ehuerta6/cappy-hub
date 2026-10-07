@@ -36,6 +36,26 @@ select is((select approver_officer_id from warning_approvals a
   join officer_warnings w on w.id=a.warning_id
   where w.reason='First warning' and a.approver_id='00000000-0000-4000-8000-000000000902'),
   -902::bigint,'current warning snapshot writes the stable approver Officer ID');
+reset role;
+update positions set name='Club President' where code='president';
+insert into positions(name) values('President');
+insert into auth.users(id,email) values
+  ('00000000-0000-4000-8000-000000000908','pr9-deceptive-president@example.org');
+insert into officers(id,name,utep_email,position_id,application_role,status,auth_user_id)
+values (-909,'Deceptive President','pr9-deceptive-president@example.org',
+  (select id from positions where name='President' and code is null),
+  'officer','active','00000000-0000-4000-8000-000000000908');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000901',true);
+select lives_ok($$select create_warning(-905,'Renamed approver identity')$$,
+  'warning creation recognizes the renamed baseline President');
+reset role;
+select is((select count(*) from warning_approvals a join officer_warnings w on w.id=a.warning_id
+  where w.reason='Renamed approver identity'),3::bigint,
+  'warning approvers still include the three baseline executives after a label change');
+select is((select count(*) from warning_approvals a join officer_warnings w on w.id=a.warning_id
+  where w.reason='Renamed approver identity' and a.approver_id='00000000-0000-4000-8000-000000000908'),
+  0::bigint,'custom Position named President is not a warning approver');
 select set_config('test.first_warning_id',
   (select id::text from officer_warnings where reason='First warning'),true);
 set local role authenticated;

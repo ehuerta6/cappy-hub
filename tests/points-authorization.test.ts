@@ -38,6 +38,7 @@ it.each(["Officer", "Lead"])(
     vi.mocked(getAuthorizationContext).mockResolvedValue({
       applicationRole: "officer",
       positionName,
+      positionCode: positionName === "Lead" ? "lead" : "officer",
     } as never);
     const result = await addTransaction({ error: "", success: "" }, form());
     expect(result.error).toBe("Admin required");
@@ -114,6 +115,7 @@ it("rejects non-admin rate and removal actions before reaching Supabase", async 
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     applicationRole: "officer",
     positionName: "Lead",
+    positionCode: "lead",
   } as never);
   const rate = new FormData();
   rate.set("rate", "1.5");

@@ -621,16 +621,19 @@ export type Database = {
       };
       positions: {
         Row: {
+          code: string | null;
           created_at: string;
           id: number;
           name: string;
         };
         Insert: {
+          code?: string | null;
           created_at?: string;
           id?: number;
           name: string;
         };
         Update: {
+          code?: string | null;
           created_at?: string;
           id?: number;
           name?: string;
