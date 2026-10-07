@@ -48,9 +48,11 @@ language sql stable security definer set search_path = '' as $$
 $$;
 revoke all on function private.current_is_event_executive() from public, anon, authenticated;
 
-create or replace function private.required_position(p_code text) returns boolean
+-- Retain the existing argument name for CREATE OR REPLACE compatibility; the
+-- caller now passes the machine code rather than the Position label.
+create or replace function private.required_position(p_name text) returns boolean
 language sql immutable set search_path = '' as $$
-  select p_code = any(array['president','vice_president_operations',
+  select p_name = any(array['president','vice_president_operations',
     'vice_president_academics','secretary','lead','officer']::text[])
 $$;
 revoke all on function private.required_position(text) from public, anon, authenticated;
