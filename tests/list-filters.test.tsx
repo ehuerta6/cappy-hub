@@ -652,7 +652,7 @@ it("forces active Points for non-admins with forged removed/all status", async (
   expect(html).not.toContain('name="status"');
 });
 
-it("filters System Log actor, action, entity and inclusive Denver calendar dates", async () => {
+it("filters System Log actor, activity, entity and inclusive Denver calendar dates", async () => {
   const html = await render(SystemLogPage, {
     q: "task",
     actor: "system",
@@ -663,11 +663,25 @@ it("filters System Log actor, action, entity and inclusive Denver calendar dates
   });
   const query = forTable("audit_logs")[0];
   has(query, "is", "actor_id", null);
-  has(query, "filter", "action", "imatch", "update");
+  const activityFilter = query.calls
+    .filter(([method]) => method === "or")
+    .map(([, filter]) => filter)
+    .find((filter) => String(filter).includes("action.in."));
+  expect(activityFilter).toContain('action.imatch."update"');
   has(query, "eq", "entity_type", "task");
   has(query, "gte", "created_at", "2026-03-08T07:00:00.000Z");
   has(query, "lt", "created_at", "2026-03-09T06:00:00.000Z");
   expect(html).toContain("No System Log entries match these filters.");
+  expect(html).toContain("Activity");
+  expect(html).toContain('placeholder="e.g. signed up or cancelled event"');
+});
+
+it("matches readable System Log activity wording to audit action codes", async () => {
+  await render(SystemLogPage, { action: "cancelled event" });
+  const query = forTable("audit_logs")[0];
+  const activityFilter = query.calls.find(([method]) => method === "or")?.[1];
+  expect(activityFilter).toContain("event.cancelled");
+  expect(activityFilter).toContain('action.imatch."cancelled event"');
 });
 
 it("rejects System Log before querying for non-admins", async () => {

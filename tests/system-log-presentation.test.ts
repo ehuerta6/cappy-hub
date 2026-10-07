@@ -1,5 +1,13 @@
 import { expect, it } from "vitest";
-import { presentAuditEntry } from "@/lib/system-log-presentation";
+import {
+  findAuditActionCodes,
+  presentAuditEntry,
+} from "@/lib/system-log-presentation";
+
+it("matches recognizable activity wording and raw action-code terms", () => {
+  expect(findAuditActionCodes("cancelled event")).toContain("event.cancelled");
+  expect(findAuditActionCodes("event.cancelled")).toContain("event.cancelled");
+});
 
 it.each([
   [

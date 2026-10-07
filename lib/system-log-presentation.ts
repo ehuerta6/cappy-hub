@@ -192,6 +192,32 @@ const actionPresentations: Record<string, ActionPresentation> = {
   },
 };
 
+function activitySearchWords(value: string) {
+  return value
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
+}
+
+export function findAuditActionCodes(search: string) {
+  const searchWords = activitySearchWords(search);
+  if (searchWords.length === 0) return [];
+
+  return Object.entries(actionPresentations)
+    .filter(([action, presentation]) => {
+      const activityWords = new Set([
+        ...activitySearchWords(presentation.label),
+        ...activitySearchWords(action),
+      ]);
+      return searchWords.every((word) =>
+        [...activityWords].some((activityWord) =>
+          activityWord.startsWith(word),
+        ),
+      );
+    })
+    .map(([action]) => action);
+}
+
 const fieldLabels: Record<string, string> = {
   application_role: "Application role",
   approval_required: "Approval required",

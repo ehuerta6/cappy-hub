@@ -4,7 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { searchOrFilter, literalSearchPattern } from "@/lib/list-search";
 import { listPageUrl } from "@/lib/list-url";
 import { denverTimestamp } from "@/lib/event-time";
-import { presentAuditEntry } from "@/lib/system-log-presentation";
+import {
+  findAuditActionCodes,
+  presentAuditEntry,
+} from "@/lib/system-log-presentation";
 import { systemLogFiltersSchema } from "./filter-validation";
 import Link from "next/link";
 import type { Route } from "next";
@@ -72,8 +75,23 @@ export default async function SystemLogPage({
         query = query.eq("actor_id", actorFilter);
       else if (actorFilter !== undefined)
         query = query.eq("actor_officer_id", actorFilter);
-      if (action)
-        query = query.filter("action", "imatch", literalSearchPattern(action));
+      if (action) {
+        const matchingActions = findAuditActionCodes(action);
+        if (matchingActions.length > 0) {
+          query = query.or(
+            [
+              `action.in.(${matchingActions.join(",")})`,
+              searchOrFilter(action, ["action"]),
+            ].join(","),
+          );
+        } else {
+          query = query.filter(
+            "action",
+            "imatch",
+            literalSearchPattern(action),
+          );
+        }
+      }
       if (entity) query = query.eq("entity_type", entity);
       if (!dateRangeIsReversed && fromBoundary)
         query = query.gte("created_at", fromBoundary);
@@ -234,13 +252,13 @@ export default async function SystemLogPage({
           </select>
         </label>
         <label className="w-full min-w-0 sm:w-auto sm:min-w-44">
-          Activity or action code
+          Activity
           <input
             type="search"
             name="action"
             defaultValue={action}
             maxLength={80}
-            placeholder="e.g. signup or event.cancelled"
+            placeholder="e.g. signed up or cancelled event"
           />
         </label>
         <label className="w-full min-w-0 sm:w-auto sm:min-w-44">
