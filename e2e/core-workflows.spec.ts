@@ -98,7 +98,7 @@ test("manager creates and updates an Event, adds an attendee, and confirms cance
     .getByRole("group", { name: /Branches/ })
     .getByRole("checkbox", { name: "general", exact: true })
     .check();
-  await page.getByRole("button", { name: "Save event", exact: true }).click();
+  await page.getByRole("button", { name: "Create event", exact: true }).click();
 
   await expect(
     page.getByRole("heading", { name: eventTitle, exact: true }),
