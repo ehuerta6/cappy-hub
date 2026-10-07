@@ -175,7 +175,7 @@ select is((select jsonb_agg(to_jsonb(p)-'created_by_officer_id'-'updated_by_offi
 select is((select jsonb_agg(to_jsonb(b) order by id) from branches b),
   (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.pre_hardening_branches),
   'Branch names, IDs and timestamps survive normalization');
-select is((select jsonb_agg(to_jsonb(p) order by id) from positions p),
+select is((select jsonb_agg(to_jsonb(p)-'code' order by id) from positions p),
   (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.pre_hardening_positions),
   'Position names, IDs and timestamps survive normalization');
 select is((select jsonb_agg(to_jsonb(p)-'code' order by id) from positions p),
