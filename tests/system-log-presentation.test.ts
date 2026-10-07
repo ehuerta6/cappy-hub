@@ -291,6 +291,20 @@ it("names the affected Officer in a warning entry", () => {
   expect(result.detailSummary).toBe("Repeated missed deadlines");
 });
 
+it("keeps catalog rename activity and change details readable", () => {
+  const result = presentAuditEntry({
+    action: "event_type.renamed",
+    entity_type: "event_type",
+    entity_id: 12,
+    details: { old_name: "Workshop", new_name: "Technical Workshop" },
+  });
+
+  expect(result.activity).toBe("Renamed an event type · Technical Workshop");
+  expect(result.changes).toEqual([
+    { label: "Name", value: "Workshop → Technical Workshop" },
+  ]);
+});
+
 it("uses a safe fallback for unknown legacy actions and unfamiliar payloads", () => {
   const result = presentAuditEntry({
     action: "legacy.action_from_an_old_release",
