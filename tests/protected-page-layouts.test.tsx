@@ -341,8 +341,33 @@ it("groups Event details, files and participation while retaining management con
   const participation = html.split('aria-label="Participation"')[1];
   expect(participation).toContain("Your participation:");
   expect(participation).toContain("Signed-up officers");
+  expect(participation).toContain("No officers signed up.");
+  expect(participation).not.toContain("<table");
   expect(participation).toContain("Add selected officers");
   expect(html).toContain("Event point history");
+});
+
+it("renders populated Event participation as a compact semantic table", async () => {
+  Object.assign(event, {
+    event_officers: [{ officers: { id: 1, name: "Synthetic Officer" } }],
+  });
+
+  const html = renderToStaticMarkup(
+    await EventDetail({ params: Promise.resolve({ id: "7" }) }),
+  );
+  const participation = html.split('aria-label="Participation"')[1];
+
+  expect(participation).toContain(
+    'class="overflow-x-auto rounded-lg border border-border table-frame--compact"',
+  );
+  expect(participation).toContain('<table class="min-w-full">');
+  expect(participation).toContain(">Officer</th>");
+  expect(participation).toContain(">Signup</th>");
+  expect(participation).toContain("Synthetic Officer");
+  expect(participation).toContain("Remove signup");
+  expect(participation).not.toContain("No officers signed up.");
+
+  Object.assign(event, { event_officers: [] });
 });
 
 it("retains Officer operational sections and full point history", async () => {

@@ -213,40 +213,43 @@ export default async function EventDetailPage({
           </p>
           <section className="space-y-3">
             <SectionHeading title="Signed-up officers" />
-            <TableFrame>
-              <table className="min-w-full">
-                <thead>
-                  <tr>
-                    <th>Officer</th>
-                    <th>Signup</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {event.event_officers.map(({ officers: officer }) => (
-                    <tr key={officer.id}>
-                      <td>
-                        <Link href={`/officers/${officer.id}`}>
-                          {officer.name}
-                        </Link>
-                      </td>
-                      <td>
-                        {signupOpen &&
-                        (canManage || officer.id === actor.id) ? (
-                          <SignupForm
-                            eventId={event.id}
-                            officerId={officer.id}
-                            remove
-                          />
-                        ) : (
-                          "Closed"
-                        )}
-                      </td>
+            {event.event_officers.length ? (
+              <TableFrame compact>
+                <table className="min-w-full">
+                  <thead>
+                    <tr>
+                      <th>Officer</th>
+                      <th>Signup</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </TableFrame>
-            {!event.event_officers.length && <p>No officers signed up.</p>}
+                  </thead>
+                  <tbody>
+                    {event.event_officers.map(({ officers: officer }) => (
+                      <tr key={officer.id}>
+                        <td>
+                          <Link href={`/officers/${officer.id}`}>
+                            {officer.name}
+                          </Link>
+                        </td>
+                        <td>
+                          {signupOpen &&
+                          (canManage || officer.id === actor.id) ? (
+                            <SignupForm
+                              eventId={event.id}
+                              officerId={officer.id}
+                              remove
+                            />
+                          ) : (
+                            "Closed"
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </TableFrame>
+            ) : (
+              <p>No officers signed up.</p>
+            )}
             {signupOpen && canManage && (
               <BulkAddOfficersForm
                 eventId={event.id}
