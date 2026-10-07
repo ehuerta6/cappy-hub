@@ -205,16 +205,14 @@ values
   (-8005,'Publish workshop post','Prepare a post about the workshop.','Post',(select id from public.branches where name='intro'),(now() at time zone 'America/Denver')::date-2,6,false,-1005),
   (-8006,'Prepare outreach flyer','Design a flyer for outreach tabling.','Flyer',(select id from public.branches where name='outreach'),(now() at time zone 'America/Denver')::date+5,5,false,-1008),
   (-8007,'Past outreach checklist','Review the completed outreach checklist.','Airtable',(select id from public.branches where name='outreach'),(now() at time zone 'America/Denver')::date-4,4,false,-1008);
-insert into public.task_assignments(task_id,officer_id,assigned_by,completed_at,approved_at,approved_by)
-values
-  (-8003,-1016,-1006,null,null,null),
-  (-8002,-1002,-1002,now()-interval '1 day',null,null),
-  (-8004,-1017,-1007,now()-interval '1 day',null,null),
-  (-8005,-1013,-1013,now()-interval '2 days',null,null),
-  (-8007,-1023,-1008,now()-interval '3 days',null,null);
 insert into public.task_officer_assignments
   (task_id,officer_id,assigned_by,completed_at)
 values
+  (-8003,-1016,-1006,null),
+  (-8002,-1002,-1002,now()-interval '1 day'),
+  (-8004,-1017,-1007,now()-interval '1 day'),
+  (-8005,-1013,-1013,now()-interval '2 days'),
+  (-8007,-1023,-1008,now()-interval '3 days'),
   (-8002,-1003,-1002,null),
   (-8007,-1022,-1008,null);
 insert into public.point_transactions(officer_id,task_id,points,reason,award_type,created_by_officer_id)

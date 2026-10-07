@@ -248,8 +248,8 @@ select throws_ok($$insert into officers(name,position_id,personal_email) values
 select hasnt_column('positions','can_manage_branch_events','obsolete capability flag is gone');
 select hasnt_column('events','flyer_status','flyer event column is gone');
 select hasnt_column('application_config','flyer_completion_points','flyer configuration is gone');
-select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),19::bigint,
-  'final schema contains expanded Task assignment data');
+select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),18::bigint,
+  'final schema contains canonical Task assignment data without the legacy projection');
 select is((select count(*) from events where recurrence_series_id is not null and id not in (90680,90681)),0::bigint,
   'existing Events remain standalone after the additive recurrence migration');
 select is((select count(*) from tasks where recurrence_series_id is not null and id not in (90680,90681)),0::bigint,
@@ -260,12 +260,23 @@ select is((select jsonb_agg(to_jsonb(e)-'deleted_by_officer_id' order by id) fro
  (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.recurring_events),'scope migration preserves existing recurring Event rows including cancellation');
 select is((select jsonb_agg(to_jsonb(t) order by id) from tasks t where id in (90680,90681)),
  (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.recurring_tasks),'scope migration preserves existing recurring Task rows');
-select is((select to_jsonb(a) from task_assignments a where task_id=90680),(select row from upgrade_fixture.recurring_assignment),'scope migration preserves assignment completion and approval');
+select is((select to_jsonb(a) from task_officer_assignments a where task_id=90680 and officer_id=90001),(select row from upgrade_fixture.recurring_assignment),'recurring assignment completion and approval history remains canonical');
 select is((select to_jsonb(p)-'created_by_officer_id'-'updated_by_officer_id'-'removed_by_officer_id' from point_transactions p where id=90680),(select row from upgrade_fixture.recurring_award),'scope migration preserves existing awarded Task points');
 select is((select to_jsonb(t) from tasks t where id=90790),(select row from upgrade_fixture.pre_task_standalone),'Task transition preserves standalone Task fields and creator');
-select is((select to_jsonb(a) from task_assignments a where task_id=90790),(select row from upgrade_fixture.pre_task_assignment),'legacy Task assignment retains completion and approval history');
-select is((select to_jsonb(a) from task_officer_assignments a where task_id=90790 and officer_id=90001),(select row from upgrade_fixture.pre_task_assignment),'canonical backfill preserves assignment and approval history');
+select is((select to_jsonb(a) from task_officer_assignments a where task_id=90790 and officer_id=90001),(select row from upgrade_fixture.pre_task_assignment),'canonical Task assignment preserves its original completion and approval values');
+select is((select to_jsonb(a) from task_officer_assignments a where task_id=90790 and officer_id=90001),(select row from upgrade_fixture.pre_task_contract_assignment),'contract recovers any assignment history that remained only in the projection');
 select is((select to_jsonb(p) from point_transactions p where id=90790),(select row from upgrade_fixture.pre_task_award),'Task Point history and actor attribution survive the transition');
+select is((select to_jsonb(p) from point_transactions p where id=90790),(select row from upgrade_fixture.pre_task_contract_award),'Task Point transactions survive contract migration unchanged');
+select is((select to_jsonb(a) from audit_logs a where entity_type='task' and entity_id='90790' and action='task.completion_changed'),
+  (select row from upgrade_fixture.pre_task_contract_audit),'Task audit/System Log history survives contract migration unchanged');
+select ok(to_regclass('public.task_assignments') is null,'legacy Task assignment table is removed');
+select ok(not exists(select 1 from pg_catalog.pg_trigger where tgrelid='public.task_officer_assignments'::regclass and not tgisinternal and tgname='task_assignments_sync_officer_assignments')
+  and to_regprocedure('private.sync_legacy_task_assignment(bigint)') is null
+  and to_regprocedure('private.sync_legacy_task_assignment_write()') is null,
+  'legacy Task projection synchronization trigger and helpers are removed');
+select ok(position('task_assignments' in pg_catalog.pg_get_functiondef('private.mutate_recurring_task(bigint,text,text,uuid,bigint,integer,jsonb,text,date[])'::regprocedure))=0
+  and position('task_assignments' in pg_catalog.pg_get_functiondef('private.prevent_task_due_date_rewrite_after_award()'::regprocedure))=0,
+  'recurring Task and due-date guards use canonical assignments only');
 select is((select to_jsonb(a) from task_officer_assignments a where task_id=90680 and officer_id=90001),
   (select row from upgrade_fixture.recurring_assignment),
   'recurring assignment backfill retains completion and historical approval values');

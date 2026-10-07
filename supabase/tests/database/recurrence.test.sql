@@ -131,7 +131,7 @@ set local role authenticated;
 select lives_ok($$select bulk_assign_task_officers(
   (select id from tasks where recurrence_key='2099-09-21'),array[-982]::bigint[])$$,
   'one Task occurrence can be assigned independently');
-select is((select count(*) from task_assignments a join tasks t on t.id=a.task_id
+select is((select count(*) from task_officer_assignments a join tasks t on t.id=a.task_id
   where t.recurrence_key='2099-09-23'),0::bigint,
   'assignment does not leak to another Task occurrence');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000981',true);
@@ -165,7 +165,7 @@ select throws_ok($$select set_task_assignment_completion(
 reset role;
 select isnt((select removed_at from tasks where recurrence_key='2099-09-23'),null::timestamptz,
   'removed occurrence is retained with a removal timestamp');
-select is((select completed_at from task_assignments where task_id=
+select is((select completed_at from task_officer_assignments where task_id=
   (select id from tasks where recurrence_key='2099-09-23')),null::timestamptz,
   'blocked completion leaves the Task unfinished');
 select is((select count(*) from point_transactions where task_id=
