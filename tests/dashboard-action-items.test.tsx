@@ -192,10 +192,11 @@ it("renders no unauthorized warning data when RLS returns no visible warnings", 
   const html = await render();
   expect(html).not.toContain("Warning for");
   expect(html).not.toContain("Needs decision");
+  expect(html).not.toContain("View warning decisions");
   expect(html).toContain("You&#x27;re all caught up.");
 });
 
-it("orders personal Tasks by date and ID, then oldest warning and ID", async () => {
+it("prioritizes pending warnings and keeps Tasks ordered by due date and ID", async () => {
   tasks = [
     task(4, [assignment()], { due_date: "2026-10-06" }),
     task(2),
@@ -207,11 +208,11 @@ it("orders personal Tasks by date and ID, then oldest warning and ID", async () 
     warning(1, { created_at: "2026-10-01T00:00:00Z" }),
   ];
   expect((await load()).items.map((item) => item.key)).toEqual([
-    "task-1",
-    "task-2",
-    "task-4",
     "warning-1",
     "warning-2",
+    "warning-3",
+    "task-1",
+    "task-2",
   ]);
   tasks = [];
   expect((await load()).items.map((item) => item.key)).toEqual([
@@ -219,6 +220,27 @@ it("orders personal Tasks by date and ID, then oldest warning and ID", async () 
     "warning-2",
     "warning-3",
   ]);
+});
+
+it("keeps a warning decision visible alongside five future Tasks", async () => {
+  tasks = Array.from({ length: 5 }, (_, index) =>
+    task(index + 1, [assignment()], {
+      due_date: `2026-10-${String(index + 5).padStart(2, "0")}`,
+    }),
+  );
+  warnings = [warning(1)];
+
+  const result = await load();
+  expect(result.items.map((item) => item.key)).toEqual([
+    "warning-1",
+    "task-1",
+    "task-2",
+    "task-3",
+    "task-4",
+  ]);
+  expect(result.items).toHaveLength(5);
+  expect(result.hasMore).toBe(true);
+  expect(result.hasPendingWarnings).toBe(true);
 });
 
 it("caps the summary at five and bounds all source queries", async () => {
@@ -230,13 +252,15 @@ it("caps the summary at five and bounds all source queries", async () => {
     .split('aria-label="Your action items"')[1]
     .split("</section>")[0];
   expect(section.match(/<li>/g)).toHaveLength(5);
-  expect(section).toContain('href="/tasks/5"');
-  expect(section).not.toContain('href="/tasks/6"');
+  expect(section).toContain('href="/officers#warning-5"');
+  expect(section).not.toContain('href="/officers#warning-6"');
   expect(section).toContain("Showing the first 5 items");
   expect(section).toContain('href="/tasks"');
   expect(section).toContain('href="/officers"');
   expect(
-    [...section.matchAll(/href="\/tasks\/(\d+)"/g)].map((match) => match[1]),
+    [...section.matchAll(/href="\/officers#warning-(\d+)"/g)].map(
+      (match) => match[1],
+    ),
   ).toEqual(["1", "2", "3", "4", "5"]);
   for (const url of urls.filter((url) =>
     ["tasks", "officer_warnings"].includes(url.pathname.split("/").at(-1)!),
@@ -264,6 +288,19 @@ it("renders personal completion status and warning decisions with canonical link
   expect(section).toContain("Warning for Alex");
   expect(section).toContain("Needs decision");
   expect(section).not.toContain("<form");
+});
+
+it("keeps View all Tasks available without a pending warning decision", async () => {
+  tasks = Array.from({ length: 6 }, (_, index) => task(index + 1));
+  const html = await render();
+  const section = html
+    .split('aria-label="Your action items"')[1]
+    .split("</section>")[0];
+
+  expect(section).toContain('href="/tasks"');
+  expect(section).not.toContain("View warning decisions");
+  expect(section).toContain("Showing the first 5 items. View Tasks for more.");
+  expect(section).not.toContain("warning decisions for more");
 });
 
 it("keeps the empty state lightweight and preserves profile, metrics and summary layout", async () => {

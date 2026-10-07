@@ -135,12 +135,14 @@ export default async function DashboardPage() {
               >
                 View all Tasks
               </Link>
-              <Link
-                href="/officers"
-                className="inline-flex min-h-9 items-center underline underline-offset-4"
-              >
-                View warning decisions
-              </Link>
+              {actionItems.hasPendingWarnings && (
+                <Link
+                  href="/officers"
+                  className="inline-flex min-h-9 items-center underline underline-offset-4"
+                >
+                  View warning decisions
+                </Link>
+              )}
             </div>
           }
         />
@@ -174,8 +176,9 @@ export default async function DashboardPage() {
         )}
         {actionItems.hasMore && (
           <p className="mt-2 text-xs">
-            Showing the first {ACTION_ITEM_LIMIT} items. View Tasks or warning
-            decisions for more.
+            Showing the first {ACTION_ITEM_LIMIT} items. View Tasks
+            {actionItems.hasPendingWarnings && " or warning decisions"} for
+            more.
           </p>
         )}
       </section>
