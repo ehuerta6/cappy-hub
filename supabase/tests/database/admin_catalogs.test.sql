@@ -86,6 +86,7 @@ select throws_ok($$select rename_position((select id from positions where code='
 select throws_ok($$select delete_position((select id from positions where code='lead'))$$,
  'P0001','Required positions cannot be deleted','machine identity keeps baseline delete protection');
 reset role;
+set local role authenticated;
 select lives_ok($$select rename_position((select id from positions where name='Mentor'),'Senior Mentor')$$,
  'admin renames position');
 select throws_ok($$select rename_position((select id from positions where name='Senior Mentor'),'  OFFICER  ')$$,
