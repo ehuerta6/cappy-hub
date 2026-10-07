@@ -53,7 +53,7 @@ The active **Protect Main** GitHub ruleset should require these exact status che
 - `Quality checks` — includes the Playwright browser smoke suite.
 - `Verify Preview login` — produced by the separate **Preview runtime smoke** workflow for same-repository PRs.
 
-When either required check fails, GitHub blocks merging until it passes. Review the failed Actions run for details; a Playwright failure may also include a `playwright-results-<run id>` artifact. The current ruleset has no required checks configured yet. In **Settings → Rules → Protect Main**, add the two contexts above to its required status checks. Keep its existing pull request, review, conversation-resolution, force-push, and deletion protections in place.
+When either required check fails, GitHub blocks merging until it passes. Review the failed Actions run for details; a Playwright failure may also include a `playwright-results-<run id>` artifact. The active **Protect Main** ruleset currently requires both contexts. Keep those checks and its existing pull request, review, conversation-resolution, force-push, and deletion protections in place.
 
 ## Commit and push
 
