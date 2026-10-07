@@ -6,7 +6,8 @@ import Loading from "@/app/(protected)/loading";
 it("announces protected page loading with a restrained, compact-width-safe region", () => {
   const html = renderToStaticMarkup(createElement(Loading));
 
-  expect(html).toContain('<main aria-busy="true"');
+  expect(html).toContain('<div aria-busy="true"');
+  expect(html).not.toMatch(/<main\b/i);
   expect(html).toContain('role="status"');
   expect(html).toContain('aria-live="polite"');
   expect(html).toContain('aria-atomic="true"');
