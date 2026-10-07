@@ -53,11 +53,7 @@ test("Cappy Hub brand mark stays decorative and compact across themes and widths
   ).toBeVisible();
   await expectNoPageOverflow(page);
 
-  await page
-    .getByRole("button", {
-      name: "Main navigation, current section: Dashboard",
-    })
-    .click();
+  await page.getByText("Section: Dashboard", { exact: true }).click();
   await expect(
     page
       .getByRole("navigation", { name: "Main navigation" })
