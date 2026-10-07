@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { ActionFeedback, FieldError } from "@/components/ui";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { changeCatalog } from "./actions";
@@ -24,11 +25,20 @@ function CatalogForm({
   const fieldErrors = state.fieldErrors ?? {};
   const fieldId = `${catalog}-${operation}-${record?.id ?? "new"}`;
   const errorId = `${fieldId}-error`;
+  const catalogName =
+    catalog === "event_location"
+      ? "Event location"
+      : catalog === "branch"
+        ? "Branch"
+        : "Position";
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="catalog" value={catalog} />
       <input type="hidden" name="operation" value={operation} />
       {record && <input type="hidden" name="id" value={record.id} />}
+      {operation === "delete" && record && (
+        <input type="hidden" name="name" value={record.name} />
+      )}
       {operation !== "delete" && (
         <label
           className="sr-only"
@@ -55,19 +65,38 @@ function CatalogForm({
           <FieldError id={errorId}>{fieldErrors.name}</FieldError>
         </>
       )}
-      <button type="submit" disabled={pending} className="button-secondary">
-        {pending
-          ? operation === "create"
-            ? "Adding…"
-            : operation === "rename"
-              ? "Saving…"
-              : "Deleting…"
-          : operation === "create"
-            ? "Add"
-            : operation === "rename"
-              ? "Rename"
-              : "Delete"}
-      </button>
+      {operation === "delete" && record ? (
+        <ConfirmationDialog
+          title={`Delete ${catalogName}?`}
+          description={
+            catalog === "position"
+              ? "This removes the Position from available Officer choices. A Position in use cannot be deleted."
+              : catalog === "branch"
+                ? "This removes the Branch from available choices. Branches used by Officers, Events, or Tasks cannot be deleted."
+                : "This removes the saved location from future choices. Existing Events keep their recorded location."
+          }
+          triggerLabel="Delete"
+          confirmLabel={`Delete ${catalogName}`}
+          destructive
+          pending={pending}
+          context={{
+            label: catalogName,
+            fieldName: "name",
+            values: {},
+            defaultValue: record.name,
+          }}
+        />
+      ) : (
+        <button type="submit" disabled={pending} className="button-secondary">
+          {pending
+            ? operation === "create"
+              ? "Adding…"
+              : "Saving…"
+            : operation === "create"
+              ? "Add"
+              : "Rename"}
+        </button>
+      )}
       <ActionFeedback state={state} />
     </form>
   );
