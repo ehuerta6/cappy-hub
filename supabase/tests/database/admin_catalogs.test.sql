@@ -32,6 +32,7 @@ update positions set name='Club President' where code='president';
 insert into positions(name) values('Lead');
 insert into positions(name) values('President');
 insert into auth.users(id,email) values
+ ('00000000-0000-4000-8000-000000000604','deceptive-lead@example.org'),
  ('00000000-0000-4000-8000-000000000605','deceptive-president@example.org'),
  ('00000000-0000-4000-8000-000000000606','renamed-president@example.org');
 insert into officers(id,name,utep_email,position_id,application_role,status,auth_user_id)
