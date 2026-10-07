@@ -200,10 +200,32 @@ select -338,'Bulk atomicity','Test event','TBA',(select id from event_types wher
   ((local_date-1)::timestamp+time '09:00') at time zone 'America/Denver',
   ((local_date-1)::timestamp+time '10:00') at time zone 'America/Denver','past'
 from denver_today;
+insert into point_transactions(officer_id,event_id,points,reason,award_type)
+  values(-338,-338,2,'Existing manual primary award','manual');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000331',true);
+set local role authenticated;
+select throws_ok($$select bulk_add_event_officers(-338,array[-338]::bigint[])$$,
+  'P0001','This Officer already has an active award for this Event.',
+  'past bulk signup reports an existing manual primary award');
+reset role;
+select set_config('request.jwt.claim.sub','',true);
+select is((select count(*) from event_officers where event_id=-338),0::bigint,
+  'bulk award conflict rolls back the new signup');
+select is((select count(*) from point_transactions where event_id=-338
+  and award_type='participation'),0::bigint,
+  'bulk award conflict does not report success without an award');
+select is((select participation_points_per_hour_at_end from events where id=-338),
+  null::numeric,'bulk award conflict rolls back the first rate snapshot');
+delete from point_transactions where event_id=-338 and award_type='manual';
+
 alter table audit_logs add constraint reject_bulk_event_audit
   check (action <> 'event.officers_bulk_added') not valid;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000331',true);
+set local role authenticated;
 select throws_ok($$select bulk_add_event_officers(-338,array[-338]::bigint[])$$,
   '23514',null,'bulk audit failure aborts the complete transaction');
+reset role;
+select set_config('request.jwt.claim.sub','',true);
 select is((select count(*) from event_officers where event_id=-338),0::bigint,
   'failed bulk audit rolls back attendee signup');
 select is((select count(*) from point_transactions where event_id=-338),0::bigint,

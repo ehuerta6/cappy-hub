@@ -177,6 +177,15 @@ begin
           'point_transaction',award_id::text,pg_catalog.jsonb_build_object(
             'transaction_id',award_id,'event_id',p_event_id,'officer_id',target_id,
             'scheduled_hours',scheduled_hours,'rate',current_rate,'points',award_points));
+      elsif exists (
+        select 1 from public.point_transactions
+        where officer_id = target_id and event_id = p_event_id
+          and award_type = 'manual' and removed_at is null
+      ) then
+        -- A manual primary award can race the earlier no-op check. The unique
+        -- index arbitrates the insert; report that result to interactive bulk
+        -- callers instead of returning a signup without its expected award.
+        raise exception 'This Officer already has an active award for this Event.';
       end if;
     end loop;
   end if;

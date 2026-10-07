@@ -154,8 +154,10 @@ select
   -5000 - gs,
   -1013 - ((gs - 1) % 12),
   case
-    when gs % 4 = 0 then -2001
-    when gs % 4 = 1 then -2002
+    -- Keep a small number of linked Event manual awards while avoiding
+    -- duplicate Officer/Event primary awards in the synthetic history.
+    when gs <= 12 and gs % 4 = 0 then -2001
+    when gs <= 12 and gs % 4 in (1, 2) then -2002
     else null
   end,
   case when gs % 11 = 0 then -2 else ((gs % 9) + 1)::numeric end,

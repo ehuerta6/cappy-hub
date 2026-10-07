@@ -23,6 +23,7 @@ const safeMessages = new Set([
   "Signups are closed for this event",
   "Target officer is not active",
   "All target officers must be active",
+  "This Officer already has an active award for this Event.",
   "Select at least one valid officer",
   "This event cannot accept attendees",
   "Last active admin cannot be deactivated",

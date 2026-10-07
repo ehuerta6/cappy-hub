@@ -40,4 +40,7 @@ it("maps duplicate primary Event awards to a clear domain message", () => {
       'duplicate key value violates unique constraint "one_active_primary_event_award_per_officer"',
     ),
   ).toBe("This Officer already has an active award for this Event.");
+  expect(
+    mutationError("This Officer already has an active award for this Event."),
+  ).toBe("This Officer already has an active award for this Event.");
 });
