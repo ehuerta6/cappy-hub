@@ -66,6 +66,14 @@ export default async function TaskDetailPage({
 
   const task = result.data;
   const assignments = task.task_officer_assignments;
+  const sortedAssignments = [...assignments].sort(
+    (left, right) =>
+      left.officers.name.localeCompare(right.officers.name, "en", {
+        sensitivity: "base",
+      }) ||
+      left.officers.name.localeCompare(right.officers.name, "en") ||
+      left.officer_id - right.officer_id,
+  );
   const canManageTask = canManageEvent(actor, [task.branch_id]);
   const alreadyAssigned = new Set(
     assignments.map(({ officer_id }) => officer_id),
@@ -179,7 +187,7 @@ export default async function TaskDetailPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {assignments.map((assignment) => {
+                  {sortedAssignments.map((assignment) => {
                     const officer = assignment.officers;
                     const completed = assignment.completed_at !== null;
                     const hasAward = awardsResult.data.some(
