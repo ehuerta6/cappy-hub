@@ -28,7 +28,7 @@ Officer lifecycle status, application role, Position, and Branch memberships are
 
 - **Status** is active or inactive and controls eligibility for application access and active workflows.
 - **Application role** is `officer` or `admin` and is assigned explicitly. A leadership Position does not grant Admin privileges.
-- **Position** describes the Officer's club role. Each Position has a stable machine code separate from its editable display name. Required system Positions cannot be renamed or deleted.
+- **Position** describes the Officer's club role. Every Position has a stable database ID. The six required system Positions also have stable, non-null machine codes used by authorization; custom Positions have no machine code and cannot gain system privileges through their display names. Required system Positions cannot be renamed or deleted.
 - **Branch membership** is a separate many-to-many relationship. It scopes branch work and may be empty for global Officers.
 
 Deactivation does not silently change the Officer's Position, Branches, application role, or historical relationships. The last-active-Admin safeguard prevents removing the only active administrator through Officer deactivation or role changes.
@@ -44,7 +44,7 @@ Officers may manage their own Event signup and Task self-assignment where those 
 | Record            | Meaning and relationship                                                                                                                                            |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Officer           | Durable identity, status, one Position, optional Branch memberships, and optional unique authentication link.                                                       |
-| Position          | Club title with stable machine identity; display names can change without changing authorization identity.                                                          |
+| Position          | Club title with a stable database ID. The six required system Positions have stable machine codes for authorization; custom Positions keep a null code.             |
 | Branch            | Organizational scope used for Officer membership and branch-scoped Events and Tasks.                                                                                |
 | Event             | Scheduled occurrence with one catalog Event Type, optional Branches, native Officer signups, resource links, and participation Point transactions.                  |
 | Task              | Dated unit of Officer work with one Branch, zero or more Officer assignments, completion state per assignment, and optional Task Points.                            |
@@ -63,7 +63,7 @@ Admins create and edit Officer profiles, manage application roles through the ac
 
 Deactivation preserves the Officer row, authentication link, and historical Event, Task, Warning, Point, and audit references. It is a lifecycle change, not routine hard deletion. Inactive Officers cannot access protected workflows or be newly signed up or assigned through trusted mutations. Default list and selector filtering is tracked separately in [#177](https://github.com/ehuerta6/cappy-hub/issues/177). Position or application-role changes are not implied by deactivation or reactivation.
 
-Position authorization uses the stable `code`, not the display name. The six required Positions are President, Vice President of Operations, Vice President of Academics, Secretary, Lead, and Officer. They cannot be renamed or deleted. Admins may create and rename custom Positions; safe deletion is allowed only when no Officer uses the Position. Branches may be created or renamed, and safe deletion is restricted when historical records still reference them.
+Position authorization uses stable, non-null machine codes only for the six required Positions: President, Vice President of Operations, Vice President of Academics, Secretary, Lead, and Officer. These codes are independent of display names, and the required Positions cannot be renamed or deleted. Every Position has a stable database ID; custom Positions intentionally retain `code = NULL`, so changing or copying a display name cannot grant system privileges. Admins may create and rename custom Positions; safe deletion is allowed only when no Officer uses the Position. Branches may be created or renamed, and safe deletion is restricted when historical records still reference them.
 
 ### Planned / accepted
 
@@ -188,7 +188,7 @@ The following rules are enforced, or must be enforced where indicated, at a trus
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Officer email identity             | Current. At least one of UTEP or personal email is required. Addresses are normalized and unique case-insensitively across both fields and all Officers.                                                                                                                                                                                                                                 |
 | Officer access                     | Current. A valid linked authentication identity must resolve to one active Officer. Inactive or unlinked accounts do not gain application access.                                                                                                                                                                                                                                        |
-| Position, Branch, application role | Current. Each Officer has one Position; Branch membership is separate and many-to-many; `application_role` is separate from both. Authorization uses stable Position machine identity, not its display name.                                                                                                                                                                             |
+| Position, Branch, application role | Current. Each Officer has one Position; Branch membership is separate and many-to-many; `application_role` is separate from both. The six required Positions have stable, non-null machine codes used by authorization; custom Positions have stable database IDs but `code = NULL`, and display names never grant system privileges.                                                    |
 | Branch authorization               | Current. Event Lead management requires a shared Branch and excludes global Events. Admin/global Event and Task scopes are checked by trusted mutations. Linking or assignment does not grant unrelated permissions.                                                                                                                                                                     |
 | Event schedule and type            | Current. Event date and start/end timestamps must form a valid same-day America/Denver schedule between 06:00 and 23:59, with end later than start. Event Type must reference the canonical catalog; only available types may be selected for new Events, while historical references remain valid.                                                                                      |
 | Recurrence identity                | Current. A series request key identifies the accepted request/input for idempotent retries. Occurrence rows have stable IDs and unique series/date identity. Mutations preserve history, reject stale revisions and incompatible identities, and do not silently recreate removed occurrences.                                                                                           |
@@ -240,4 +240,13 @@ The frontend uses Next.js, React, TypeScript, and Tailwind CSS. Supabase provide
 
 Browser code may use only client-safe credentials. Service-role and other privileged credentials stay server-side. Sensitive authorization belongs in trusted server/database logic and RLS, not solely in the interface.
 
-Use this authority order when maintaining product behavior: newest explicit maintainer decisions; this Product & Technical Specification and approved feature decisions; repository documentation and migrations for technical contracts; current implementation as evidence of what is shipped. The active Issue defines implementation scope, and its accepted clarifications resolve that Issue's requirements. If these sources materially conflict, record the discrepancy and resolve it using the higher-authority source. Update this specification when an accepted product decision changes or a shipped change makes its current-state description stale.
+Use this canonical authority order when maintaining product behavior:
+
+1. Current Product & Technical Specification.
+2. Newest explicit maintainer/user decision.
+3. Approved feature specifications.
+4. Active GitHub Issue and accepted clarifications.
+5. Repository documentation and migrations.
+6. Current implementation as evidence of what is shipped.
+
+The active Issue defines implementation scope within this order. If sources materially conflict, record the discrepancy and resolve it using the higher-authority source. A new explicit decision may require this specification to be updated; update it so it remains the canonical product source. Repository documentation and migrations define reproducible technical behavior, while the current implementation is evidence of shipped behavior.
