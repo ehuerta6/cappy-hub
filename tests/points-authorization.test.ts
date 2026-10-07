@@ -14,6 +14,7 @@ import {
   addTransaction,
   changeParticipationRate,
   removeParticipationAward,
+  searchEvents,
 } from "@/app/(protected)/points/actions";
 
 const rpc = vi.fn().mockResolvedValue({ error: null });
@@ -48,15 +49,47 @@ it("submits an admin correction with an authenticated client", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     applicationRole: "admin",
   } as never);
-  const result = await addTransaction({ error: "", success: "" }, form());
+  const transaction = form();
+  transaction.set("event_id", "12");
+  const result = await addTransaction({ error: "", success: "" }, transaction);
   expect(result.success).toBe("Point transaction added");
   expect(rpc).toHaveBeenCalledWith("add_manual_transaction", {
     p_officer_id: 3,
-    p_event_id: undefined,
+    p_event_id: 12,
     p_points: 2,
     p_reason: "Correction",
     p_award_type: "correction",
   });
+});
+
+it("loads Event dates for older Event search results", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    applicationRole: "admin",
+  } as never);
+  const selectedColumns = vi.fn();
+  const query = {
+    select: (columns: string) => {
+      selectedColumns(columns);
+      return query;
+    },
+    is: () => query,
+    ilike: () => query,
+    order: () => query,
+    limit: () => query,
+    then: (resolve: (value: unknown) => unknown) =>
+      Promise.resolve({
+        data: [{ id: 12, name: "Repeated event", event_date: "2026-10-15" }],
+        error: null,
+      }).then(resolve),
+  };
+  vi.mocked(createClient).mockResolvedValue({
+    from: () => query,
+  } as never);
+
+  await expect(searchEvents("Repeated")).resolves.toEqual([
+    { id: 12, name: "Repeated event", event_date: "2026-10-15" },
+  ]);
+  expect(selectedColumns).toHaveBeenCalledWith("id,name,event_date");
 });
 
 it("rejects zero point changes before the admin correction RPC", async () => {

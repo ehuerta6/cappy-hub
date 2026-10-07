@@ -110,7 +110,7 @@ export default async function PointsPage({
       .order("event_date", { ascending: false }),
     supabase
       .from("events")
-      .select("id,name")
+      .select("id,name,event_date")
       .is("deleted_at", null)
       .order("event_date", { ascending: false })
       .limit(5),
