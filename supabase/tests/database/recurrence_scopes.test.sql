@@ -110,7 +110,7 @@ select lives_ok($$select pg_temp.mutate('event-schedule',2,'series','edit','{}',
 select is((select count(*) from events where recurrence_series_id=(select recurrence_series_id from events where id=pg_temp.id('event-schedule',2))),3::bigint,'event expansion creates just the missing occurrence');
 reset role;
 select pg_temp.fixture('task-schedule','task',5);
-insert into task_assignments(task_id,officer_id,assigned_by) values(pg_temp.id('task-schedule',2),-683,-681);
+insert into task_officer_assignments(task_id,officer_id,assigned_by) values(pg_temp.id('task-schedule',2),-683,-681);
 set local role authenticated;
 select lives_ok($$select pg_temp.mutate('task-schedule',2,'following','edit','{}','RRULE:FREQ=DAILY;INTERVAL=2;COUNT=3',array['2099-03-07'::date,'2099-03-09','2099-03-11'])$$,'task future interval change splits series and shortens COUNT');
 select is((select due_date::text from tasks where id=pg_temp.id('task-schedule',1)),'2099-03-06','task earlier date untouched');
@@ -119,7 +119,7 @@ select isnt((select recurrence_series_id from tasks where id=pg_temp.id('task-sc
 select is((select due_date::text from tasks where id=pg_temp.id('task-schedule',3)),'2099-03-09','task existing third row receives new schedule');
 select ok((select removed_at is not null from tasks where id=pg_temp.id('task-schedule',5)),'task shortened tail logically removed');
 select is((select recurrence_rule from task_series where id=(select series_id from pg_temp.fixtures where label='task-schedule')),'RRULE:FREQ=DAILY;INTERVAL=1;UNTIL=20990306','task historical segment accurately truncated to one');
-select is((select officer_id from task_assignments where task_id=pg_temp.id('task-schedule',2)),-683::bigint,'Task assignee preserved through future schedule edit');
+select is((select officer_id from task_officer_assignments where task_id=pg_temp.id('task-schedule',2)),-683::bigint,'Task assignee preserved through future schedule edit');
 select lives_ok($$select pg_temp.mutate('task-schedule',2,'series','edit','{}','RRULE:FREQ=DAILY;INTERVAL=1;UNTIL=20990402',array['2099-04-01'::date,'2099-04-02'])$$,'task whole-series date change and UNTIL shortening');
 select is((select due_date::text from tasks where id=pg_temp.id('task-schedule',2)),'2099-04-01','task all schedule update preserves selected ID');
 select lives_ok($$select pg_temp.mutate('task-schedule',2,'series','edit','{}','RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=WE,FR;COUNT=3',array['2099-04-01'::date,'2099-04-03','2099-04-15'])$$,'task weekday and weekly interval change with explicit extension');
@@ -151,12 +151,12 @@ update tasks set due_date=(pg_catalog.statement_timestamp() at time zone 'Americ
   where id=pg_temp.id('task-history',3);
 -- Model existing completion, approval, and point history independently of the
 -- retired client RPCs so recurrence edits must preserve the stored records.
-insert into task_assignments(task_id,officer_id,assigned_by,assigned_at,completed_at,approved_at,approved_by)
+insert into task_officer_assignments(task_id,officer_id,assigned_by,assigned_at,completed_at,approved_at,approved_by)
 values(pg_temp.id('task-history',3),-683,-681,now()-interval '5 days',now()-interval '4 days',now()-interval '3 days',-681);
 insert into point_transactions(officer_id,task_id,points,reason,award_type,created_by)
 values(-683,pg_temp.id('task-history',3),3,'Historical recurring Task award','task','00000000-0000-4000-8000-000000000681');
 create temporary table preserved_task_state as select to_jsonb(a) as assignment,
- (select to_jsonb(p) from point_transactions p where task_id=a.task_id) as points from task_assignments a where task_id=pg_temp.id('task-history',3);
+ (select to_jsonb(p) from point_transactions p where task_id=a.task_id) as points from task_officer_assignments a where task_id=pg_temp.id('task-history',3);
 set local role authenticated;
 select lives_ok($$select pg_temp.mutate('task-history',2,'occurrence','edit','{"title":"Task exception","due_date":"2099-03-20"}')$$,'recurring Task individual field edit');
 select is((select title from tasks where id=pg_temp.id('task-history',1)),'task-history','individual Task edit leaves sibling title');
@@ -181,7 +181,7 @@ select is((select jsonb_agg(to_jsonb(t) order by id) from tasks t where id in (s
 select is((select to_jsonb(s) from task_series s where id=(select recurrence_series_id from tasks where id=pg_temp.id('task-history',1))),(select series from atomic_before),'failed protected operations leave canonical metadata unchanged');
 select is((select count(*) from audit_logs),(select audits from atomic_before),'failed operations leave no partial audits');
 select is((select count(*) from private.recurrence_mutations),(select receipts from atomic_before),'failed operations leave no success receipt');
-select is((select to_jsonb(a) from task_assignments a where task_id=pg_temp.id('task-history',3)),(select assignment from preserved_task_state),'Task assignee completion and approval preserved');
+select is((select to_jsonb(a) from task_officer_assignments a where task_id=pg_temp.id('task-history',3)),(select assignment from preserved_task_state),'Task assignee completion and approval preserved');
 select is((select to_jsonb(p) from point_transactions p where task_id=pg_temp.id('task-history',3)),(select points from preserved_task_state),'Task awarded points preserved');
 select pg_temp.fixture('task-remove','task');
 set local role authenticated;
@@ -227,7 +227,7 @@ select throws_ok($$select pg_temp.mutate('event-atomic-cancel',1,'series','cance
 select is((select count(*) from events where id in (select unnest(ids) from pg_temp.fixtures where label='event-atomic-cancel') and status='cancelled'),0::bigint,'failed bulk cancel leaves all lifecycle states unchanged');
 reset role;
 select pg_temp.fixture('task-completed-only','task');
-insert into task_assignments(task_id,officer_id,assigned_by,completed_at) values(pg_temp.id('task-completed-only',3),-683,-681,'2026-09-20 12:00Z');
+insert into task_officer_assignments(task_id,officer_id,assigned_by,completed_at) values(pg_temp.id('task-completed-only',3),-683,-681,'2026-09-20 12:00Z');
 set local role authenticated;
 select throws_ok($$select pg_temp.mutate('task-completed-only',2,'following','remove')$$,'P0001','Completed or awarded Tasks cannot be removed','completed but unapproved Task blocks following removal');
 select ok((select removed_at is null from tasks where id=pg_temp.id('task-completed-only',2)),'failed following remove leaves boundary active');

@@ -59,6 +59,12 @@ try {
     if (migration === "20261004000000_task_officer_completion_workflow.sql") {
       psql(readFileSync("supabase/fixtures/pre-task-officer-assignments.sql"));
     }
+    if (
+      migration ===
+      "20261007120000_remove_legacy_task_assignment_projection.sql"
+    ) {
+      psql(readFileSync("supabase/fixtures/pre-task-assignment-contract.sql"));
+    }
     if (migration.endsWith("_harden_catalogs_lifecycle_and_rls.sql")) {
       psql(`create table upgrade_fixture.pre_hardening_events as select to_jsonb(e) row from public.events e;
         create table upgrade_fixture.pre_hardening_points as select to_jsonb(p) row from public.point_transactions p;

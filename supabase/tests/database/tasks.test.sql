@@ -20,6 +20,15 @@ insert into officer_branches(officer_id,branch_id)
 select set_config('test.denver_today',
   (pg_catalog.statement_timestamp() at time zone 'America/Denver')::date::text,true);
 
+select ok(to_regclass('public.task_assignments') is null,
+ 'Task assignment reads and writes have no legacy projection table');
+select ok(to_regprocedure('private.sync_legacy_task_assignment(bigint)') is null
+  and to_regprocedure('private.sync_legacy_task_assignment_write()') is null
+  and not exists(select 1 from pg_catalog.pg_trigger
+    where tgrelid='public.task_officer_assignments'::regclass and not tgisinternal
+      and tgname='task_assignments_sync_officer_assignments'),
+ 'legacy projection synchronization objects are absent');
+
 insert into tasks
   (id,title,description,task_type,branch_id,due_date,points,approval_required,created_by,removed_at,removed_by)
 values
@@ -38,7 +47,7 @@ values
  (-9716,-973,-972,now()-interval '2 days'),
  (-9716,-974,-972,null);
 -- Seed representative historical approval and award rows as existing data.
-insert into task_assignments(task_id,officer_id,assigned_by,assigned_at,completed_at,approved_at,approved_by)
+insert into task_officer_assignments(task_id,officer_id,assigned_by,assigned_at,completed_at,approved_at,approved_by)
 values(-9718,-973,-972,now()-interval '5 days',now()-interval '4 days',now()-interval '3 days',-972);
 insert into point_transactions(officer_id,task_id,points,reason,award_type,created_by)
 values(-973,-9718,2.5,'Historical Task award','task','00000000-0000-4000-8000-000000000972');
@@ -85,8 +94,6 @@ select is((select count(*) from task_officer_assignments where task_id=-9710),1:
  'self-assignment creates only the current Officer row');
 select is((select completed_at from task_officer_assignments where task_id=-9710 and officer_id=-973),null::timestamptz,
  'new self-assignment starts Not completed');
-select is((select count(*) from task_assignments where task_id=-9710),1::bigint,
- 'legacy singleton projection remains available for the old application');
 select throws_ok($$select bulk_assign_task_officers(-9710,array[-974]::bigint[])$$,
  'P0001','Task outside branch scope','ordinary Officer cannot bulk-assign');
 select throws_ok($$select set_task_assignment_completion(-9710,-973,true)$$,
@@ -219,8 +226,7 @@ reset role;
 select is((select count(*) from audit_logs where entity_type='task' and entity_id='-9713' and action='task.removed'),1::bigint,
  'standalone removal is audited once');
 
--- Current bulk assignment updates the canonical relation and its historical
--- singleton projection without relying on the removed compatibility RPC.
+-- Current bulk assignment uses the canonical relation without a projection.
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000972',true);
 set local role authenticated;
 select lives_ok($$select bulk_assign_task_officers(-9715,array[-973]::bigint[])$$,
@@ -228,8 +234,6 @@ select lives_ok($$select bulk_assign_task_officers(-9715,array[-973]::bigint[])$
 reset role;
 select is((select count(*) from task_officer_assignments where task_id=-9715 and officer_id=-973),1::bigint,
  'supported bulk assignment writes to the canonical relation');
-select is((select count(*) from task_assignments where task_id=-9715 and officer_id=-973),1::bigint,
- 'the historical singleton projection remains synchronized');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000973',true);
 set local role authenticated;
 select is((select completed_at from task_officer_assignments where task_id=-9715 and officer_id=-973),null::timestamptz,
