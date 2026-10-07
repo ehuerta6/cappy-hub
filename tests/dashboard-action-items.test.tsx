@@ -20,6 +20,7 @@ const officer = {
   id: 8,
   name: "Current officer",
   positionName: "Officer",
+  positionCode: "officer",
   positionId: 1,
   applicationRole: "officer",
   branchIds: [1],
@@ -156,7 +157,7 @@ it("includes only this Officer's incomplete assignments", async () => {
 });
 
 it("does not add manager approval tasks to the dashboard", async () => {
-  actor.positionName = "President";
+  actor.positionCode = "president";
   const managerTask = task(9, [assignment(7, "2026-10-03")]);
   expect(dashboardActionItems(actor, [managerTask], []).items).toEqual([]);
 });

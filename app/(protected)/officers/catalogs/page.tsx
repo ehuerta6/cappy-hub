@@ -9,7 +9,7 @@ export default async function OfficerCatalogsPage() {
   if (!isAdmin(actor)) notFound();
   const supabase = await createClient();
   const [positions, branches, locations] = await Promise.all([
-    supabase.from("positions").select("id,name").order("name"),
+    supabase.from("positions").select("id,name,code").order("name"),
     supabase.from("branches").select("id,name").order("name"),
     supabase.from("event_locations").select("id,name").order("name"),
   ]);

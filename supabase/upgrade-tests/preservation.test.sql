@@ -175,9 +175,21 @@ select is((select jsonb_agg(to_jsonb(p)-'created_by_officer_id'-'updated_by_offi
 select is((select jsonb_agg(to_jsonb(b) order by id) from branches b),
   (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.pre_hardening_branches),
   'Branch names, IDs and timestamps survive normalization');
-select is((select jsonb_agg(to_jsonb(p) order by id) from positions p),
+select is((select jsonb_agg(to_jsonb(p)-'code' order by id) from positions p),
   (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.pre_hardening_positions),
   'Position names, IDs and timestamps survive normalization');
+select is((select jsonb_agg(to_jsonb(p)-'code' order by id) from positions p),
+  (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.pre_position_machine_positions),
+  'Position IDs, labels and timestamps survive identity backfill');
+select is((select count(*) from upgrade_fixture.pre_position_machine_officers original
+    left join officers current on current.id=original.id
+    where current.id is null or current.position_id is distinct from original.position_id),
+  0::bigint,'all pre-existing Officer to Position relationships survive identity backfill');
+select results_eq(
+  $$select code from positions where code is not null order by code$$,
+  $$values ('lead'),('officer'),('president'),('secretary'),
+    ('vice_president_academics'),('vice_president_operations')$$,
+  'all six canonical Positions receive stable machine identities');
 select ok((select convalidated from pg_catalog.pg_constraint where conrelid='public.events'::regclass and conname='events_local_hours_check'),
   'upgrade validates the existing Event local-hours constraint');
 

@@ -6,7 +6,7 @@ import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { changeCatalog } from "./actions";
 
 type Catalog = "position" | "branch" | "event_location";
-type CatalogRecord = { id: number; name: string };
+type CatalogRecord = { id: number; name: string; code?: string | null };
 
 function CatalogForm({
   catalog,
@@ -73,15 +73,6 @@ function CatalogForm({
   );
 }
 
-const requiredPositions = new Set([
-  "President",
-  "Vice President of Operations",
-  "Vice President of Academics",
-  "Secretary",
-  "Lead",
-  "Officer",
-]);
-
 export default function CatalogManager({
   catalog,
   title,
@@ -97,8 +88,7 @@ export default function CatalogManager({
       <CatalogForm catalog={catalog} operation="create" />
       <ul className="space-y-3">
         {records.map((record) => {
-          const required =
-            catalog === "position" && requiredPositions.has(record.name);
+          const required = catalog === "position" && record.code != null;
           return (
             <li key={record.id} className="rounded-lg border border-border p-3">
               {required ? (

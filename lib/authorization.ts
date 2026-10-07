@@ -12,13 +12,13 @@ export async function getAuthorizationContext() {
 export const isAdmin = (actor: AuthorizationContext) =>
   actor.applicationRole === "admin";
 export const isLead = (actor: AuthorizationContext) =>
-  actor.positionName === "Lead";
+  actor.positionCode === "lead";
 export const isEventExecutive = (actor: AuthorizationContext) =>
   [
-    "President",
-    "Vice President of Operations",
-    "Vice President of Academics",
-  ].includes(actor.positionName);
+    "president",
+    "vice_president_operations",
+    "vice_president_academics",
+  ].includes(actor.positionCode ?? "");
 export const canSeeAllBranches = (actor: AuthorizationContext) =>
   isAdmin(actor) || isEventExecutive(actor);
 export const canManageEvent = (

@@ -66,6 +66,12 @@ try {
         create table upgrade_fixture.pre_hardening_positions as select to_jsonb(p) row from public.positions p;
         create table upgrade_fixture.pre_hardening_event_types as select to_jsonb(t) row from public.event_types t;`);
     }
+    if (migration === "20261007000000_position_machine_identity.sql") {
+      psql(`create table upgrade_fixture.pre_position_machine_positions as
+        select to_jsonb(p) row from public.positions p;
+        create table upgrade_fixture.pre_position_machine_officers as
+        select id, position_id from public.officers;`);
+    }
     psql(readFileSync(`supabase/migrations/${migration}`));
   }
   cli([

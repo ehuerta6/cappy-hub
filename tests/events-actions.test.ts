@@ -3,11 +3,11 @@ import { beforeEach, expect, it, vi } from "vitest";
 vi.mock("@/lib/authorization", () => ({
   getAuthorizationContext: vi.fn(),
   canManageEvent: (
-    actor: { positionName?: string; branchIds?: number[] },
+    actor: { positionCode?: string; branchIds?: number[] },
     branches: number[],
   ) =>
-    actor.positionName === "President" ||
-    (actor.positionName === "Lead" &&
+    actor.positionCode === "president" ||
+    (actor.positionCode === "lead" &&
       branches.length > 0 &&
       branches.some((branchId) => actor.branchIds?.includes(branchId))),
 }));
@@ -99,6 +99,7 @@ it("rejects malformed Event input before calling the RPC", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 8,
     positionName: "President",
+    positionCode: "president",
   } as never);
   const invalidEventForm = eventForm();
   invalidEventForm.set("event_date", "October 12");
@@ -115,6 +116,7 @@ it("sends validated Event fields to the existing RPC", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 8,
     positionName: "President",
+    positionCode: "president",
   } as never);
   const data = eventForm();
   data.set("returnTo", "/events?q=meeting&branch=2");
@@ -142,6 +144,7 @@ it("trims a free-entry location before the trusted Event RPC", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 8,
     positionName: "President",
+    positionCode: "president",
   } as never);
   const data = eventForm();
   data.set("location", "  CCSB   1.032  ");
@@ -156,6 +159,7 @@ it("rejects blank free-entry locations before calling a trusted Event RPC", asyn
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 8,
     positionName: "President",
+    positionCode: "president",
   } as never);
   const data = eventForm();
   data.set("location", "   ");
@@ -172,6 +176,7 @@ it("materializes recurring Events with independent Denver schedules", async () =
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 8,
     positionName: "President",
+    positionCode: "president",
   } as never);
   const recurring = eventForm();
   recurring.set("recurrence_frequency", "daily");

@@ -49,7 +49,7 @@ The suite does not reset data itself. `local:reset` clears prior local changes, 
 
 Tests run serially against a locally started production build. They sign in through the local login page using the seeded **Admin**, **Officer**, and **Inactive Officer** accounts. The Admin creates and updates an Event, adds the Officer as a participant, and tests the Event cancellation confirmation and filtered return navigation. A separate Task workflow has the Admin create and assign a Task, the Officer complete it, and the Admin approve it before checking the awarded Task Point in Point History. The inactive account must reach Access denied. Selectors use the app's visible labels, links, buttons, headings, and tables.
 
-CI runs the normal database checks first, then resets to the seeded local app environment, builds, installs Chromium, and runs the same serial suite. It uploads Playwright traces and screenshots on a browser test failure as the `playwright-results-<run id>` artifact. Local failure artifacts are written under `test-results/`.
+The hosted `Quality checks` workflow does not run this browser suite. Run it locally with the commands above when browser workflow coverage is needed. Local failure artifacts are written under `test-results/`.
 
 The same Playwright run includes a small axe accessibility smoke spec for local login, the authenticated Dashboard, new Event and Task forms, and an open Event cancellation dialog. Run it alone with `npx playwright test e2e/accessibility.spec.ts` after the reset and build above, or with the functional smoke through `npm run test:e2e`. Axe catches detectable issues on these representative states; manual keyboard and accessibility review is still needed.
 

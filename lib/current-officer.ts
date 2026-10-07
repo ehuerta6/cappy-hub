@@ -22,7 +22,7 @@ export async function getCurrentOfficer() {
   const { data: officer, error } = await authClient
     .from("officers")
     .select(
-      "id,name,status,application_role,position_id,positions(name),officer_branches(branch_id)",
+      "id,name,status,application_role,position_id,positions(name,code),officer_branches(branch_id)",
     )
     .eq("id", officerId)
     .single();
@@ -37,6 +37,7 @@ export async function getCurrentOfficer() {
     applicationRole: officer.application_role,
     positionId: officer.position_id,
     positionName: officer.positions.name,
+    positionCode: officer.positions.code,
     branchIds: officer.officer_branches.map((branch) => branch.branch_id),
   };
 }
