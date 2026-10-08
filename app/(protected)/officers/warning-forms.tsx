@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { ActionFeedback, FieldError } from "@/components/ui";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
-import { createWarning, decideWarning, deleteWarning } from "./warning-actions";
+import { createWarning, decideWarning, voidWarning } from "./warning-actions";
 
 const initial = initialFormActionState;
 
@@ -80,23 +80,23 @@ export function WarningDecisionForm({ warningId }: { warningId: number }) {
   );
 }
 
-export function DeleteWarningForm({
+export function VoidWarningForm({
   warningId,
   officerId,
 }: {
   warningId: number;
   officerId: number;
 }) {
-  const [state, action, pending] = useActionState(deleteWarning, initial);
+  const [state, action, pending] = useActionState(voidWarning, initial);
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="warning_id" value={warningId} />
       <input type="hidden" name="officer_id" value={officerId} />
       <ConfirmationDialog
-        title="Delete warning?"
-        description="This deletes the warning record. Its System Log record remains."
-        triggerLabel={pending ? "Deleting…" : "Delete"}
-        confirmLabel="Delete warning"
+        title="Void warning?"
+        description="This keeps the warning and its approval history, removes it from active warning totals, and cannot be undone."
+        triggerLabel={pending ? "Voiding…" : "Void"}
+        confirmLabel="Void warning"
         destructive
         pending={pending}
         triggerClassName="button-secondary"
