@@ -76,8 +76,10 @@ select ok(to_regprocedure('public.assign_task(bigint,bigint)') is null
   and to_regprocedure('private.save_event(text,text,bigint,text,timestamptz,timestamptz,bigint[],bigint)') is null
   and to_regprocedure('private.complete_task(bigint)') is null
   and to_regprocedure('private.approve_task(bigint)') is null
+  and to_regprocedure('public.delete_warning(bigint)') is null
+  and to_regprocedure('private.delete_warning(bigint)') is null
   and to_regprocedure('private.award_task(bigint)') is null,
-  'retired compatibility RPCs and unused private helpers are absent');
+  'retired compatibility RPCs, warning delete RPCs, and unused private helpers are absent');
 select ok(not exists(select 1 from pg_catalog.pg_proc p
   join pg_catalog.pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and has_function_privilege('authenticated',p.oid,'EXECUTE')
@@ -103,7 +105,7 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       'public.remove_participation_award(bigint)'::regprocedure,
       'public.create_warning(bigint,text)'::regprocedure,
       'public.decide_warning(bigint,text)'::regprocedure,
-      'public.delete_warning(bigint)'::regprocedure,
+      'public.void_warning(bigint)'::regprocedure,
       'public.remove_event(bigint)'::regprocedure,
       'public.update_point_transaction(bigint,numeric)'::regprocedure,
       'public.remove_point_transaction(bigint)'::regprocedure,
@@ -248,6 +250,8 @@ select throws_ok($$delete from point_transactions where id=-401$$,
   '42501',null,'admin cannot erase point history directly');
 select throws_ok($$delete from audit_logs where id=-401$$,
   '42501',null,'admin cannot delete audit history directly');
+select throws_ok($$delete from officer_warnings where id=-401$$,
+  '42501',null,'admin cannot physically delete warning history');
 select lives_ok($$select save_officer('RLS created',17,'active',null,null,'rls-created@example.org')$$,
   'admin officer-save RPC still works after raw writes are revoked');
 select lives_ok($$select save_event_with_links('RLS admin event','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-22'::date,'2099-09-22 09:00-06','2099-09-22 10:00-06',null)$$,

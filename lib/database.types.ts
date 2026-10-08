@@ -455,6 +455,13 @@ export type Database = {
             foreignKeyName: "officer_warnings_voided_by_fkey";
             columns: ["voided_by"];
             isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "officer_warnings_voided_by_fkey";
+            columns: ["voided_by"];
+            isOneToOne: false;
             referencedRelation: "officers";
             referencedColumns: ["id"];
           },
@@ -1150,7 +1157,6 @@ export type Database = {
         Args: { p_decision: string; p_warning_id: number };
         Returns: undefined;
       };
-      void_warning: { Args: { p_warning_id: number }; Returns: undefined };
       delete_branch: { Args: { p_id: number }; Returns: undefined };
       delete_event_location: { Args: { p_id: number }; Returns: undefined };
       delete_event_type: { Args: { p_id: number }; Returns: undefined };
@@ -1298,6 +1304,7 @@ export type Database = {
         };
         Returns: undefined;
       };
+      void_warning: { Args: { p_warning_id: number }; Returns: undefined };
     };
     Enums: {
       [_ in never]: never;

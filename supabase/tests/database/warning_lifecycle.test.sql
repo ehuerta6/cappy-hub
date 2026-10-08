@@ -266,7 +266,8 @@ set local role authenticated;
 select lives_ok($$select decide_warning(id,'approved') from public.officer_warnings
   where reason like 'Review %'$$,'second VP approves review warnings');
 reset role;
-select is((select count(*) from officer_warnings where officer_id=-905 and status='approved'),
+select is((select count(*) from officer_warnings
+  where officer_id=-905 and status='approved' and voided_at is null),
   3::bigint,'three approved warnings yield admin-review threshold');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000905',true);
 set local role authenticated;
