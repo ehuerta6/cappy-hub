@@ -32,8 +32,8 @@ export default async function EditOfficerPage({
       .select("*, officer_branches(branch_id)")
       .eq("id", Number(id))
       .maybeSingle(),
-    supabase.from("branches").select("id, name").order("name"),
-    supabase.from("positions").select("id, name").order("id"),
+    supabase.from("branches").select("id, name,is_active").order("name"),
+    supabase.from("positions").select("id, name,is_active").order("id"),
   ]);
   if (officer.error || branches.error || positions.error)
     throw new Error("Failed to load officer form");
@@ -47,8 +47,17 @@ export default async function EditOfficerPage({
       <OfficerForm
         returnTo={returnTo}
         officer={officer.data}
-        branches={branches.data}
-        positions={positions.data}
+        branches={branches.data.filter(
+          (branch) =>
+            branch.is_active ||
+            officer.data!.officer_branches.some(
+              (membership) => membership.branch_id === branch.id,
+            ),
+        )}
+        positions={positions.data.filter(
+          (position) =>
+            position.is_active || position.id === officer.data!.position_id,
+        )}
         branchIds={officer.data.officer_branches.map(
           (membership) => membership.branch_id,
         )}

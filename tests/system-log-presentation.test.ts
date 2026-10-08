@@ -329,6 +329,22 @@ it("keeps catalog rename activity and change details readable", () => {
   ]);
 });
 
+it.each([
+  ["branch.retired", "Retired a branch · Legacy catalog value"],
+  ["branch.reactivated", "Reactivated a branch · Legacy catalog value"],
+  ["position.retired", "Retired a position · Legacy catalog value"],
+  ["position.reactivated", "Reactivated a position · Legacy catalog value"],
+])("presents %s catalog lifecycle entries", (action, expectedActivity) => {
+  const result = presentAuditEntry({
+    action,
+    entity_type: action.startsWith("branch.") ? "branch" : "position",
+    entity_id: 12,
+    details: { name: "Legacy catalog value" },
+  });
+  expect(result.activity).toBe(expectedActivity);
+  expect(result.record.label).toBe("Legacy catalog value");
+});
+
 it("uses a safe fallback for unknown legacy actions and unfamiliar payloads", () => {
   const result = presentAuditEntry({
     action: "legacy.action_from_an_old_release",

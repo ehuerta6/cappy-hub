@@ -33,7 +33,7 @@ export default async function EditEventPage({
       .select("*,event_branches(branch_id)")
       .eq("id", eventId)
       .maybeSingle(),
-    supabase.from("branches").select("id,name").order("name"),
+    supabase.from("branches").select("id,name,is_active").order("name"),
     supabase
       .from("event_types")
       .select("id,name,available_for_new_events")
@@ -74,7 +74,13 @@ export default async function EditEventPage({
         mutationRequestKey={crypto.randomUUID()}
         allowGlobal={canSeeAllBranches(actor)}
         event={currentEvent}
-        branches={branches.data}
+        branches={branches.data.filter(
+          (branch) =>
+            branch.is_active ||
+            currentEvent.event_branches.some(
+              (eventBranch) => eventBranch.branch_id === branch.id,
+            ),
+        )}
         eventTypes={eventTypes.data.filter(
           (type) =>
             type.available_for_new_events ||

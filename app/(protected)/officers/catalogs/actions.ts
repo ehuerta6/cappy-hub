@@ -88,11 +88,19 @@ export async function changeCatalog(
           p_name: validatedCatalogMutation.name,
         },
       ));
-    } else {
+    } else if (validatedCatalogMutation.operation === "delete") {
       ({ error: mutationErrorResponse } = await supabase.rpc(
         "delete_position",
         {
           p_id: validatedCatalogMutation.id,
+        },
+      ));
+    } else {
+      ({ error: mutationErrorResponse } = await supabase.rpc(
+        "set_position_active",
+        {
+          p_id: validatedCatalogMutation.id,
+          p_is_active: validatedCatalogMutation.operation === "reactivate",
         },
       ));
     }
@@ -107,10 +115,18 @@ export async function changeCatalog(
         p_id: branchMutation.id,
         p_name: branchMutation.name,
       }));
-    } else {
+    } else if (branchMutation.operation === "delete") {
       ({ error: mutationErrorResponse } = await supabase.rpc("delete_branch", {
         p_id: branchMutation.id,
       }));
+    } else {
+      ({ error: mutationErrorResponse } = await supabase.rpc(
+        "set_branch_active",
+        {
+          p_id: branchMutation.id,
+          p_is_active: branchMutation.operation === "reactivate",
+        },
+      ));
     }
   }
   if (mutationErrorResponse)
@@ -134,6 +150,10 @@ export async function changeCatalog(
       ? "added"
       : operation === "rename"
         ? "updated"
-        : "removed";
+        : operation === "delete"
+          ? "removed"
+          : operation === "retire"
+            ? "retired"
+            : "reactivated";
   return { error: "", success: `${subject} ${verb}` };
 }

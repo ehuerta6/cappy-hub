@@ -37,7 +37,7 @@ export default async function EditTaskPage({
           .select("id,revision,recurrence_rule,starts_on")
           .eq("id", task.data.recurrence_series_id)
           .single(),
-    supabase.from("branches").select("id,name").order("name"),
+    supabase.from("branches").select("id,name,is_active").order("name"),
     supabase.from("task_events").select("event_id").eq("task_id", task.data.id),
     supabase
       .from("events")
@@ -62,7 +62,9 @@ export default async function EditTaskPage({
         returnTo={returnTo}
         task={task.data}
         series={series.data ?? undefined}
-        branches={branches.data}
+        branches={branches.data.filter(
+          (branch) => branch.is_active || branch.id === task.data.branch_id,
+        )}
         events={events}
         taskEventIds={linkedIds}
         recurrenceRequestKey={crypto.randomUUID()}

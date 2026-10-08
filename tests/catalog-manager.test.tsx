@@ -26,6 +26,18 @@ it("protects system Positions by machine identity and leaves deceptive custom la
   expect(html).not.toContain('name="id" value="1"');
 });
 
+it("shows retired catalog state and a reactivation action", () => {
+  const html = renderToStaticMarkup(
+    createElement(CatalogManager, {
+      catalog: "branch",
+      title: "Branches",
+      records: [{ id: 8, name: "Systems", is_active: false }],
+    }),
+  );
+  expect(html).toContain("Retired");
+  expect(html).toContain('name="operation" value="reactivate"');
+});
+
 it.each([
   [
     "position",

@@ -188,6 +188,36 @@ it("routes a valid catalog create through the existing branch RPC", async () => 
   expect(rpc).toHaveBeenCalledWith("create_branch", { p_name: "Denver" });
 });
 
+it.each([
+  ["branch", "retire", "set_branch_active", false, "Branch retired"],
+  ["branch", "reactivate", "set_branch_active", true, "Branch reactivated"],
+  ["position", "retire", "set_position_active", false, "Position retired"],
+  [
+    "position",
+    "reactivate",
+    "set_position_active",
+    true,
+    "Position reactivated",
+  ],
+] as const)(
+  "routes Admin %s %s through the trusted lifecycle RPC",
+  async (catalog, operation, rpcName, active, success) => {
+    vi.mocked(getAuthorizationContext).mockResolvedValue({
+      id: 601,
+      applicationRole: "admin",
+    } as never);
+    const form = new FormData();
+    form.set("catalog", catalog);
+    form.set("operation", operation);
+    form.set("id", "14");
+    expect((await changeCatalog(previous, form)).success).toBe(success);
+    expect(rpc).toHaveBeenCalledWith(rpcName, {
+      p_id: 14,
+      p_is_active: active,
+    });
+  },
+);
+
 it("validates and routes Event location catalog mutations", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 601,

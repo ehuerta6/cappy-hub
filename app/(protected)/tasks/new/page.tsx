@@ -15,7 +15,11 @@ export default async function NewTaskPage() {
     redirect("/access-denied");
   const supabase = await createClient();
   const [branches, events] = await Promise.all([
-    supabase.from("branches").select("id,name").order("name"),
+    supabase
+      .from("branches")
+      .select("id,name")
+      .eq("is_active", true)
+      .order("name"),
     supabase
       .from("events")
       .select("id,name,event_date,status,deleted_at")

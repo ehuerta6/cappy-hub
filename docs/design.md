@@ -452,11 +452,11 @@ The following sections describe the actual product workflows and the design dire
 ### Officer catalogs
 
 - **Purpose:** Maintain the existing position, branch, and event-location choices.
-- **Existing functionality that MUST be preserved — CURRENT:** Admin-only page with Positions, Branches, and Event locations lists. Each supports add; records support rename/delete when current restrictions permit. Six baseline positions are required and displayed as non-editable. The page explains that referenced records cannot be deleted and renaming retains IDs and relationships.
+- **Existing functionality that MUST be preserved — CURRENT:** Admin-only page with Positions, Branches, and Event locations lists. Each supports add; records support rename/delete when current restrictions permit. Branches and custom Positions can be retired/reactivated; retired values are marked and omitted from new relationship choices while existing relationships remain readable and can be kept during unrelated edits or removed. Six baseline Positions are required and protected from rename, delete, and retirement. The page explains that referenced records cannot be deleted and that renaming or retirement retains IDs and relationships.
 - **Information hierarchy:** Title and constraints note; three clearly named catalog sections; add control and record management actions within each section.
-- **Recommended layout:** Keep this as a lightweight, dense management page. Separate sections with headings and thin borders; keep create/rename/delete controls adjacent to their item.
+- **Recommended layout:** Keep this as a lightweight, dense management page. Separate sections with headings and thin borders; keep create, rename, delete, retire, and reactivate controls adjacent to their item.
 - **Primary action:** Add a record within a chosen catalog.
-- **Secondary actions:** Rename or delete an eligible record.
+- **Secondary actions:** Rename or delete an eligible record; retire or reactivate a Branch or custom Position.
 - **Data presentation:** Simple lists with compact inline forms and visible success/error feedback.
 - **Minimalism notes:** Keep the page scoped to the three existing catalogs; avoid dashboard cards and decorative metadata.
 - **Do not add:** Event-type management, extra catalog areas, bulk import, or delete behavior that bypasses current referential restrictions.

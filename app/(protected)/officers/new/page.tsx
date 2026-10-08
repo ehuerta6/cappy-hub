@@ -13,8 +13,16 @@ export default async function NewOfficerPage() {
     redirect("/access-denied");
   const supabase = await createClient();
   const [branches, positions] = await Promise.all([
-    supabase.from("branches").select("id, name").order("name"),
-    supabase.from("positions").select("id, name").order("id"),
+    supabase
+      .from("branches")
+      .select("id, name")
+      .eq("is_active", true)
+      .order("name"),
+    supabase
+      .from("positions")
+      .select("id, name")
+      .eq("is_active", true)
+      .order("id"),
   ]);
   if (branches.error || positions.error)
     throw new Error("Failed to load officer options");

@@ -79,16 +79,19 @@ export type Database = {
         Row: {
           created_at: string;
           id: number;
+          is_active: boolean;
           name: string;
         };
         Insert: {
           created_at?: string;
           id?: number;
+          is_active?: boolean;
           name: string;
         };
         Update: {
           created_at?: string;
           id?: number;
+          is_active?: boolean;
           name?: string;
         };
         Relationships: [];
@@ -647,18 +650,21 @@ export type Database = {
           code: string | null;
           created_at: string;
           id: number;
+          is_active: boolean;
           name: string;
         };
         Insert: {
           code?: string | null;
           created_at?: string;
           id?: number;
+          is_active?: boolean;
           name: string;
         };
         Update: {
           code?: string | null;
           created_at?: string;
           id?: number;
+          is_active?: boolean;
           name?: string;
         };
         Relationships: [];
@@ -1361,11 +1367,19 @@ export type Database = {
         Returns: number;
       };
       self_assign_task: { Args: { p_task_id: number }; Returns: undefined };
+      set_branch_active: {
+        Args: { p_id: number; p_is_active: boolean };
+        Returns: undefined;
+      };
       set_officer_application_role: {
         Args: { p_officer_id: number; p_role: string };
         Returns: undefined;
       };
       set_participation_rate: { Args: { p_rate: number }; Returns: undefined };
+      set_position_active: {
+        Args: { p_id: number; p_is_active: boolean };
+        Returns: undefined;
+      };
       set_task_assignment_completion: {
         Args: { p_completed: boolean; p_officer_id: number; p_task_id: number };
         Returns: undefined;
