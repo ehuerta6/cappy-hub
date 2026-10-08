@@ -119,5 +119,40 @@ select is(private.process_finished_events(),1,
 select is((select count(*) from point_transactions where event_id=-807),
   1::bigint,'successful retry creates one award');
 
+-- The active primary-award invariant spans the automatic and manual paths,
+-- while corrections and logical removal remain separate behaviors.
+select throws_ok($$insert into point_transactions(officer_id,event_id,points,reason,award_type)
+  values(-801,-807,2,'Manual duplicate','manual')$$,'23505',null,
+  'an active participation award blocks a second Event-linked manual award');
+select lives_ok($$insert into point_transactions(officer_id,event_id,points,reason,award_type)
+  values(-801,-807,1,'Correction','correction')$$,
+  'corrections may coexist with an active primary Event award');
+select lives_ok($$update point_transactions set points=3
+  where event_id=-807 and officer_id=-801 and award_type='participation'$$,
+  'primary award amount edits that retain the Officer/Event pair remain possible');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000807',true);
+set local role authenticated;
+select is(remove_participation_award((select id from point_transactions
+  where event_id=-807 and officer_id=-801 and award_type='participation')),true,
+  'authorized logical removal releases the active primary pair');
+reset role;
+select set_config('request.jwt.claim.sub','',true);
+select lives_ok($$insert into point_transactions(officer_id,event_id,points,reason,award_type)
+  values(-801,-807,2,'Replacement manual award','manual')$$,
+  'logical removal releases the active primary pair for a manual award');
+select throws_ok($$insert into point_transactions(officer_id,event_id,points,reason,award_type)
+  values(-801,-807,3,'Second manual duplicate','manual')$$,'23505',null,
+  'a second active manual award for the same Officer/Event pair is rejected');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000807',true);
+set local role authenticated;
+select is(remove_point_transaction((select id from point_transactions
+  where event_id=-807 and officer_id=-801 and award_type='manual')),true,
+  'authorized manual award removal remains available');
+reset role;
+select set_config('request.jwt.claim.sub','',true);
+select ok((select indisunique from pg_index where indexrelid =
+  'public.one_active_primary_event_award_per_officer'::regclass),
+  'primary award uniqueness is enforced by a PostgreSQL unique index');
+
 select * from finish();
 rollback;

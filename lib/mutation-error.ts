@@ -23,6 +23,7 @@ const safeMessages = new Set([
   "Signups are closed for this event",
   "Target officer is not active",
   "All target officers must be active",
+  "This Officer already has an active award for this Event.",
   "Select at least one valid officer",
   "This event cannot accept attendees",
   "Last active admin cannot be deactivated",
@@ -78,5 +79,7 @@ const safeMessages = new Set([
 ]);
 
 export function mutationError(message: string) {
+  if (message.includes("one_active_primary_event_award_per_officer"))
+    return "This Officer already has an active award for this Event.";
   return safeMessages.has(message) ? message : "Could not save changes";
 }
