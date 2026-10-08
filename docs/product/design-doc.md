@@ -1,6 +1,6 @@
 # Cappy Hub Product & Technical Specification
 
-This is the canonical specification for Cappy Hub product behavior, terminology, scope, and technical contracts. It records behavior shipped on the current `main` branch separately from accepted future decisions.
+This is the canonical specification for Cappy Hub product behavior, terminology, scope, and technical contracts. It records behavior implemented on the current `main` branch separately from accepted future decisions. Production deployment status is tracked independently.
 
 The separate [`docs/design.md`](../design.md) is the authority for visual and interaction guidance. It does not replace this product specification, and this specification does not replace the visual design guide.
 
@@ -12,11 +12,11 @@ Google Drive remains CIC's collaborative file system. Discord remains its primar
 
 ## 2. Product status convention
 
-- **Current / shipped** describes behavior present on the current `main` branch at the time this document is maintained.
+- **Current / shipped** describes behavior present on the current `main` branch at the time this document is maintained; this label alone does not attest to production deployment.
 - **Planned / accepted** describes a product decision captured by an approved, open Issue. It is not shipped behavior and must not be presented as available in the application.
 - An open Issue alone does not make unrelated ideas part of the roadmap. Work remains subject to its Issue scope and review.
 
-The accepted future decisions relevant to current domain boundaries are summarized in [Planned / accepted behavior](#15-planned--accepted-behavior). They do not change the shipped descriptions elsewhere in this document.
+Open accepted decisions, when present, are summarized in [Planned / accepted behavior](#15-planned--accepted-behavior). They do not change the shipped descriptions elsewhere in this document.
 
 ## 3. Users and authorization model
 
@@ -93,27 +93,21 @@ Completion is tracked independently for each Task/Officer assignment. Only autho
 
 Completed assignments and Task awards protect a Task from archival. Task Points cannot be changed after an assignment is completed or awarded. Due-date processing uses each assignment's current completion state. Historical approval fields or audit entries retained from an older workflow are historical compatibility only; the retired single-assignee projection and legacy completion/approval RPC workflow are not current product behavior.
 
+Tasks may link to zero or more Events for context. Links do not change either record's authorization, workflow, or Point behavior. Existing links remain readable when an Event is cancelled or archived; cancelled and archived Events cannot be newly linked.
+
 The Tasks page groups active Tasks into **Current** (due today or later) and **Past** (overdue), with status filters for Open, In progress, and Complete. Authorized managers can select an explicit Archived view. Assignment progress and the current Officer's relationship to each Task are visible in context. The Calendar shows each active Task due date and opens the canonical Task record.
 
 Authorized managers can Archive and Restore an eligible Task within their existing branch scope. Archiving remains restricted by the Task's protected completion/award state and preserves the Task, assignment, Point, recurrence, and audit history. Restore updates the same Task occurrence without resetting its stored workflow state. Archived Tasks are excluded from normal lists, Dashboard action items, and Calendar.
-
-### Planned / accepted
-
-Issue [#179](https://github.com/ehuerta6/cappy-hub/issues/179) accepts optional links between a Task and zero or more Events. Those links provide context only: they do not merge Event and Task authorization, completion, signup, or Point workflows. Existing relationships survive cancellation, archival, and historical state changes; archived and cancelled Events remain identifiable on an existing link but cannot be newly selected.
 
 ## 8. Points
 
 ### Current / shipped
 
-Point transactions are signed amounts, and an Officer's total is the sum of active transactions (`removed_at` is null). The supported types are participation, task, manual, and correction. Transactions may link to an Event or Task as appropriate and retain actor attribution. Event participation and Task completion awards are processed by trusted database workflows. Admins may change the participation rate, create manual transactions/corrections, edit transaction amounts where authorized, and logically remove transactions.
+Point transactions are signed amounts, and an Officer's total is the sum of active transactions (`removed_at` is null). The supported types are participation, task, manual, and correction. Transactions may link to an Event or Task as appropriate and retain actor attribution. Event participation and Task completion awards are processed by trusted database workflows. For each Officer/Event pair, at most one active primary Event award may exist across participation and Event-linked manual awards; corrections may coexist, and Task awards are outside this rule. Admins may change the participation rate, create manual transactions/corrections, edit transaction amounts where authorized, and logically remove transactions.
 
 Logical removal excludes a transaction from totals while preserving its row and history. Removing an automatic award does not cause its processor to recreate it. A correction is a separate signed transaction and does not erase the original. Event edits do not rewrite existing awards. Point History is searchable by Officer, reason, Event, or Task and filterable by award type, Officer, Event, and activity-date range. Admins can select Active, Removed, or All history and see actor/removal information; other Officers see active history. History is paginated 25 rows at a time.
 
 The Points page shows the participation rate, ranked Officer totals, authorized transaction controls, and Point History. The Dashboard shows the signed-in Officer's total, net signed transactions created in the current half-year (January–June or July–December, America/Denver), and the latest 10 active transactions.
-
-### Planned / accepted
-
-Issue [#180](https://github.com/ehuerta6/cappy-hub/issues/180) accepts a database-enforced limit of one active primary Event award per Officer/Event pair, where primary awards are participation and Event-linked manual awards. Corrections may coexist, and Task awards are outside this invariant. Current processing prevents duplicate participation awards, including regeneration of a removed automatic award, but the broader active participation/manual uniqueness rule is not yet shipped.
 
 ## 9. Warnings
 
@@ -181,7 +175,7 @@ The following rules are enforced, or must be enforced where indicated, at a trus
 | Native Event signup                | Current. The Event/Officer pair is unique, eligible signups reference active Officers, and only trusted authorized mutations alter signup relationships.                                                                                                                                                                                                                                 |
 | Event capacity                     | Current. Max volunteers is an optional positive per-occurrence limit; confirmed signups cannot exceed it, capacity changes serialize with signup mutations, and lowering below the confirmed count fails. New occurrences created by a recurring schedule edit inherit the selected occurrence's limit when capacity is unchanged; existing occurrence overrides remain independent. |
 | Event waitlist                     | Current. Waitlisted Officers are stored separately, cannot also be confirmed for the same occurrence, and are promoted FIFO when confirmed places open while signup is open. Waitlist actions and promotion stop when signup closes. Only confirmed signups qualify for participation awards.                                  |
-| Event primary awards               | Current. An Officer/Event pair cannot receive a duplicate participation award, including after logical removal, so automatic processing does not recreate removed awards. Planned by [#180](https://github.com/ehuerta6/cappy-hub/issues/180): additionally enforce at most one active primary Event award across participation and Event-linked manual awards; corrections may coexist. |
+| Event primary awards               | Current. A database unique index permits at most one active participation or Event-linked manual award per Officer/Event pair; corrections may coexist and Task awards are outside this rule. Removed automatic participation awards are not regenerated. |
 | Task assignments                   | Current. `task_officer_assignments` is canonical, with one assignment per Task/Officer pair. Assignment, completion, authorization, and history are occurrence-scoped.                                                                                                                                                                                                                   |
 | Task awards                        | Current. Award state follows each assignment's completion, due date, and configured Task points. Reconciliation reuses the same Task/Officer transaction; protected completed/awarded states cannot be erased by removal or point edits.                                                                                                                                                 |
 | Historical relationships           | Current. Officer references and logical Event, Task, and Point removal preserve historical relationships. Catalog deletion is restricted when referenced; Branch and custom Position retirement preserves existing references and catalog IDs.                                                                                                                                                            |
@@ -190,17 +184,7 @@ The following rules are enforced, or must be enforced where indicated, at a trus
 
 ## 15. Planned / accepted behavior
 
-The following table captures accepted, open product decisions as of this revision. It is intentionally not a general roadmap.
-
-| Issue                                                    | Accepted decision                                                                                                                                                          | Current state                                                                                                                |
-| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| [#177](https://github.com/ehuerta6/cappy-hub/issues/177) | Active Officers are the default working set across routine lists and selectors; inactive Officers remain deliberately discoverable with historical relationships intact.   | Shipped. Officers defaults to Active with Active/Inactive/All filters; routine Point totals and new selectors use active Officers, while history remains readable. |
-| [#179](https://github.com/ehuerta6/cappy-hub/issues/179) | Tasks may link to zero or more Events; links provide context and grant no permissions or Point behavior.                                                                   | Implemented. Optional Task/Event links preserve independent authorization, workflow, and Point behavior.                      |
-| [#180](https://github.com/ehuerta6/cappy-hub/issues/180) | One active primary Event award per Officer/Event across participation and Event-linked manual award types; corrections remain separate.                                    | Planned integrity hardening; current participation idempotency remains in force.                                             |
-| [#184](https://github.com/ehuerta6/cappy-hub/issues/184) | Use Archive/Restore for logical Event/Task removal; restore the same materialized occurrence without changing its workflow state, and do not implicitly uncancel an Event. | Planned. Current logical removal is labeled Remove; archive terminology and restoration are not shipped.                     |
-| [#185](https://github.com/ehuerta6/cappy-hub/issues/185) | Retire/reactivate Branches and custom Positions while preserving IDs and historical references. Retired values stay readable on existing records, are omitted from new relationship choices, and may remain during unrelated edits until removed; six required Positions remain protected. | Implemented. Admins can retire/reactivate Branches and custom Positions; existing references and catalog IDs are preserved, retired values are unavailable for new relationships, and required Positions remain protected. |
-| [#186](https://github.com/ehuerta6/cappy-hub/issues/186) | Void Warnings while preserving approval history; void is terminal and excluded from active warning totals.                                                                 | Implemented.                                                                                                                 |
-| [#187](https://github.com/ehuerta6/cappy-hub/issues/187) | Label the optional Sheet resource clearly as external so it cannot be confused with native signup, capacity, waitlist, or participation.                                   | Planned copy clarification. The resource remains a URL and has no Sheet synchronization.                                     |
+No accepted open product decisions are listed in this revision. Decisions from completed Issues are incorporated into the current behavior above; their implementation status on `main` is distinct from production deployment status.
 
 ## 16. Audit and history expectations
 
