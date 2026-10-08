@@ -17,6 +17,7 @@ it("validates Event shape and keeps Event range boundaries", () => {
     branches: ["-4", "2"],
     slides_url: "",
     meeting_notes_url: "",
+    max_volunteers: "",
   };
   expect(saveEventInputSchema.safeParse(validEvent).success).toBe(true);
   expect(
@@ -29,6 +30,18 @@ it("validates Event shape and keeps Event range boundaries", () => {
   ).toBe(false);
   expect(
     saveEventInputSchema.safeParse({ ...validEvent, name: " " }).success,
+  ).toBe(false);
+  expect(
+    saveEventInputSchema.safeParse({ ...validEvent, max_volunteers: "12" })
+      .success,
+  ).toBe(true);
+  expect(
+    saveEventInputSchema.safeParse({ ...validEvent, max_volunteers: "0" })
+      .success,
+  ).toBe(false);
+  expect(
+    saveEventInputSchema.safeParse({ ...validEvent, max_volunteers: "1.5" })
+      .success,
   ).toBe(false);
 });
 

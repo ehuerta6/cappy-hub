@@ -26,6 +26,7 @@ const renderEventForm = (editing = false) =>
               slides_url: null,
               meeting_notes_url: null,
               signup_sheet_url: "https://example.com/signup",
+              max_volunteers: 5,
               event_date: "2026-10-12",
               starts_at: "2026-10-12T16:00:00.000Z",
               ends_at: "2026-10-12T17:00:00.000Z",
@@ -53,4 +54,7 @@ it("clarifies the external sheet in create/edit forms and displays the saved URL
   expect(html).toContain('<option value="9">Session</option>');
   expect(html).toContain('name="signup_sheet_url"');
   expect(html).toContain('value="https://example.com/signup"');
+  expect(html).toContain("Max volunteers (optional)");
+  expect(html).toContain('name="max_volunteers"');
+  expect(html).toContain('value="5"');
 });

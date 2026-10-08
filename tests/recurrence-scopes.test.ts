@@ -121,6 +121,34 @@ it("all-occurrence date edits shift the canonical first date by the selected row
   expect(timestamps[1]).toContain("T19:00");
 });
 
+it("leaves unchanged capacity out of a recurring schedule extension request", async () => {
+  const data = form();
+  data.set("scope", "series");
+  data.append("edited_fields", "event_date");
+  data.set("recurrence_original_rule", "RRULE:FREQ=DAILY;INTERVAL=1;COUNT=3");
+  data.set("recurrence_original_start", "2026-10-30");
+  data.set("recurrence_original_key", "2026-10-31");
+  data.set("recurrence_original_date", "2026-10-31");
+  const args = await recurrenceMutation("event", 42, data, "edit", {
+    event_date: "2026-11-01",
+    max_volunteers: 8,
+  });
+  expect(args.p_dates).toHaveLength(3);
+  expect(args).not.toHaveProperty("p_capacity_changed");
+  expect(args).not.toHaveProperty("p_max_volunteers");
+});
+
+it("sends capacity separately when a recurring capacity field changes", async () => {
+  const data = form();
+  data.append("edited_fields", "max_volunteers");
+  const args = await recurrenceMutation("event", 42, data, "edit", {
+    max_volunteers: 8,
+  });
+  expect(args.p_patch).toEqual({});
+  expect(args.p_capacity_changed).toBe(true);
+  expect(args.p_max_volunteers).toBe(8);
+});
+
 it("validates changed weekly recurrence and honors the following boundary", async () => {
   from.mockImplementation((table) =>
     query(

@@ -144,3 +144,80 @@ it("enforces the MVP invariants and concurrent award uniqueness in local Postgre
     `);
   }
 }, 150_000);
+
+it("serializes concurrent signup requests so capacity cannot be overfilled", async () => {
+  const eventId = -981780;
+  const managerId = "00000000-0000-4000-8000-000000009781";
+  const firstOfficerId = -981781;
+  const secondOfficerId = -981782;
+  runSql(`
+    delete from public.audit_logs where actor_officer_id in (${firstOfficerId},${secondOfficerId},-981783);
+    delete from public.point_transactions where event_id=${eventId};
+    delete from public.event_waitlist where event_id=${eventId};
+    delete from public.event_officers where event_id=${eventId};
+    delete from public.events where id=${eventId};
+    delete from public.officers where id in (${firstOfficerId},${secondOfficerId},-981783);
+    delete from auth.users where id='${managerId}';
+    insert into auth.users(id,email) values ('${managerId}','capacity-concurrency@example.test');
+    insert into public.officers(id,name,utep_email,position_id,status,application_role,auth_user_id)
+      values (-981783,'Capacity concurrency manager','capacity-concurrency@example.test',
+        (select id from public.positions where name='Officer'),'active','admin','${managerId}');
+    insert into public.officers(id,name,utep_email,position_id,status)
+      values (${firstOfficerId},'Capacity concurrency first','capacity-first@example.test',
+        (select id from public.positions where name='Officer'),'active'),
+        (${secondOfficerId},'Capacity concurrency second','capacity-second@example.test',
+        (select id from public.positions where name='Officer'),'active');
+    insert into public.events(id,name,description,location,event_type_id,event_date,starts_at,ends_at,status,max_volunteers)
+      values (${eventId},'Capacity concurrency','Test event','TBA',
+        (select id from public.event_types where name='Meeting'),
+        ((now()+interval '2 days') at time zone 'America/Denver')::date,
+        now()+interval '2 days',now()+interval '2 days 1 hour','upcoming',1);
+  `);
+
+  try {
+    const firstSignup = startSql(`
+      begin;
+      select set_config('request.jwt.claim.sub','${managerId}',true);
+      select id from public.events where id=${eventId} for update;
+      \\echo CAPACITY_EVENT_LOCKED
+      select pg_catalog.pg_sleep(1.5);
+      select public.change_event_signup(${eventId},${firstOfficerId},false);
+      commit;
+    `);
+    await firstSignup.waitFor("CAPACITY_EVENT_LOCKED");
+    const competingSignupStartedAt = Date.now();
+    const secondSignup = startSql(`
+      begin;
+      select set_config('request.jwt.claim.sub','${managerId}',true);
+      select public.change_event_signup(${eventId},${secondOfficerId},false);
+      commit;
+    `);
+    const [firstResult, secondResult] = await Promise.all([
+      firstSignup.closed,
+      secondSignup.closed,
+    ]);
+    expect(firstResult.code).toBe(0);
+    expect(secondResult.code).toBe(0);
+    expect(Date.now() - competingSignupStartedAt).toBeGreaterThan(500);
+    expect(
+      runSql(
+        `select count(*) from public.event_officers where event_id=${eventId};`,
+      ).trim(),
+    ).toBe("1");
+    expect(
+      runSql(
+        `select count(*) from public.event_waitlist where event_id=${eventId};`,
+      ).trim(),
+    ).toBe("1");
+  } finally {
+    runSql(`
+      delete from public.audit_logs where actor_officer_id in (${firstOfficerId},${secondOfficerId},-981783);
+      delete from public.point_transactions where event_id=${eventId};
+      delete from public.event_waitlist where event_id=${eventId};
+      delete from public.event_officers where event_id=${eventId};
+      delete from public.events where id=${eventId};
+      delete from public.officers where id in (${firstOfficerId},${secondOfficerId},-981783);
+      delete from auth.users where id='${managerId}';
+    `);
+  }
+}, 30_000);

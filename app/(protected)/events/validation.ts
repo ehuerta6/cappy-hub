@@ -1,6 +1,7 @@
 import * as zod from "zod";
 import {
   optionalSafeIntegerStringSchema,
+  optionalPositiveSafeIntegerStringSchema,
   positiveSafeIntegerStringSchema,
   requiredTrimmedStringSchema,
   safeIntegerStringSchema,
@@ -50,6 +51,9 @@ export const saveEventInputSchema = zod
     slides_url: optionalHttpUrlSchema,
     meeting_notes_url: optionalHttpUrlSchema,
     signup_sheet_url: optionalHttpUrlSchema,
+    max_volunteers: optionalPositiveSafeIntegerStringSchema(
+      "Enter a positive whole number or leave Max volunteers blank",
+    ),
   })
   .extend(recurrenceFieldsSchema.shape)
   .superRefine((eventInput, context) => {

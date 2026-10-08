@@ -9,11 +9,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import EventResourceLinks from "../event-resource-links";
-import {
-  eventStatus,
-  eventSignupOpen,
-  participationLabel,
-} from "@/lib/event-status";
+import { eventStatus, eventSignupOpen } from "@/lib/event-status";
 import { formatDateTime } from "@/lib/presentation";
 import {
   BulkAddOfficersForm,
@@ -22,6 +18,7 @@ import {
   RestoreCancelledEventForm,
   RestoreArchivedEventForm,
   RemoveEventForm,
+  LeaveWaitlistForm,
 } from "../event-controls";
 import {
   ActionLink,
@@ -49,7 +46,7 @@ export default async function EventDetailPage({
     supabase
       .from("events")
       .select(
-        "*,event_types(name),event_branches(branch_id,branches(name)),event_officers(officers(id,name)),task_events(tasks(id,title,removed_at))",
+        "*,event_types(name),event_branches(branch_id,branches(name)),event_officers(officers(id,name)),event_waitlist(id,joined_at,officer_id,officers(id,name,status)),task_events(tasks(id,title,removed_at))",
       )
       .eq("id", eventId)
       .maybeSingle(),
@@ -59,9 +56,27 @@ export default async function EventDetailPage({
       .eq("status", "active")
       .order("name"),
   ]);
-  if (result.error || officers.error) throw new Error("Failed to load event");
+  const countsResult = await supabase.rpc("event_signup_counts");
+  if (result.error || officers.error || countsResult.error)
+    throw new Error("Failed to load event");
   if (!result.data) notFound();
   const event = result.data;
+  const signupCounts = countsResult.data.find(
+    (row) => row.event_id === event.id,
+  );
+  const confirmedCount = Number(
+    signupCounts?.confirmed_count ?? event.event_officers.length,
+  );
+  const waitlistCount = Number(
+    signupCounts?.waitlist_count ?? event.event_waitlist.length,
+  );
+  const waitlisted = event.event_waitlist.some(
+    ({ officer_id }) => officer_id === actor.id,
+  );
+  const sortedWaitlist = [...event.event_waitlist].sort(
+    (left, right) =>
+      left.joined_at.localeCompare(right.joined_at) || left.id - right.id,
+  );
   const sortedEventOfficers = [...event.event_officers].sort(
     (left, right) =>
       left.officers.name.localeCompare(right.officers.name, "en", {
@@ -148,6 +163,8 @@ export default async function EventDetailPage({
                 ? "Not processed"
                 : `${event.participation_points_per_hour_at_end} points/hour`}
             </dd>
+            <dt>Max volunteers</dt>
+            <dd>{event.max_volunteers ?? "Unlimited"}</dd>
             <dt>Status</dt>
             <dd>
               <StatusBadge status={event.deleted_at ? "Archived" : status} />
@@ -195,11 +212,19 @@ export default async function EventDetailPage({
         >
           <p>
             Your participation:{" "}
-            {participationLabel(
-              event.event_officers.some(
-                ({ officers: officer }) => officer.id === actor.id,
-              ),
-            )}
+            {event.event_officers.some(
+              ({ officers: officer }) => officer.id === actor.id,
+            )
+              ? "Confirmed"
+              : waitlisted
+                ? "Waitlisted"
+                : "Not signed up"}
+          </p>
+          <p className="text-sm text-muted">
+            {event.max_volunteers === null
+              ? `${confirmedCount} confirmed`
+              : `${confirmedCount} / ${event.max_volunteers} confirmed`}
+            {waitlistCount > 0 ? ` · ${waitlistCount} waitlisted` : ""}
           </p>
           <section className="space-y-3">
             <SectionHeading title="Signed-up officers" />
@@ -240,6 +265,9 @@ export default async function EventDetailPage({
             ) : (
               <p>No officers signed up.</p>
             )}
+            {signupOpen && waitlisted && (
+              <LeaveWaitlistForm eventId={event.id} />
+            )}
             {signupOpen && canManage && (
               <BulkAddOfficersForm
                 eventId={event.id}
@@ -247,13 +275,20 @@ export default async function EventDetailPage({
                   (officer) =>
                     !event.event_officers.some(
                       (eventSignup) => eventSignup.officers.id === officer.id,
+                    ) &&
+                    !event.event_waitlist.some(
+                      (entry) => entry.officer_id === officer.id,
                     ),
                 )}
               />
             )}
-            {signupOpen && !canManage && (
+            {signupOpen && !canManage && !waitlisted && (
               <SignupForm
                 eventId={event.id}
+                full={
+                  event.max_volunteers !== null &&
+                  confirmedCount >= event.max_volunteers
+                }
                 officers={officers.data.filter(
                   (officer) =>
                     officer.id === actor.id &&
@@ -279,9 +314,31 @@ export default async function EventDetailPage({
                   (officer) =>
                     !event.event_officers.some(
                       (eventSignup) => eventSignup.officers.id === officer.id,
+                    ) &&
+                    !event.event_waitlist.some(
+                      (entry) => entry.officer_id === officer.id,
                     ),
                 )}
               />
+            )}
+            {canManage && waitlistCount > 0 && (
+              <section aria-label="Waitlist" className="space-y-2">
+                <SectionHeading title={`Waitlist (${waitlistCount})`} />
+                <ol className="list-decimal space-y-1 pl-5">
+                  {sortedWaitlist.map((entry) => (
+                    <li key={entry.id}>
+                      <Link href={`/officers/${entry.officers.id}`}>
+                        {entry.officers.name}
+                      </Link>
+                      {entry.officers.status !== "active" && (
+                        <span className="ml-2 text-sm text-muted">
+                          Inactive; skipped for promotion
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              </section>
             )}
           </section>
         </section>

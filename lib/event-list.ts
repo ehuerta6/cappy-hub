@@ -14,11 +14,31 @@ export type EventListItem = Pick<
   | "status"
   | "deleted_at"
   | "participation_points_per_hour_at_end"
+  | "max_volunteers"
 > & {
   event_types: { name: string };
   event_branches: { branches: { name: string } }[];
   event_officers: { officer_id: number }[];
+  event_waitlist?: { officer_id: number }[];
+  confirmed_count?: number;
+  waitlist_count?: number;
 };
+
+export function eventSignupCountLabel(event: {
+  max_volunteers: number | null;
+  confirmed_count?: number;
+  waitlist_count?: number;
+}) {
+  const confirmedCount = event.confirmed_count ?? 0;
+  const waitlistCount = event.waitlist_count ?? 0;
+  const confirmed =
+    event.max_volunteers == null
+      ? `${confirmedCount} ${confirmedCount === 1 ? "officer" : "officers"}`
+      : `${confirmedCount} / ${event.max_volunteers} confirmed`;
+  return waitlistCount > 0
+    ? `${confirmed} · ${waitlistCount} waitlisted`
+    : confirmed;
+}
 
 export function organizeEventList(
   events: EventListItem[],

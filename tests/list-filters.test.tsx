@@ -71,6 +71,7 @@ beforeEach(() => {
       ({ ...actor, applicationRole: admin ? "admin" : "officer" }) as never,
   );
   vi.mocked(createClient).mockResolvedValue({
+    rpc: async () => ({ data: [], error: null }),
     from: (table: string) => {
       const record: Query = { table, calls: [] };
       queries.push(record);

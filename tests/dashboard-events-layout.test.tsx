@@ -53,10 +53,12 @@ const upcoming: Pick<
   | "status"
   | "deleted_at"
   | "participation_points_per_hour_at_end"
+  | "max_volunteers"
 > & {
   event_types: { name: string };
   event_branches: { branches: { name: string } }[];
   event_officers: { officer_id: number }[];
+  event_waitlist?: { officer_id: number }[];
 } = {
   id: 1,
   name: "Participating event",
@@ -66,9 +68,11 @@ const upcoming: Pick<
   status: "upcoming",
   deleted_at: null,
   participation_points_per_hour_at_end: null,
+  max_volunteers: null,
   event_types: { name: "Meeting" },
   event_branches: [],
   event_officers: [{ officer_id: 8 }],
+  event_waitlist: [],
 };
 let events: (typeof upcoming)[];
 let transactions: {
@@ -167,7 +171,10 @@ beforeEach(() => {
   ];
   vi.mocked(requireCurrentOfficer).mockResolvedValue(actor as never);
   vi.mocked(getAuthorizationContext).mockResolvedValue(actor as never);
-  vi.mocked(createClient).mockResolvedValue({ from } as never);
+  vi.mocked(createClient).mockResolvedValue({
+    from,
+    rpc: async () => ({ data: [], error: null }),
+  } as never);
 });
 const renderEvents = async () =>
   renderToStaticMarkup(await EventsPage({ searchParams: Promise.resolve({}) }));
@@ -275,7 +282,7 @@ it("preserves all three summary metric values and the existing summary/activity 
     ["single", []],
   ]);
   expect(operations("events")).toEqual([
-    ["select", ["*,event_officers(officer_id)"]],
+    ["select", ["*,event_officers(officer_id),event_waitlist(officer_id)"]],
     ["neq", ["status", "cancelled"]],
     ["is", ["deleted_at", null]],
     ["gt", ["starts_at", expect.any(String)]],

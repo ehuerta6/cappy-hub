@@ -22,7 +22,11 @@ import { searchOrFilter } from "@/lib/list-search";
 import { eventListFiltersSchema } from "./filter-validation";
 import { currentDenverWeek } from "@/lib/current-denver-week";
 import { SelfSignupForm } from "./event-controls";
-import { organizeEventList, type EventListItem } from "@/lib/event-list";
+import {
+  eventSignupCountLabel,
+  organizeEventList,
+  type EventListItem,
+} from "@/lib/event-list";
 
 type EventListSearchParams = Record<string, string | string[] | undefined>;
 
@@ -50,7 +54,7 @@ export default async function EventsPage({
   const { today } = currentDenverWeek(now);
   const supabase = await createClient();
   const eventSelection =
-    "*,event_types(name),event_branches(branch_id,branches(name)),filter_branch:event_branches(branch_id),event_officers(officer_id)";
+    "*,event_types(name),event_branches(branch_id,branches(name)),filter_branch:event_branches(branch_id),event_officers(officer_id),event_waitlist(officer_id)";
   const authorizedEventIds =
     status === "archived" && isLead(actor) && !canSeeAllBranches(actor)
       ? await supabase
@@ -121,30 +125,53 @@ export default async function EventsPage({
     return query;
   };
 
-  const [eventsResult, eventCountResult, eventTypesResult, branchesResult] =
-    await Promise.all([
-      buildEventQuery(),
-      buildEventQuery(true),
-      supabase.from("event_types").select("id,name").order("name"),
-      supabase.from("branches").select("id,name").order("name"),
-    ]);
+  const [
+    eventsResult,
+    eventCountResult,
+    eventTypesResult,
+    branchesResult,
+    countsResult,
+  ] = await Promise.all([
+    buildEventQuery(),
+    buildEventQuery(true),
+    supabase.from("event_types").select("id,name").order("name"),
+    supabase.from("branches").select("id,name").order("name"),
+    supabase.rpc("event_signup_counts"),
+  ]);
   if (
     eventsResult.error ||
     eventCountResult.error ||
     eventTypesResult.error ||
-    branchesResult.error
+    branchesResult.error ||
+    countsResult.error
   )
     throw new Error("Failed to load events");
 
-  const events = eventsResult.data as EventListItem[];
+  const counts = new Map(countsResult.data.map((row) => [row.event_id, row]));
+  const events = (eventsResult.data as EventListItem[]).map((event) => ({
+    ...event,
+    confirmed_count: Number(
+      counts.get(event.id)?.confirmed_count ?? event.event_officers.length,
+    ),
+    waitlist_count: Number(counts.get(event.id)?.waitlist_count ?? 0),
+  }));
   const organizedEvents = organizeEventList(events, status, now);
   const splitEvents = (items: EventListItem[]) => ({
-    your: items.filter((event) =>
-      event.event_officers.some((signup) => signup.officer_id === actor.id),
+    your: items.filter(
+      (event) =>
+        event.event_officers.some((signup) => signup.officer_id === actor.id) ||
+        (event.event_waitlist ?? []).some(
+          (entry) => entry.officer_id === actor.id,
+        ),
     ),
     other: items.filter(
       (event) =>
-        !event.event_officers.some((signup) => signup.officer_id === actor.id),
+        !event.event_officers.some(
+          (signup) => signup.officer_id === actor.id,
+        ) &&
+        !(event.event_waitlist ?? []).some(
+          (entry) => entry.officer_id === actor.id,
+        ),
     ),
   });
   const hasFilters = Boolean(search || status || typeId || branchId);
@@ -200,12 +227,7 @@ export default async function EventsPage({
                           (eventBranch) => eventBranch.branches.name,
                         )}
                       />
-                      <span>
-                        {event.event_officers.length}{" "}
-                        {event.event_officers.length === 1
-                          ? "officer"
-                          : "officers"}
-                      </span>
+                      <span>{eventSignupCountLabel(event)}</span>
                       <StatusBadge status={eventStatus(event, now.getTime())} />
                     </div>
                   </td>
@@ -223,19 +245,29 @@ export default async function EventsPage({
                     />
                   </td>
                   <td className="hidden xl:table-cell tabular-nums">
-                    {event.event_officers.length}
+                    {eventSignupCountLabel(event)}
                   </td>
                   <td className="hidden xl:table-cell">
                     <StatusBadge status={eventStatus(event, now.getTime())} />
                   </td>
                   {maySignUp(title) && (
                     <td className="min-w-0">
-                      {eventSignupOpen(event, now.getTime()) && (
-                        <SelfSignupForm
-                          eventId={event.id}
-                          eventName={event.name}
-                        />
-                      )}
+                      {eventSignupOpen(event, now.getTime()) &&
+                        ((event.event_waitlist ?? []).some(
+                          (entry) => entry.officer_id === actor.id,
+                        ) ? (
+                          <span>Waitlisted</span>
+                        ) : (
+                          <SelfSignupForm
+                            eventId={event.id}
+                            eventName={event.name}
+                            full={
+                              event.max_volunteers != null &&
+                              (event.confirmed_count ?? 0) >=
+                                event.max_volunteers
+                            }
+                          />
+                        ))}
                     </td>
                   )}
                 </tr>

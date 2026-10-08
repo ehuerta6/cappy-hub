@@ -21,13 +21,16 @@ import {
   restoreEvent,
   restoreEventArchive,
   removeEvent,
+  leaveEventWaitlist,
 } from "./actions";
 export function SelfSignupForm({
   eventId,
   eventName,
+  full = false,
 }: {
   eventId: number;
   eventName: string;
+  full?: boolean;
 }) {
   const [state, action, pending] = useActionState(selfSignup, {
     ...initialFormActionState,
@@ -37,10 +40,16 @@ export function SelfSignupForm({
       <input type="hidden" name="event_id" value={eventId} />
       <button
         disabled={pending}
-        aria-label={`Sign up for ${eventName}`}
+        aria-label={`${full ? "Join the waitlist for" : "Sign up for"} ${eventName}`}
         className="whitespace-nowrap px-3 py-1.5"
       >
-        {pending ? "Signing up…" : "Sign up"}
+        {pending
+          ? full
+            ? "Joining waitlist…"
+            : "Signing up…"
+          : full
+            ? "Join waitlist"
+            : "Sign up"}
       </button>
       <ActionFeedback state={state} />
     </form>
@@ -51,11 +60,13 @@ export function SignupForm({
   officers,
   remove = false,
   officerId,
+  full = false,
 }: {
   eventId: number;
   officers?: Pick<Tables<"officers">, "id" | "name">[];
   remove?: boolean;
   officerId?: number;
+  full?: boolean;
 }) {
   const [state, action, pending] = useActionState(changeSignup, {
     ...initialFormActionState,
@@ -96,10 +107,29 @@ export function SignupForm({
         {pending
           ? remove
             ? "Removing…"
-            : "Adding…"
+            : full
+              ? "Joining waitlist…"
+              : "Adding…"
           : remove
             ? "Remove signup"
-            : "Add officer"}
+            : full
+              ? "Join waitlist"
+              : "Add officer"}
+      </button>
+    </form>
+  );
+}
+
+export function LeaveWaitlistForm({ eventId }: { eventId: number }) {
+  const [state, action, pending] = useActionState(leaveEventWaitlist, {
+    ...initialFormActionState,
+  });
+  return (
+    <form action={action}>
+      <input type="hidden" name="event_id" value={eventId} />
+      <ActionFeedback state={state} />
+      <button disabled={pending} className="button-secondary">
+        {pending ? "Leaving waitlist…" : "Leave waitlist"}
       </button>
     </form>
   );
