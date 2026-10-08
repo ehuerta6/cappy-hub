@@ -16,6 +16,7 @@ import {
   createTask,
   editStandaloneTask,
   removeTask,
+  restoreTask,
   removeTaskAssignment,
   selfAssignTask,
   setTaskAssignmentCompletion,
@@ -187,14 +188,24 @@ it("edits standalone Task details and preserves the filtered-list return path", 
   );
 });
 
-it("removes a standalone Task through its logical-removal RPC", async () => {
+it("archives a standalone Task through its trusted RPC", async () => {
   const form = new FormData();
   form.set("task_id", "9");
   expect(await removeTask({ error: "", success: "" }, form)).toEqual({
     error: "",
-    success: "Task removed",
+    success: "Task archived",
   });
   expect(rpc).toHaveBeenCalledWith("remove_task", { p_task_id: 9 });
+});
+
+it("restores an archived Task through the trusted RPC", async () => {
+  const form = new FormData();
+  form.set("task_id", "9");
+  expect(await restoreTask({ error: "", success: "" }, form)).toEqual({
+    error: "",
+    success: "Task restored",
+  });
+  expect(rpc).toHaveBeenCalledWith("restore_task", { p_task_id: 9 });
 });
 
 it("recurring Task editing submits only changed fields to its trusted RPC", async () => {

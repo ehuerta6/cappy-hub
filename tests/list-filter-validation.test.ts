@@ -43,6 +43,9 @@ it("parses each page's domain filters", () => {
   expect(
     eventListFiltersSchema.parse({ status: "removed", type: "2", branch: "3" }),
   ).toMatchObject({ status: undefined, type: 2, branch: 3 });
+  expect(eventListFiltersSchema.parse({ status: "archived" }).status).toBe(
+    "archived",
+  );
   expect(
     taskListFiltersSchema.parse({
       view: "past",
@@ -58,6 +61,9 @@ it("parses each page's domain filters", () => {
   });
   expect(taskListFiltersSchema.parse({ view: "current" }).view).toBeUndefined();
   expect(taskListFiltersSchema.parse({ view: "next" }).view).toBeUndefined();
+  expect(taskListFiltersSchema.parse({ view: "archived" }).view).toBe(
+    "archived",
+  );
   expect(
     taskListFiltersSchema.parse({ status: "awaiting" }).status,
   ).toBeUndefined();

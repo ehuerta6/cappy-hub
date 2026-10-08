@@ -34,11 +34,16 @@ export default async function EventsPage({
   const actor = await getAuthorizationContext();
   const params = await searchParams;
   const parsedFilters = eventListFiltersSchema.parse(params);
+  const mayBrowseArchived =
+    canSeeAllBranches(actor) || (isLead(actor) && actor.branchIds.length > 0);
+  const status =
+    parsedFilters.status === "archived" && !mayBrowseArchived
+      ? undefined
+      : parsedFilters.status;
   const returnTo = listReturnUrl("/events", {
     ...params,
-    status: parsedFilters.status,
+    status,
   });
-  const status = parsedFilters.status;
   const { q: search, type: typeId, branch: branchId } = parsedFilters;
   const now = new Date();
   const nowIso = now.toISOString();
@@ -46,6 +51,15 @@ export default async function EventsPage({
   const supabase = await createClient();
   const eventSelection =
     "*,event_types(name),event_branches(branch_id,branches(name)),filter_branch:event_branches(branch_id),event_officers(officer_id)";
+  const authorizedEventIds =
+    status === "archived" && isLead(actor) && !canSeeAllBranches(actor)
+      ? await supabase
+          .from("event_branches")
+          .select("event_id")
+          .in("branch_id", actor.branchIds)
+      : undefined;
+  if (authorizedEventIds?.error)
+    throw new Error("Failed to load archived Events");
 
   const buildEventQuery = (countOnly = false) => {
     let query = supabase
@@ -54,7 +68,17 @@ export default async function EventsPage({
         eventSelection,
         countOnly ? { count: "exact", head: true } : undefined,
       );
-    query = query.is("deleted_at", null);
+    query =
+      status === "archived"
+        ? query.not("deleted_at", "is", null)
+        : query.is("deleted_at", null);
+    if (authorizedEventIds)
+      query = query.in(
+        "id",
+        authorizedEventIds.data.length
+          ? authorizedEventIds.data.map(({ event_id }) => event_id)
+          : [-1],
+      );
 
     if (status === undefined)
       query = query
@@ -72,6 +96,10 @@ export default async function EventsPage({
     if (status === "past")
       query = query.neq("status", "cancelled").lte("ends_at", nowIso);
     if (status === "cancelled") query = query.eq("status", "cancelled");
+    if (status === "archived" && branchId !== undefined)
+      query = query
+        .eq("filter_branch.branch_id", branchId)
+        .not("filter_branch", "is", null);
 
     if (!countOnly) {
       if (search)
@@ -256,6 +284,7 @@ export default async function EventsPage({
             <option value="happening">Happening</option>
             <option value="past">Past</option>
             <option value="cancelled">Cancelled</option>
+            {mayBrowseArchived && <option value="archived">Archived</option>}
           </select>
         </label>
         <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
@@ -336,7 +365,9 @@ export default async function EventsPage({
               ? "No past events."
               : status === "cancelled"
                 ? "No cancelled events."
-                : "No events in this group."}
+                : status === "archived"
+                  ? "No archived Events."
+                  : "No events in this group."}
         </p>
       ) : (
         <>

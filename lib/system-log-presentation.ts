@@ -75,6 +75,7 @@ const actionPresentations: Record<string, ActionPresentation> = {
   },
   "event.participation_processed": { label: "Processed event participation" },
   "event.removed": { label: "Removed an event" },
+  "event.archived": { label: "Archived an Event" },
   "event.restored": { label: "Restored an event" },
   "event.signout": {
     label: "Removed an event signup",
@@ -172,6 +173,8 @@ const actionPresentations: Record<string, ActionPresentation> = {
     kind: "task-officer-removed",
   },
   "task.removed": { label: "Removed a task" },
+  "task.archived": { label: "Archived a Task" },
+  "task.restored": { label: "Restored a Task" },
   "task.series_created": { label: "Created a task series" },
   "task.series_cancel": { label: "Cancelled tasks in a series" },
   "task.series_edit": { label: "Updated a task series" },

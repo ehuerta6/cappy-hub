@@ -22,6 +22,7 @@ import { revalidatePath } from "next/cache";
 import {
   bulkAddEventOfficers,
   restoreEvent,
+  restoreEventArchive,
   saveEvent,
   selfSignup,
 } from "@/app/(protected)/events/actions";
@@ -94,6 +95,16 @@ it("rejects malformed Event IDs before calling the restore RPC", async () => {
   const result = await restoreEvent({ error: "", success: "" }, data);
   expect(result).toEqual({ error: "Select a valid event", success: "" });
   expect(rpc).not.toHaveBeenCalled();
+});
+
+it("restores an archived Event through the archive restore RPC", async () => {
+  const data = new FormData();
+  data.set("event_id", "12");
+  expect(await restoreEventArchive({ error: "", success: "" }, data)).toEqual({
+    error: "",
+    success: "Event restored",
+  });
+  expect(rpc).toHaveBeenCalledWith("restore_event_archive", { p_event_id: 12 });
 });
 
 it("rejects malformed Event input before calling the RPC", async () => {

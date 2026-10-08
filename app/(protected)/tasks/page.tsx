@@ -39,11 +39,16 @@ export default async function TasksPage({
   const params = await searchParams;
   const filters = taskListFiltersSchema.parse(params);
   const { q: search, status, branch: branchId, assignee: assigneeId } = filters;
-  const view = filters.view ?? "current";
+  const mayBrowseArchived =
+    canSeeAllBranches(actor) || (isLead(actor) && actor.branchIds.length > 0);
+  const view =
+    filters.view === "archived" && !mayBrowseArchived
+      ? "current"
+      : (filters.view ?? "current");
   const { today, sunday } = currentDenverWeek(new Date());
   const returnTo = listReturnUrl("/tasks", {
     q: search,
-    view: filters.view,
+    view: view === "current" ? undefined : view,
     status,
     branch: branchId?.toString(),
     assignee: assigneeId?.toString(),
@@ -53,12 +58,17 @@ export default async function TasksPage({
     .from("tasks")
     .select(
       "*,branches(name),task_officer_assignments(officer_id,completed_at,officers!task_officer_assignments_officer_id_fkey(id,name))",
-    )
-    .is("removed_at", null);
-  tasksQuery =
-    view === "past"
-      ? tasksQuery.lt("due_date", today)
-      : tasksQuery.gte("due_date", today);
+    );
+  if (view === "archived")
+    tasksQuery = tasksQuery.not("removed_at", "is", null);
+  else tasksQuery = tasksQuery.is("removed_at", null);
+  if (view !== "archived")
+    tasksQuery =
+      view === "past"
+        ? tasksQuery.lt("due_date", today)
+        : tasksQuery.gte("due_date", today);
+  if (view === "archived" && isLead(actor) && !canSeeAllBranches(actor))
+    tasksQuery = tasksQuery.in("branch_id", actor.branchIds);
   if (search)
     tasksQuery = tasksQuery.or(
       searchOrFilter(search, ["title", "description"]),
@@ -70,12 +80,18 @@ export default async function TasksPage({
 
   let taskCountQuery = supabase
     .from("tasks")
-    .select("id", { count: "exact", head: true })
-    .is("removed_at", null);
-  taskCountQuery =
-    view === "past"
-      ? taskCountQuery.lt("due_date", today)
-      : taskCountQuery.gte("due_date", today);
+    .select("id", { count: "exact", head: true });
+  if (view === "archived")
+    taskCountQuery = taskCountQuery.not("removed_at", "is", null);
+  else {
+    taskCountQuery = taskCountQuery.is("removed_at", null);
+    taskCountQuery =
+      view === "past"
+        ? taskCountQuery.lt("due_date", today)
+        : taskCountQuery.gte("due_date", today);
+  }
+  if (view === "archived" && isLead(actor) && !canSeeAllBranches(actor))
+    taskCountQuery = taskCountQuery.in("branch_id", actor.branchIds);
 
   const [tasksResult, taskCountResult, branchesResult, officersResult] =
     await Promise.all([
@@ -106,7 +122,19 @@ export default async function TasksPage({
       return false;
     return true;
   });
-  const organizedTasks = organizeTaskList(tasks, view, today, sunday);
+  const archivedTasks =
+    view === "archived"
+      ? tasks
+          .filter((task) => task.removed_at !== null)
+          .sort(
+            (left, right) =>
+              right.due_date.localeCompare(left.due_date) || right.id - left.id,
+          )
+      : [];
+  const organizedTasks =
+    view === "archived"
+      ? organizeTaskList(tasks, "current", today, sunday)
+      : organizeTaskList(tasks, view, today, sunday);
   const splitTasks = (items: typeof tasks) =>
     splitTasksByOfficer(items, actor.id);
   const filteredToNothing =
@@ -120,7 +148,7 @@ export default async function TasksPage({
     status ||
     branchId !== undefined ||
     assigneeId !== undefined ||
-    view === "past",
+    view !== "current",
   );
 
   const renderGroup = (
@@ -275,6 +303,7 @@ export default async function TasksPage({
           <select name="view" defaultValue={view}>
             <option value="current">Current</option>
             <option value="past">Past</option>
+            {mayBrowseArchived && <option value="archived">Archived</option>}
           </select>
         </label>
         <label className="w-full min-w-0 sm:w-auto sm:min-w-44">
@@ -311,7 +340,21 @@ export default async function TasksPage({
         </label>
       </ListFilterBar>
 
-      {filteredToNothing ? (
+      {view === "archived" ? (
+        archivedTasks.length ? (
+          <section aria-label="Archived tasks" className="space-y-4">
+            <SectionHeading title="Archived tasks" />
+            {renderGroup(
+              "Archived tasks",
+              "Archived tasks",
+              archivedTasks,
+              false,
+            )}
+          </section>
+        ) : (
+          <p>No archived Tasks.</p>
+        )
+      ) : filteredToNothing ? (
         <p>No tasks match these filters.</p>
       ) : organizedTasks.view === "past" ? (
         organizedTasks.tasks.length === 0 ? (
@@ -337,13 +380,13 @@ export default async function TasksPage({
         <>
           {renderSection(
             "This week's tasks",
-            organizedTasks.thisWeek,
+            organizedTasks.view === "current" ? organizedTasks.thisWeek : [],
             "No tasks due this week.",
             true,
           )}
           {renderSection(
             "Upcoming tasks",
-            organizedTasks.upcoming,
+            organizedTasks.view === "current" ? organizedTasks.upcoming : [],
             "No upcoming tasks.",
             true,
           )}

@@ -174,8 +174,8 @@ create temporary table atomic_before as select
  (select count(*) from audit_logs) as audits,
  (select count(*) from private.recurrence_mutations) as receipts;
 set local role authenticated;
-select throws_ok($$select pg_temp.mutate('task-history',1,'series','remove')$$,'P0001','Completed or awarded Tasks cannot be removed','protected Task at end rejects entire removal');
-select throws_ok($$select pg_temp.mutate('task-history',1,'series','edit','{}','RRULE:FREQ=DAILY;INTERVAL=1;COUNT=2',array['2099-03-06'::date,'2099-03-07'])$$,'P0001','Completed or awarded Tasks cannot be removed','protected Task at end rejects schedule shortening and split');
+select throws_ok($$select pg_temp.mutate('task-history',1,'series','remove')$$,'P0001','Completed or awarded Tasks cannot be archived','protected Task at end rejects entire archival');
+select throws_ok($$select pg_temp.mutate('task-history',1,'series','edit','{}','RRULE:FREQ=DAILY;INTERVAL=1;COUNT=2',array['2099-03-06'::date,'2099-03-07'])$$,'P0001','Completed or awarded Tasks cannot be archived','protected Task at end rejects schedule shortening and split');
 reset role;
 select is((select jsonb_agg(to_jsonb(t) order by id) from tasks t where id in (select unnest(ids) from pg_temp.fixtures where label='task-history')),(select rows from atomic_before),'failed protected operations leave every occurrence unchanged');
 select is((select to_jsonb(s) from task_series s where id=(select recurrence_series_id from tasks where id=pg_temp.id('task-history',1))),(select series from atomic_before),'failed protected operations leave canonical metadata unchanged');
@@ -229,7 +229,7 @@ reset role;
 select pg_temp.fixture('task-completed-only','task');
 insert into task_officer_assignments(task_id,officer_id,assigned_by,completed_at) values(pg_temp.id('task-completed-only',3),-683,-681,'2026-09-20 12:00Z');
 set local role authenticated;
-select throws_ok($$select pg_temp.mutate('task-completed-only',2,'following','remove')$$,'P0001','Completed or awarded Tasks cannot be removed','completed but unapproved Task blocks following removal');
+select throws_ok($$select pg_temp.mutate('task-completed-only',2,'following','remove')$$,'P0001','Completed or awarded Tasks cannot be archived','completed but unapproved Task blocks following removal');
 select ok((select removed_at is null from tasks where id=pg_temp.id('task-completed-only',2)),'failed following remove leaves boundary active');
 select throws_ok($$select mutate_recurring_task(pg_temp.id('task-auth',1),'series','remove',gen_random_uuid(),(select series_id from pg_temp.fixtures where label='task-completed-only'),0)$$,'P0001','Occurrence does not belong to this series','trusted boundary verifies occurrence belongs to claimed series');
 select set_config('test.standalone_scope_task_id',save_task('Standalone scope','Details','Post',(select id from branches where name='intro'),'2099-09-21',3,false)::text,true);

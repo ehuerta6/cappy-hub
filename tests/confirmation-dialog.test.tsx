@@ -139,8 +139,8 @@ it("shows action-specific Event cancel and removal confirmations", () => {
   expect(cancelHtml).toContain("Cancel Event?");
   expect(cancelHtml).toContain("This applies cancellation to the selected");
   expect(cancelHtml).toContain("This occurrence");
-  expect(removeHtml).toContain("Remove Event?");
-  expect(removeHtml).toContain("Existing protected history remains");
+  expect(removeHtml).toContain("Archive Event?");
+  expect(removeHtml).toContain("workflow history is preserved");
   expect(removeHtml).toContain("This occurrence");
 });
 
@@ -153,8 +153,10 @@ it("shows scope and protected-history consequences for recurring Task removal", 
     }),
   );
 
-  expect(html).toContain("Remove Task?");
-  expect(html).toContain("Protected completion and award history");
+  expect(html).toContain("Archive Task?");
+  expect(html).toContain(
+    "Assignments, completion, Points, and history are preserved",
+  );
   expect(html).toContain("This occurrence");
   expect(html).toContain("All occurrences");
 });

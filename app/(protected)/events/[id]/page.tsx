@@ -19,7 +19,8 @@ import {
   BulkAddOfficersForm,
   SignupForm,
   CancelForm,
-  RestoreEventForm,
+  RestoreCancelledEventForm,
+  RestoreArchivedEventForm,
   RemoveEventForm,
 } from "../event-controls";
 import {
@@ -70,12 +71,13 @@ export default async function EventDetailPage({
       left.officers.id - right.officers.id,
   );
   const status = eventStatus(event);
-  const signupOpen = eventSignupOpen(event);
+  const signupOpen = !event.deleted_at && eventSignupOpen(event);
   const past = status === "past";
   const canManage = canManageEvent(
     actor,
     event.event_branches.map((eventBranch) => eventBranch.branch_id),
   );
+  if (event.deleted_at && !canManage) notFound();
   const transactions = await supabase
     .from("point_transactions")
     .select(
@@ -136,7 +138,7 @@ export default async function EventDetailPage({
             <dd>{formatDateTime(event.ends_at)}</dd>
             {event.deleted_at && (
               <>
-                <dt>Removed at</dt>
+                <dt>Archived at</dt>
                 <dd>{formatDateTime(event.deleted_at)}</dd>
               </>
             )}
@@ -148,7 +150,7 @@ export default async function EventDetailPage({
             </dd>
             <dt>Status</dt>
             <dd>
-              <StatusBadge status={status} />
+              <StatusBadge status={event.deleted_at ? "Archived" : status} />
             </dd>
             <dt>Branches</dt>
             <dd>
@@ -164,10 +166,13 @@ export default async function EventDetailPage({
             meetingNotesUrl={event.meeting_notes_url}
             signupSheetUrl={event.signup_sheet_url}
           />
+          {canManage && event.deleted_at && (
+            <RestoreArchivedEventForm eventId={event.id} />
+          )}
           {canManage && !event.deleted_at && (
             <div className="flex flex-wrap gap-3 [&>form]:w-auto">
               {status === "cancelled" && (
-                <RestoreEventForm eventId={event.id} />
+                <RestoreCancelledEventForm eventId={event.id} />
               )}
               {signupOpen && (
                 <CancelForm

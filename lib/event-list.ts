@@ -2,7 +2,7 @@ import type { Tables } from "./database.types";
 import { currentDenverWeek } from "./current-denver-week";
 
 export type EventListStatus =
-  "upcoming" | "happening" | "past" | "cancelled" | undefined;
+  "upcoming" | "happening" | "past" | "cancelled" | "archived" | undefined;
 
 export type EventListItem = Pick<
   Tables<"events">,
@@ -28,6 +28,7 @@ export function organizeEventList(
   const nowMs = now.getTime();
   const { today, sunday } = currentDenverWeek(now);
   const visible = events.filter((event) => {
+    if (status === "archived") return event.deleted_at !== null;
     if (event.deleted_at) return false;
     if (status === "cancelled") return event.status === "cancelled";
     if (event.status === "cancelled") return false;
@@ -43,7 +44,7 @@ export function organizeEventList(
 
   const sort = (left: EventListItem, right: EventListItem) => {
     if (status === "past") return right.ends_at.localeCompare(left.ends_at);
-    if (status === "cancelled") {
+    if (status === "cancelled" || status === "archived") {
       return (
         right.event_date.localeCompare(left.event_date) ||
         right.starts_at.localeCompare(left.starts_at)

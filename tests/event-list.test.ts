@@ -229,3 +229,34 @@ it("does not accept Removed as an Event list status", () => {
     eventListFiltersSchema.parse({ status: "removed" }).status,
   ).toBeUndefined();
 });
+
+it("shows archived Events only in the explicit Archived view", () => {
+  const result = organizeEventList(
+    [
+      event(
+        1,
+        "Archived",
+        "2026-10-01",
+        "2026-10-01T16:00:00Z",
+        "2026-10-01T17:00:00Z",
+        {
+          deleted_at: "2026-10-01T00:00:00Z",
+        },
+      ),
+      event(
+        2,
+        "Active",
+        "2026-10-08",
+        "2026-10-08T16:00:00Z",
+        "2026-10-08T17:00:00Z",
+      ),
+    ],
+    "archived",
+    new Date("2026-10-07T12:00:00Z"),
+  );
+  expect(result.view).toBe("single");
+  if (result.view === "single")
+    expect(result.events.map(({ deleted_at }) => deleted_at)).toEqual([
+      "2026-10-01T00:00:00Z",
+    ]);
+});

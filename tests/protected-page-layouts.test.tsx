@@ -354,7 +354,7 @@ it("groups Event details, files and participation while retaining management con
     "Open slides",
     "Open notes",
     "Cancel event",
-    "Remove event",
+    "Archive Event",
   ])
     expect(details).toContain(text);
   expect(details).toContain('rel="noopener noreferrer"');
