@@ -20,9 +20,17 @@ export default function EventResourceLinks({
           <ResourceLink href={meetingNotesUrl}>Open notes</ResourceLink>
         )}
         {signupSheetUrl && (
-          <ResourceLink href={signupSheetUrl}>Open signup sheet</ResourceLink>
+          <ResourceLink href={signupSheetUrl}>
+            Open external roster / signup sheet
+          </ResourceLink>
         )}
       </div>
+      {signupSheetUrl && (
+        <p className="mt-2 text-sm text-muted">
+          External Google Sheet resource. Cappy Hub signups, capacity, waitlist,
+          and participation are managed separately.
+        </p>
+      )}
     </section>
   );
 }

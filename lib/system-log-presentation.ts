@@ -230,7 +230,7 @@ const fieldLabels: Record<string, string> = {
   event_type_id: "Event type",
   location: "Location",
   meeting_notes_url: "Meeting notes link",
-  signup_sheet_url: "Signup sheet",
+  signup_sheet_url: "External roster / signup sheet",
   name: "Name",
   new_rate: "Participation rate",
   old_rate: "Participation rate",

@@ -249,7 +249,7 @@ export default function EventForm({
       </label>
 
       <label>
-        Signup sheet URL (optional)
+        External roster / signup sheet URL (optional)
         <input
           name="signup_sheet_url"
           type="url"
@@ -265,6 +265,10 @@ export default function EventForm({
             event?.signup_sheet_url ?? "",
           )}
         />
+        <span className="block text-sm text-muted">
+          External Google Sheet resource. Cappy Hub signups, capacity, waitlist,
+          and participation are managed separately.
+        </span>
         <FieldError id="event-signup-sheet-url-error">
           {fieldErrors.signup_sheet_url}
         </FieldError>

@@ -41,8 +41,15 @@ it("uses operation-specific primary action wording for new and edited Events", (
   expect(renderEventForm(true)).toContain(">Save event</button>");
 });
 
-it("offers Session from the active Event type catalog and displays the saved signup sheet", () => {
+it("clarifies the external sheet in create/edit forms and displays the saved URL", () => {
+  const createHtml = renderEventForm();
   const html = renderEventForm(true);
+  for (const formHtml of [createHtml, html]) {
+    expect(formHtml).toContain("External roster / signup sheet URL (optional)");
+    expect(formHtml).toContain(
+      "External Google Sheet resource. Cappy Hub signups, capacity, waitlist, and participation are managed separately.",
+    );
+  }
   expect(html).toContain('<option value="9">Session</option>');
   expect(html).toContain('name="signup_sheet_url"');
   expect(html).toContain('value="https://example.com/signup"');

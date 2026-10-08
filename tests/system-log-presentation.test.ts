@@ -76,7 +76,7 @@ it("labels signup sheet URL audit changes for officers", () => {
     },
   });
   expect(result.changes).toContainEqual({
-    label: "Signup sheet",
+    label: "External roster / signup sheet",
     value: "none → https://example.com/signup",
   });
 });
