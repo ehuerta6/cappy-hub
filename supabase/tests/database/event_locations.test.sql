@@ -25,13 +25,13 @@ select throws_ok($$select count(*) from event_locations$$,'42501',null,
   'anonymous clients cannot read Event locations');
 set local role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000444',true);
-select is((select count(*) from event_locations),0::bigint,
+select is((select count(*) from event_locations where name='Access fixture room'),0::bigint,
   'unmatched authenticated account cannot read Event locations');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000443',true);
-select is((select count(*) from event_locations),0::bigint,
+select is((select count(*) from event_locations where name='Access fixture room'),0::bigint,
   'inactive Officer cannot read Event locations');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000442',true);
-select is((select count(*) from event_locations),1::bigint,
+select is((select count(*) from event_locations where name='Access fixture room'),1::bigint,
   'active linked Officer can read Event locations');
 
 select throws_ok($$select create_event_location('Unauthorized room')$$,

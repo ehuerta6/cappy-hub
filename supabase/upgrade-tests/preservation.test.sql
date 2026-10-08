@@ -164,7 +164,7 @@ select results_eq(
   $$select e.id,e.event_type_id,t.name from events e join event_types t on t.id=e.event_type_id where e.id between 90004 and 90006 order by e.id$$,
   $$select (e.row->>'id')::bigint,(e.row->>'event_type_id')::bigint,t.row->>'name' from upgrade_fixture.pre_hardening_events e join upgrade_fixture.pre_hardening_event_types t on (t.row->>'id')::bigint=(e.row->>'event_type_id')::bigint where (e.row->>'id')::bigint between 90004 and 90006 order by (e.row->>'id')::bigint$$,
   'historical Events retain their exact type IDs and labels');
-select is((select jsonb_agg(to_jsonb(e)-'deleted_by_officer_id'-'signup_sheet_url' order by id)
+select is((select jsonb_agg(to_jsonb(e)-'deleted_by_officer_id'-'signup_sheet_url'-'max_volunteers' order by id)
   from events e where exists(select 1 from upgrade_fixture.pre_hardening_events f
     where (f.row->>'id')::bigint=e.id)),
   (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.pre_hardening_events),
@@ -256,7 +256,7 @@ select throws_ok($$insert into officers(name,position_id,personal_email) values
 select hasnt_column('positions','can_manage_branch_events','obsolete capability flag is gone');
 select hasnt_column('events','flyer_status','flyer event column is gone');
 select hasnt_column('application_config','flyer_completion_points','flyer configuration is gone');
-select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),19::bigint,
+select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),20::bigint,
   'final schema contains canonical Task assignment data without the legacy projection');
 select is((select count(*) from events where recurrence_series_id is not null and id not in (90680,90681)),0::bigint,
   'existing Events remain standalone after the additive recurrence migration');
@@ -264,7 +264,7 @@ select is((select count(*) from tasks where recurrence_series_id is not null and
   'existing Tasks remain standalone after the additive recurrence migration');
 select has_column('events','recurrence_key','Event occurrence identity is additive');
 select has_column('tasks','recurrence_key','Task occurrence identity is additive');
-select is((select jsonb_agg(to_jsonb(e)-'deleted_by_officer_id'-'signup_sheet_url' order by id) from events e where id in (90680,90681)),
+select is((select jsonb_agg(to_jsonb(e)-'deleted_by_officer_id'-'signup_sheet_url'-'max_volunteers' order by id) from events e where id in (90680,90681)),
  (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.recurring_events),'scope migration preserves existing recurring Event rows including cancellation');
 select is((select jsonb_agg(to_jsonb(t) order by id) from tasks t where id in (90680,90681)),
  (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.recurring_tasks),'scope migration preserves existing recurring Task rows');

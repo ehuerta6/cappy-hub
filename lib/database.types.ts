@@ -269,6 +269,49 @@ export type Database = {
         };
         Relationships: [];
       };
+      event_waitlist: {
+        Row: {
+          event_id: number;
+          id: number;
+          joined_at: string;
+          officer_id: number;
+        };
+        Insert: {
+          event_id: number;
+          id?: number;
+          joined_at?: string;
+          officer_id: number;
+        };
+        Update: {
+          event_id?: number;
+          id?: number;
+          joined_at?: string;
+          officer_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_waitlist_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_waitlist_officer_id_fkey";
+            columns: ["officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_waitlist_officer_id_fkey";
+            columns: ["officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       events: {
         Row: {
           created_at: string;
@@ -282,6 +325,7 @@ export type Database = {
           id: number;
           location: string | null;
           location_id: number | null;
+          max_volunteers: number | null;
           meeting_notes_url: string | null;
           name: string;
           participation_points_per_hour_at_end: number | null;
@@ -304,6 +348,7 @@ export type Database = {
           id?: number;
           location?: string | null;
           location_id?: number | null;
+          max_volunteers?: number | null;
           meeting_notes_url?: string | null;
           name: string;
           participation_points_per_hour_at_end?: number | null;
@@ -326,6 +371,7 @@ export type Database = {
           id?: number;
           location?: string | null;
           location_id?: number | null;
+          max_volunteers?: number | null;
           meeting_notes_url?: string | null;
           name?: string;
           participation_points_per_hour_at_end?: number | null;
@@ -1174,6 +1220,25 @@ export type Database = {
             };
             Returns: number;
           };
+      create_recurring_event_with_capacity: {
+        Args: {
+          p_branch_ids: number[];
+          p_description: string;
+          p_ends_at: string[];
+          p_event_dates: string[];
+          p_event_type_id: number;
+          p_location: string;
+          p_max_volunteers: number;
+          p_meeting_notes_url: string;
+          p_name: string;
+          p_recurrence_rule: string;
+          p_request_key: string;
+          p_signup_sheet_url: string;
+          p_slides_url: string;
+          p_starts_at: string[];
+        };
+        Returns: number;
+      };
       create_recurring_task: {
         Args: {
           p_approval_required: boolean;
@@ -1216,9 +1281,37 @@ export type Database = {
       delete_event_type: { Args: { p_id: number }; Returns: undefined };
       delete_position: { Args: { p_id: number }; Returns: undefined };
       delete_warning: { Args: { p_warning_id: number }; Returns: undefined };
+      event_signup_counts: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          confirmed_count: number;
+          event_id: number;
+          waitlist_count: number;
+        }[];
+      };
+      leave_event_waitlist: {
+        Args: { p_event_id: number; p_officer_id: number };
+        Returns: undefined;
+      };
       mutate_recurring_event: {
         Args: {
           p_dates?: string[];
+          p_operation: string;
+          p_patch?: Json;
+          p_request_key: string;
+          p_revision: number;
+          p_rule?: string;
+          p_scope: string;
+          p_selected_id: number;
+          p_series_id: number;
+        };
+        Returns: number;
+      };
+      mutate_recurring_event_with_capacity: {
+        Args: {
+          p_capacity_changed?: boolean;
+          p_dates?: string[];
+          p_max_volunteers?: number;
           p_operation: string;
           p_patch?: Json;
           p_request_key: string;
@@ -1295,6 +1388,24 @@ export type Database = {
         Returns: undefined;
       };
       restore_task: { Args: { p_task_id: number }; Returns: undefined };
+      save_event_with_capacity: {
+        Args: {
+          p_branch_ids: number[];
+          p_description: string;
+          p_ends_at: string;
+          p_event_date: string;
+          p_event_id?: number;
+          p_event_type_id: number;
+          p_location: string;
+          p_max_volunteers?: number;
+          p_meeting_notes_url?: string;
+          p_name: string;
+          p_signup_sheet_url: string;
+          p_slides_url?: string;
+          p_starts_at: string;
+        };
+        Returns: number;
+      };
       save_event_with_links: {
         Args: {
           p_branch_ids: number[];

@@ -51,6 +51,12 @@ export async function recurrenceMutation(
       throw new Error("Invalid recurrence edit fields");
     patch[name] = values[name];
   }
+  const capacityChanged =
+    domain === "event" && Object.hasOwn(patch, "max_volunteers");
+  const maxVolunteers = capacityChanged
+    ? (patch.max_volunteers as number | null)
+    : undefined;
+  delete patch.max_volunteers;
   let rule: string | undefined;
   let dates: string[] | undefined;
   const dateField = domain === "event" ? "event_date" : "due_date";
@@ -158,6 +164,12 @@ export async function recurrenceMutation(
     p_revision: input.revision,
     p_patch: patch,
     ...(rule ? { p_rule: rule, p_dates: dates } : {}),
+    ...(capacityChanged
+      ? {
+          p_capacity_changed: true,
+          p_max_volunteers: maxVolunteers ?? 0,
+        }
+      : {}),
   };
 }
 

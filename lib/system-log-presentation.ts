@@ -60,6 +60,7 @@ const actionPresentations: Record<string, ActionPresentation> = {
   },
   "event.cancelled": { label: "Cancelled an event" },
   "event.created": { label: "Created an event" },
+  "event.capacity_changed": { label: "Changed Event capacity" },
   "event.links_updated": { label: "Updated event links" },
   "event.officer_assigned": {
     label: "Assigned an officer to an event",
@@ -82,6 +83,11 @@ const actionPresentations: Record<string, ActionPresentation> = {
     kind: "event-signout",
   },
   "event.signup": { label: "Signed up for an event", kind: "event-signup" },
+  "event.waitlist_joined": { label: "Joined an Event waitlist" },
+  "event.waitlist_left": { label: "Left an Event waitlist" },
+  "event.waitlist_promoted": {
+    label: "Promoted an Officer from the Event waitlist",
+  },
   "event.updated": { label: "Updated an event" },
   "event.series_created": { label: "Created an event series" },
   "event.series_cancel": { label: "Cancelled events in a series" },
@@ -238,6 +244,7 @@ const fieldLabels: Record<string, string> = {
   event_date: "Event date",
   event_type_id: "Event type",
   location: "Location",
+  max_volunteers: "Max volunteers",
   meeting_notes_url: "Meeting notes link",
   signup_sheet_url: "External roster / signup sheet",
   name: "Name",

@@ -56,6 +56,8 @@ const event = {
   event_types: { name: "Meeting" },
   event_branches: [],
   event_officers: [],
+  event_waitlist: [],
+  max_volunteers: null,
   task_events: [],
   starts_at: "2099-10-08T23:00:00Z",
   ends_at: "2099-10-09T01:00:00Z",
@@ -98,6 +100,7 @@ beforeEach(() => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({ id: 1 } as never);
   vi.mocked(canManageEvent).mockReturnValue(true);
   vi.mocked(createClient).mockResolvedValue({
+    rpc: async () => ({ data: [], error: null }),
     from: (table: string) => {
       const query = {
         select: () => query,

@@ -8,6 +8,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { displayPoints } from "@/lib/participation";
 import { participationLabel } from "@/lib/event-status";
+import { eventSignupCountLabel } from "@/lib/event-list";
 import { SectionHeading, PointValue } from "@/components/ui";
 import {
   ACTION_ITEM_LIMIT,
@@ -17,12 +18,12 @@ import {
 export default async function DashboardPage() {
   const officer = await requireCurrentOfficer();
   const supabase = await createClient();
-  const [summary, events, transactions, total, actionItems] = await Promise.all(
-    [
+  const [summary, events, transactions, total, actionItems, countsResult] =
+    await Promise.all([
       supabase.from("dashboard_summary").select("*").single(),
       supabase
         .from("events")
-        .select("*,event_officers(officer_id)")
+        .select("*,event_officers(officer_id),event_waitlist(officer_id)")
         .neq("status", "cancelled")
         .is("deleted_at", null)
         .gt("starts_at", new Date().toISOString())
@@ -42,10 +43,19 @@ export default async function DashboardPage() {
         .eq("id", officer.id)
         .single(),
       loadDashboardActionItems(supabase, officer),
-    ],
-  );
-  if (summary.error || events.error || transactions.error || total.error)
+      supabase.rpc("event_signup_counts"),
+    ]);
+  if (
+    summary.error ||
+    events.error ||
+    transactions.error ||
+    total.error ||
+    countsResult.error
+  )
     throw new Error("Failed to load dashboard");
+  const signupCounts = new Map(
+    countsResult.data.map((row) => [row.event_id, row]),
+  );
   return (
     <div data-page-width="wide" className="space-y-4">
       <header className="grid min-w-0 gap-4 border-b border-border pb-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
@@ -218,10 +228,16 @@ export default async function DashboardPage() {
                   </div>
                   <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted sm:flex-col sm:items-end sm:gap-y-0.5">
                     <span>
-                      {event.event_officers.length}{" "}
-                      {event.event_officers.length === 1
-                        ? "officer"
-                        : "officers"}
+                      {eventSignupCountLabel({
+                        max_volunteers: event.max_volunteers,
+                        confirmed_count: Number(
+                          signupCounts.get(event.id)?.confirmed_count ??
+                            event.event_officers.length,
+                        ),
+                        waitlist_count: Number(
+                          signupCounts.get(event.id)?.waitlist_count ?? 0,
+                        ),
+                      })}
                     </span>
                     <span
                       className={
@@ -232,11 +248,15 @@ export default async function DashboardPage() {
                           : "text-muted"
                       }
                     >
-                      {participationLabel(
-                        event.event_officers.some(
-                          (signup) => signup.officer_id === officer.id,
-                        ),
-                      )}
+                      {(event.event_waitlist ?? []).some(
+                        (entry) => entry.officer_id === officer.id,
+                      )
+                        ? "Waitlisted"
+                        : participationLabel(
+                            event.event_officers.some(
+                              (signup) => signup.officer_id === officer.id,
+                            ),
+                          )}
                     </span>
                   </div>
                 </li>

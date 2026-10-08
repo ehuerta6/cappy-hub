@@ -20,6 +20,7 @@ const event = (
   ends_at: endsAt,
   status: "scheduled",
   deleted_at: null,
+  max_volunteers: null,
   participation_points_per_hour_at_end: null,
   event_types: { name: "Meeting" },
   event_branches: [],

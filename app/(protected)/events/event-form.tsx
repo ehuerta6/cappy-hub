@@ -63,6 +63,7 @@ export default function EventForm({
         slides_url: event.slides_url ?? "",
         meeting_notes_url: event.meeting_notes_url ?? "",
         signup_sheet_url: event.signup_sheet_url ?? "",
+        max_volunteers: event.max_volunteers?.toString() ?? "",
         event_date: event.event_date,
         start_time: denverParts(event.starts_at).time,
         end_time: denverParts(event.ends_at).time,
@@ -271,6 +272,32 @@ export default function EventForm({
         </span>
         <FieldError id="event-signup-sheet-url-error">
           {fieldErrors.signup_sheet_url}
+        </FieldError>
+      </label>
+
+      <label>
+        Max volunteers (optional)
+        <input
+          name="max_volunteers"
+          type="number"
+          min="1"
+          step="1"
+          inputMode="numeric"
+          aria-invalid={Boolean(fieldErrors.max_volunteers)}
+          aria-describedby={
+            fieldErrors.max_volunteers ? "event-capacity-error" : undefined
+          }
+          defaultValue={submittedValue(
+            state.values,
+            "max_volunteers",
+            event?.max_volunteers?.toString() ?? "",
+          )}
+        />
+        <span className="block text-sm text-muted">
+          Leave blank for unlimited confirmed signups.
+        </span>
+        <FieldError id="event-capacity-error">
+          {fieldErrors.max_volunteers}
         </FieldError>
       </label>
 
