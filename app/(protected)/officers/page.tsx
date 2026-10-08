@@ -43,7 +43,7 @@ export default async function OfficersPage({
     officersQuery = officersQuery.or(
       searchOrFilter(search, ["name", "utep_email", "personal_email"]),
     );
-  if (status) officersQuery = officersQuery.eq("status", status);
+  if (status !== "all") officersQuery = officersQuery.eq("status", status);
   if (positionId !== undefined)
     officersQuery = officersQuery.eq("position_id", positionId);
   if (branchId !== undefined)
@@ -103,7 +103,9 @@ export default async function OfficersPage({
     (warningOfficers?.data ?? []).map((officer) => [officer.id, officer.name]),
   );
 
-  const hasFilters = Boolean(search || status || positionId || branchId);
+  const hasFilters = Boolean(
+    search || status !== "active" || positionId || branchId,
+  );
   const officers = officersResult.data;
   return (
     <div data-page-width="wide" className="space-y-5">
@@ -140,10 +142,10 @@ export default async function OfficersPage({
         </label>
         <label className="w-full min-w-0 sm:w-auto sm:min-w-36">
           Status
-          <select name="status" defaultValue={status ?? ""}>
-            <option value="">All statuses</option>
+          <select name="status" defaultValue={status}>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
+            <option value="all">All</option>
           </select>
         </label>
         <label className="w-full min-w-0 sm:w-auto sm:min-w-44">

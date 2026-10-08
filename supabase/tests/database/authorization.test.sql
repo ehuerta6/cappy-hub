@@ -34,6 +34,8 @@ insert into event_branches(event_id,branch_id)
  union all select -306,id from branches where name in ('intro','icpc');
 insert into officer_branches(officer_id,branch_id)
  select -306,id from branches where name in ('intro','social');
+insert into officer_branches(officer_id,branch_id)
+ select -303,id from branches where name='general';
 insert into event_officers(event_id,officer_id) values (-304,-303),(-305,-303);
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000301',true);
@@ -107,15 +109,40 @@ select lives_ok($$select save_event_with_links('President global','Test event',(
 reset role;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000301',true);
 set local role authenticated;
-select lives_ok($$select save_officer('Deactivated PR3',17::bigint,'inactive',null,-303,'officer-pr3@example.org')$$,
+select lives_ok($$select save_officer('Deactivated PR3',17::bigint,'inactive',array[(select id from branches where name='general')],-303,'officer-pr3@example.org',null,null)$$,
  'admin can deactivate officer');
 reset role;
-select is((select count(*) from event_officers where event_id=-305 and officer_id=-303),0::bigint,
- 'deactivation removes future signups');
+select is((select count(*) from event_officers where event_id=-305 and officer_id=-303),1::bigint,
+ 'deactivation preserves future signup relationships');
 select is((select count(*) from event_officers where event_id=-304 and officer_id=-303),1::bigint,
  'deactivation preserves past participation');
+select is((select status from officers where id=-303),'inactive','deactivation updates lifecycle status');
+select is((select position_id from officers where id=-303),17::bigint,'deactivation preserves Position');
+select is((select application_role from officers where id=-303),'officer','deactivation preserves application role');
+select is((select auth_user_id from officers where id=-303),'00000000-0000-4000-8000-000000000303'::uuid,
+ 'deactivation preserves authentication link');
+select is((select count(*) from officer_branches where officer_id=-303 and branch_id=(select id from branches where name='general')),1::bigint,
+ 'deactivation preserves branch membership');
+select is((select details->'before'->>'status' from audit_logs
+ where action='officer.deactivated' and entity_id='-303'),'active',
+ 'deactivation audit records the previous status');
+select is((select details->'after'->>'status' from audit_logs
+ where action='officer.deactivated' and entity_id='-303'),'inactive',
+ 'deactivation audit records the new status');
+select is((select actor_officer_id from audit_logs
+ where action='officer.deactivated' and entity_id='-303'),-301::bigint,
+ 'deactivation audit identifies its Admin actor');
+select throws_ok($$select add_manual_transaction(-303,1,'Inactive correction','correction')$$,
+ 'P0001','Target officer is not active','admin cannot add points to an inactive Officer');
 set local role authenticated;
-select lives_ok($$select save_officer('Reactivated PR3',17::bigint,'active',null,-303,'officer-pr3@example.org')$$,
+select lives_ok($$select save_officer('Reactivated PR3',17::bigint,'active',array[(select id from branches where name='general')],-303,'officer-pr3@example.org',null,null)$$,
  'admin can reactivate officer');
+select is((select status from officers where id=-303),'active','reactivation returns Officer to active state');
+select is((select position_id from officers where id=-303),17::bigint,'reactivation preserves Position');
+select is((select application_role from officers where id=-303),'officer','reactivation preserves application role');
+select is((select count(*) from officer_branches where officer_id=-303 and branch_id=(select id from branches where name='general')),1::bigint,
+ 'reactivation preserves branch membership');
+select is((select count(*) from audit_logs where action='officer.reactivated' and entity_id='-303'),1::bigint,
+ 'reactivation creates an audit entry');
 select * from finish();
 rollback;
