@@ -663,6 +663,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      task_events: {
+        Row: {
+          created_at: string;
+          event_id: number;
+          task_id: number;
+        };
+        Insert: {
+          created_at?: string;
+          event_id: number;
+          task_id: number;
+        };
+        Update: {
+          created_at?: string;
+          event_id?: number;
+          task_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "task_events_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_events_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       task_officer_assignments: {
         Row: {
           approved_at: string | null;
@@ -1149,6 +1182,21 @@ export type Database = {
         };
         Returns: number;
       };
+      create_recurring_task_with_events: {
+        Args: {
+          p_approval_required: boolean;
+          p_branch_id: number;
+          p_description: string;
+          p_due_dates: string[];
+          p_event_ids: number[];
+          p_points: number;
+          p_recurrence_rule: string;
+          p_request_key: string;
+          p_task_type: string;
+          p_title: string;
+        };
+        Returns: number;
+      };
       create_warning: {
         Args: { p_officer_id: number; p_reason: string };
         Returns: number;
@@ -1179,6 +1227,21 @@ export type Database = {
       mutate_recurring_task: {
         Args: {
           p_dates?: string[];
+          p_operation: string;
+          p_patch?: Json;
+          p_request_key: string;
+          p_revision: number;
+          p_rule?: string;
+          p_scope: string;
+          p_selected_id: number;
+          p_series_id: number;
+        };
+        Returns: number;
+      };
+      mutate_recurring_task_with_events: {
+        Args: {
+          p_dates?: string[];
+          p_event_ids?: number[];
           p_operation: string;
           p_patch?: Json;
           p_request_key: string;
@@ -1284,6 +1347,19 @@ export type Database = {
         };
         Returns: number;
       };
+      save_task_with_events: {
+        Args: {
+          p_approval_required: boolean;
+          p_branch_id: number;
+          p_description: string;
+          p_due_date: string;
+          p_event_ids: number[];
+          p_points: number;
+          p_task_type: string;
+          p_title: string;
+        };
+        Returns: number;
+      };
       self_assign_task: { Args: { p_task_id: number }; Returns: undefined };
       set_officer_application_role: {
         Args: { p_officer_id: number; p_role: string };
@@ -1292,6 +1368,10 @@ export type Database = {
       set_participation_rate: { Args: { p_rate: number }; Returns: undefined };
       set_task_assignment_completion: {
         Args: { p_completed: boolean; p_officer_id: number; p_task_id: number };
+        Returns: undefined;
+      };
+      set_task_event_links: {
+        Args: { p_event_ids: number[]; p_task_ids: number[] };
         Returns: undefined;
       };
       update_point_transaction: {
@@ -1303,6 +1383,19 @@ export type Database = {
           p_branch_id: number;
           p_description: string;
           p_due_date: string;
+          p_points: number;
+          p_task_id: number;
+          p_task_type: string;
+          p_title: string;
+        };
+        Returns: undefined;
+      };
+      update_task_details_with_events: {
+        Args: {
+          p_branch_id: number;
+          p_description: string;
+          p_due_date: string;
+          p_event_ids: number[];
           p_points: number;
           p_task_id: number;
           p_task_type: string;

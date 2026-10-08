@@ -180,6 +180,7 @@ const actionPresentations: Record<string, ActionPresentation> = {
   "task.series_edit": { label: "Updated a task series" },
   "task.series_remove": { label: "Removed tasks in a series" },
   "task.updated": { label: "Updated a task" },
+  "task.event_links_updated": { label: "Updated Task Event links" },
   "warning.approved_by_approver": {
     label: "Approved a warning",
     kind: "warning",

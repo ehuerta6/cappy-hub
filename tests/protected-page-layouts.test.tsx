@@ -56,6 +56,7 @@ const event = {
   event_types: { name: "Meeting" },
   event_branches: [],
   event_officers: [],
+  task_events: [],
   starts_at: "2099-10-08T23:00:00Z",
   ends_at: "2099-10-09T01:00:00Z",
   participation_points_per_hour_at_end: null,
@@ -82,6 +83,7 @@ const task = {
       officers: { id: 2, name: "Other Officer" },
     },
   ],
+  task_events: [],
   recurrence_series_id: 3,
   due_date: "2099-10-08",
 };

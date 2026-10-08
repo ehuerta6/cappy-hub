@@ -49,7 +49,7 @@ export default async function EventDetailPage({
     supabase
       .from("events")
       .select(
-        "*,event_types(name),event_branches(branch_id,branches(name)),event_officers(officers(id,name))",
+        "*,event_types(name),event_branches(branch_id,branches(name)),event_officers(officers(id,name)),task_events(tasks(id,title,removed_at))",
       )
       .eq("id", eventId)
       .maybeSingle(),
@@ -286,6 +286,23 @@ export default async function EventDetailPage({
           </section>
         </section>
       </div>
+      <section>
+        <SectionHeading title="Linked Tasks" />
+        {event.task_events.length ? (
+          <ul className="list-disc space-y-1 pl-5">
+            {event.task_events.map(({ tasks: linkedTask }) => (
+              <li key={linkedTask.id}>
+                <Link href={`/tasks/${linkedTask.id}`}>{linkedTask.title}</Link>
+                {linkedTask.removed_at && (
+                  <span className="ml-2 text-sm text-muted">Archived</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No linked Tasks.</p>
+        )}
+      </section>
       <section>
         <SectionHeading
           title="Event point history"

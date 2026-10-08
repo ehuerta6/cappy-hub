@@ -44,7 +44,7 @@ export default async function TaskDetailPage({
     supabase
       .from("tasks")
       .select(
-        "*,branches(name),task_officer_assignments(officer_id,assigned_at,completed_at,officers!task_officer_assignments_officer_id_fkey(id,name))",
+        "*,branches(name),task_officer_assignments(officer_id,assigned_at,completed_at,officers!task_officer_assignments_officer_id_fkey(id,name)),task_events(events(id,name,event_date,status,deleted_at))",
       )
       .eq("id", taskId)
       .maybeSingle(),
@@ -146,6 +146,29 @@ export default async function TaskDetailPage({
               <StatusBadge status={currentStatus} />
             </dd>
           </dl>
+          <section aria-label="Linked Events" className="space-y-2">
+            <SectionHeading title="Linked Events" />
+            {task.task_events.length ? (
+              <ul className="list-disc space-y-1 pl-5">
+                {task.task_events.map(({ events: linkedEvent }) => (
+                  <li key={linkedEvent.id}>
+                    <Link href={`/events/${linkedEvent.id}`}>
+                      {linkedEvent.name}
+                    </Link>
+                    <span className="ml-2 text-sm text-muted">
+                      {linkedEvent.deleted_at
+                        ? "Archived"
+                        : linkedEvent.status === "cancelled"
+                          ? "Cancelled"
+                          : linkedEvent.event_date}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>No linked Events.</p>
+            )}
+          </section>
           {series?.data && (
             <p className="text-sm text-muted">
               Recurring occurrence. Its due date, Officer assignments,
