@@ -210,15 +210,15 @@ Other workflows are implemented near their owning screens: Task assignment/compl
 
 Do not turn every action into a filled button. Keep control text specific to the actual operation and retain pending text/disabled state while a save is in progress.
 
-**DESIGN DECISION — wording:** Prefer action labels that state the result, such as “Save changes,” “Sign up,” “Remove transaction,” “Clear filters,” and “Create task,” over vague “Submit,” “Continue,” or “OK” when the outcome can be named. Keep one term for one operation. Preserve distinctions the product actually makes—for example, cancelling an event, removing a transaction, and deleting a warning are different operations and should not be renamed to a single generic verb.
+**DESIGN DECISION — wording:** Prefer action labels that state the result, such as “Save changes,” “Sign up,” “Remove transaction,” “Clear filters,” and “Create task,” over vague “Submit,” “Continue,” or “OK” when the outcome can be named. Keep one term for one operation. Preserve distinctions the product actually makes—for example, cancelling an Event, archiving an Event or Task, removing a transaction, and voiding a Warning are different operations and should not be renamed to a single generic verb.
 
 ## 12. Badges and status
 
 **CURRENT statuses:**
 
-- Events: Upcoming, Happening, Past, and Cancelled. Event detail can also identify a removed Event; removed Events have no list-browsing filter. Event status is computed from cancellation/removal and the event's start/end times.
+- Events: Upcoming, Happening, Past, and Cancelled are schedule/workflow states. Authorized managers also have an Archived Events view; Archived is a separate archive state, not a schedule-derived Event status.
 - Officers: Active and Inactive.
-- Warnings: Pending, Approved, and Rejected.
+- Warnings: Pending, Approved, and Rejected are decision states. Admins can also filter Voided or All history; Void is terminal and voided Warnings do not count toward active totals.
 - Tasks: Open (no assignments), In progress (at least one assignment and at least one not completed), and Complete (at least one assignment and all completed). Officer counts also show progress such as `2/3 completed`.
 - Points history: Active, Removed, or All is an admin filter state; award types are Participation, Task, Manual, and Correction, not statuses.
 - Calendar: Events and Task due dates are entry categories, not workflow statuses.
@@ -428,7 +428,7 @@ The following sections describe the actual product workflows and the design dire
 ### Officer detail
 
 - **Purpose:** Review one officer's record, access, warnings, event association, and point history.
-- **Existing functionality that MUST be preserved — CURRENT:** Contextual Officers link that returns to the originating filtered directory when opened from one; edit action for admins; UTEP/personal email, position, application role, classification, status, branches, and total points. Admins can change another officer's application role separately from club position. The officer and admins can see that officer's warning section; admins see all warning states and approval details, can filter by warning status, create/delete warnings, and see the three-approved-warning Admin Review message. The officer and admins can see associated events that are not cancelled or removed, plus the latest 100 active point transactions, with a link to full point history; historical Event references remain in Point history and System Log.
+- **Existing functionality that MUST be preserved — CURRENT:** Contextual Officers link that returns to the originating filtered directory when opened from one; edit action for admins; UTEP/personal email, position, application role, classification, status, branches, and total points. Admins can change another officer's application role separately from club position. The officer and admins can see that officer's warning section; admins see all warning states and approval details, can filter by warning status, create and void Warnings, and see the three-approved-warning Admin Review message. The officer and admins can see associated Events that are not cancelled or archived, plus the latest 100 active point transactions, with a link to full point history; historical Event references remain in Point history and System Log.
 - **Information hierarchy:** Name/edit action; identity and status/branches; role and warning controls by permission; associated events; point history.
 - **Recommended layout:** Keep identity/profile data in a concise definition list, separate status/branches and access controls, then show warnings and associated events as distinct sections. Point history spans the content width below.
 - **Primary action:** Edit officer when admin; otherwise no global mutation action.
