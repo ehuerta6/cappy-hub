@@ -46,6 +46,11 @@ export const taskDetailsInputSchema = zod.object({
   ),
 });
 
+export const taskEventIdsSchema = zod
+  .array(safeIntegerStringSchema("Select valid Events"))
+  .max(500, "Select no more than 500 Events")
+  .refine((ids) => new Set(ids).size === ids.length, "Select each Event once");
+
 export const taskRecordInputSchema = zod.object({
   task_id: safeIntegerStringSchema("Task not found"),
 });

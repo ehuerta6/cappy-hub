@@ -103,7 +103,7 @@ Authorized managers can Archive and Restore an eligible Task within their existi
 
 ### Planned / accepted
 
-Issue [#179](https://github.com/ehuerta6/cappy-hub/issues/179) accepts optional links between a Task and zero or more Events. Those links will provide context only: they do not merge Event and Task authorization, completion, signup, or Point workflows. Existing relationships must survive cancellation, archival, and historical state changes.
+Issue [#179](https://github.com/ehuerta6/cappy-hub/issues/179) accepts optional links between a Task and zero or more Events. Those links provide context only: they do not merge Event and Task authorization, completion, signup, or Point workflows. Existing relationships survive cancellation, archival, and historical state changes; archived and cancelled Events remain identifiable on an existing link but cannot be newly selected.
 
 ## 8. Points
 

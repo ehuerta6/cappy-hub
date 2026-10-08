@@ -28,6 +28,7 @@ import {
   taskRecordInputSchema,
   setTaskCompletionInputSchema,
   taskDetailsInputSchema,
+  taskEventIdsSchema,
 } from "./validation";
 
 const taskFormFields = [
@@ -37,6 +38,7 @@ const taskFormFields = [
   "branch_id",
   "due_date",
   "points",
+  "event_ids",
   "recurrence_frequency",
   "recurrence_interval",
   "recurrence_weekdays",
@@ -45,7 +47,15 @@ const taskFormFields = [
   "recurrence_until",
 ] as const;
 const taskFieldErrors = taskFormFields;
-const taskMultipleFields = ["recurrence_weekdays"] as const;
+const taskMultipleFields = ["recurrence_weekdays", "event_ids"] as const;
+
+function validatedTaskEventIds(formData: FormData) {
+  return taskEventIdsSchema.safeParse(
+    formData
+      .getAll("event_ids")
+      .filter((value): value is string => typeof value === "string"),
+  );
+}
 
 export async function createTask(
   _previous: FormActionState,
@@ -77,6 +87,14 @@ export async function createTask(
       taskMultipleFields,
     );
   const validatedTaskInput = validationResult.data;
+  const eventIds = validatedTaskEventIds(formData);
+  if (!eventIds.success)
+    return validationFailure(
+      eventIds.error,
+      formData,
+      taskFormFields,
+      taskMultipleFields,
+    );
   const supabase = await createClient();
   const recurrence = recurrenceInput(validatedTaskInput);
   if (recurrence) {
@@ -92,17 +110,21 @@ export async function createTask(
         taskMultipleFields,
       );
     }
-    const { data, error } = await supabase.rpc("create_recurring_task", {
-      p_title: validatedTaskInput.title,
-      p_description: validatedTaskInput.description,
-      p_task_type: validatedTaskInput.task_type,
-      p_branch_id: validatedTaskInput.branch_id,
-      p_points: validatedTaskInput.points,
-      p_approval_required: false,
-      p_request_key: validatedTaskInput.recurrence_request_key,
-      p_recurrence_rule: canonicalRecurrenceRule(recurrence),
-      p_due_dates: dates,
-    });
+    const { data, error } = await supabase.rpc(
+      "create_recurring_task_with_events",
+      {
+        p_title: validatedTaskInput.title,
+        p_description: validatedTaskInput.description,
+        p_task_type: validatedTaskInput.task_type,
+        p_branch_id: validatedTaskInput.branch_id,
+        p_points: validatedTaskInput.points,
+        p_approval_required: false,
+        p_request_key: validatedTaskInput.recurrence_request_key,
+        p_recurrence_rule: canonicalRecurrenceRule(recurrence),
+        p_due_dates: dates,
+        p_event_ids: eventIds.data,
+      },
+    );
     if (error)
       return formFailure(
         mutationError(error.message),
@@ -112,9 +134,10 @@ export async function createTask(
         taskMultipleFields,
       );
     revalidatePath("/tasks");
+    revalidatePath("/events/[id]", "page");
     redirect(withSuccessNotice(`/tasks#task-${data}`, "task-created"));
   }
-  const { data, error } = await supabase.rpc("save_task", {
+  const { data, error } = await supabase.rpc("save_task_with_events", {
     p_title: validatedTaskInput.title,
     p_description: validatedTaskInput.description,
     p_task_type: validatedTaskInput.task_type,
@@ -122,6 +145,7 @@ export async function createTask(
     p_due_date: validatedTaskInput.due_date,
     p_points: validatedTaskInput.points,
     p_approval_required: false,
+    p_event_ids: eventIds.data,
   });
   if (error)
     return formFailure(
@@ -132,6 +156,7 @@ export async function createTask(
       taskMultipleFields,
     );
   revalidatePath("/tasks");
+  revalidatePath("/events/[id]", "page");
   redirect(withSuccessNotice(`/tasks#task-${data}`, "task-created"));
 }
 
@@ -337,6 +362,7 @@ export async function editStandaloneTask(
   const validation = taskDetailsInputSchema.safeParse({
     ...Object.fromEntries(form.entries()),
   });
+  const eventIds = validatedTaskEventIds(form);
   if (!id.success)
     return formFailure(id.error.issues[0].message, form, [
       "task_id",
@@ -347,8 +373,15 @@ export async function editStandaloneTask(
       "task_id",
       ...taskFormFields.slice(0, 6),
     ]);
+  if (!eventIds.success)
+    return validationFailure(
+      eventIds.error,
+      form,
+      ["task_id", ...taskFormFields],
+      taskMultipleFields,
+    );
   const supabase = await createClient();
-  const { error } = await supabase.rpc("update_task_details", {
+  const { error } = await supabase.rpc("update_task_details_with_events", {
     p_task_id: id.data.task_id,
     p_title: validation.data.title,
     p_description: validation.data.description,
@@ -356,6 +389,7 @@ export async function editStandaloneTask(
     p_branch_id: validation.data.branch_id,
     p_due_date: validation.data.due_date,
     p_points: validation.data.points,
+    p_event_ids: eventIds.data,
   });
   if (error)
     return formFailure(mutationError(error.message), form, [
@@ -363,6 +397,7 @@ export async function editStandaloneTask(
       ...taskFormFields.slice(0, 6),
     ]);
   revalidatePath("/", "layout");
+  revalidatePath("/events/[id]", "page");
   redirect(
     withSuccessNotice(
       withReturnTo(`/tasks/${id.data.task_id}`, form.get("returnTo")),
@@ -381,6 +416,7 @@ export async function editRecurringTask(
     ...Object.fromEntries(form.entries()),
     recurrence_weekdays: form.getAll("recurrence_weekdays"),
   });
+  const eventIds = validatedTaskEventIds(form);
   if (!id.success)
     return formFailure(
       id.error.issues[0].message,
@@ -396,16 +432,34 @@ export async function editRecurringTask(
       ["task_id", ...taskFieldErrors],
       taskMultipleFields,
     );
+  if (!eventIds.success)
+    return validationFailure(
+      eventIds.error,
+      form,
+      ["task_id", ...taskFieldErrors],
+      taskMultipleFields,
+    );
   try {
+    const recurrenceForm = new FormData();
+    for (const [name, value] of form.entries()) {
+      if (name !== "edited_fields") recurrenceForm.append(name, value);
+      else if (value !== "event_ids") recurrenceForm.append(name, value);
+    }
     const args = await recurrenceMutation(
       "task",
       id.data.task_id,
-      form,
+      recurrenceForm,
       "edit",
       validation.data,
     );
     const supabase = await createClient();
-    const { error } = await supabase.rpc("mutate_recurring_task", args);
+    const eventLinksChanged = form
+      .getAll("edited_fields")
+      .includes("event_ids");
+    const { error } = await supabase.rpc("mutate_recurring_task_with_events", {
+      ...args,
+      ...(eventLinksChanged ? { p_event_ids: eventIds.data } : {}),
+    });
     if (error)
       return formFailure(
         mutationError(error.message),
@@ -424,6 +478,7 @@ export async function editRecurringTask(
     );
   }
   revalidatePath("/", "layout");
+  revalidatePath("/events/[id]", "page");
   const destination =
     form.get("scope") === "series"
       ? (safeReturnTo(form.get("returnTo")) ?? "/tasks")

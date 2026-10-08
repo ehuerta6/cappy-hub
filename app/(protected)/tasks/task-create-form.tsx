@@ -2,7 +2,11 @@
 
 import { useActionState, useState } from "react";
 import type { Tables } from "@/lib/database.types";
-import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
+import {
+  initialFormActionState,
+  submittedValue,
+  submittedValues,
+} from "@/lib/form-feedback";
 import { ActionFeedback, FieldError } from "@/components/ui";
 import {
   RecurrenceScope,
@@ -16,12 +20,22 @@ import { TASK_TYPES } from "@/lib/task-types";
 export default function TaskCreateForm({
   returnTo,
   branches,
+  events = [],
+  taskEventIds = [],
   recurrenceRequestKey,
   task,
   series,
 }: {
   returnTo?: string;
   branches: { id: number; name: string }[];
+  events?: {
+    id: number;
+    name: string;
+    event_date: string;
+    status: string;
+    deleted_at: string | null;
+  }[];
+  taskEventIds?: number[];
   recurrenceRequestKey: string;
   task?: Tables<"tasks">;
   series?: RecurrenceSeries;
@@ -40,6 +54,7 @@ export default function TaskCreateForm({
         branch_id: String(task.branch_id),
         due_date: task.due_date,
         points: String(task.points),
+        event_ids: taskEventIds.map(String),
       }
     : {};
   return (
@@ -208,6 +223,36 @@ export default function TaskCreateForm({
           )}
         />
         <FieldError id="task-points-error">{fieldErrors.points}</FieldError>
+      </label>
+      <label>
+        Linked Events
+        <select
+          name="event_ids"
+          multiple
+          size={Math.min(8, Math.max(4, events.length))}
+          defaultValue={submittedValues(
+            state.values,
+            "event_ids",
+            taskEventIds.map(String),
+          )}
+          aria-describedby="task-events-help"
+        >
+          {events.map((event) => (
+            <option key={event.id} value={event.id}>
+              {event.name} — {event.event_date}
+              {event.deleted_at
+                ? " (Archived)"
+                : event.status === "cancelled"
+                  ? " (Cancelled)"
+                  : ""}
+            </option>
+          ))}
+        </select>
+        <span id="task-events-help" className="text-sm text-muted">
+          Optional context links. Event and Task permissions, completion, and
+          Points stay separate.
+        </span>
+        <FieldError id="task-events-error">{fieldErrors.event_ids}</FieldError>
       </label>
       {!task && (
         <RecurrenceFields
