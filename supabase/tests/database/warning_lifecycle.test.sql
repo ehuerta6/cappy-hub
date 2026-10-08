@@ -196,6 +196,9 @@ set local role authenticated;
 select throws_ok($$select void_warning((select id from public.officer_warnings
   where reason='Approved warning'))$$,'P0001','Admin required',
   'normal officer cannot void');
+select throws_ok($$select delete_warning((select id from public.officer_warnings
+  where reason='Approved warning'))$$,'P0001','Admin required',
+  'normal officer cannot use the compatibility deletion RPC');
 select throws_ok($$delete from public.officer_warnings where reason='Approved warning'$$,
   '42501','permission denied for table officer_warnings',
   'normal officer cannot physically delete warning history');
@@ -217,6 +220,9 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000901'
 set local role authenticated;
 select throws_ok($$select void_warning(current_setting('test.approved_warning_id')::bigint)$$,
   'P0001','Warning is already voided','repeat void fails');
+select throws_ok($$select delete_warning(current_setting('test.approved_warning_id')::bigint)$$,
+  'P0001','Warning deletion is disabled; void instead',
+  'Admin compatibility RPC clearly rejects warning deletion');
 select throws_ok($$delete from public.officer_warnings
   where id=current_setting('test.approved_warning_id')::bigint$$,
   '42501','permission denied for table officer_warnings',

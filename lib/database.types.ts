@@ -1161,6 +1161,7 @@ export type Database = {
       delete_event_location: { Args: { p_id: number }; Returns: undefined };
       delete_event_type: { Args: { p_id: number }; Returns: undefined };
       delete_position: { Args: { p_id: number }; Returns: undefined };
+      delete_warning: { Args: { p_warning_id: number }; Returns: undefined };
       mutate_recurring_event: {
         Args: {
           p_dates?: string[];

@@ -43,8 +43,16 @@ $$;
 revoke all on function public.void_warning(bigint) from public,anon,authenticated;
 grant execute on function public.void_warning(bigint) to authenticated;
 
-drop function public.delete_warning(bigint);
-drop function private.delete_warning(bigint);
+-- Keep the public RPC during rollout so already deployed clients receive a
+-- clear denial instead of an RPC-not-found error. The compatibility path is
+-- never allowed to delete source rows or approvals.
+create or replace function private.delete_warning(p_warning_id bigint)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if not private.current_is_admin() then raise exception 'Admin required'; end if;
+  raise exception 'Warning deletion is disabled; void instead';
+end;
+$$;
 
 create or replace function private.decide_warning(p_warning_id bigint,p_decision text)
 returns void language plpgsql security definer set search_path = '' as $$
