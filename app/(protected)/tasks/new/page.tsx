@@ -14,12 +14,21 @@ export default async function NewTaskPage() {
   if (!canSeeAllBranches(actor) && (!isLead(actor) || !actor.branchIds.length))
     redirect("/access-denied");
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("branches")
-    .select("id,name")
-    .eq("is_active", true)
-    .order("name");
-  if (error) throw new Error("Failed to load branches");
+  const [branches, events] = await Promise.all([
+    supabase
+      .from("branches")
+      .select("id,name")
+      .eq("is_active", true)
+      .order("name"),
+    supabase
+      .from("events")
+      .select("id,name,event_date,status,deleted_at")
+      .is("deleted_at", null)
+      .neq("status", "cancelled")
+      .order("event_date", { ascending: false }),
+  ]);
+  if (branches.error || events.error)
+    throw new Error("Failed to load Task form");
   return (
     <div className="space-y-6">
       <ContextualBackLink href="/tasks">Back to tasks</ContextualBackLink>
@@ -28,9 +37,12 @@ export default async function NewTaskPage() {
         recurrenceRequestKey={crypto.randomUUID()}
         branches={
           canSeeAllBranches(actor)
-            ? data
-            : data.filter((branch) => actor.branchIds.includes(branch.id))
+            ? branches.data
+            : branches.data.filter((branch) =>
+                actor.branchIds.includes(branch.id),
+              )
         }
+        events={events.data}
       />
     </div>
   );

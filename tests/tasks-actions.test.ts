@@ -54,9 +54,9 @@ it("rejects malformed task points before calling the RPC", async () => {
   expect(rpc).not.toHaveBeenCalled();
 });
 
-it("submits task creation values to the existing RPC", async () => {
+it("submits task creation values and optional Event links to the trusted RPC", async () => {
   await createTask({ error: "", success: "" }, taskForm());
-  expect(rpc).toHaveBeenCalledWith("save_task", {
+  expect(rpc).toHaveBeenCalledWith("save_task_with_events", {
     p_title: " Flyer ",
     p_description: " Prepare the flyer ",
     p_task_type: "Flyer",
@@ -64,9 +64,30 @@ it("submits task creation values to the existing RPC", async () => {
     p_due_date: "2026-10-15",
     p_points: 1.5,
     p_approval_required: false,
+    p_event_ids: [],
   });
   expect(revalidatePath).toHaveBeenCalledWith("/tasks");
   expect(redirect).toHaveBeenCalledWith("/tasks?feedback=task-created#task-9");
+});
+
+it("validates and submits multiple Event links through the atomic Task mutation", async () => {
+  const form = taskForm();
+  form.append("event_ids", "21");
+  form.append("event_ids", "22");
+  await createTask({ error: "", success: "" }, form);
+  expect(rpc).toHaveBeenCalledWith(
+    "save_task_with_events",
+    expect.objectContaining({ p_event_ids: [21, 22] }),
+  );
+});
+
+it("rejects duplicate linked Event IDs before calling the Task mutation", async () => {
+  const form = taskForm();
+  form.append("event_ids", "21");
+  form.append("event_ids", "21");
+  const result = await createTask({ error: "", success: "" }, form);
+  expect(result.error).toBe("Select each Event once");
+  expect(rpc).not.toHaveBeenCalled();
 });
 
 it("creates separate recurring Task due-date rows", async () => {
@@ -76,7 +97,7 @@ it("creates separate recurring Task due-date rows", async () => {
   recurring.set("recurrence_end_mode", "count");
   recurring.set("recurrence_count", "3");
   await createTask({ error: "", success: "" }, recurring);
-  expect(rpc).toHaveBeenCalledWith("create_recurring_task", {
+  expect(rpc).toHaveBeenCalledWith("create_recurring_task_with_events", {
     p_title: " Flyer ",
     p_description: " Prepare the flyer ",
     p_task_type: "Flyer",
@@ -86,6 +107,7 @@ it("creates separate recurring Task due-date rows", async () => {
     p_recurrence_rule: "RRULE:FREQ=DAILY;INTERVAL=2;COUNT=3",
     p_request_key: "00000000-0000-4000-8000-000000000002",
     p_due_dates: ["2026-10-15", "2026-10-17", "2026-10-19"],
+    p_event_ids: [],
   });
 });
 
@@ -174,7 +196,7 @@ it("edits standalone Task details and preserves the filtered-list return path", 
   form.set("task_id", "9");
   form.set("returnTo", "/tasks?q=flyer&branch=2");
   await editStandaloneTask({ error: "", success: "" }, form);
-  expect(rpc).toHaveBeenCalledWith("update_task_details", {
+  expect(rpc).toHaveBeenCalledWith("update_task_details_with_events", {
     p_task_id: 9,
     p_title: " Flyer ",
     p_description: " Prepare the flyer ",
@@ -182,6 +204,7 @@ it("edits standalone Task details and preserves the filtered-list return path", 
     p_branch_id: -5,
     p_due_date: "2026-10-15",
     p_points: 1.5,
+    p_event_ids: [],
   });
   expect(redirect).toHaveBeenCalledWith(
     "/tasks/9?returnTo=%2Ftasks%3Fq%3Dflyer%26branch%3D2&feedback=task-updated",
@@ -218,7 +241,7 @@ it("recurring Task editing submits only changed fields to its trusted RPC", asyn
   data.set("mutation_request_key", "00000000-0000-4000-8000-000000000068");
   data.append("edited_fields", "title");
   await editRecurringTask({ error: "", success: "" }, data);
-  expect(rpc).toHaveBeenCalledWith("mutate_recurring_task", {
+  expect(rpc).toHaveBeenCalledWith("mutate_recurring_task_with_events", {
     p_selected_id: 9,
     p_scope: "series",
     p_operation: "edit",
@@ -228,6 +251,24 @@ it("recurring Task editing submits only changed fields to its trusted RPC", asyn
     p_patch: { title: " Flyer " },
   });
   expect(rpc).not.toHaveBeenCalledWith("save_task", expect.anything());
+});
+
+it("applies changed Event links through the selected recurring edit scope", async () => {
+  const { editRecurringTask } = await import("@/app/(protected)/tasks/actions");
+  const data = taskForm();
+  data.set("task_id", "9");
+  data.set("scope", "following");
+  data.set("recurrence_series_id", "3");
+  data.set("recurrence_revision", "2");
+  data.set("mutation_request_key", "00000000-0000-4000-8000-000000000068");
+  data.append("event_ids", "21");
+  data.append("event_ids", "22");
+  data.append("edited_fields", "event_ids");
+  await editRecurringTask({ error: "", success: "" }, data);
+  expect(rpc).toHaveBeenCalledWith(
+    "mutate_recurring_task_with_events",
+    expect.objectContaining({ p_scope: "following", p_event_ids: [21, 22] }),
+  );
 });
 
 it.each(["occurrence", "following", "series"])(
@@ -250,12 +291,13 @@ it.each(["occurrence", "following", "series"])(
         : "/tasks/9?returnTo=%2Ftasks%3Fq%3Dflyer%26branch%3D2%26assignee%3D7&feedback=task-updated",
     );
     expect(rpc).toHaveBeenCalledWith(
-      "mutate_recurring_task",
+      "mutate_recurring_task_with_events",
       expect.objectContaining({
         p_scope: scope,
         p_patch: { title: " Flyer " },
       }),
     );
+    expect(rpc.mock.calls[0][1]).not.toHaveProperty("p_event_ids");
   },
 );
 

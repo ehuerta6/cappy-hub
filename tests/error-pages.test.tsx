@@ -34,6 +34,12 @@ it("does not show the obsolete upcoming-only Event edit message", () => {
   );
 });
 
+it("explains when an archived or cancelled Event cannot be newly linked", () => {
+  expect(
+    mutationError("Archived or cancelled Events cannot be newly linked"),
+  ).toBe("Archived or cancelled Events cannot be newly linked");
+});
+
 it("maps duplicate primary Event awards to a clear domain message", () => {
   expect(
     mutationError(

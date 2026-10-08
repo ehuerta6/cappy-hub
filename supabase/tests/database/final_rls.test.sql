@@ -123,6 +123,11 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       ,'public.restore_task(bigint)'::regprocedure
       ,'public.mutate_recurring_event(bigint,text,text,uuid,bigint,integer,jsonb,text,date[])'::regprocedure
       ,'public.mutate_recurring_task(bigint,text,text,uuid,bigint,integer,jsonb,text,date[])'::regprocedure
+      ,'public.set_task_event_links(bigint[],bigint[])'::regprocedure
+      ,'public.save_task_with_events(text,text,text,bigint,date,numeric,boolean,bigint[])'::regprocedure
+      ,'public.create_recurring_task_with_events(text,text,text,bigint,numeric,boolean,uuid,text,date[],bigint[])'::regprocedure
+      ,'public.update_task_details_with_events(bigint,text,text,text,bigint,date,numeric,bigint[])'::regprocedure
+      ,'public.mutate_recurring_task_with_events(bigint,text,text,uuid,bigint,integer,jsonb,text,date[],bigint[])'::regprocedure
       ,'public.self_assign_task(bigint)'::regprocedure
       ,'public.bulk_assign_task_officers(bigint,bigint[])'::regprocedure
       ,'public.set_task_assignment_completion(bigint,bigint,boolean)'::regprocedure
