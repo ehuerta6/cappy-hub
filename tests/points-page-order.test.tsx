@@ -1,13 +1,17 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
-const { getAuthorizationContext, createClient, ordersByTable } = vi.hoisted(
-  () => ({
-    getAuthorizationContext: vi.fn(),
-    createClient: vi.fn(),
-    ordersByTable: new Map<string, { column: string; ascending?: boolean }[]>(),
-  }),
-);
+const {
+  getAuthorizationContext,
+  createClient,
+  ordersByTable,
+  totalOfficerIds,
+} = vi.hoisted(() => ({
+  getAuthorizationContext: vi.fn(),
+  createClient: vi.fn(),
+  ordersByTable: new Map<string, { column: string; ascending?: boolean }[]>(),
+  totalOfficerIds: [] as number[][],
+}));
 
 vi.mock("@/lib/authorization", () => ({
   getAuthorizationContext,
@@ -20,6 +24,7 @@ import PointsPage from "@/app/(protected)/points/page";
 
 beforeEach(() => {
   ordersByTable.clear();
+  totalOfficerIds.length = 0;
   getAuthorizationContext.mockResolvedValue({ id: 1 });
   createClient.mockResolvedValue({
     from: (table: string) => {
@@ -29,6 +34,10 @@ beforeEach(() => {
         not: () => query,
         filter: () => query,
         eq: () => query,
+        in: (_column: string, ids: number[]) => {
+          if (table === "officer_point_totals") totalOfficerIds.push(ids);
+          return query;
+        },
         gte: () => query,
         lte: () => query,
         order: (column: string, options?: { ascending?: boolean }) => {
@@ -46,12 +55,14 @@ beforeEach(() => {
         then: (resolve: (value: unknown) => unknown) =>
           Promise.resolve({
             data:
-              table === "officer_point_totals"
-                ? [
-                    { id: 7, name: "First Officer", total_points: 12 },
-                    { id: 2, name: "Second Officer", total_points: 8 },
-                  ]
-                : [],
+              table === "officers"
+                ? [{ id: 7, name: "First Officer", status: "active" }]
+                : table === "officer_point_totals"
+                  ? [
+                      { id: 7, name: "First Officer", total_points: 12 },
+                      { id: 2, name: "Second Officer", total_points: 8 },
+                    ]
+                  : [],
             error: null,
             count: 0,
           }).then(resolve),
@@ -73,7 +84,16 @@ it("orders Officer totals by points descending, then name ascending", async () =
 it("keeps the Officer selector alphabetical", async () => {
   await PointsPage({ searchParams: Promise.resolve({}) });
 
-  expect(ordersByTable.get("officers")).toEqual([{ column: "name" }]);
+  expect(ordersByTable.get("officers")).toEqual([
+    { column: "name" },
+    { column: "name" },
+  ]);
+});
+
+it("queries Officer totals only for active recipients", async () => {
+  await PointsPage({ searchParams: Promise.resolve({}) });
+
+  expect(totalOfficerIds).toEqual([[7]]);
 });
 
 it("renders Rank from the existing sorted totals without changing their order", async () => {

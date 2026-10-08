@@ -14,7 +14,7 @@ import { revalidatePath } from "next/cache";
 import {
   createWarning,
   decideWarning,
-  deleteWarning,
+  voidWarning,
 } from "@/app/(protected)/officers/warning-actions";
 
 const rpc = vi.fn();
@@ -73,13 +73,25 @@ it("validates warning decisions and preserves the existing RPC", async () => {
   });
 });
 
-it("rejects an invalid warning ID before deleting", async () => {
+it("rejects an invalid warning ID before voiding", async () => {
   const warningForm = new FormData();
   warningForm.set("warning_id", "oops");
   warningForm.set("officer_id", "3");
-  expect(await deleteWarning({ error: "", success: "" }, warningForm)).toEqual({
+  expect(await voidWarning({ error: "", success: "" }, warningForm)).toEqual({
     error: "Warning not found",
     success: "",
   });
   expect(rpc).not.toHaveBeenCalled();
+});
+
+it("voids a warning through the trusted RPC and revalidates its officer", async () => {
+  const warningForm = new FormData();
+  warningForm.set("warning_id", "7");
+  warningForm.set("officer_id", "3");
+  expect(await voidWarning({ error: "", success: "" }, warningForm)).toEqual({
+    error: "",
+    success: "Warning voided",
+  });
+  expect(rpc).toHaveBeenCalledWith("void_warning", { p_warning_id: 7 });
+  expect(revalidatePath).toHaveBeenCalledWith("/officers/3");
 });

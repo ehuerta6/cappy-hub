@@ -28,8 +28,6 @@ insert into events(id,name,description,location,event_type_id,starts_at,ends_at)
 insert into event_branches(event_id,branch_id)
   select -501,id from branches where name='intro'
   union all select -503,id from branches where name='intro';
-insert into event_officers(event_id,officer_id) values (-502,-502);
-
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000501',true);
 set local role authenticated;
 select lives_ok($$select save_officer('Audit Created',17,'active',null,null,'audit-created@example.org')$$,

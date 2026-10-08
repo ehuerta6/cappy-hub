@@ -12,7 +12,7 @@ import { revalidatePath } from "next/cache";
 import {
   createWarningInputSchema,
   decideWarningInputSchema,
-  deleteWarningInputSchema,
+  voidWarningInputSchema,
 } from "./warning-validation";
 
 type ActionState = FormActionState;
@@ -72,29 +72,28 @@ export async function decideWarning(
   };
 }
 
-export async function deleteWarning(
+export async function voidWarning(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   const actor = await getAuthorizationContext();
   if (!isAdmin(actor)) return { error: "Admin required", success: "" };
-  const rawWarningDeletionInput = {
+  const rawWarningVoidInput = {
     warning_id: formData.get("warning_id") ?? "",
     officer_id: formData.get("officer_id") ?? "",
   };
-  const validationResult = deleteWarningInputSchema.safeParse(
-    rawWarningDeletionInput,
-  );
+  const validationResult =
+    voidWarningInputSchema.safeParse(rawWarningVoidInput);
   if (!validationResult.success)
     return { error: validationResult.error.issues[0].message, success: "" };
-  const validatedWarningDeletion = validationResult.data;
+  const validatedWarningVoid = validationResult.data;
   const supabase = await createClient();
-  const { error } = await supabase.rpc("delete_warning", {
-    p_warning_id: validatedWarningDeletion.warning_id,
+  const { error } = await supabase.rpc("void_warning", {
+    p_warning_id: validatedWarningVoid.warning_id,
   });
   if (error) return { error: mutationError(error.message), success: "" };
-  if (validatedWarningDeletion.officer_id !== undefined)
-    revalidatePath(`/officers/${validatedWarningDeletion.officer_id}`);
+  if (validatedWarningVoid.officer_id !== undefined)
+    revalidatePath(`/officers/${validatedWarningVoid.officer_id}`);
   revalidatePath("/officers");
-  return { error: "", success: "Warning deleted; its audit record remains" };
+  return { error: "", success: "Warning voided" };
 }

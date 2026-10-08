@@ -12,7 +12,7 @@ vi.mock("@/app/(protected)/tasks/actions", () => ({
 vi.mock("@/app/(protected)/officers/warning-actions", () => ({
   createWarning: vi.fn(),
   decideWarning: vi.fn(),
-  deleteWarning: vi.fn(),
+  voidWarning: vi.fn(),
 }));
 vi.mock("@/app/(protected)/points/actions", () => ({
   editPointTransaction: vi.fn(),
@@ -32,7 +32,7 @@ import {
 } from "@/app/(protected)/events/event-controls";
 import { TaskRemoveForm } from "@/app/(protected)/tasks/task-remove-form";
 import {
-  DeleteWarningForm,
+  VoidWarningForm,
   WarningDecisionForm,
 } from "@/app/(protected)/officers/warning-forms";
 import PointActions from "@/app/(protected)/points/point-actions";
@@ -165,8 +165,8 @@ it("preserves warning decision submit values inside the dialogs", () => {
   const decisionHtml = renderToStaticMarkup(
     createElement(WarningDecisionForm, { warningId: 7 }),
   );
-  const deleteHtml = renderToStaticMarkup(
-    createElement(DeleteWarningForm, { warningId: 7, officerId: 3 }),
+  const voidHtml = renderToStaticMarkup(
+    createElement(VoidWarningForm, { warningId: 7, officerId: 3 }),
   );
 
   expect(decisionHtml).toContain("Approve warning?");
@@ -174,8 +174,8 @@ it("preserves warning decision submit values inside the dialogs", () => {
   expect(decisionHtml).toContain('name="decision"');
   expect(decisionHtml).toContain('value="approved"');
   expect(decisionHtml).toContain('value="rejected"');
-  expect(deleteHtml).toContain("Delete warning?");
-  expect(deleteHtml).toContain("Its System Log record remains.");
+  expect(voidHtml).toContain("Void warning?");
+  expect(voidHtml).toContain("cannot be undone");
 });
 
 it("explains that Point transaction removal is logical and retains feedback", () => {

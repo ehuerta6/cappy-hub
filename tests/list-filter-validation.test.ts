@@ -21,7 +21,9 @@ it.each([
       assignee: "9007199254740992",
     });
     expect(filters.q).toBe("officer");
-    expect(filters.status).toBeUndefined();
+    expect(filters.status).toBe(
+      schema === officerListFiltersSchema ? "active" : undefined,
+    );
     expect(filters.branch).toBeUndefined();
     expect(schema.parse({ q: ["a", "b"], branch: ["1", "2"] })).toMatchObject({
       q: "",
@@ -40,6 +42,8 @@ it("parses each page's domain filters", () => {
       branch: "3",
     }),
   ).toMatchObject({ status: "inactive", position: 2, branch: 3 });
+  expect(officerListFiltersSchema.parse({}).status).toBe("active");
+  expect(officerListFiltersSchema.parse({ status: "all" }).status).toBe("all");
   expect(
     eventListFiltersSchema.parse({ status: "removed", type: "2", branch: "3" }),
   ).toMatchObject({ status: undefined, type: 2, branch: 3 });

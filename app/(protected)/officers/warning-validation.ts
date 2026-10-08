@@ -18,7 +18,7 @@ export const decideWarningInputSchema = zod.object({
   }),
 });
 
-export const deleteWarningInputSchema = zod.object({
+export const voidWarningInputSchema = zod.object({
   warning_id: positiveSafeIntegerStringSchema("Warning not found"),
   officer_id: zod
     .string()

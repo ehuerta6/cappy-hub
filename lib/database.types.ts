@@ -415,6 +415,8 @@ export type Database = {
           officer_id: number;
           reason: string;
           status: string;
+          voided_at: string | null;
+          voided_by: number | null;
         };
         Insert: {
           created_at?: string;
@@ -422,6 +424,8 @@ export type Database = {
           officer_id: number;
           reason: string;
           status?: string;
+          voided_at?: string | null;
+          voided_by?: number | null;
         };
         Update: {
           created_at?: string;
@@ -429,6 +433,8 @@ export type Database = {
           officer_id?: number;
           reason?: string;
           status?: string;
+          voided_at?: string | null;
+          voided_by?: number | null;
         };
         Relationships: [
           {
@@ -441,6 +447,20 @@ export type Database = {
           {
             foreignKeyName: "officer_warnings_officer_id_fkey";
             columns: ["officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "officer_warnings_voided_by_fkey";
+            columns: ["voided_by"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "officer_warnings_voided_by_fkey";
+            columns: ["voided_by"];
             isOneToOne: false;
             referencedRelation: "officers";
             referencedColumns: ["id"];
@@ -1290,6 +1310,7 @@ export type Database = {
         };
         Returns: undefined;
       };
+      void_warning: { Args: { p_warning_id: number }; Returns: undefined };
     };
     Enums: {
       [_ in never]: never;
