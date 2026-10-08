@@ -130,7 +130,15 @@ begin
         pg_catalog.jsonb_build_object('max_volunteers',event_row.max_volunteers),
         'after',pg_catalog.jsonb_build_object('max_volunteers',p_max_volunteers)));
   end if;
-  perform private.promote_event_waitlist(p_event_id);
+  -- Managers may still adjust a past Event's capacity through its existing
+  -- edit workflow, but the waitlist closes with normal signups. Promoting after
+  -- processing would rewrite the historical participation roster without a
+  -- corresponding participation award.
+  if event_row.deleted_at is null and event_row.status<>'cancelled'
+    and event_row.ends_at>pg_catalog.now()
+    and event_row.participation_points_per_hour_at_end is null then
+    perform private.promote_event_waitlist(p_event_id);
+  end if;
 end;
 $$;
 revoke all on function private.set_event_capacity(bigint,integer) from public, anon, authenticated;
@@ -370,7 +378,8 @@ $$;
 
 create table private.recurring_event_capacity_mutations (
   request_key uuid primary key,
-  max_volunteers integer check(max_volunteers is null or max_volunteers>0)
+  max_volunteers integer check(max_volunteers is null or max_volunteers>0),
+  capacity_changed boolean not null
 );
 revoke all on private.recurring_event_capacity_mutations from public,anon,authenticated;
 create function public.create_recurring_event_with_capacity(
@@ -395,23 +404,38 @@ create function private.mutate_recurring_event_with_capacity(
   p_max_volunteers integer
 ) returns bigint language plpgsql security definer set search_path = '' as $$
 declare selected_id bigint; selected_event public.events%rowtype; target_id bigint;
-  prior_limit integer; had_receipt boolean;
+  prior_limit integer; prior_capacity_changed boolean; had_receipt boolean;
+  inherited_limit integer; existing_ids bigint[];
 begin
   if p_capacity_changed and p_max_volunteers<0 then
     raise exception 'Max volunteers must be a positive whole number'; end if;
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_request_key::text,68));
+  select max_volunteers,capacity_changed into prior_limit,prior_capacity_changed
+    from private.recurring_event_capacity_mutations where request_key=p_request_key for update;
+  had_receipt := found;
+  if had_receipt and (prior_capacity_changed is distinct from p_capacity_changed
+    or (p_capacity_changed and prior_limit is distinct from nullif(p_max_volunteers,0))) then
+    raise exception 'Idempotency key already used';
+  end if;
+  if private.current_active_officer_id() is null then raise exception 'Unauthorized'; end if;
+  if not had_receipt then
+    -- Use the same series-first lock order as the underlying recurring RPC so
+    -- the inherited capacity snapshot cannot race a scoped capacity edit.
+    perform 1 from public.event_series where id=p_series_id for update;
+    if not found then raise exception 'Recurring series not found'; end if;
+  end if;
+  -- Snapshot the rows and selected occurrence's capacity before the schedule
+  -- mutation. The underlying RPC reuses the held series lock and rejects stale revisions.
+  select coalesce(array_agg(id),'{}'::bigint[]) into existing_ids from public.events
+    where recurrence_series_id=p_series_id;
+  select max_volunteers into inherited_limit from public.events
+    where id=p_selected_id and recurrence_series_id=p_series_id;
   selected_id := private.mutate_recurring_event(p_selected_id,p_scope,p_operation,p_request_key,
     p_series_id,p_revision,p_patch,p_rule,p_dates);
+  if had_receipt then return selected_id; end if;
   if p_capacity_changed then
-    select max_volunteers into prior_limit from private.recurring_event_capacity_mutations
-      where request_key=p_request_key for update;
-    had_receipt := found;
-    if had_receipt and prior_limit is distinct from nullif(p_max_volunteers,0) then
-      raise exception 'Idempotency key already used';
-    end if;
-    if not had_receipt then
-      insert into private.recurring_event_capacity_mutations(request_key,max_volunteers)
-        values(p_request_key,nullif(p_max_volunteers,0));
-    end if;
+    insert into private.recurring_event_capacity_mutations(request_key,max_volunteers,capacity_changed)
+      values(p_request_key,nullif(p_max_volunteers,0),true);
     select * into selected_event from public.events where id=selected_id for update;
     if p_scope='occurrence' then
       perform private.set_event_capacity(selected_id,nullif(p_max_volunteers,0));
@@ -420,6 +444,20 @@ begin
         and (p_scope='series' or recurrence_key>=selected_event.recurrence_key)
         and deleted_at is null order by recurrence_key,id
       loop perform private.set_event_capacity(target_id,nullif(p_max_volunteers,0)); end loop;
+    end if;
+  elsif p_rule is not null then
+    -- Record even an unlimited inheritance so exact retries never apply a
+    -- later capacity value to occurrences created by the original request.
+    insert into private.recurring_event_capacity_mutations(request_key,max_volunteers,capacity_changed)
+      values(p_request_key,inherited_limit,false);
+    if inherited_limit is not null then
+      -- Existing rows keep their own capacity overrides; update only the new
+      -- IDs materialized by the requested scope.
+      select * into selected_event from public.events where id=selected_id;
+      for target_id in select id from public.events where recurrence_series_id=selected_event.recurrence_series_id
+        and (p_scope='series' or recurrence_key>=selected_event.recurrence_key)
+        and id<>all(existing_ids) and deleted_at is null order by recurrence_key,id
+      loop perform private.set_event_capacity(target_id,inherited_limit); end loop;
     end if;
   end if;
   return selected_id;

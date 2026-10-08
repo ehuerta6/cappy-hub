@@ -89,6 +89,15 @@ select throws_ok($$select private.set_event_capacity(-1786,1)$$,'P0001',
 select is((select max_volunteers from events where id=-1786),2,'rejected capacity decrease leaves the old limit unchanged');
 select is((select count(*) from event_officers where event_id=-1786),2::bigint,'rejected decrease retains every confirmed Officer');
 
+insert into event_waitlist(event_id,officer_id) values(-1788,-1784);
+reset role;
+select lives_ok($$select private.set_event_capacity(-1788,null)$$,
+  'manager can edit a closed unprocessed Event capacity');
+select is((select count(*) from event_officers where event_id=-1788),1::bigint,
+  'ended Event capacity edit does not promote its closed waitlist');
+select is((select count(*) from event_waitlist where event_id=-1788 and officer_id=-1784),1::bigint,
+  'ended Event waitlist remains preserved after capacity edit');
+
 set local role authenticated;
 select throws_ok($$select change_event_signup(-1788,-1784,false)$$,'P0001','Signups are closed for this event','closed Event rejects signup');
 select throws_ok($$select change_event_signup(-1789,-1784,false)$$,'P0001','Signups are closed for this event','cancelled Event rejects signup');
@@ -108,10 +117,12 @@ select is((select count(*) from point_transactions where event_id=-1787 and offi
 reset role;
 select lives_ok($$select private.set_event_capacity(-1787,null)$$,
   'manager may edit capacity on a past Event');
-select is((select count(*) from event_officers where event_id=-1787),2::bigint,
-  'past capacity edit promotes its existing waitlist');
+select is((select count(*) from event_officers where event_id=-1787),1::bigint,
+  'past capacity edit does not change the historical confirmed roster');
+select is((select count(*) from event_waitlist where event_id=-1787 and officer_id=-1784),1::bigint,
+  'closed waitlist entry is preserved when a past Event capacity changes');
 select is((select count(*) from point_transactions where event_id=-1787 and officer_id=-1784),0::bigint,
-  'post-processing promotion does not fabricate historical participation Points');
+  'past capacity edit does not award participation to a waitlisted Officer');
 
 -- Recurring creation applies capacity to every materialized occurrence. A
 -- scoped edit changes only its requested occurrence range.
@@ -163,6 +174,75 @@ reset role;
 select is((select count(*) from events where recurrence_series_id=current_setting('test.capacity_series_id')::bigint
   and recurrence_key>='2099-05-02' and max_volunteers=4),2::bigint,
   'following capacity edit changes the selected and later occurrences');
+
+-- Schedule extensions inherit the selected occurrence's capacity without
+-- overwriting independent capacities already stored on materialized rows.
+select set_config('test.inherit_first',public.create_recurring_event_with_capacity(
+  'Capacity inheritance','Test Event',(select id from event_types where name='Meeting'),'TBA',
+  '{}'::bigint[],null,null,null,6,'00000000-0000-4000-8000-000000001794',
+  'RRULE:FREQ=DAILY;INTERVAL=1;COUNT=3',
+  array['2099-06-10'::date,'2099-06-11','2099-06-12'],
+  array['2099-06-10 16:00Z'::timestamptz,'2099-06-11 16:00Z','2099-06-12 16:00Z'],
+  array['2099-06-10 17:00Z'::timestamptz,'2099-06-11 17:00Z','2099-06-12 17:00Z'])::text,true);
+select set_config('test.inherit_series',(select recurrence_series_id::text from events
+  where id=current_setting('test.inherit_first')::bigint),true);
+select set_config('test.inherit_selected_id',(select id::text from events where recurrence_series_id=current_setting('test.inherit_series')::bigint
+  and recurrence_key='2099-06-11'),true);
+select set_config('test.inherit_later_id',(select id::text from events where recurrence_series_id=current_setting('test.inherit_series')::bigint
+  and recurrence_key='2099-06-12'),true);
+select set_config('test.inherit_revision',(select revision::text from event_series
+  where id=current_setting('test.inherit_series')::bigint),true);
+select private.set_event_capacity(current_setting('test.inherit_selected_id')::bigint,9);
+select private.set_event_capacity(current_setting('test.inherit_later_id')::bigint,12);
+set local role authenticated;
+select lives_ok($$select mutate_recurring_event_with_capacity(
+  current_setting('test.inherit_selected_id')::bigint,
+  'following','edit','00000000-0000-4000-8000-000000001795',
+  current_setting('test.inherit_series')::bigint,
+  current_setting('test.inherit_revision')::integer,
+  '{}'::jsonb,'RRULE:FREQ=DAILY;INTERVAL=1;COUNT=4',
+  array['2099-06-11'::date,'2099-06-12','2099-06-13','2099-06-14'],false,0)$$,
+  'following schedule extension without a capacity edit succeeds');
+select lives_ok($$select mutate_recurring_event_with_capacity(
+  current_setting('test.inherit_selected_id')::bigint,
+  'following','edit','00000000-0000-4000-8000-000000001795',
+  current_setting('test.inherit_series')::bigint,
+  current_setting('test.inherit_revision')::integer,
+  '{}'::jsonb,'RRULE:FREQ=DAILY;INTERVAL=1;COUNT=4',
+  array['2099-06-11'::date,'2099-06-12','2099-06-13','2099-06-14'],false,0)$$,
+  'exact schedule extension retry succeeds without resetting inherited capacities');
+reset role;
+select is((select max_volunteers from events where id=current_setting('test.inherit_first')::bigint),6,
+  'following schedule extension leaves the earlier occurrence capacity unchanged');
+select set_config('test.inherit_child',(select recurrence_series_id::text from events
+  where id=current_setting('test.inherit_selected_id')::bigint),true);
+select is((select max_volunteers from events where id=current_setting('test.inherit_selected_id')::bigint),9,
+  'following schedule edit preserves selected occurrence capacity');
+select is((select max_volunteers from events where id=current_setting('test.inherit_later_id')::bigint),12,
+  'following schedule edit preserves an existing independent override');
+select is((select count(*) from events where recurrence_series_id=current_setting('test.inherit_child')::bigint
+  and recurrence_key in ('2099-06-13','2099-06-14')
+  and max_volunteers=9),2::bigint,'new following occurrences inherit the selected occurrence capacity');
+select private.set_event_capacity((select id from events where recurrence_series_id=current_setting('test.inherit_child')::bigint
+  and recurrence_key='2099-06-13'),15);
+set local role authenticated;
+select lives_ok($$select mutate_recurring_event_with_capacity(
+  (select id from events where recurrence_series_id=current_setting('test.inherit_child')::bigint and recurrence_key='2099-06-11'),
+  'series','edit','00000000-0000-4000-8000-000000001796',
+  current_setting('test.inherit_child')::bigint,
+  (select revision from event_series where id=current_setting('test.inherit_child')::bigint),
+  '{}'::jsonb,'RRULE:FREQ=DAILY;INTERVAL=1;COUNT=5',
+  array['2099-06-11'::date,'2099-06-12','2099-06-13','2099-06-14','2099-06-15'],false,0)$$,
+  'all-occurrence schedule extension without a capacity edit succeeds');
+reset role;
+select set_config('test.inherit_series_after_all',(select recurrence_series_id::text from events
+  where id=current_setting('test.inherit_selected_id')::bigint),true);
+select is((select max_volunteers from events where recurrence_series_id=current_setting('test.inherit_series_after_all')::bigint
+  and recurrence_key='2099-06-13'),15,
+  'all-occurrence schedule edit preserves an independent capacity override');
+select is((select max_volunteers from events where recurrence_series_id=current_setting('test.inherit_series_after_all')::bigint
+  and recurrence_key='2099-06-15'),9,
+  'new all-occurrence schedule rows inherit the selected occurrence capacity');
 select is((select max_volunteers from events where id=-1780),1,
   'recurring capacity edits do not alter unrelated Events');
 
