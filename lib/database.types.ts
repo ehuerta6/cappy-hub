@@ -1102,14 +1102,6 @@ export type Database = {
         Returns: number;
       };
       create_branch: { Args: { p_name: string }; Returns: number };
-      set_branch_active: {
-        Args: { p_id: number; p_is_active: boolean };
-        Returns: undefined;
-      };
-      set_position_active: {
-        Args: { p_id: number; p_is_active: boolean };
-        Returns: undefined;
-      };
       create_event_location: { Args: { p_name: string }; Returns: number };
       create_event_type: { Args: { p_name: string }; Returns: number };
       create_position: { Args: { p_name: string }; Returns: number };
@@ -1299,11 +1291,19 @@ export type Database = {
         Returns: number;
       };
       self_assign_task: { Args: { p_task_id: number }; Returns: undefined };
+      set_branch_active: {
+        Args: { p_id: number; p_is_active: boolean };
+        Returns: undefined;
+      };
       set_officer_application_role: {
         Args: { p_officer_id: number; p_role: string };
         Returns: undefined;
       };
       set_participation_rate: { Args: { p_rate: number }; Returns: undefined };
+      set_position_active: {
+        Args: { p_id: number; p_is_active: boolean };
+        Returns: undefined;
+      };
       set_task_assignment_completion: {
         Args: { p_completed: boolean; p_officer_id: number; p_task_id: number };
         Returns: undefined;

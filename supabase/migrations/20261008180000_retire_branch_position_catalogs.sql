@@ -48,11 +48,11 @@ grant execute on function private.set_branch_active(bigint,boolean),private.set_
 create function private.prevent_retired_task_branch_assignment()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
-  if tg_op='INSERT' and not exists(
-    select 1 from public.branches where id=new.branch_id and is_active) then
+  if tg_op='INSERT' and exists(
+    select 1 from public.branches where id=new.branch_id and not is_active) then
     raise exception 'Invalid or retired branch';
-  elsif tg_op='UPDATE' and new.branch_id is distinct from old.branch_id and not exists(
-    select 1 from public.branches where id=new.branch_id and is_active) then
+  elsif tg_op='UPDATE' and new.branch_id is distinct from old.branch_id and exists(
+    select 1 from public.branches where id=new.branch_id and not is_active) then
     raise exception 'Invalid or retired branch';
   end if;
   return new;
@@ -75,8 +75,8 @@ declare saved_id bigint; old_officer public.officers; new_officer public.officer
 begin
   if not private.current_is_admin() then raise exception 'Admin required'; end if;
   if p_officer_id is null then
-    if not exists(select 1 from public.positions where id=p_position_id and is_active) then raise exception 'Invalid or retired position'; end if;
-    if exists(select 1 from unnest(requested_branches) x(id) left join public.branches b on b.id=x.id where b.id is null or not b.is_active) then raise exception 'Invalid or retired branch'; end if;
+    if exists(select 1 from public.positions where id=p_position_id and not is_active) then raise exception 'Invalid or retired position'; end if;
+    if exists(select 1 from unnest(requested_branches) x(id) join public.branches b on b.id=x.id where not b.is_active) then raise exception 'Invalid or retired branch'; end if;
     insert into public.officers(name,utep_email,personal_email,position_id,classification)
     values(trim(p_name),nullif(lower(trim(p_utep_email)),''),nullif(lower(trim(p_personal_email)),''),p_position_id,nullif(trim(p_classification),'')) returning id into saved_id;
   else
@@ -84,8 +84,8 @@ begin
     select * into old_officer from public.officers where id=p_officer_id for update;
     if not found then raise exception 'Officer not found'; end if;
     select coalesce(pg_catalog.array_agg(branch_id order by branch_id),'{}'::bigint[]) into old_branches from public.officer_branches where officer_id=p_officer_id;
-    if not exists(select 1 from public.positions where id=p_position_id and (is_active or (id=old_officer.position_id))) then raise exception 'Invalid or retired position'; end if;
-    if exists(select 1 from unnest(requested_branches) x(id) left join public.branches b on b.id=x.id where b.id is null or (not b.is_active and not (x.id=any(old_branches))) then raise exception 'Invalid or retired branch'; end if;
+    if exists(select 1 from public.positions where id=p_position_id and not is_active and id<>old_officer.position_id) then raise exception 'Invalid or retired position'; end if;
+    if exists(select 1 from unnest(requested_branches) x(id) join public.branches b on b.id=x.id where not b.is_active and not (x.id=any(old_branches))) then raise exception 'Invalid or retired branch'; end if;
     old_snapshot := pg_catalog.jsonb_build_object('name',old_officer.name,'position_id',old_officer.position_id,'status',old_officer.status,'application_role',old_officer.application_role,'utep_email',old_officer.utep_email,'personal_email',old_officer.personal_email,'classification',old_officer.classification,'branch_ids',old_branches);
     if old_officer.status='active' and p_status='inactive' and old_officer.application_role='admin' and (select count(*) from public.officers where application_role='admin' and status='active')<=1 then raise exception 'Last active admin cannot be deactivated'; end if;
     update public.officers set name=trim(p_name),utep_email=nullif(lower(trim(p_utep_email)),''),personal_email=nullif(lower(trim(p_personal_email)),''),position_id=p_position_id,classification=nullif(trim(p_classification),''),status=p_status where id=p_officer_id returning id into saved_id;
@@ -146,7 +146,7 @@ begin
   if not found then raise exception 'Task not found'; end if;
   if task_row.removed_at is not null then raise exception 'Task has been removed'; end if;
   if not private.can_manage_branches(array[task_row.branch_id]) or not private.can_manage_branches(array[p_branch_id]) then raise exception 'Task outside branch scope'; end if;
-  if not exists(select 1 from public.branches where id=p_branch_id and (is_active or id=task_row.branch_id)) then raise exception 'Invalid or retired branch'; end if;
+  if exists(select 1 from public.branches where id=p_branch_id and not is_active and id<>task_row.branch_id) then raise exception 'Invalid or retired branch'; end if;
   if nullif(pg_catalog.btrim(p_title),'') is null or nullif(pg_catalog.btrim(p_description),'') is null or p_task_type not in ('Flyer','LinkedIn','Airtable','Story','Post') or p_due_date is null or p_points is null or p_points<=0 or p_points in ('NaN'::numeric,'Infinity'::numeric,'-Infinity'::numeric) then raise exception 'Invalid task fields'; end if;
   if p_points is distinct from task_row.points and (exists(select 1 from public.task_officer_assignments where task_id=p_task_id and completed_at is not null) or exists(select 1 from public.point_transactions where task_id=p_task_id and award_type='task')) then raise exception 'Completed or awarded Task point settings cannot be edited'; end if;
   update public.tasks set title=pg_catalog.btrim(p_title),description=pg_catalog.btrim(p_description),task_type=p_task_type,branch_id=p_branch_id,due_date=p_due_date,points=p_points where id=p_task_id;
@@ -160,7 +160,7 @@ declare saved_id bigint; actor_id bigint:=private.current_active_officer_id();
 begin
   if actor_id is null then raise exception 'Unauthorized'; end if;
   if not private.can_manage_branches(array[p_branch_id]) then raise exception 'Task outside branch scope'; end if;
-  if not exists(select 1 from public.branches where id=p_branch_id and is_active) then raise exception 'Invalid or retired branch'; end if;
+  if exists(select 1 from public.branches where id=p_branch_id and not is_active) then raise exception 'Invalid or retired branch'; end if;
   if nullif(pg_catalog.btrim(p_title),'') is null or nullif(pg_catalog.btrim(p_description),'') is null or p_due_date is null or p_task_type is null or p_task_type not in ('Flyer','LinkedIn','Airtable','Story','Post') or p_points is null or p_points<=0 or p_points in ('NaN'::numeric,'Infinity'::numeric,'-Infinity'::numeric) or p_approval_required is null then raise exception 'Invalid task fields'; end if;
   insert into public.tasks(title,description,task_type,branch_id,due_date,points,approval_required,created_by) values(pg_catalog.btrim(p_title),pg_catalog.btrim(p_description),p_task_type,p_branch_id,p_due_date,p_points,p_approval_required,actor_id) returning id into saved_id;
   perform private.write_audit_log('task.created','task',saved_id::text,pg_catalog.jsonb_build_object('task_type',p_task_type,'branch_id',p_branch_id,'points',p_points,'approval_required',p_approval_required));

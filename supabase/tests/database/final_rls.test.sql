@@ -131,6 +131,8 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       ,'public.create_event_location(text)'::regprocedure
       ,'public.rename_event_location(bigint,text)'::regprocedure
       ,'public.delete_event_location(bigint)'::regprocedure
+      ,'public.set_branch_active(bigint,boolean)'::regprocedure
+      ,'public.set_position_active(bigint,boolean)'::regprocedure
     )), 'authenticated has no unreviewed public RPC entry point');
 
 -- Fixtures are inserted as database owner. Every probe below changes to the
