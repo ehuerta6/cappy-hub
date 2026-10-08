@@ -37,7 +37,7 @@ export default async function EditTaskPage({
           .select("id,revision,recurrence_rule,starts_on")
           .eq("id", task.data.recurrence_series_id)
           .single(),
-    supabase.from("branches").select("id,name").order("name"),
+    supabase.from("branches").select("id,name,is_active").order("name"),
   ]);
   if (series.error || branches.error)
     throw new Error("Failed to load Task edit form");
@@ -51,7 +51,9 @@ export default async function EditTaskPage({
         returnTo={returnTo}
         task={task.data}
         series={series.data ?? undefined}
-        branches={branches.data}
+        branches={branches.data.filter(
+          (branch) => branch.is_active || branch.id === task.data.branch_id,
+        )}
         recurrenceRequestKey={crypto.randomUUID()}
       />
     </div>

@@ -17,6 +17,7 @@ export default async function NewTaskPage() {
   const { data, error } = await supabase
     .from("branches")
     .select("id,name")
+    .eq("is_active", true)
     .order("name");
   if (error) throw new Error("Failed to load branches");
   return (

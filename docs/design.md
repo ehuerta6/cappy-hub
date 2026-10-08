@@ -453,6 +453,7 @@ The following sections describe the actual product workflows and the design dire
 
 - **Purpose:** Maintain the existing position, branch, and event-location choices.
 - **Existing functionality that MUST be preserved — CURRENT:** Admin-only page with Positions, Branches, and Event locations lists. Each supports add; records support rename/delete when current restrictions permit. Six baseline positions are required and displayed as non-editable. The page explains that referenced records cannot be deleted and renaming retains IDs and relationships.
+- **Planned / accepted — Issue #185:** Branches and custom Positions gain Retire/Reactivate actions and a visible Retired state. Retired values remain readable on existing records but are omitted from new relationship choices. An existing relationship can remain during an unrelated edit or be removed; it cannot be re-added until reactivated. The six required Positions remain protected.
 - **Information hierarchy:** Title and constraints note; three clearly named catalog sections; add control and record management actions within each section.
 - **Recommended layout:** Keep this as a lightweight, dense management page. Separate sections with headings and thin borders; keep create/rename/delete controls adjacent to their item.
 - **Primary action:** Add a record within a chosen catalog.

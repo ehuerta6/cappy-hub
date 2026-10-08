@@ -149,7 +149,11 @@ const actionPresentations: Record<string, ActionPresentation> = {
   },
   "position.created": { label: "Created a position" },
   "position.deleted": { label: "Deleted a position" },
+  "position.reactivated": { label: "Reactivated a position" },
+  "position.retired": { label: "Retired a position" },
   "position.renamed": { label: "Renamed a position" },
+  "branch.reactivated": { label: "Reactivated a branch" },
+  "branch.retired": { label: "Retired a branch" },
   "task.approved": {
     label: "Approved a completed task",
     kind: "task-approved",

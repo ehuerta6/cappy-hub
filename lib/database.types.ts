@@ -79,16 +79,19 @@ export type Database = {
         Row: {
           created_at: string;
           id: number;
+          is_active: boolean;
           name: string;
         };
         Insert: {
           created_at?: string;
           id?: number;
+          is_active?: boolean;
           name: string;
         };
         Update: {
           created_at?: string;
           id?: number;
+          is_active?: boolean;
           name?: string;
         };
         Relationships: [];
@@ -647,18 +650,21 @@ export type Database = {
           code: string | null;
           created_at: string;
           id: number;
+          is_active: boolean;
           name: string;
         };
         Insert: {
           code?: string | null;
           created_at?: string;
           id?: number;
+          is_active?: boolean;
           name: string;
         };
         Update: {
           code?: string | null;
           created_at?: string;
           id?: number;
+          is_active?: boolean;
           name?: string;
         };
         Relationships: [];
@@ -1096,6 +1102,14 @@ export type Database = {
         Returns: number;
       };
       create_branch: { Args: { p_name: string }; Returns: number };
+      set_branch_active: {
+        Args: { p_id: number; p_is_active: boolean };
+        Returns: undefined;
+      };
+      set_position_active: {
+        Args: { p_id: number; p_is_active: boolean };
+        Returns: undefined;
+      };
       create_event_location: { Args: { p_name: string }; Returns: number };
       create_event_type: { Args: { p_name: string }; Returns: number };
       create_position: { Args: { p_name: string }; Returns: number };

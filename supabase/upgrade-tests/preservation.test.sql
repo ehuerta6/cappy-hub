@@ -176,13 +176,17 @@ select is((select jsonb_agg(to_jsonb(p)-'created_by_officer_id'-'updated_by_offi
     where (f.row->>'id')::bigint=p.id)),
   (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.pre_hardening_points),
   'hardening leaves Point history and lifecycle metadata intact');
-select is((select jsonb_agg(to_jsonb(b) order by id) from branches b),
+select is((select jsonb_agg(to_jsonb(b)-'is_active' order by id) from branches b),
   (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.pre_hardening_branches),
   'Branch names, IDs and timestamps survive normalization');
-select is((select jsonb_agg(to_jsonb(p)-'code' order by id) from positions p),
+select ok(not exists(select 1 from branches where not is_active),
+  'existing Branches default active when retirement is introduced');
+select is((select jsonb_agg(to_jsonb(p)-'code'-'is_active' order by id) from positions p),
   (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.pre_hardening_positions),
   'Position names, IDs and timestamps survive normalization');
-select is((select jsonb_agg(to_jsonb(p)-'code' order by id) from positions p),
+select ok(not exists(select 1 from positions where not is_active),
+  'existing Positions default active when retirement is introduced');
+select is((select jsonb_agg(to_jsonb(p)-'code'-'is_active' order by id) from positions p),
   (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.pre_position_machine_positions),
   'Position IDs, labels and timestamps survive identity backfill');
 select is((select count(*) from upgrade_fixture.pre_position_machine_officers original

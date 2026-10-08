@@ -7,7 +7,12 @@ import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { changeCatalog } from "./actions";
 
 type Catalog = "position" | "branch" | "event_location";
-type CatalogRecord = { id: number; name: string; code?: string | null };
+type CatalogRecord = {
+  id: number;
+  name: string;
+  code?: string | null;
+  is_active?: boolean;
+};
 
 function CatalogForm({
   catalog,
@@ -15,7 +20,7 @@ function CatalogForm({
   record,
 }: {
   catalog: Catalog;
-  operation: "create" | "rename" | "delete";
+  operation: "create" | "rename" | "delete" | "retire" | "reactivate";
   record?: CatalogRecord;
 }) {
   const [state, action, pending] = useActionState(
@@ -36,10 +41,11 @@ function CatalogForm({
       <input type="hidden" name="catalog" value={catalog} />
       <input type="hidden" name="operation" value={operation} />
       {record && <input type="hidden" name="id" value={record.id} />}
-      {operation === "delete" && record && (
-        <input type="hidden" name="name" value={record.name} />
-      )}
-      {operation !== "delete" && (
+      {(operation === "delete" ||
+        operation === "retire" ||
+        operation === "reactivate") &&
+        record && <input type="hidden" name="name" value={record.name} />}
+      {(operation === "create" || operation === "rename") && (
         <label
           className="sr-only"
           htmlFor={`${catalog}-${operation}-${record?.id ?? "new"}`}
@@ -47,7 +53,7 @@ function CatalogForm({
           Name
         </label>
       )}
-      {operation !== "delete" && (
+      {(operation === "create" || operation === "rename") && (
         <>
           <input
             id={fieldId}
@@ -86,6 +92,14 @@ function CatalogForm({
             defaultValue: record.name,
           }}
         />
+      ) : operation === "retire" || operation === "reactivate" ? (
+        <button type="submit" disabled={pending} className="button-secondary">
+          {pending
+            ? "Saving…"
+            : operation === "retire"
+              ? "Retire"
+              : "Reactivate"}
+        </button>
       ) : (
         <button type="submit" disabled={pending} className="button-secondary">
           {pending
@@ -126,18 +140,30 @@ export default function CatalogManager({
                   <span className="text-muted">(required position)</span>
                 </p>
               ) : (
-                <div className="flex flex-wrap items-center gap-3">
-                  <CatalogForm
-                    catalog={catalog}
-                    operation="rename"
-                    record={record}
-                  />
-                  <CatalogForm
-                    catalog={catalog}
-                    operation="delete"
-                    record={record}
-                  />
-                </div>
+                <>
+                  {record.is_active === false && (
+                    <p className="mb-2 text-sm text-muted">Retired</p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <CatalogForm
+                      catalog={catalog}
+                      operation="rename"
+                      record={record}
+                    />
+                    <CatalogForm
+                      catalog={catalog}
+                      operation="delete"
+                      record={record}
+                    />
+                    <CatalogForm
+                      catalog={catalog}
+                      operation={
+                        record.is_active === false ? "reactivate" : "retire"
+                      }
+                      record={record}
+                    />
+                  </div>
+                </>
               )}
             </li>
           );

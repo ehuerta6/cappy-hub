@@ -40,6 +40,8 @@ const safeMessages = new Set([
   "Required positions cannot be renamed",
   "Required positions cannot be deleted",
   "This position cannot be deleted because officers are using it",
+  "Invalid or retired position",
+  "Invalid or retired branch",
   "This branch cannot be deleted because dependent records are using it",
   "This event type cannot be deleted because events are using it",
   "Rate must be a finite positive number",

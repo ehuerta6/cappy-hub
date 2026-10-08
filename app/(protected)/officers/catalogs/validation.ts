@@ -31,6 +31,11 @@ export const catalogMutationInputSchema = zod.discriminatedUnion(
       operation: zod.literal("delete"),
       id: positiveSafeIntegerStringSchema("Invalid catalog record"),
     }),
+    zod.object({
+      catalog: catalogNameSchema,
+      operation: zod.enum(["retire", "reactivate"]),
+      id: positiveSafeIntegerStringSchema("Invalid catalog record"),
+    }),
   ],
   { error: "Invalid catalog operation" },
 );
