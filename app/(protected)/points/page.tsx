@@ -90,20 +90,20 @@ export default async function PointsPage({
   const [
     historyCount,
     visibleHistoryCount,
-    totals,
     officers,
+    activeOfficers,
     events,
     recentEvents,
     configuration,
   ] = await Promise.all([
     buildPointHistoryQuery(true, true),
     buildPointHistoryQuery(false, true),
+    supabase.from("officers").select("id,name,status").order("name"),
     supabase
-      .from("officer_point_totals")
-      .select("*")
-      .order("total_points", { ascending: false })
-      .order("name", { ascending: true }),
-    supabase.from("officers").select("id,name").order("name"),
+      .from("officers")
+      .select("id,name")
+      .eq("status", "active")
+      .order("name"),
     supabase
       .from("events")
       .select("id,name,event_date")
@@ -123,13 +123,24 @@ export default async function PointsPage({
   if (
     historyCount.error ||
     visibleHistoryCount.error ||
-    totals.error ||
     officers.error ||
+    activeOfficers.error ||
     events.error ||
     recentEvents.error ||
     configuration.error
   )
     throw new Error("Failed to load points");
+
+  const totals = await supabase
+    .from("officer_point_totals")
+    .select("*")
+    .in(
+      "id",
+      activeOfficers.data.map((officer) => officer.id),
+    )
+    .order("total_points", { ascending: false })
+    .order("name", { ascending: true });
+  if (totals.error) throw new Error("Failed to load officer point totals");
 
   const totalPages = Math.max(
     1,
@@ -208,7 +219,7 @@ export default async function PointsPage({
           <SectionHeading title="Add manual transaction or correction" />
           <div className="rounded-lg border border-border bg-surface/40 p-4 sm:p-5">
             <TransactionForm
-              officers={officers.data}
+              officers={activeOfficers.data}
               events={recentEvents.data}
             />
           </div>

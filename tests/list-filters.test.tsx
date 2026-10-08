@@ -172,6 +172,20 @@ it("filters officer identity and memberships on the server without narrowing dis
   expect(html).toContain("No officers match these filters.");
 });
 
+it("defaults the Officers directory to active and supports an explicit all view", async () => {
+  await render(OfficersPage);
+  has(forTable("officers")[0], "eq", "status", "active");
+
+  queries = [];
+  const html = await render(OfficersPage, { status: "all" });
+  expect(
+    forTable("officers")[0].calls.some(
+      ([method, column]) => method === "eq" && column === "status",
+    ),
+  ).toBe(false);
+  expect(html).toContain('<option value="all" selected="">All</option>');
+});
+
 it.each(["upcoming", "happening", "past", "cancelled"])(
   "uses domain Event status %s and excludes removed rows",
   async (status) => {
