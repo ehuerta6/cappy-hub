@@ -9,7 +9,7 @@ import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { useActionState } from "react";
 import { ActionFeedback } from "@/components/ui";
 import { initialFormActionState } from "@/lib/form-feedback";
-import { removeTask } from "./actions";
+import { removeTask, restoreTask } from "./actions";
 
 export function TaskRemoveForm({
   taskId,
@@ -36,14 +36,14 @@ export function TaskRemoveForm({
       <input type="hidden" name="task_id" value={taskId} />
       <ActionFeedback state={state} />
       <ConfirmationDialog
-        title="Remove Task?"
+        title="Archive Task?"
         description={
           series
-            ? "This removes the Task in the selected scope according to current recurring-series rules. Protected completion and award history remains in place."
-            : "This removes the Task from routine browsing. Protected completion and Point history cannot be removed."
+            ? "This archives the selected Task occurrence. Assignments, completion, Points, and history are preserved."
+            : "This archives the Task from routine browsing. Assignments, completion, Points, and history are preserved."
         }
-        triggerLabel={pending ? "Removing…" : "Remove task"}
-        confirmLabel="Remove Task"
+        triggerLabel={pending ? "Archiving…" : "Archive Task"}
+        confirmLabel="Archive Task"
         destructive
         pending={pending}
         triggerClassName="button-secondary"
@@ -58,6 +58,22 @@ export function TaskRemoveForm({
             : undefined
         }
       />
+    </form>
+  );
+}
+
+export function TaskRestoreForm({ taskId }: { taskId: number }) {
+  const [state, action, pending] = useActionState(
+    restoreTask,
+    initialFormActionState,
+  );
+  return (
+    <form action={action}>
+      <input type="hidden" name="task_id" value={taskId} />
+      <ActionFeedback state={state} />
+      <button disabled={pending} className="button-secondary">
+        {pending ? "Restoring…" : "Restore Task"}
+      </button>
     </form>
   );
 }

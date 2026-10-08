@@ -303,9 +303,29 @@ export async function removeTask(_previous: FormActionState, form: FormData) {
   return {
     error: "",
     success: form.has("recurrence_series_id")
-      ? "Task occurrence removed"
-      : "Task removed",
+      ? "Task occurrence archived"
+      : "Task archived",
   };
+}
+
+export async function restoreTask(_previous: FormActionState, form: FormData) {
+  await getAuthorizationContext();
+  const validation = taskRecordInputSchema.safeParse({
+    task_id: form.get("task_id") ?? "",
+  });
+  if (!validation.success)
+    return { error: validation.error.issues[0].message, success: "" };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("restore_task", {
+    p_task_id: validation.data.task_id,
+  });
+  if (error) return { error: mutationError(error.message), success: "" };
+  revalidatePath("/tasks");
+  revalidatePath(`/tasks/${validation.data.task_id}`);
+  revalidatePath("/calendar");
+  revalidatePath("/system-log");
+  revalidatePath("/", "layout");
+  return { error: "", success: "Task restored" };
 }
 
 export async function editStandaloneTask(

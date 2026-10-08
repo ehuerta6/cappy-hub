@@ -19,6 +19,7 @@ import {
   selfSignup,
   cancelEvent,
   restoreEvent,
+  restoreEventArchive,
   removeEvent,
 } from "./actions";
 export function SelfSignupForm({
@@ -222,7 +223,22 @@ export function CancelForm({
   );
 }
 
-export function RestoreEventForm({ eventId }: { eventId: number }) {
+export function RestoreArchivedEventForm({ eventId }: { eventId: number }) {
+  const [state, action, pending] = useActionState(restoreEventArchive, {
+    ...initialFormActionState,
+  });
+  return (
+    <form action={action}>
+      <input type="hidden" name="event_id" value={eventId} />
+      <ActionFeedback state={state} />
+      <button disabled={pending} className="button-secondary">
+        {pending ? "Restoring…" : "Restore Event"}
+      </button>
+    </form>
+  );
+}
+
+export function RestoreCancelledEventForm({ eventId }: { eventId: number }) {
   const [state, action, pending] = useActionState(restoreEvent, {
     ...initialFormActionState,
   });
@@ -231,7 +247,7 @@ export function RestoreEventForm({ eventId }: { eventId: number }) {
       <input type="hidden" name="event_id" value={eventId} />
       <ActionFeedback state={state} />
       <button disabled={pending} className="button-secondary">
-        {pending ? "Restoring…" : "Restore event"}
+        {pending ? "Restoring…" : "Restore cancellation"}
       </button>
     </form>
   );
@@ -261,14 +277,14 @@ export function RemoveEventForm({
       )}
       <ActionFeedback state={state} />
       <ConfirmationDialog
-        title="Remove Event?"
+        title="Archive Event?"
         description={
           series
-            ? "This removes the Event in the selected scope according to current series rules. Existing protected history remains governed by the current workflow rules."
-            : "This removes the Event from active use. Existing protected history remains governed by the current workflow rules."
+            ? "This archives the Event in the selected scope. Existing workflow history is preserved."
+            : "This archives the Event from routine browsing. Its signups, Points, and history are preserved."
         }
-        triggerLabel={pending ? "Removing…" : "Remove event"}
-        confirmLabel="Remove Event"
+        triggerLabel={pending ? "Archiving…" : "Archive Event"}
+        confirmLabel="Archive Event"
         destructive
         pending={pending}
         triggerClassName="button-secondary"

@@ -181,8 +181,8 @@ select is((select count(*) from audit_logs where entity_type='event' and entity_
   (select id::text from events where recurrence_key='2099-03-06') and action='event.cancelled'),1::bigint,
   'cancellation audit identifies the individual Event occurrence');
 select is((select count(*) from audit_logs where entity_type='task' and entity_id=
-  (select id::text from tasks where recurrence_key='2099-09-23') and action='task.removed'),1::bigint,
-  'removal audit identifies the individual Task occurrence');
+  (select id::text from tasks where recurrence_key='2099-09-23') and action='task.archived'),1::bigint,
+  'archive audit identifies the individual Task occurrence');
 select is((select count(*) from audit_logs where action in ('event.series_created','task.series_created')),
   2::bigint,'both recurrence series have audit records');
 

@@ -1221,6 +1221,11 @@ export type Database = {
         Returns: undefined;
       };
       restore_event: { Args: { p_event_id: number }; Returns: undefined };
+      restore_event_archive: {
+        Args: { p_event_id: number };
+        Returns: undefined;
+      };
+      restore_task: { Args: { p_task_id: number }; Returns: undefined };
       save_event_with_links: {
         Args: {
           p_branch_ids: number[];

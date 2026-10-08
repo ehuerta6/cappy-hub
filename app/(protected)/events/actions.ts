@@ -402,7 +402,7 @@ export async function cancelEvent(
   return { error: "", success: "Event cancelled" };
 }
 
-export async function restoreEvent(
+export async function restoreEventArchive(
   _previous: FormActionState,
   formData: FormData,
 ) {
@@ -416,8 +416,29 @@ export async function restoreEvent(
       success: "",
     };
   const supabase = await createClient();
-  const { error } = await supabase.rpc("restore_event", {
+  const { error } = await supabase.rpc("restore_event_archive", {
     p_event_id: restoreEventValidationResult.data.event_id,
+  });
+  if (error) return { error: mutationError(error.message), success: "" };
+  revalidatePath("/", "layout");
+  revalidatePath("/events");
+  revalidatePath("/system-log");
+  return { error: "", success: "Event restored" };
+}
+
+export async function restoreEvent(
+  _previous: FormActionState,
+  formData: FormData,
+) {
+  await getAuthorizationContext();
+  const validation = restoreEventInputSchema.safeParse({
+    event_id: formData.get("event_id") ?? "",
+  });
+  if (!validation.success)
+    return { error: validation.error.issues[0].message, success: "" };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("restore_event", {
+    p_event_id: validation.data.event_id,
   });
   if (error) return { error: mutationError(error.message), success: "" };
   revalidatePath("/", "layout");
@@ -458,6 +479,6 @@ export async function removeEvent(
   revalidatePath("/", "layout");
   return {
     error: "",
-    success: data ? "Event removed" : "Event was already removed",
+    success: data ? "Event archived" : "Event was already archived",
   };
 }

@@ -290,7 +290,8 @@ it("preserves an explicit Past filter in Event return context", async () => {
   expect(html).not.toContain("Upcoming events");
 });
 
-it("does not offer Removed Event browsing and keeps forged removed URLs active-only", async () => {
+it("does not offer Archived Event browsing and keeps forged archive URLs active-only", async () => {
+  admin = false;
   rows.events = [
     {
       id: 7,
@@ -307,15 +308,33 @@ it("does not offer Removed Event browsing and keeps forged removed URLs active-o
     },
   ];
   const html = await render(EventsPage, {
-    status: "removed",
-    removed: "1",
+    status: "archived",
     branch: "2",
   });
   has(forTable("events")[0], "is", "deleted_at", null);
-  expect(html).not.toContain('value="removed"');
+  expect(html).not.toContain('value="archived"');
+  expect(html).toContain('value="upcoming"');
+  expect(html).toContain('value="happening"');
+  expect(html).toContain('value="past"');
+  expect(html).toContain('value="cancelled"');
   expect(html).toContain("This week&#x27;s events");
   expect(html).toContain("Upcoming events");
   expect(html).toContain("returnTo=%2Fevents%3Fbranch%3D2");
+});
+
+it("offers authorized managers Archived Event and Task views", async () => {
+  const eventHtml = await render(EventsPage, { status: "archived" });
+  const eventQuery = forTable("events")[0];
+  has(eventQuery, "not", "deleted_at", "is", null);
+  expect(eventHtml).toContain('value="archived"');
+
+  queries = [];
+  const taskHtml = await render(TasksPage, { view: "archived" });
+  const taskQuery = forTable("tasks").find(({ calls }) =>
+    calls.some(([method]) => method === "order"),
+  )!;
+  has(taskQuery, "not", "removed_at", "is", null);
+  expect(taskHtml).toContain('value="archived"');
 });
 
 it.each(["open", "in_progress", "complete"])(
