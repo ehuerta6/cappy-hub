@@ -464,11 +464,11 @@ The following sections describe the actual product workflows and the design dire
 ### Officer warnings (embedded workflows)
 
 - **Purpose:** Let assigned officers make warning decisions and admins manage warning records.
-- **Existing functionality that MUST be preserved — CURRENT:** The Officers list may show pending decisions assigned to the signed-in user, including officer, reason, created time, Approve, and Reject. Officer detail shows warnings to the officer and admins; admins can filter statuses, create a pending warning, inspect approval decisions, and delete a warning. Warning reasons cannot be edited after creation. Creation requires approval from current President and Vice Presidents. The approved-warning threshold message does not itself deactivate an officer.
+- **Existing functionality that MUST be preserved — CURRENT:** The Officers list may show pending decisions assigned to the signed-in user, including officer, reason, created time, Approve, and Reject. Officer detail shows warnings to the officer and admins; admins can filter active statuses, inspect Voided or All history, create a pending warning, inspect approval decisions, and void an active warning. Void retains the warning and its approvals, removes it from active totals, and is terminal. Warning reasons cannot be edited after creation. Creation requires approval from current President and Vice Presidents. The approved-warning threshold message does not itself deactivate an officer.
 - **Information hierarchy:** Decision target/officer and reason; current status and date; required approval controls/details.
-- **Recommended layout:** Use restrained, bordered articles and compact approve/reject actions. Keep decision buttons visually equal in priority; destructive delete remains a secondary action with confirmation.
+- **Recommended layout:** Use restrained, bordered articles and compact approve/reject actions. Keep decision buttons visually equal in priority; Void remains a secondary action with confirmation.
 - **Primary action:** Approve or Reject a pending decision assigned to the current user.
-- **Secondary actions:** Admin create/delete and warning-status navigation.
+- **Secondary actions:** Admin create/void and warning-history navigation.
 - **Data presentation:** Plain text reason, status label, readable date, approval count and decision list for admins.
 - **Minimalism notes:** Keep warning decision content separate from the directory table and visible only where access permits.
 - **Do not add:** Editable warning reasons, automatic consequences, warning analytics, or invented approval roles.

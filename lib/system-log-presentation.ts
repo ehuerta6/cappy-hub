@@ -185,6 +185,7 @@ const actionPresentations: Record<string, ActionPresentation> = {
     label: "Recorded a warning",
     kind: "warning",
   },
+  "warning.voided": { label: "Voided a warning", kind: "warning" },
   "warning.deleted": { label: "Deleted a warning" },
   "warning.rejected_by_approver": {
     label: "Rejected a warning",

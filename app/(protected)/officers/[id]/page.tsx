@@ -25,7 +25,7 @@ import {
 } from "@/components/ui";
 import { formatDate, formatLabel } from "@/lib/presentation";
 import RoleForm from "./role-form";
-import { CreateWarningForm, DeleteWarningForm } from "../warning-forms";
+import { CreateWarningForm, VoidWarningForm } from "../warning-forms";
 
 export default async function OfficerDetailPage({
   params,
@@ -94,12 +94,21 @@ export default async function OfficerDetailPage({
   )
     ? warningStatus
     : undefined;
-  const displayedWarnings =
-    isAdmin(actor) && selectedStatus
-      ? visibleWarnings.filter((warning) => warning.status === selectedStatus)
-      : visibleWarnings;
+  const warningHistoryMode =
+    isAdmin(actor) && ["active", "voided", "all"].includes(warningStatus ?? "")
+      ? warningStatus
+      : "active";
+  const displayedWarnings = visibleWarnings.filter((warning) => {
+    if (!isAdmin(actor)) return warning.voided_at === null;
+    if (warningHistoryMode === "voided") return warning.voided_at !== null;
+    if (warningHistoryMode === "all") return true;
+    return (
+      warning.voided_at === null &&
+      (!selectedStatus || warning.status === selectedStatus)
+    );
+  });
   const approvedCount = visibleWarnings.filter(
-    (warning) => warning.status === "approved",
+    (warning) => warning.status === "approved" && warning.voided_at === null,
   ).length;
   const approverNames = isAdmin(actor)
     ? await supabase.from("officers").select("id,name")
@@ -200,10 +209,12 @@ export default async function OfficerDetailPage({
                 className="flex flex-wrap gap-4 text-sm"
               >
                 {[
-                  ["All", ""],
+                  ["Active", "active"],
                   ["Pending", "pending"],
                   ["Approved", "approved"],
                   ["Rejected", "rejected"],
+                  ["Voided", "voided"],
+                  ["All history", "all"],
                 ].map(([label, status]) => (
                   <Link
                     key={label}
@@ -215,7 +226,10 @@ export default async function OfficerDetailPage({
                     )}
                     className="underline"
                     aria-current={
-                      (selectedStatus ?? "") === status ? "page" : undefined
+                      (selectedStatus ?? warningHistoryMode ?? "active") ===
+                      status
+                        ? "page"
+                        : undefined
                     }
                   >
                     {label}
@@ -237,6 +251,11 @@ export default async function OfficerDetailPage({
               >
                 <div className="flex flex-wrap items-center gap-3">
                   <StatusBadge status={warning.status} />
+                  {warning.voided_at !== null && (
+                    <span className="text-sm font-medium text-muted">
+                      Voided
+                    </span>
+                  )}
                   <time dateTime={warning.created_at}>
                     {formatDate(warning.created_at)}
                   </time>
@@ -267,10 +286,12 @@ export default async function OfficerDetailPage({
                         </li>
                       ))}
                     </ul>
-                    <DeleteWarningForm
-                      warningId={warning.id}
-                      officerId={officer.id}
-                    />
+                    {warning.voided_at === null && (
+                      <VoidWarningForm
+                        warningId={warning.id}
+                        officerId={officer.id}
+                      />
+                    )}
                   </>
                 )}
               </article>
