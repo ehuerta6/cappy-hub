@@ -149,7 +149,8 @@ export default async function DashboardPage() {
               >
                 View all Tasks
               </Link>
-              {actionItems?.hasPendingWarnings && (
+              {(actionItems.hasPendingWarnings ||
+                actionItems.unavailableSources.warnings) && (
                 <Link
                   href="/officers"
                   className="inline-flex min-h-9 items-center underline underline-offset-4"
@@ -160,12 +161,27 @@ export default async function DashboardPage() {
             </div>
           }
         />
-        {actionItems === null ? (
+        {actionItems.unavailableSources.tasks && (
           <p role="alert" className="text-sm">
-            Action items unavailable. Reload this page to retry.
+            Task actions unavailable. Reload this page to retry.
           </p>
-        ) : actionItems.items.length === 0 ? (
-          <p className="text-sm">You&apos;re all caught up.</p>
+        )}
+        {actionItems.unavailableSources.warnings && (
+          <p role="alert" className="text-sm">
+            Warning decisions unavailable. Reload this page to retry.
+          </p>
+        )}
+        {actionItems.unavailableSources.tasks ||
+        actionItems.unavailableSources.warnings ? (
+          <p className="text-sm text-muted">
+            Showing available action items. This list may be incomplete.
+          </p>
+        ) : null}
+        {actionItems.items.length === 0 ? (
+          actionItems.unavailableSources.tasks ||
+          actionItems.unavailableSources.warnings ? null : (
+            <p className="text-sm">You&apos;re all caught up.</p>
+          )
         ) : (
           <ul className="divide-y divide-border">
             {actionItems.items.map((item) => (
@@ -192,11 +208,17 @@ export default async function DashboardPage() {
             ))}
           </ul>
         )}
-        {actionItems?.hasMore && (
+        {actionItems.hasMore && (
           <p className="mt-2 text-xs">
-            Showing the first {ACTION_ITEM_LIMIT} items. View Tasks
-            {actionItems?.hasPendingWarnings && " or warning decisions"} for
-            more.
+            {actionItems.unavailableSources.tasks ||
+            actionItems.unavailableSources.warnings
+              ? "Showing the first " + ACTION_ITEM_LIMIT + " available items. "
+              : "Showing the first " + ACTION_ITEM_LIMIT + " items. "}
+            View Tasks
+            {(actionItems.hasPendingWarnings ||
+              actionItems.unavailableSources.warnings) &&
+              " or warning decisions"}{" "}
+            for more.
           </p>
         )}
       </section>

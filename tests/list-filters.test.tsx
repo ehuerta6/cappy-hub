@@ -53,6 +53,7 @@ let queries: Query[];
 let visibleCount: number;
 let filteredCount: number;
 let admin: boolean;
+let failingTables: Set<string>;
 const actor = {
   id: 1,
   authUserId: "00000000-0000-0000-0000-000000000001",
@@ -66,6 +67,7 @@ beforeEach(() => {
   visibleCount = 4;
   filteredCount = 0;
   admin = true;
+  failingTables = new Set();
   vi.mocked(getAuthorizationContext).mockImplementation(
     async () =>
       ({ ...actor, applicationRole: admin ? "admin" : "officer" }) as never,
@@ -133,7 +135,7 @@ beforeEach(() => {
                   ...(row as Record<string, unknown>),
                 }))
               : data,
-          error: null,
+          error: failingTables.has(table) ? { message: "Query failed" } : null,
           count: head
             ? isBaseline || pointsBaseline || tasksBaseline
               ? visibleCount
@@ -926,6 +928,46 @@ it("filters a specific System Log actor without losing other URL filters", async
   expect(html).toContain("entity=officer");
   expect(html).toContain("q=change");
   expect(html).toContain("page=3");
+});
+
+it("preserves a selected Officer actor filter when Officer names are unavailable", async () => {
+  filteredCount = 125;
+  rows.audit_logs = [
+    {
+      id: 23,
+      actor_id: null,
+      actor_officer_id: actor.id,
+      action: "officer.updated",
+      entity_type: "officer",
+      entity_id: actor.id,
+      details: { name: "Alex" },
+      created_at: "2026-10-03T12:00:00.000Z",
+    },
+  ];
+  failingTables.add("officers");
+
+  const html = await render(SystemLogPage, {
+    actor: String(actor.id),
+    q: "updated",
+    page: "2",
+  });
+  const actorFilter = html
+    .split('<select name="actor"')[1]
+    .split("</select>")[0];
+
+  expect(actorFilter).toContain(
+    '<option value="' +
+      actor.id +
+      '" selected="">Officer #' +
+      actor.id +
+      " (name unavailable)</option>",
+  );
+  expect(html).toContain("Officer names are unavailable");
+  expect(html).toContain("officer.updated");
+  expect(html).toContain("q=updated");
+  expect(html).toContain("actor=1");
+  expect(html).toContain("q=updated&amp;actor=1&amp;page=3");
+  has(forTable("audit_logs")[0], "eq", "actor_officer_id", actor.id);
 });
 
 it.each([

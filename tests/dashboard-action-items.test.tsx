@@ -338,3 +338,42 @@ it("preserves other Dashboard content when recent point activity is unavailable"
   expect(html).toContain("Recent point activity unavailable");
   expect(html).not.toContain("No point transactions yet.");
 });
+
+it("keeps Task actions visible when Warning actions are unavailable", async () => {
+  tasks = [task(12)];
+  warnings = [warning(13)];
+  failingTables.add("officer_warnings");
+
+  const result = await load();
+  const html = await render();
+  const section = html
+    .split('aria-label="Your action items"')[1]
+    .split("</section>")[0];
+
+  expect(result.items.map((item) => item.key)).toEqual(["task-12"]);
+  expect(result.unavailableSources).toEqual({ tasks: false, warnings: true });
+  expect(section).toContain("Task 12");
+  expect(section).not.toContain("You&#x27;re all caught up.");
+  expect(section).toContain("Warning decisions unavailable");
+  expect(section).toContain("This list may be incomplete.");
+  expect(section).toContain("View warning decisions");
+});
+
+it("keeps Warning actions visible when Task actions are unavailable", async () => {
+  tasks = [task(12)];
+  warnings = [warning(13)];
+  failingTables.add("tasks");
+
+  const result = await load();
+  const html = await render();
+  const section = html
+    .split('aria-label="Your action items"')[1]
+    .split("</section>")[0];
+
+  expect(result.items.map((item) => item.key)).toEqual(["warning-13"]);
+  expect(result.unavailableSources).toEqual({ tasks: true, warnings: false });
+  expect(section).toContain("Warning for Alex");
+  expect(section).not.toContain("You&#x27;re all caught up.");
+  expect(section).toContain("Task actions unavailable");
+  expect(section).toContain("This list may be incomplete.");
+});

@@ -242,6 +242,14 @@ export default async function SystemLogPage({
           <select name="actor" defaultValue={actorFilter ?? ""}>
             <option value="">All actors</option>
             <option value="system">System</option>
+            {typeof actorFilter === "number" &&
+              !(actorResult.data ?? []).some(
+                (officer) => officer.id === actorFilter,
+              ) && (
+                <option value={actorFilter}>
+                  Officer #{actorFilter} (name unavailable)
+                </option>
+              )}
             {(actorResult.data ?? []).map((officer) => (
               <option key={officer.id} value={officer.id}>
                 {officer.name}
@@ -309,9 +317,15 @@ export default async function SystemLogPage({
           Choose a From date on or before the To date.
         </p>
       )}
-      {(actorResult.error || eventResult.error || taskResult.error) && (
+      {actorResult.error && (
         <p role="alert">
-          Some actor or record names are unavailable. Reload this page to retry.
+          Officer names are unavailable. Reload this page to retry. Log entries
+          remain available.
+        </p>
+      )}
+      {(eventResult.error || taskResult.error) && (
+        <p role="alert">
+          Some record names are unavailable. Reload this page to retry.
         </p>
       )}
       {entries.length === 0 ? (

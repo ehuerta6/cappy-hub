@@ -29,6 +29,9 @@ export type ActionItem = {
   status: string;
   dueDate?: string;
 };
+export type DashboardActionItems = ReturnType<typeof dashboardActionItems> & {
+  unavailableSources: { tasks: boolean; warnings: boolean };
+};
 
 export function dashboardActionItems(
   actor: AuthorizationContext,
@@ -83,7 +86,7 @@ export function dashboardActionItems(
 export async function loadDashboardActionItems(
   supabase: Awaited<ReturnType<typeof createClient>>,
   actor: AuthorizationContext,
-): Promise<ReturnType<typeof dashboardActionItems> | null> {
+): Promise<DashboardActionItems> {
   const taskQuery = () =>
     supabase
       .from("tasks")
@@ -110,12 +113,17 @@ export async function loadDashboardActionItems(
       .order("id")
       .limit(queryLimit),
   ]);
-  if (
-    assigned.error ||
-    warnings.error ||
-    assigned.data === null ||
-    warnings.data === null
-  )
-    return null;
-  return dashboardActionItems(actor, assigned.data, warnings.data);
+  const tasksUnavailable = assigned.error !== null || assigned.data === null;
+  const warningsUnavailable = warnings.error !== null || warnings.data === null;
+  return {
+    ...dashboardActionItems(
+      actor,
+      tasksUnavailable ? [] : assigned.data,
+      warningsUnavailable ? [] : warnings.data,
+    ),
+    unavailableSources: {
+      tasks: tasksUnavailable,
+      warnings: warningsUnavailable,
+    },
+  };
 }
