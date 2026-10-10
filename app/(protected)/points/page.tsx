@@ -172,7 +172,12 @@ export default async function PointsPage({
   const officerTotals = (
     <section className="min-w-0">
       <SectionHeading title="Officer totals" />
-      <TableFrame compact>
+      <div
+        className="officer-totals-scroll"
+        role="region"
+        aria-label="Officer totals. Scroll within this table to view all officers."
+        tabIndex={0}
+      >
         <table className="min-w-0">
           <thead>
             <tr>
@@ -197,7 +202,7 @@ export default async function PointsPage({
             ))}
           </tbody>
         </table>
-      </TableFrame>
+      </div>
     </section>
   );
 

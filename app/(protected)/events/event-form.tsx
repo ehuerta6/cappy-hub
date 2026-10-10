@@ -73,7 +73,7 @@ export default function EventForm({
   return (
     <form
       action={action}
-      className="grid-cols-2"
+      className="event-form"
       onChange={(event) => {
         if (series)
           setEditedFields(changedFormFields(event.currentTarget, original));
@@ -106,343 +106,376 @@ export default function EventForm({
         />
       )}
       {series && mutationRequestKey && (
-        <RecurrenceScope
-          series={series}
-          requestKey={mutationRequestKey}
-          recordType="Event"
-          editing
-          selectedKey={event?.recurrence_key}
-          selectedDate={event?.event_date}
-          values={state.values}
-          fieldErrors={fieldErrors}
-        />
+        <div className="col-span-2">
+          <RecurrenceScope
+            series={series}
+            requestKey={mutationRequestKey}
+            recordType="Event"
+            editing
+            selectedKey={event?.recurrence_key}
+            selectedDate={event?.event_date}
+            values={state.values}
+            fieldErrors={fieldErrors}
+          />
+        </div>
       )}
 
-      <label className="col-span-2">
-        Name
-        <input
-          name="name"
-          required
-          aria-invalid={Boolean(fieldErrors.name)}
-          aria-describedby={fieldErrors.name ? "event-name-error" : undefined}
-          defaultValue={submittedValue(state.values, "name", event?.name ?? "")}
-        />
-        <FieldError id="event-name-error">{fieldErrors.name}</FieldError>
-      </label>
-
-      <label className="col-span-2">
-        Description
-        <textarea
-          name="description"
-          required
-          aria-invalid={Boolean(fieldErrors.description)}
-          aria-describedby={
-            fieldErrors.description ? "event-description-error" : undefined
-          }
-          defaultValue={submittedValue(
-            state.values,
-            "description",
-            event?.description ?? "",
-          )}
-        />
-        <FieldError id="event-description-error">
-          {fieldErrors.description}
-        </FieldError>
-      </label>
-
-      <label>
-        Type
-        <select
-          name="event_type_id"
-          required
-          aria-invalid={Boolean(fieldErrors.event_type_id)}
-          aria-describedby={
-            fieldErrors.event_type_id ? "event-type-error" : undefined
-          }
-          defaultValue={submittedValue(
-            state.values,
-            "event_type_id",
-            String(event?.event_type_id ?? ""),
-          )}
-        >
-          <option value="" disabled>
-            Select an event type
-          </option>
-
-          {eventTypes.map((type) => (
-            <option key={type.id} value={type.id}>
-              {type.name}
-              {type.available_for_new_events === false ? " (historical)" : ""}
-            </option>
-          ))}
-        </select>
-        <FieldError id="event-type-error">
-          {fieldErrors.event_type_id}
-        </FieldError>
-      </label>
-
-      <label>
-        Location
-        <input
-          name="location"
-          list="event-location-suggestions"
-          required
-          aria-invalid={Boolean(fieldErrors.location)}
-          aria-describedby={
-            fieldErrors.location ? "event-location-error" : undefined
-          }
-          defaultValue={submittedValue(
-            state.values,
-            "location",
-            event?.location ?? "",
-          )}
-        />
-        <datalist id="event-location-suggestions">
-          {locations.map((location) => (
-            <option key={location.id} value={location.name} />
-          ))}
-        </datalist>
-        <FieldError id="event-location-error">
-          {fieldErrors.location}
-        </FieldError>
-      </label>
-
-      <label>
-        Slides URL (optional)
-        <input
-          name="slides_url"
-          type="url"
-          aria-invalid={Boolean(fieldErrors.slides_url)}
-          aria-describedby={
-            fieldErrors.slides_url ? "event-slides-url-error" : undefined
-          }
-          defaultValue={submittedValue(
-            state.values,
-            "slides_url",
-            event?.slides_url ?? "",
-          )}
-        />
-        <FieldError id="event-slides-url-error">
-          {fieldErrors.slides_url}
-        </FieldError>
-      </label>
-
-      <label>
-        Meeting notes URL (optional)
-        <input
-          name="meeting_notes_url"
-          type="url"
-          aria-invalid={Boolean(fieldErrors.meeting_notes_url)}
-          aria-describedby={
-            fieldErrors.meeting_notes_url
-              ? "event-meeting-notes-url-error"
-              : undefined
-          }
-          defaultValue={submittedValue(
-            state.values,
-            "meeting_notes_url",
-            event?.meeting_notes_url ?? "",
-          )}
-        />
-        <FieldError id="event-meeting-notes-url-error">
-          {fieldErrors.meeting_notes_url}
-        </FieldError>
-      </label>
-
-      <label>
-        External roster / signup sheet URL (optional)
-        <input
-          name="signup_sheet_url"
-          type="url"
-          aria-invalid={Boolean(fieldErrors.signup_sheet_url)}
-          aria-describedby={
-            fieldErrors.signup_sheet_url
-              ? "event-signup-sheet-url-error"
-              : undefined
-          }
-          defaultValue={submittedValue(
-            state.values,
-            "signup_sheet_url",
-            event?.signup_sheet_url ?? "",
-          )}
-        />
-        <span className="block text-sm text-muted">
-          External Google Sheet resource. Cappy Hub signups, capacity, waitlist,
-          and participation are managed separately.
-        </span>
-        <FieldError id="event-signup-sheet-url-error">
-          {fieldErrors.signup_sheet_url}
-        </FieldError>
-      </label>
-
-      <label>
-        Max volunteers (optional)
-        <input
-          name="max_volunteers"
-          type="number"
-          min="1"
-          step="1"
-          inputMode="numeric"
-          aria-invalid={Boolean(fieldErrors.max_volunteers)}
-          aria-describedby={
-            fieldErrors.max_volunteers ? "event-capacity-error" : undefined
-          }
-          defaultValue={submittedValue(
-            state.values,
-            "max_volunteers",
-            event?.max_volunteers?.toString() ?? "",
-          )}
-        />
-        <span className="block text-sm text-muted">
-          Leave blank for unlimited confirmed signups.
-        </span>
-        <FieldError id="event-capacity-error">
-          {fieldErrors.max_volunteers}
-        </FieldError>
-      </label>
-
-      <label className="col-span-2">
-        Date (El Paso)
-        <input
-          name="event_date"
-          type="date"
-          required
-          aria-invalid={Boolean(fieldErrors.event_date)}
-          aria-describedby={
-            fieldErrors.event_date ? "event-date-error" : undefined
-          }
-          defaultValue={submittedValue(
-            state.values,
-            "event_date",
-            event?.event_date ?? "",
-          )}
-        />
-        <FieldError id="event-date-error">{fieldErrors.event_date}</FieldError>
-      </label>
-
-      <p className="col-span-2">
-        Choose one El Paso date. The event must start at or after 6:00 AM and
-        end by 11:59 PM.
-      </p>
-
-      <label>
-        Start time
-        <input
-          name="start_time"
-          type="time"
-          min="06:00"
-          max="23:59"
-          required
-          aria-invalid={Boolean(fieldErrors.start_time)}
-          aria-describedby={
-            fieldErrors.start_time ? "event-start-time-error" : undefined
-          }
-          defaultValue={submittedValue(
-            state.values,
-            "start_time",
-            event?.starts_at ? denverParts(event.starts_at).time : "",
-          )}
-        />
-        <FieldError id="event-start-time-error">
-          {fieldErrors.start_time}
-        </FieldError>
-      </label>
-
-      <label>
-        End time
-        <input
-          name="end_time"
-          type="time"
-          min="06:00"
-          max="23:59"
-          required
-          aria-invalid={Boolean(fieldErrors.end_time)}
-          aria-describedby={
-            fieldErrors.end_time ? "event-end-time-error" : undefined
-          }
-          defaultValue={submittedValue(
-            state.values,
-            "end_time",
-            event?.ends_at ? denverParts(event.ends_at).time : "",
-          )}
-        />
-        <FieldError id="event-end-time-error">
-          {fieldErrors.end_time}
-        </FieldError>
-      </label>
-
-      <fieldset
-        className="col-span-2"
-        aria-invalid={Boolean(fieldErrors.branches)}
-        aria-describedby={
-          fieldErrors.branches ? "event-branches-error" : undefined
-        }
-      >
-        <legend>
-          {allowGlobal
-            ? "Branches (optional; none means a global event)"
-            : "Branches (select at least one)"}
-        </legend>
-
-        <button
-          type="button"
-          className="button-secondary"
-          onClick={() => {
-            const next =
-              selectedBranches.length === branches.length
-                ? []
-                : branches.map((branch) => branch.id);
-            setSelectedBranches(next);
-            if (series)
-              setEditedFields((fields) => [
-                ...fields.filter((field) => field !== "branch_ids"),
-                ...(JSON.stringify([...next].sort()) ===
-                JSON.stringify([...branchIds].sort())
-                  ? []
-                  : ["branch_ids"]),
-              ]);
-          }}
-        >
-          {selectedBranches.length === branches.length
-            ? "Clear all"
-            : "Select all"}
-        </button>
-
-        {branches.map((branch) => (
-          <label key={branch.id}>
+      <fieldset className="event-form-section">
+        <legend>Event information</legend>
+        <div className="event-form-fields">
+          <label className="col-span-full">
+            Name
             <input
-              type="checkbox"
-              name="branches"
-              value={branch.id}
-              checked={selectedBranches.includes(branch.id)}
-              onChange={() =>
-                setSelectedBranches(
-                  selectedBranches.includes(branch.id)
-                    ? selectedBranches.filter((id) => id !== branch.id)
-                    : [...selectedBranches, branch.id],
-                )
+              name="name"
+              required
+              aria-invalid={Boolean(fieldErrors.name)}
+              aria-describedby={
+                fieldErrors.name ? "event-name-error" : undefined
               }
+              defaultValue={submittedValue(
+                state.values,
+                "name",
+                event?.name ?? "",
+              )}
             />
-            {branch.name}
+            <FieldError id="event-name-error">{fieldErrors.name}</FieldError>
           </label>
-        ))}
-        <FieldError id="event-branches-error">
-          {fieldErrors.branches}
-        </FieldError>
+
+          <label className="col-span-full">
+            Description
+            <textarea
+              name="description"
+              required
+              aria-invalid={Boolean(fieldErrors.description)}
+              aria-describedby={
+                fieldErrors.description ? "event-description-error" : undefined
+              }
+              defaultValue={submittedValue(
+                state.values,
+                "description",
+                event?.description ?? "",
+              )}
+            />
+            <FieldError id="event-description-error">
+              {fieldErrors.description}
+            </FieldError>
+          </label>
+
+          <label className="col-span-full">
+            Type
+            <select
+              name="event_type_id"
+              required
+              aria-invalid={Boolean(fieldErrors.event_type_id)}
+              aria-describedby={
+                fieldErrors.event_type_id ? "event-type-error" : undefined
+              }
+              defaultValue={submittedValue(
+                state.values,
+                "event_type_id",
+                String(event?.event_type_id ?? ""),
+              )}
+            >
+              <option value="" disabled>
+                Select an event type
+              </option>
+              {eventTypes.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.name}
+                  {type.available_for_new_events === false
+                    ? " (historical)"
+                    : ""}
+                </option>
+              ))}
+            </select>
+            <FieldError id="event-type-error">
+              {fieldErrors.event_type_id}
+            </FieldError>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset className="event-form-section">
+        <legend>Schedule and location</legend>
+        <div className="event-form-fields">
+          <label className="col-span-full">
+            Location
+            <input
+              name="location"
+              list="event-location-suggestions"
+              required
+              aria-invalid={Boolean(fieldErrors.location)}
+              aria-describedby={
+                fieldErrors.location ? "event-location-error" : undefined
+              }
+              defaultValue={submittedValue(
+                state.values,
+                "location",
+                event?.location ?? "",
+              )}
+            />
+            <datalist id="event-location-suggestions">
+              {locations.map((location) => (
+                <option key={location.id} value={location.name} />
+              ))}
+            </datalist>
+            <FieldError id="event-location-error">
+              {fieldErrors.location}
+            </FieldError>
+          </label>
+
+          <label className="col-span-full">
+            Date (El Paso)
+            <input
+              name="event_date"
+              type="date"
+              required
+              aria-invalid={Boolean(fieldErrors.event_date)}
+              aria-describedby={
+                fieldErrors.event_date ? "event-date-error" : undefined
+              }
+              defaultValue={submittedValue(
+                state.values,
+                "event_date",
+                event?.event_date ?? "",
+              )}
+            />
+            <FieldError id="event-date-error">
+              {fieldErrors.event_date}
+            </FieldError>
+          </label>
+
+          <p className="col-span-full text-sm text-muted">
+            Choose one El Paso date. The event must start at or after 6:00 AM
+            and end by 11:59 PM.
+          </p>
+
+          <label>
+            Start time
+            <input
+              name="start_time"
+              type="time"
+              min="06:00"
+              max="23:59"
+              required
+              aria-invalid={Boolean(fieldErrors.start_time)}
+              aria-describedby={
+                fieldErrors.start_time ? "event-start-time-error" : undefined
+              }
+              defaultValue={submittedValue(
+                state.values,
+                "start_time",
+                event?.starts_at ? denverParts(event.starts_at).time : "",
+              )}
+            />
+            <FieldError id="event-start-time-error">
+              {fieldErrors.start_time}
+            </FieldError>
+          </label>
+
+          <label>
+            End time
+            <input
+              name="end_time"
+              type="time"
+              min="06:00"
+              max="23:59"
+              required
+              aria-invalid={Boolean(fieldErrors.end_time)}
+              aria-describedby={
+                fieldErrors.end_time ? "event-end-time-error" : undefined
+              }
+              defaultValue={submittedValue(
+                state.values,
+                "end_time",
+                event?.ends_at ? denverParts(event.ends_at).time : "",
+              )}
+            />
+            <FieldError id="event-end-time-error">
+              {fieldErrors.end_time}
+            </FieldError>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset className="event-form-section col-span-2">
+        <legend>Resources</legend>
+        <div className="event-form-fields event-form-resource-fields">
+          <label>
+            Slides URL (optional)
+            <input
+              name="slides_url"
+              type="url"
+              aria-invalid={Boolean(fieldErrors.slides_url)}
+              aria-describedby={
+                fieldErrors.slides_url ? "event-slides-url-error" : undefined
+              }
+              defaultValue={submittedValue(
+                state.values,
+                "slides_url",
+                event?.slides_url ?? "",
+              )}
+            />
+            <FieldError id="event-slides-url-error">
+              {fieldErrors.slides_url}
+            </FieldError>
+          </label>
+
+          <label>
+            Meeting notes URL (optional)
+            <input
+              name="meeting_notes_url"
+              type="url"
+              aria-invalid={Boolean(fieldErrors.meeting_notes_url)}
+              aria-describedby={
+                fieldErrors.meeting_notes_url
+                  ? "event-meeting-notes-url-error"
+                  : undefined
+              }
+              defaultValue={submittedValue(
+                state.values,
+                "meeting_notes_url",
+                event?.meeting_notes_url ?? "",
+              )}
+            />
+            <FieldError id="event-meeting-notes-url-error">
+              {fieldErrors.meeting_notes_url}
+            </FieldError>
+          </label>
+
+          <label>
+            External roster / signup sheet URL (optional)
+            <input
+              name="signup_sheet_url"
+              type="url"
+              aria-invalid={Boolean(fieldErrors.signup_sheet_url)}
+              aria-describedby={
+                fieldErrors.signup_sheet_url
+                  ? "event-signup-sheet-url-error"
+                  : undefined
+              }
+              defaultValue={submittedValue(
+                state.values,
+                "signup_sheet_url",
+                event?.signup_sheet_url ?? "",
+              )}
+            />
+            <span className="text-sm text-muted">
+              External Google Sheet resource. Cappy Hub signups, capacity,
+              waitlist, and participation are managed separately.
+            </span>
+            <FieldError id="event-signup-sheet-url-error">
+              {fieldErrors.signup_sheet_url}
+            </FieldError>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset className="event-form-section">
+        <legend>Participation and capacity</legend>
+        <label>
+          Max volunteers (optional)
+          <input
+            name="max_volunteers"
+            type="number"
+            min="1"
+            step="1"
+            inputMode="numeric"
+            aria-invalid={Boolean(fieldErrors.max_volunteers)}
+            aria-describedby={
+              fieldErrors.max_volunteers ? "event-capacity-error" : undefined
+            }
+            defaultValue={submittedValue(
+              state.values,
+              "max_volunteers",
+              event?.max_volunteers?.toString() ?? "",
+            )}
+          />
+          <span className="text-sm text-muted">
+            Leave blank for unlimited confirmed signups.
+          </span>
+          <FieldError id="event-capacity-error">
+            {fieldErrors.max_volunteers}
+          </FieldError>
+        </label>
+
+        <fieldset
+          className="event-form-branches"
+          aria-invalid={Boolean(fieldErrors.branches)}
+          aria-describedby={
+            fieldErrors.branches ? "event-branches-error" : undefined
+          }
+        >
+          <legend>
+            {allowGlobal
+              ? "Branches (optional; none means a global event)"
+              : "Branches (select at least one)"}
+          </legend>
+
+          <button
+            type="button"
+            className="button-secondary"
+            onClick={() => {
+              const next =
+                selectedBranches.length === branches.length
+                  ? []
+                  : branches.map((branch) => branch.id);
+              setSelectedBranches(next);
+              if (series)
+                setEditedFields((fields) => [
+                  ...fields.filter((field) => field !== "branch_ids"),
+                  ...(JSON.stringify([...next].sort()) ===
+                  JSON.stringify([...branchIds].sort())
+                    ? []
+                    : ["branch_ids"]),
+                ]);
+            }}
+          >
+            {selectedBranches.length === branches.length
+              ? "Clear all"
+              : "Select all"}
+          </button>
+
+          {branches.map((branch) => (
+            <label key={branch.id}>
+              <input
+                type="checkbox"
+                name="branches"
+                value={branch.id}
+                checked={selectedBranches.includes(branch.id)}
+                onChange={() =>
+                  setSelectedBranches(
+                    selectedBranches.includes(branch.id)
+                      ? selectedBranches.filter((id) => id !== branch.id)
+                      : [...selectedBranches, branch.id],
+                  )
+                }
+              />
+              {branch.name}
+            </label>
+          ))}
+          <FieldError id="event-branches-error">
+            {fieldErrors.branches}
+          </FieldError>
+        </fieldset>
       </fieldset>
 
       {!event && (
-        <RecurrenceFields
-          recordType="Event"
-          values={state.values}
-          fieldErrors={fieldErrors}
-          firstDate={submittedValue(state.values, "event_date", "")}
-        />
+        <div className="event-form-recurrence">
+          <RecurrenceFields
+            recordType="Event"
+            values={state.values}
+            fieldErrors={fieldErrors}
+            firstDate={submittedValue(state.values, "event_date", "")}
+          />
+        </div>
       )}
 
-      <ActionFeedback state={state} />
+      <div className="col-span-2">
+        <ActionFeedback state={state} />
+      </div>
 
-      <button disabled={pending}>
+      <button className="col-span-2 w-fit" disabled={pending}>
         {pending
           ? event
             ? "Saving…"

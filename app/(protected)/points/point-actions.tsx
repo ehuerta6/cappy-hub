@@ -22,39 +22,44 @@ export default function PointActions({
   );
   const fieldErrors = editState.fieldErrors ?? {};
   return (
-    <div className="space-y-2">
-      <form
-        action={editAction}
-        className="flex min-w-0 flex-wrap items-end gap-2"
+    <div className="point-actions">
+      <details
+        className="point-edit-disclosure"
+        open={Boolean(editState.error)}
       >
-        <input type="hidden" name="transaction_id" value={transactionId} />
-        <label className="min-w-0 flex-1">
-          Points
-          <input
-            name="points"
-            type="number"
-            step="any"
-            required
-            aria-invalid={Boolean(fieldErrors.points)}
-            aria-describedby={
-              fieldErrors.points
-                ? `transaction-${transactionId}-points-error`
-                : undefined
-            }
-            defaultValue={submittedValue(
-              editState.values,
-              "points",
-              String(points),
-            )}
-          />
-          <FieldError id={`transaction-${transactionId}-points-error`}>
-            {fieldErrors.points}
-          </FieldError>
-        </label>
-        <button disabled={editing}>{editing ? "Saving…" : "Edit"}</button>
-      </form>
-      <ActionFeedback state={editState} />
-      <form action={removeAction}>
+        <summary className="button-secondary">Edit points</summary>
+        <form action={editAction} className="point-edit-form">
+          <input type="hidden" name="transaction_id" value={transactionId} />
+          <label>
+            Points
+            <input
+              name="points"
+              type="number"
+              step="any"
+              required
+              aria-invalid={Boolean(fieldErrors.points)}
+              aria-describedby={
+                fieldErrors.points
+                  ? `transaction-${transactionId}-points-error`
+                  : undefined
+              }
+              defaultValue={submittedValue(
+                editState.values,
+                "points",
+                String(points),
+              )}
+            />
+            <FieldError id={`transaction-${transactionId}-points-error`}>
+              {fieldErrors.points}
+            </FieldError>
+          </label>
+          <button disabled={editing}>
+            {editing ? "Saving…" : "Save points"}
+          </button>
+        </form>
+        <ActionFeedback state={editState} />
+      </details>
+      <form action={removeAction} className="point-remove-form">
         <input type="hidden" name="transaction_id" value={transactionId} />
         <ConfirmationDialog
           title="Remove Point transaction?"

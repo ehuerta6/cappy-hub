@@ -338,12 +338,16 @@ test("Points keeps its Admin controls and contextual history links available", a
     eventRow.locator("a[href^='/events/']:visible").first(),
   ).toBeVisible();
   await expect(
-    eventRow.getByRole("spinbutton", { name: "Points" }),
-  ).toBeVisible();
-  await expect(
-    eventRow.getByRole("button", { name: "Edit", exact: true }),
+    eventRow.getByText("Edit points", { exact: true }),
   ).toBeVisible();
   await expect(
     eventRow.getByRole("button", { name: "Remove", exact: true }),
+  ).toBeVisible();
+  await eventRow.getByText("Edit points", { exact: true }).click();
+  await expect(
+    eventRow.getByRole("spinbutton", { name: "Points" }),
+  ).toBeVisible();
+  await expect(
+    eventRow.getByRole("button", { name: "Save points", exact: true }),
   ).toBeVisible();
 });

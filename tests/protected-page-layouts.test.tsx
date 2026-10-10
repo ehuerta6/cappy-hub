@@ -369,8 +369,21 @@ it("groups Event details, files and participation while retaining management con
   expect(participation).toContain("Signed-up officers");
   expect(participation).toContain("No officers signed up.");
   expect(participation).not.toContain("<table");
-  expect(participation).toContain("Add selected officers");
+  expect(participation).toContain("No active officers are available to add.");
+  expect(participation).not.toContain("Add officer");
   expect(html).toContain("Event point history");
+});
+
+it("keeps manager bulk signup available when eligible Officers exist", async () => {
+  officersForList = [{ id: 4, name: "Available Officer", status: "active" }];
+
+  const html = renderToStaticMarkup(
+    await EventDetail({ params: Promise.resolve({ id: "7" }) }),
+  );
+
+  expect(html).toContain("Add officers (1 available)");
+  expect(html).toContain("Select officers to add");
+  expect(html).toContain('name="officer_ids" value="4"');
 });
 
 it("renders populated Event participation as a compact semantic table", async () => {

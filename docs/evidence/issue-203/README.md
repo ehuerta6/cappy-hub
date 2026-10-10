@@ -35,11 +35,64 @@ captures: [before](task-form-desktop-before.png) →
 [after](admin-task-form-desktop-after.png). Natural pairs use the available
 desktop width; linked Events and recurrence retain their full form width.
 
+## Corrective before/after captures
+
+These before captures were made against the local synthetic seed immediately
+before the focused Issue #203 corrections, using Chromium at 1440 × 1000 in
+dark theme. The matching after captures below use the same routes, roles,
+viewport, theme, and seed. Event detail uses the seeded confirmed participation
+state; other signup states are covered by focused state tests and are not
+claimed as browser screenshots.
+
+The rendered comparison confirmed these defects and corrections:
+
+- Officer Points previously put all 23 totals before history. The after view
+  keeps every total in a keyboard-focusable, independently scrollable region;
+  Point History and its filters follow immediately. Both are visible in the
+  initial 1440 × 1000 view.
+- Admin Points previously began history below a tall totals/manual-entry
+  area, and every history row showed an edit field and stacked actions. The
+  after view shortens the totals region, groups manual entry more compactly,
+  and puts Edit points behind a native disclosure while keeping Remove beside
+  the row. History begins at about 821 CSS px in the captured 1440 × 1000 view.
+- Officer catalogs previously required a very long page of vertically
+  stacked records. The after view groups each editable record and its state
+  and supported actions into compact rows; the seeded page fits the 1440 px
+  capture height.
+- Event create/edit now place related fields in a balanced two-column form,
+  with Resources spanning both columns. Event detail keeps the manager roster
+  visible and folds only bulk addition. A confirmed regular Officer sees
+  Confirmed and their permitted Remove signup action, with no manager selector.
+
+The corrected screens were inspected in Chromium at 1440 × 1000 (screenshots)
+and at 1024, 1280, 1440, and 1920 CSS px (layout/overflow). No document-level
+horizontal overflow was observed. At 1280 px the Event form remains readable;
+the 1024 px catalog layout becomes longer as its sections stack. Only dark
+theme was captured for this correction set. No browser screenshots were made
+for waitlisted, full-capacity, closed-signup, Lead, or President states;
+signup-state precedence and conditional UI state are covered by unit tests,
+while existing role/authorization tests remain applicable. Those live-browser
+states are explicitly unverified here.
+
+Task create was inspected using the seeded linked-Event selector; its
+multi-select and helper text already explain keyboard selection and recurrence
+scope, so this correction leaves that workflow intact. Existing temporal and
+participation groupings in Events and Tasks were not changed because this
+review found no concrete regression in the captured populated lists.
+
+- Points / Admin: [before](points-admin-correction-before.png) → [after](points-admin-correction-after.png)
+- Points / Officer: [before](points-officer-correction-before.png) → [after](points-officer-correction-after.png)
+- Officer catalogs / Admin: [before](officer-catalogs-admin-correction-before.png) → [after](officer-catalogs-admin-correction-after.png)
+- Event create / Admin: [before](event-create-admin-correction-before.png) → [after](event-create-admin-correction-after.png)
+- Event edit / Admin: [before](event-edit-admin-correction-before.png) → [after](event-edit-admin-correction-after.png)
+- Event detail / Officer: [before](event-detail-officer-correction-before.png) → [after](event-detail-officer-correction-after.png)
+- Event detail / Admin: [before](event-detail-admin-correction-before.png) → [after](event-detail-admin-correction-after.png)
+
 ## Role screen coverage
 
 Current full-page captures at 1440 × 1000, dark theme:
 
-- Admin: [Dashboard](admin-dashboard-desktop-after.png), [Events](admin-events-desktop-after.png), [Event detail](admin-event-detail-desktop-after.png), [Event create](admin-event-form-desktop-after.png), [Event edit](admin-event-edit-desktop-after.png), [Tasks](admin-tasks-desktop-after.png), [Task detail](admin-task-detail-desktop-after.png), [Task create](admin-task-form-desktop-after.png), [Task edit](admin-task-edit-desktop-after.png), [Officers](admin-officers-desktop-after.png), [Officer detail](admin-officer-detail-desktop-after.png), [Calendar](admin-calendar-desktop-after.png), [Points](points-admin-dark-after.png), [Admin](admin-settings-desktop-after.png), [Officer catalogs](admin-officer-catalogs-desktop-after.png), [Event catalogs](admin-event-catalogs-desktop-after.png), [System Log](admin-system-log-desktop-after.png).
+- Admin: [Dashboard](admin-dashboard-desktop-after.png), [Events](admin-events-desktop-after.png), [Event detail](admin-event-detail-desktop-after.png), [Event create](admin-event-form-desktop-after.png), [Event edit](admin-event-edit-desktop-after.png), [Tasks](admin-tasks-desktop-after.png), [Task detail](admin-task-detail-desktop-after.png), [Task create](admin-task-form-desktop-after.png), [Task edit](admin-task-edit-desktop-after.png), [Officers](admin-officers-desktop-after.png), [Officer detail](admin-officer-detail-desktop-after.png), [Calendar](admin-calendar-desktop-after.png), [Points](points-admin-dark-after.png), [Admin](admin-settings-desktop-after.png), [Officer catalogs](admin-officer-catalogs-desktop-after.png), [System Log](admin-system-log-desktop-after.png).
 - Regular Officer: [Dashboard](officer-dashboard-desktop-after.png), [Events](officer-events-desktop-after.png), [Event detail](officer-event-detail-desktop-after.png), [Tasks](officer-tasks-desktop-after.png), [Task detail](officer-task-detail-desktop-after.png), [Officers directory](officer-directory-desktop-after.png), [own profile](officer-profile-desktop-after.png), [Calendar](officer-calendar-desktop-after.png), [Points](points-officer-dark-after.png).
 - Intro Lead: [Events](lead-events-desktop-after.png), [scoped Event edit](lead-event-edit-desktop-after.png), [Tasks](lead-tasks-desktop-after.png), [scoped Task edit](lead-task-edit-desktop-after.png).
 - Multi Branch Lead: [Events](multibranch-events-desktop-after.png), [Tasks](multibranch-tasks-desktop-after.png).

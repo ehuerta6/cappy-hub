@@ -24,7 +24,7 @@ export default function TransactionForm({
   return (
     <form
       action={action}
-      className="grid grid-cols-2 gap-x-4 gap-y-3 lg:max-w-none"
+      className="grid grid-cols-2 gap-x-4 gap-y-3 lg:grid-cols-4 lg:max-w-none"
     >
       <label className="col-span-2">
         Officer
@@ -48,7 +48,7 @@ export default function TransactionForm({
           {fieldErrors.officer_id}
         </FieldError>
       </label>
-      <label>
+      <label className="col-span-2">
         Points
         <input
           name="points"
@@ -65,7 +65,7 @@ export default function TransactionForm({
           {fieldErrors.points}
         </FieldError>
       </label>
-      <label className="col-span-2">
+      <label className="col-span-2 lg:col-span-4">
         Reason
         <input
           name="reason"
@@ -80,7 +80,7 @@ export default function TransactionForm({
           {fieldErrors.reason}
         </FieldError>
       </label>
-      <label>
+      <label className="col-span-2">
         Award type
         <select
           name="award_type"
@@ -97,7 +97,7 @@ export default function TransactionForm({
           {fieldErrors.award_type}
         </FieldError>
       </label>
-      <label>
+      <label className="col-span-2 lg:col-span-1">
         Search older events
         <input
           type="search"
@@ -108,7 +108,7 @@ export default function TransactionForm({
       </label>
       <button
         type="button"
-        className="button-secondary self-end"
+        className="button-secondary col-span-2 self-end lg:col-span-1"
         disabled={searching || search.trim().length < 2}
         onClick={async () => {
           setSearching(true);
@@ -125,11 +125,11 @@ export default function TransactionForm({
         {searching ? "Searching…" : "Search events"}
       </button>
       {searchError && (
-        <div className="col-span-2">
+        <div className="col-span-2 lg:col-span-4">
           <FormMessage kind="error">{searchError}</FormMessage>
         </div>
       )}
-      <label className="col-span-2">
+      <label className="col-span-2 lg:col-span-4">
         Event (optional)
         <select
           name="event_id"
@@ -151,11 +151,11 @@ export default function TransactionForm({
         </FieldError>
       </label>
       {(state.error || state.success) && (
-        <div className="col-span-2">
+        <div className="col-span-2 lg:col-span-4">
           <ActionFeedback state={state} />
         </div>
       )}
-      <button disabled={pending} className="lg:justify-self-start">
+      <button disabled={pending} className="col-span-2 justify-self-start">
         {pending ? "Adding…" : "+ Add transaction"}
       </button>
     </form>
