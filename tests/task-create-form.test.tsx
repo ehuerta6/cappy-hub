@@ -37,8 +37,9 @@ it("offers optional multiple Event links and labels a historical linked Event", 
   );
 
   expect(html).toContain('name="event_ids" multiple');
-  expect(html).toContain("Current workshop — 2026-10-20");
-  expect(html).toContain("Historical meeting — 2026-09-20 (Cancelled)");
+  expect(html).toContain("Current workshop — Oct 20, 2026");
+  expect(html).toContain("Historical meeting — Sep 20, 2026 (Cancelled)");
   expect(html).toContain('value="22" selected=""');
-  expect(html).toContain("Optional context links");
+  expect(html).toContain("as optional context");
+  expect(html).toContain("Hold Command (Mac) or Control (Windows/Linux)");
 });

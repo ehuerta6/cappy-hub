@@ -16,6 +16,7 @@ import {
 import { createTask, editRecurringTask, editStandaloneTask } from "./actions";
 import { RecurrenceFields } from "@/components/recurrence-fields";
 import { TASK_TYPES } from "@/lib/task-types";
+import { formatEventFilterOption } from "@/lib/presentation";
 
 export default function TaskCreateForm({
   returnTo,
@@ -239,7 +240,7 @@ export default function TaskCreateForm({
         >
           {events.map((event) => (
             <option key={event.id} value={event.id}>
-              {event.name} — {event.event_date}
+              {formatEventFilterOption(event.name, event.event_date)}
               {event.deleted_at
                 ? " (Archived)"
                 : event.status === "cancelled"
@@ -249,8 +250,9 @@ export default function TaskCreateForm({
           ))}
         </select>
         <span id="task-events-help" className="text-sm text-muted">
-          Optional context links. Event and Task permissions, completion, and
-          Points stay separate.
+          Select one or more Events as optional context. Hold Command (Mac) or
+          Control (Windows/Linux) to select additional Events. Event and Task
+          permissions, completion, and Points stay separate.
         </span>
         <FieldError id="task-events-error">{fieldErrors.event_ids}</FieldError>
       </label>

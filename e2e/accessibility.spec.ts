@@ -35,6 +35,71 @@ test("Dashboard has no detectable accessibility violations", async ({
   await expectNoAxeViolations(page);
 });
 
+test("protected navigation is separate from the page landmark and can be skipped", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+  const main = page.getByRole("main");
+  const skipLink = page.getByRole("link", { name: "Skip to content" });
+
+  await expect(main).toHaveCount(1);
+  await expect(
+    main.getByRole("navigation", { name: "Main navigation" }),
+  ).toHaveCount(0);
+  await skipLink.focus();
+  await expect(skipLink).toBeVisible();
+  await skipLink.press("Enter");
+  await expect(main).toBeFocused();
+});
+
+test("reversed date ranges expose associated validation errors", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+
+  for (const testCase of [
+    {
+      path: "/points",
+      fromLabel: "From activity date",
+      toLabel: "To activity date",
+      errorId: "point-history-date-error",
+    },
+    {
+      path: "/system-log",
+      fromLabel: "From date",
+      toLabel: "To date",
+      errorId: "system-log-date-error",
+    },
+  ]) {
+    await page.goto(`${testCase.path}?from=2026-10-09&to=2026-10-01`);
+    const error = page.getByRole("alert").filter({
+      hasText: "Choose a From date on or before the To date.",
+    });
+    await expect(error).toBeVisible();
+
+    for (const label of [testCase.fromLabel, testCase.toLabel]) {
+      const input = page.getByLabel(label);
+      await expect(input).toHaveAttribute("aria-invalid", "true");
+      await expect(input).toHaveAttribute("aria-describedby", testCase.errorId);
+    }
+  }
+});
+
+test("Events keeps its quiet branch text readable in both themes", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+  await page.goto("/events");
+  await expect(
+    page.locator("span.text-subtle:visible", { hasText: "None" }).first(),
+  ).toBeVisible();
+  await expectNoAxeViolations(page);
+
+  await page.getByRole("button", { name: "Switch to light theme" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expectNoAxeViolations(page);
+});
+
 test("new Event form has no detectable accessibility violations", async ({
   page,
 }) => {
@@ -54,6 +119,9 @@ test("new Task form has no detectable accessibility violations", async ({
   await page.goto("/tasks/new");
   await expect(page.getByRole("heading", { name: "New task" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Create task" })).toBeVisible();
+  await expect(
+    page.getByText(/Select one or more Events as optional context\./),
+  ).toBeVisible();
   await expectNoAxeViolations(page);
 });
 

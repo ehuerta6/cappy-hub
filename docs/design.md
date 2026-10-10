@@ -104,9 +104,9 @@ A beautiful screen that fails an earlier category is not complete.
 
 ## 4. Capybara visual identity
 
-**CURRENT:** The header and login identify the product with the words “Cappy Hub”; there is no mascot graphic in the current UI.
+**CURRENT:** The authenticated header and login identify the product with the words “Cappy Hub”; the header also uses the CIC favicon mark. There is no separate mascot graphic in the current UI.
 
-**DESIGN DECISION:** Use one tiny, simplified capybara mark beside the Cappy Hub name on the login panel. Keep the authenticated global header text-only. The warmth of the rest of the interface should come from the palette and restrained geometry. A person unfamiliar with the mascot should read the product as a calm, professional tool.
+**DESIGN DECISION:** Keep the existing CIC mark small beside the Cappy Hub name in the authenticated header. Do not add separate mascot artwork to login or workflow screens. The warmth of the rest of the interface should come from the palette and restrained geometry. A person unfamiliar with the mark should read the product as a calm, professional tool.
 
 Do not add paw-print patterns, capybara art across application screens, animal-shaped controls, jungle motifs, brown gradients, water effects, novelty type, or mascot illustrations beside routine data. Tables, forms, admin workflows, and readability always take priority.
 
@@ -122,9 +122,9 @@ Dark mode is the current default and the visual flagship. Light mode is also imp
 | `foreground`                   | `#f4f4f5`                          | `#18181b`              |
 | `secondary`                    | `#d4d4d8`                          | `#3f3f46`              |
 | `muted`                        | `#a1a1aa`                          | `#52525b`              |
-| `subtle`                       | `#71717a`                          | `#71717a`              |
+| `subtle`                       | `#85858e`                          | `#6f6f78`              |
 | `border`                       | `#27272a`                          | `#e4e4e7`              |
-| `border-strong`                | `#3f3f46`                          | `#d4d4d8`              |
+| `border-strong`                | `#68686f`                          | `#8a8a93`              |
 | `surface`                      | `#111113`                          | `#ffffff`              |
 | `surface-muted`                | `#18181b`                          | `#f4f4f5`              |
 | `hover`                        | `#27272a`                          | `#f4f4f5`              |
@@ -359,7 +359,7 @@ The following sections describe the actual product workflows and the design dire
 - **Existing functionality that MUST be preserved — CURRENT:** Dedicated New event and Edit event pages with contextual return links. When edit starts from an event opened in a filtered list, the originating list context survives the edit form and save. Form fields and recurrence scope are specified in §16. Branch options are scoped to the actor; an authorized global event may have no branch. New event is available to admins/all-branch executives and Leads with branch membership. Existing event editing follows branch permissions.
 - **Information hierarchy:** Return link and page title; event identity/description; type/location and resource links; date/time; branch selection; optional recurrence; inline validation and save.
 - **Recommended layout:** Keep name/description full width, pair Type with Location and Start with End, group schedule help beside Date/time, and keep branch checkboxes and recurrence in clearly labeled fieldsets. One-column form on narrow screens.
-- **Primary action:** Save event; show pending “Saving…” feedback.
+- **Primary action:** Create event on the new-event form or Save event on the edit form; show pending “Saving…” feedback.
 - **Secondary actions:** Select all/Clear all branches; return to Events or the edited Event.
 - **Data presentation:** Labeled form controls, checkboxes for branches, optional URL fields, recurrence choices and scope.
 - **Minimalism notes:** Group fields without changing validation. Preserve the schedule restriction/help text and distinguish creation recurrence from series editing.
@@ -392,7 +392,7 @@ The following sections describe the actual product workflows and the design dire
 ### Create/edit Task
 
 - **Purpose:** Create a work item or change supported fields of a standalone or recurring Task.
-- **Existing functionality that MUST be preserved — CURRENT:** New task page allows authorized all-branch users or Leads with branches. It includes title, description, task type, branch, due date, points, optional Event links, and optional daily/weekly recurrence. Event links provide context only and follow the selected recurrence edit scope. Archived and cancelled Events are not offered as new links. Authorized managers can edit standalone Tasks; recurring Tasks retain occurrence/following/all scope. Points cannot be changed after a completion or Task award exists, preserving earned history. Assignment is managed after creation on Task detail. There is no approval field or approval workflow.
+- **Existing functionality that MUST be preserved — CURRENT:** New task page allows authorized all-branch users or Leads with branches. It includes title, description, task type, branch, due date, points, optional Event links, and optional daily/weekly recurrence. Event links provide context only and follow the selected recurrence edit scope; the form explains how to select multiple Events. Archived and cancelled Events are not offered as new links. Authorized managers can edit standalone Tasks; recurring Tasks retain occurrence/following/all scope. Points cannot be changed after a completion or Task award exists, preserving earned history. Assignment is managed after creation on Task detail. There is no approval field or approval workflow.
 - **Information hierarchy:** Return link and title; Task description/details; due date and points; optional linked Events; recurrence group for new/series edits; validation and save.
 - **Recommended layout:** Keep title/description easy to scan; pair Type with Branch and Due date with Points on desktop where the design fits. Collapse to one column on narrow screens.
 - **Primary action:** Create Task or Save Task, with pending feedback.
@@ -587,3 +587,4 @@ Every generated redesign must preserve the existing screen's access rules, actua
 - **2026-10-04 — Task management parity.** Updated the current Task list, assignment/completion, standalone edit/removal, Dashboard and due-date points behavior for Issue #129. The approval workflow remains only in legacy database compatibility and historical records.
 - **2026-10-04 — Task list presentation parity.** Removed descriptions and Points from Task list rows, formatted due dates for concise display, and matched the row assignment action to Event signup. Search, Task detail, and points behavior remain unchanged for Issue #136.
 - **2026-10-04 — Administrative presentation refinement.** Widened data-heavy protected pages while retaining the narrower reading width elsewhere, compacted table and filter spacing, refined Dashboard participation color, added a derived Rank to sorted Points totals, and simplified Admin links. Routes, data, workflows, and permissions remain unchanged for Issue #128.
+- **2026-10-09 — System-wide quality pass.** Raised secondary text and control-boundary contrast, separated protected navigation from the page main landmark with a skip link, improved date-filter error semantics, closed compact navigation after route changes, clarified linked-Event selection, and formatted Event dates consistently. Routes, filters, permissions, and domain behavior remain unchanged for Issue #203.

@@ -12,6 +12,7 @@ type PointHistoryFilterControlsProps = {
   awardType?: string;
   officerId?: number;
   eventId?: number;
+  dateRangeIsReversed: boolean;
 };
 
 export default function PointHistoryFilterControls({
@@ -25,6 +26,7 @@ export default function PointHistoryFilterControls({
   awardType,
   officerId,
   eventId,
+  dateRangeIsReversed,
 }: PointHistoryFilterControlsProps) {
   const active = Boolean(
     searchQuery ||
@@ -106,11 +108,27 @@ export default function PointHistoryFilterControls({
       )}
       <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
         From activity date
-        <input name="from" type="date" defaultValue={fromDate} />
+        <input
+          name="from"
+          type="date"
+          defaultValue={fromDate}
+          aria-invalid={dateRangeIsReversed || undefined}
+          aria-describedby={
+            dateRangeIsReversed ? "point-history-date-error" : undefined
+          }
+        />
       </label>
       <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
         To activity date
-        <input name="to" type="date" defaultValue={toDate} />
+        <input
+          name="to"
+          type="date"
+          defaultValue={toDate}
+          aria-invalid={dateRangeIsReversed || undefined}
+          aria-describedby={
+            dateRangeIsReversed ? "point-history-date-error" : undefined
+          }
+        />
       </label>
     </ListFilterBar>
   );

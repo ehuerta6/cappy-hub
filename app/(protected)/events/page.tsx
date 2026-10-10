@@ -178,8 +178,16 @@ export default async function EventsPage({
   const maySignUp = (title: string) =>
     title === "Other events" &&
     (status === undefined || status === "upcoming" || status === "happening");
-  const renderGroup = (title: string, groupEvents: EventListItem[]) => (
-    <section key={title} aria-label={title} className="space-y-3">
+  const renderGroup = (
+    title: string,
+    groupEvents: EventListItem[],
+    period: string,
+  ) => (
+    <section
+      key={`${period}-${title}`}
+      aria-label={`${period} — ${title}`}
+      className="space-y-3"
+    >
       <h3 className="font-semibold text-foreground">{title}</h3>
       {!groupEvents.length ? (
         <p>No events in this group.</p>
@@ -361,10 +369,12 @@ export default async function EventsPage({
                     {renderGroup(
                       "Your events",
                       splitEvents(organizedEvents.thisWeek).your,
+                      "Events this week",
                     )}
                     {renderGroup(
                       "Other events",
                       splitEvents(organizedEvents.thisWeek).other,
+                      "Events this week",
                     )}
                   </>
                 )}
@@ -378,10 +388,12 @@ export default async function EventsPage({
                     {renderGroup(
                       "Your events",
                       splitEvents(organizedEvents.upcoming).your,
+                      "Upcoming Events",
                     )}
                     {renderGroup(
                       "Other events",
                       splitEvents(organizedEvents.upcoming).other,
+                      "Upcoming Events",
                     )}
                   </>
                 )}
@@ -403,10 +415,15 @@ export default async function EventsPage({
         </p>
       ) : (
         <>
-          {renderGroup("Your events", splitEvents(organizedEvents.events).your)}
+          {renderGroup(
+            "Your events",
+            splitEvents(organizedEvents.events).your,
+            "Events",
+          )}
           {renderGroup(
             "Other events",
             splitEvents(organizedEvents.events).other,
+            "Events",
           )}
         </>
       )}

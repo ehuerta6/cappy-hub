@@ -45,16 +45,8 @@ export default async function DashboardPage() {
       loadDashboardActionItems(supabase, officer),
       supabase.rpc("event_signup_counts"),
     ]);
-  if (
-    summary.error ||
-    events.error ||
-    transactions.error ||
-    total.error ||
-    countsResult.error
-  )
-    throw new Error("Failed to load dashboard");
   const signupCounts = new Map(
-    countsResult.data.map((row) => [row.event_id, row]),
+    (countsResult.data ?? []).map((row) => [row.event_id, row]),
   );
   return (
     <div data-page-width="wide" className="space-y-4">
@@ -83,10 +75,16 @@ export default async function DashboardPage() {
             <p className="text-[0.6875rem] font-medium uppercase tracking-[0.06em] text-muted">
               Personal total
             </p>
-            <p className="mt-0.5 flex items-baseline gap-1 text-lg font-semibold tabular-nums text-foreground">
-              <PointValue value={total.data.total_points ?? 0} />
-              <span className="text-sm font-medium text-muted">pts</span>
-            </p>
+            {total.error ? (
+              <p role="alert" className="text-sm">
+                Personal total unavailable. Reload this page to retry.
+              </p>
+            ) : (
+              <p className="mt-0.5 flex items-baseline gap-1 text-lg font-semibold tabular-nums text-foreground">
+                <PointValue value={total.data.total_points ?? 0} />
+                <span className="text-sm font-medium text-muted">pts</span>
+              </p>
+            )}
           </div>
           <Link
             href={`/officers/${officer.id}`}
@@ -101,31 +99,37 @@ export default async function DashboardPage() {
         aria-label="Summary"
         className="overflow-hidden rounded-md border border-border bg-surface/30"
       >
-        <dl className="grid grid-cols-1 divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-          {[
-            {
-              label: "Active officers",
-              value: summary.data.active_officer_count ?? 0,
-            },
-            {
-              label: "Upcoming events",
-              value: summary.data.upcoming_event_count ?? 0,
-            },
-            {
-              label: "Points this half-year",
-              value: displayPoints(summary.data.half_year_points ?? 0),
-            },
-          ].map((stat) => (
-            <div key={stat.label} className="min-w-0 px-3 py-2.5 sm:px-4">
-              <dt className="mt-0 text-[0.6875rem] font-medium uppercase tracking-[0.06em] text-muted">
-                {stat.label}
-              </dt>
-              <dd className="mt-1 text-xl font-semibold tabular-nums text-foreground sm:text-2xl">
-                {stat.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
+        {summary.error ? (
+          <p role="alert" className="px-4 py-3 text-sm">
+            Summary unavailable. Reload this page to retry.
+          </p>
+        ) : (
+          <dl className="grid grid-cols-1 divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            {[
+              {
+                label: "Active officers",
+                value: summary.data.active_officer_count ?? 0,
+              },
+              {
+                label: "Upcoming events",
+                value: summary.data.upcoming_event_count ?? 0,
+              },
+              {
+                label: "Points this half-year",
+                value: displayPoints(summary.data.half_year_points ?? 0),
+              },
+            ].map((stat) => (
+              <div key={stat.label} className="min-w-0 px-3 py-2.5 sm:px-4">
+                <dt className="mt-0 text-[0.6875rem] font-medium uppercase tracking-[0.06em] text-muted">
+                  {stat.label}
+                </dt>
+                <dd className="mt-1 text-xl font-semibold tabular-nums text-foreground sm:text-2xl">
+                  {stat.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        )}
       </section>
       <p className="px-1 text-xs text-muted">
         Half-year periods are January–June and July–December (America/Denver).
@@ -145,7 +149,7 @@ export default async function DashboardPage() {
               >
                 View all Tasks
               </Link>
-              {actionItems.hasPendingWarnings && (
+              {actionItems?.hasPendingWarnings && (
                 <Link
                   href="/officers"
                   className="inline-flex min-h-9 items-center underline underline-offset-4"
@@ -156,7 +160,11 @@ export default async function DashboardPage() {
             </div>
           }
         />
-        {actionItems.items.length === 0 ? (
+        {actionItems === null ? (
+          <p role="alert" className="text-sm">
+            Action items unavailable. Reload this page to retry.
+          </p>
+        ) : actionItems.items.length === 0 ? (
           <p className="text-sm">You&apos;re all caught up.</p>
         ) : (
           <ul className="divide-y divide-border">
@@ -184,10 +192,10 @@ export default async function DashboardPage() {
             ))}
           </ul>
         )}
-        {actionItems.hasMore && (
+        {actionItems?.hasMore && (
           <p className="mt-2 text-xs">
             Showing the first {ACTION_ITEM_LIMIT} items. View Tasks
-            {actionItems.hasPendingWarnings && " or warning decisions"} for
+            {actionItems?.hasPendingWarnings && " or warning decisions"} for
             more.
           </p>
         )}
@@ -206,7 +214,11 @@ export default async function DashboardPage() {
               </Link>
             }
           />
-          {!events.data.length ? (
+          {events.error ? (
+            <p role="alert" className="text-sm">
+              Upcoming events unavailable. Reload this page to retry.
+            </p>
+          ) : !events.data.length ? (
             <p>No upcoming events.</p>
           ) : (
             <ul className="divide-y divide-border">
@@ -228,16 +240,19 @@ export default async function DashboardPage() {
                   </div>
                   <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted sm:flex-col sm:items-end sm:gap-y-0.5">
                     <span>
-                      {eventSignupCountLabel({
-                        max_volunteers: event.max_volunteers,
-                        confirmed_count: Number(
-                          signupCounts.get(event.id)?.confirmed_count ??
-                            event.event_officers.length,
-                        ),
-                        waitlist_count: Number(
-                          signupCounts.get(event.id)?.waitlist_count ?? 0,
-                        ),
-                      })}
+                      {countsResult.error ||
+                      signupCounts.get(event.id)?.confirmed_count == null ||
+                      signupCounts.get(event.id)?.waitlist_count == null
+                        ? "Signup counts unavailable"
+                        : eventSignupCountLabel({
+                            max_volunteers: event.max_volunteers,
+                            confirmed_count: Number(
+                              signupCounts.get(event.id)?.confirmed_count,
+                            ),
+                            waitlist_count: Number(
+                              signupCounts.get(event.id)?.waitlist_count,
+                            ),
+                          })}
                     </span>
                     <span
                       className={
@@ -280,7 +295,11 @@ export default async function DashboardPage() {
               </Link>
             }
           />
-          {!transactions.data.length ? (
+          {transactions.error ? (
+            <p role="alert" className="text-sm">
+              Recent point activity unavailable. Reload this page to retry.
+            </p>
+          ) : !transactions.data.length ? (
             <p>No point transactions yet.</p>
           ) : (
             <ul className="divide-y divide-border">

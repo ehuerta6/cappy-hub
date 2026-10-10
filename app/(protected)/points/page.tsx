@@ -241,9 +241,12 @@ export default async function PointsPage({
           awardType={awardType}
           officerId={officerId}
           eventId={eventId}
+          dateRangeIsReversed={dateRangeIsReversed}
         />
         {dateRangeIsReversed && (
-          <p role="status">Choose a From date on or before the To date.</p>
+          <p id="point-history-date-error" role="alert">
+            Choose a From date on or before the To date.
+          </p>
         )}
         <TableFrame compact>
           <HistoryTable

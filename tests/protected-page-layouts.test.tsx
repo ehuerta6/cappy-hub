@@ -59,6 +59,7 @@ const event = {
   event_waitlist: [],
   max_volunteers: null,
   task_events: [],
+  event_date: "2099-10-08",
   starts_at: "2099-10-08T23:00:00Z",
   ends_at: "2099-10-09T01:00:00Z",
   participation_points_per_hour_at_end: null,

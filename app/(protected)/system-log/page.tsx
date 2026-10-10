@@ -110,7 +110,7 @@ export default async function SystemLogPage({
     buildLogQuery(false, true),
     supabase.from("officers").select("id,name").order("name"),
   ]);
-  if (filteredCount.error || visibleCount.error || actorResult.error)
+  if (filteredCount.error || visibleCount.error)
     throw new Error("Failed to load System Log");
 
   const totalPages = Math.max(
@@ -128,7 +128,7 @@ export default async function SystemLogPage({
   if (error) throw new Error(`Failed to load System Log: ${error.message}`);
 
   const officerNames = new Map(
-    actorResult.data.map((officer) => [officer.id, officer.name]),
+    (actorResult.data ?? []).map((officer) => [officer.id, officer.name]),
   );
   const eventIds = new Set<number>();
   const taskIds = new Set<number>();
@@ -192,13 +192,11 @@ export default async function SystemLogPage({
           .in("id", [...taskIds])
       : Promise.resolve({ data: [], error: null }),
   ]);
-  if (eventResult.error || taskResult.error)
-    throw new Error("Failed to load System Log record context");
   const eventNames = new Map(
-    eventResult.data.map((event) => [event.id, event.name]),
+    (eventResult.data ?? []).map((event) => [event.id, event.name]),
   );
   const taskNames = new Map(
-    taskResult.data.map((task) => [task.id, task.title]),
+    (taskResult.data ?? []).map((task) => [task.id, task.title]),
   );
   const eventContext = {
     officerNames,
@@ -244,7 +242,7 @@ export default async function SystemLogPage({
           <select name="actor" defaultValue={actorFilter ?? ""}>
             <option value="">All actors</option>
             <option value="system">System</option>
-            {actorResult.data.map((officer) => (
+            {(actorResult.data ?? []).map((officer) => (
               <option key={officer.id} value={officer.id}>
                 {officer.name}
               </option>
@@ -283,15 +281,38 @@ export default async function SystemLogPage({
         </label>
         <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
           From date
-          <input name="from" type="date" defaultValue={fromDate ?? ""} />
+          <input
+            name="from"
+            type="date"
+            defaultValue={fromDate ?? ""}
+            aria-invalid={dateRangeIsReversed || undefined}
+            aria-describedby={
+              dateRangeIsReversed ? "system-log-date-error" : undefined
+            }
+          />
         </label>
         <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
           To date
-          <input name="to" type="date" defaultValue={toDate ?? ""} />
+          <input
+            name="to"
+            type="date"
+            defaultValue={toDate ?? ""}
+            aria-invalid={dateRangeIsReversed || undefined}
+            aria-describedby={
+              dateRangeIsReversed ? "system-log-date-error" : undefined
+            }
+          />
         </label>
       </ListFilterBar>
       {dateRangeIsReversed && (
-        <p role="status">Choose a From date on or before the To date.</p>
+        <p id="system-log-date-error" role="alert">
+          Choose a From date on or before the To date.
+        </p>
+      )}
+      {(actorResult.error || eventResult.error || taskResult.error) && (
+        <p role="alert">
+          Some actor or record names are unavailable. Reload this page to retry.
+        </p>
       )}
       {entries.length === 0 ? (
         <p>{emptyMessage}</p>

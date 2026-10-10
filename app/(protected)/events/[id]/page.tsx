@@ -10,7 +10,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import EventResourceLinks from "../event-resource-links";
 import { eventStatus, eventSignupOpen } from "@/lib/event-status";
-import { formatDateTime } from "@/lib/presentation";
+import { formatCalendarDate, formatDateTime } from "@/lib/presentation";
 import {
   BulkAddOfficersForm,
   SignupForm,
@@ -146,7 +146,7 @@ export default async function EventDetailPage({
             <dt>Location</dt>
             <dd className="break-words">{event.location || "Not set"}</dd>
             <dt>Date</dt>
-            <dd>{event.event_date}</dd>
+            <dd>{formatCalendarDate(event.event_date)}</dd>
             <dt>Start</dt>
             <dd>{formatDateTime(event.starts_at)}</dd>
             <dt>End</dt>

@@ -83,7 +83,7 @@ export function dashboardActionItems(
 export async function loadDashboardActionItems(
   supabase: Awaited<ReturnType<typeof createClient>>,
   actor: AuthorizationContext,
-) {
+): Promise<ReturnType<typeof dashboardActionItems> | null> {
   const taskQuery = () =>
     supabase
       .from("tasks")
@@ -110,7 +110,12 @@ export async function loadDashboardActionItems(
       .order("id")
       .limit(queryLimit),
   ]);
-  if (assigned.error || warnings.error)
-    throw new Error("Failed to load dashboard action items");
+  if (
+    assigned.error ||
+    warnings.error ||
+    assigned.data === null ||
+    warnings.data === null
+  )
+    return null;
   return dashboardActionItems(actor, assigned.data, warnings.data);
 }

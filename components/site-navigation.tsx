@@ -6,6 +6,7 @@ import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 import ThemeToggle from "@/components/theme-toggle";
 
 const links = [
@@ -26,6 +27,7 @@ export default function SiteNavigation({
   account: ReactNode;
 }) {
   const pathname = usePathname();
+  const compactNavigation = useRef<HTMLDetailsElement>(null);
   const visibleLinks = isAdmin ? adminLinks : links;
   const active = (href: string) =>
     href === "/"
@@ -35,6 +37,10 @@ export default function SiteNavigation({
         (href === "/admin" &&
           (pathname === "/system-log" || pathname.startsWith("/system-log/")));
   const activeLink = visibleLinks.find(({ href }) => active(href)) ?? links[0];
+
+  useEffect(() => {
+    if (compactNavigation.current?.open) compactNavigation.current.open = false;
+  }, [pathname]);
 
   return (
     <header className="border-b border-border bg-background">
@@ -53,7 +59,7 @@ export default function SiteNavigation({
           />
           <span className="min-w-0 break-words">Cappy Hub</span>
         </Link>
-        <details className="min-w-0 lg:hidden">
+        <details ref={compactNavigation} className="min-w-0 lg:hidden">
           <summary
             aria-label={"Main navigation, current section: " + activeLink.label}
             className="flex min-h-11 min-w-0 cursor-pointer list-none items-center justify-between gap-2 rounded-md border border-border bg-surface/40 px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted"

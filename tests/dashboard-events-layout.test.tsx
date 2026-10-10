@@ -173,7 +173,14 @@ beforeEach(() => {
   vi.mocked(getAuthorizationContext).mockResolvedValue(actor as never);
   vi.mocked(createClient).mockResolvedValue({
     from,
-    rpc: async () => ({ data: [], error: null }),
+    rpc: async () => ({
+      data: events.map((event) => ({
+        event_id: event.id,
+        confirmed_count: event.event_officers.length,
+        waitlist_count: event.event_waitlist?.length ?? 0,
+      })),
+      error: null,
+    }),
   } as never);
 });
 const renderEvents = async () =>
@@ -181,9 +188,11 @@ const renderEvents = async () =>
 
 it("groups relationships into distinct sections from the filtered event query", async () => {
   const html = await renderEvents();
-  const your = html.split('aria-label="Your events"')[1].split("</section>")[0];
+  const your = html
+    .split('aria-label="Upcoming Events — Your events"')[1]
+    .split("</section>")[0];
   const other = html
-    .split('aria-label="Other events"')[1]
+    .split('aria-label="Upcoming Events — Other events"')[1]
     .split("</section>")[0];
   expect(your).toContain("Participating event");
   expect(your).not.toContain("Available event");
@@ -318,7 +327,7 @@ it("places the single sign out form and officer context inside the protected hea
   expect(header).toContain("Local Officer");
   expect(html.match(/Sign out/g)).toHaveLength(1);
   expect(html.split("</header>")[1].split("<script>")[0]).toBe(
-    '<div class="protected-page-width">Page content</div>',
+    '<main id="main-content" tabindex="-1" class="protected-page-width">Page content</main>',
   );
   expect(header).toContain('aria-current="page"');
   expect(header).not.toContain(">Admin</a>");

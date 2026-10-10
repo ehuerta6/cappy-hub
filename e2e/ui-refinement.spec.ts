@@ -53,11 +53,14 @@ test("Cappy Hub brand mark stays decorative and compact across themes and widths
   ).toBeVisible();
   await expectNoPageOverflow(page);
 
+  const compactNavigation = page.locator("header details");
   await page.getByText("Section: Dashboard", { exact: true }).click();
+  await expect(compactNavigation.locator("nav")).toBeVisible();
+  await compactNavigation.getByRole("link", { name: "Events" }).click();
+  await expect(page).toHaveURL((url) => url.pathname === "/events");
+  await expect(compactNavigation).not.toHaveAttribute("open", "");
   await expect(
-    page
-      .getByRole("navigation", { name: "Main navigation" })
-      .getByRole("link", { name: "Dashboard", exact: true }),
+    compactNavigation.getByText("Section: Events", { exact: true }),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
 
@@ -156,6 +159,17 @@ test("administrative pages remain usable across desktop and compact widths", asy
       page.getByRole("heading", { name: heading }).first(),
     ).toBeVisible();
     await expectNoPageOverflow(page);
+  }
+
+  for (const width of [768, 720, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const [path, heading] of wideScreens) {
+      await page.goto(path);
+      await expect(
+        page.getByRole("heading", { name: heading }).first(),
+      ).toBeVisible();
+      await expectNoPageOverflow(page);
+    }
   }
 
   await page.setViewportSize({ width: 390, height: 844 });
