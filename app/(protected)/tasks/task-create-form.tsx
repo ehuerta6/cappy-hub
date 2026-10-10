@@ -61,7 +61,7 @@ export default function TaskCreateForm({
   return (
     <form
       action={action}
-      className="space-y-4 max-w-xl"
+      className="grid max-w-6xl grid-cols-2 gap-x-6 gap-y-4"
       onChange={(event) => {
         if (task)
           setEditedFields(changedFormFields(event.currentTarget, original));
@@ -87,16 +87,18 @@ export default function TaskCreateForm({
         <input key={field} type="hidden" name="edited_fields" value={field} />
       ))}
       {series && (
-        <RecurrenceScope
-          series={series}
-          requestKey={recurrenceRequestKey}
-          recordType="Task"
-          editing
-          selectedKey={task?.recurrence_key}
-          selectedDate={task?.due_date}
-          values={state.values}
-          fieldErrors={fieldErrors}
-        />
+        <div className="col-span-2">
+          <RecurrenceScope
+            series={series}
+            requestKey={recurrenceRequestKey}
+            recordType="Task"
+            editing
+            selectedKey={task?.recurrence_key}
+            selectedDate={task?.due_date}
+            values={state.values}
+            fieldErrors={fieldErrors}
+          />
+        </div>
       )}
       <input
         type="hidden"
@@ -225,7 +227,7 @@ export default function TaskCreateForm({
         />
         <FieldError id="task-points-error">{fieldErrors.points}</FieldError>
       </label>
-      <label>
+      <label className="col-span-2">
         Linked Events
         <select
           name="event_ids"
@@ -257,15 +259,21 @@ export default function TaskCreateForm({
         <FieldError id="task-events-error">{fieldErrors.event_ids}</FieldError>
       </label>
       {!task && (
-        <RecurrenceFields
-          recordType="Task"
-          values={state.values}
-          fieldErrors={fieldErrors}
-          firstDate={submittedValue(state.values, "due_date", "")}
-        />
+        <div className="col-span-2">
+          <RecurrenceFields
+            recordType="Task"
+            values={state.values}
+            fieldErrors={fieldErrors}
+            firstDate={submittedValue(state.values, "due_date", "")}
+          />
+        </div>
       )}
-      <ActionFeedback state={state} />
-      <button disabled={pending}>
+      {(state.error || state.success) && (
+        <div className="col-span-2">
+          <ActionFeedback state={state} />
+        </div>
+      )}
+      <button disabled={pending} className="lg:justify-self-start">
         {pending
           ? task
             ? "Saving…"

@@ -227,7 +227,7 @@ export default async function SystemLogPage({
         active={hasFilters}
         clearHref="/system-log"
       >
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-56 sm:flex-1">
+        <label className="min-w-56 flex-1">
           Search log
           <input
             type="search"
@@ -237,7 +237,7 @@ export default async function SystemLogPage({
             placeholder="Action or record ID"
           />
         </label>
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-44">
+        <label className="min-w-44">
           Actor
           <select name="actor" defaultValue={actorFilter ?? ""}>
             <option value="">All actors</option>
@@ -257,7 +257,7 @@ export default async function SystemLogPage({
             ))}
           </select>
         </label>
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-44">
+        <label className="min-w-44">
           Activity
           <input
             type="search"
@@ -267,7 +267,7 @@ export default async function SystemLogPage({
             placeholder="e.g. signed up or cancelled event"
           />
         </label>
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-44">
+        <label className="min-w-44">
           Entity type
           <select name="entity" defaultValue={entity ?? ""}>
             <option value="">All entity types</option>
@@ -287,7 +287,7 @@ export default async function SystemLogPage({
             <option value="warning">Warning</option>
           </select>
         </label>
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
+        <label className="min-w-40">
           From date
           <input
             name="from"
@@ -299,7 +299,7 @@ export default async function SystemLogPage({
             }
           />
         </label>
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
+        <label className="min-w-40">
           To date
           <input
             name="to"

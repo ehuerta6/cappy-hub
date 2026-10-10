@@ -54,7 +54,7 @@ export default function PointHistoryFilterControls({
       active={active}
       clearHref="/points"
     >
-      <label className="w-full min-w-0 sm:w-auto sm:min-w-56 sm:flex-1">
+      <label className="min-w-56 flex-1">
         Search point history
         <input
           type="search"
@@ -64,7 +64,7 @@ export default function PointHistoryFilterControls({
           placeholder="Officer, reason, event, or task"
         />
       </label>
-      <label className="w-full min-w-0 sm:w-auto sm:min-w-36">
+      <label className="min-w-36">
         Award type
         <select name="type" defaultValue={awardType ?? ""}>
           <option value="">All types</option>
@@ -74,7 +74,7 @@ export default function PointHistoryFilterControls({
           <option value="correction">Correction</option>
         </select>
       </label>
-      <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
+      <label className="min-w-40">
         Officer
         <select name="officer" defaultValue={officerId ?? ""}>
           <option value="">All officers</option>
@@ -85,7 +85,7 @@ export default function PointHistoryFilterControls({
           ))}
         </select>
       </label>
-      <label className="w-full min-w-0 sm:w-auto sm:min-w-48 sm:flex-1">
+      <label className="min-w-48 flex-1">
         Event
         <select name="event" defaultValue={eventId ?? ""}>
           <option value="">All events</option>
@@ -97,7 +97,7 @@ export default function PointHistoryFilterControls({
         </select>
       </label>
       {isAdmin && (
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-32">
+        <label className="min-w-32">
           Status
           <select name="status" defaultValue={status}>
             <option value="active">Active</option>
@@ -106,7 +106,7 @@ export default function PointHistoryFilterControls({
           </select>
         </label>
       )}
-      <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
+      <label className="min-w-40">
         From activity date
         <input
           name="from"
@@ -118,7 +118,7 @@ export default function PointHistoryFilterControls({
           }
         />
       </label>
-      <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
+      <label className="min-w-40">
         To activity date
         <input
           name="to"

@@ -39,7 +39,7 @@ export function RecurrenceScope({
   const [scope, setScope] = useState("occurrence");
   const [changeRecurrence, setChangeRecurrence] = useState(false);
   return (
-    <fieldset className="sm:col-span-2 space-y-3">
+    <fieldset className="col-span-2 space-y-3">
       <legend>
         {editing ? "Edit" : "Apply to"} recurring {recordType}
       </legend>

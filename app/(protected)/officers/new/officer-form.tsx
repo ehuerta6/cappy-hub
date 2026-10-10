@@ -35,10 +35,10 @@ export default function OfficerForm({
   );
   const fieldErrors = state.fieldErrors ?? {};
   return (
-    <form action={action} className="sm:grid-cols-2">
+    <form action={action} className="grid-cols-2">
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
       {officer && <input type="hidden" name="id" value={officer.id} />}
-      <label className="sm:col-span-2">
+      <label className="col-span-2">
         Name
         <input
           name="name"
@@ -53,7 +53,7 @@ export default function OfficerForm({
         />
         <FieldError id="officer-name-error">{fieldErrors.name}</FieldError>
       </label>
-      <p className="sm:col-span-2">Provide at least one email address.</p>
+      <p className="col-span-2">Provide at least one email address.</p>
       <label>
         UTEP email (optional)
         <input
@@ -173,7 +173,7 @@ export default function OfficerForm({
         </label>
       )}
       <fieldset
-        className="sm:col-span-2"
+        className="col-span-2"
         aria-invalid={Boolean(fieldErrors.branches)}
         aria-describedby={
           fieldErrors.branches ? "officer-branches-error" : undefined

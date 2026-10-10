@@ -530,7 +530,7 @@ it("Point History record links carry the same filtered page into Officers, Event
     expect(html).toContain(`href="${withReturnTo(record, returnTo)}"`);
 });
 
-it("keeps Point History values, source and admin context in its compact row", () => {
+it("keeps Point History values, source and admin context in table columns", () => {
   const transactions = [
     {
       id: 33,
@@ -575,11 +575,11 @@ it("keeps Point History values, source and admin context in its compact row", ()
   for (const value of [
     "Emi Huerta",
     "Workshop",
-    "Reason: Workshop correction",
+    "Workshop correction",
     "-2.5",
-    "Type: Correction",
-    "Activity date:",
-    "Actor: Club Administrator",
+    "Correction",
+    "Oct 2, 2026",
+    "Club Administrator",
     "Edit",
     "Remove",
   ])

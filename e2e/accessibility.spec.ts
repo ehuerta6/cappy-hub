@@ -16,6 +16,7 @@ async function signInAsAdmin(page: Page) {
   await page.goto("/login");
   await page.getByRole("button", { name: "Admin", exact: true }).click();
   await expect(page).toHaveURL((url) => url.pathname === "/");
+  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
 }
 
 test("local login has no detectable accessibility violations", async ({
@@ -32,6 +33,21 @@ test("Dashboard has no detectable accessibility violations", async ({
 }) => {
   await signInAsAdmin(page);
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+  await expectNoAxeViolations(page);
+});
+
+test("Points layout has no detectable accessibility violations", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/points");
+  await expect(
+    page.getByRole("heading", { name: "Officer totals" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Point history" }),
+  ).toBeVisible();
   await expectNoAxeViolations(page);
 });
 
@@ -125,7 +141,7 @@ test("new Task form has no detectable accessibility violations", async ({
   await expectNoAxeViolations(page);
 });
 
-test("Task detail completion controls are labeled, keyboard operable, and responsive", async ({
+test("Task detail completion controls are labeled and keyboard operable", async ({
   page,
 }) => {
   await signInAsAdmin(page);
@@ -146,15 +162,21 @@ test("Task detail completion controls are labeled, keyboard operable, and respon
   await expect(completion).toBeChecked();
   await expectNoAxeViolations(page);
 
-  await page.setViewportSize({ width: 390, height: 844 });
-  await expect(
-    page.getByRole("region", { name: "Task details" }),
-  ).toBeVisible();
-  await expect(page.getByRole("region", { name: "Officers" })).toBeVisible();
-  await expectNoAxeViolations(page);
+  for (const width of [1920, 1440, 1280, 1024]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await expect(
+      page.getByRole("region", { name: "Task details" }),
+    ).toBeVisible();
+    await expect(page.getByRole("region", { name: "Officers" })).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+  }
 });
 
-test("Task list stays concise and accessible at desktop and mobile widths", async ({
+test("Task list stays concise and accessible at desktop widths", async ({
   page,
 }) => {
   await signInAsAdmin(page);
@@ -187,23 +209,16 @@ test("Task list stays concise and accessible at desktop and mobile widths", asyn
   await expect(assignmentAction).toHaveClass(/py-1\.5/);
   await expectNoAxeViolations(page);
 
-  await page.setViewportSize({ width: 390, height: 844 });
-  await expect(taskRow.getByText(/^Due: /)).toBeVisible();
-  await expect(taskRow.getByText("Type: Flyer", { exact: true })).toBeVisible();
-  await expect(
-    taskRow.getByRole("cell").first().getByText("Intro", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    taskRow.getByText("Officers: 0 officers", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    taskRow.getByRole("cell").first().getByText("Open", { exact: true }),
-  ).toBeVisible();
-  await expect(assignmentAction).toBeVisible();
-  await expect(taskRow).not.toContainText(
-    "Prepare a flyer for the next intro workshop.",
-  );
-  await expectNoAxeViolations(page);
+  for (const width of [1920, 1440, 1280, 1024]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await expect(taskLink).toBeVisible();
+    await expect(assignmentAction).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+  }
 });
 
 test("Event and Task forms preview the same long weekly schedule", async ({

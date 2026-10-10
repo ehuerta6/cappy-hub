@@ -1,16 +1,13 @@
 "use client";
 
-import FullCalendar, { type CalendarRef } from "@fullcalendar/react";
+import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/react/daygrid";
-import listPlugin from "@fullcalendar/react/list";
 import classicThemePlugin from "@fullcalendar/react/themes/classic";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { useTheme } from "@/components/theme";
 import { filterCalendarEntries, type CalendarEntry } from "./calendar-events";
-
-export const COMPACT_CALENDAR_QUERY = "(max-width: 767px)";
 
 function calendarRoute(
   url: string,
@@ -30,25 +27,11 @@ export default function CalendarView({
 }) {
   const router = useRouter();
   const { theme } = useTheme();
-  const calendar = useRef<CalendarRef>(null);
   const [visible, setVisible] = useState({ event: true, task: true });
   const displayedEntries = filterCalendarEntries(entries, visible);
 
-  useEffect(() => {
-    const compact = window.matchMedia(COMPACT_CALENDAR_QUERY);
-    const updateView = () => {
-      const api = calendar.current?.getApi();
-      const view = compact.matches ? "listMonth" : "dayGridMonth";
-      // Changing the view on the same calendar keeps the browsed month intact.
-      if (api && api.view.type !== view) api.changeView(view);
-    };
-    updateView();
-    compact.addEventListener("change", updateView);
-    return () => compact.removeEventListener("change", updateView);
-  }, []);
-
   return (
-    <div className="calendar-shell min-w-0 rounded-md border border-border bg-surface p-3 sm:p-4">
+    <div className="calendar-shell min-w-0 rounded-md border border-border bg-surface p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <fieldset className="calendar-filters">
           <legend className="sr-only">Show Calendar entries</legend>
@@ -80,9 +63,8 @@ export default function CalendarView({
         </p>
       )}
       <FullCalendar
-        ref={calendar}
-        plugins={[classicThemePlugin, dayGridPlugin, listPlugin]}
-        initialView="listMonth"
+        plugins={[classicThemePlugin, dayGridPlugin]}
+        initialView="dayGridMonth"
         timeZone="America/Denver"
         colorScheme={theme}
         height="auto"
@@ -104,8 +86,6 @@ export default function CalendarView({
           meridiem: "short",
         }}
         allDayText="Due"
-        listDayFormat={{ month: "short", day: "numeric" }}
-        listDayAltFormat={{ weekday: "long" }}
         noEventsText="No entries this month. Try another month or adjust the filters."
         headerToolbar={{ left: "title", center: "", right: "prev,next today" }}
         toolbarClass="calendar-toolbar"
@@ -114,7 +94,6 @@ export default function CalendarView({
         dayCellClass={(info) => (info.isToday ? "calendar-today" : "")}
         dayCellInnerClass="calendar-day"
         dayCellTopClass="calendar-date"
-        listDayHeaderClass="calendar-list-date"
         eventClass="calendar-entry"
         eventContent={(info) => (
           <div className="calendar-entry-content">
@@ -132,7 +111,6 @@ export default function CalendarView({
             "aria-label",
             info.event.extendedProps.description,
           );
-          // List view assigns listitem roles to anchors; keep navigation discoverable.
           info.el.setAttribute("role", "link");
         }}
         eventClick={(info) => {

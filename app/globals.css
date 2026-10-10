@@ -358,19 +358,6 @@
   }
 }
 
-@media (max-width: 1023px) {
-  input:not([type="checkbox"]),
-  select,
-  textarea,
-  button {
-    min-height: 2.75rem;
-  }
-
-  fieldset label {
-    min-height: 2.75rem;
-  }
-}
-
 .calendar-shell {
   --fc-classic-border: var(--border);
   --fc-classic-strong-border: var(--border-strong);
@@ -508,35 +495,8 @@
   display: block;
 }
 
-.calendar-shell .calendar-list-date {
-  padding: 0.75rem;
-  background: var(--surface-muted);
-  color: var(--foreground);
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
 .calendar-shell .calendar-empty {
   margin-bottom: 1rem;
   color: var(--muted);
   font-size: 0.875rem;
-}
-
-@media (max-width: 767px) {
-  .calendar-shell .calendar-toolbar {
-    align-items: flex-start;
-  }
-
-  .calendar-shell .calendar-entry-content {
-    padding: 0.625rem 0.375rem;
-    font-size: 0.9375rem;
-  }
-
-  .calendar-shell .calendar-entry-meta {
-    font-size: 0.75rem;
-  }
-
-  .calendar-shell .calendar-entry-title {
-    display: block;
-  }
 }

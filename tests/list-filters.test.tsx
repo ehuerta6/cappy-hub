@@ -810,7 +810,7 @@ it("keeps officer identity, status and contact information in a semantic table",
   expect(html).toContain("Technical Officer");
   expect(html).toContain("Intro");
   expect(html).toContain("Active");
-  expect(html).toContain("Contact details");
+  expect(html).not.toContain("Contact details");
   expect(html).toContain('href="mailto:emi@miners.utep.edu"');
   expect(html).toContain('href="mailto:emi@example.test"');
 });
@@ -835,8 +835,8 @@ it("shows Task-specific details and self-assignment only in Other tasks", async 
   for (const heading of ["Due", "Type", "Branch", "Officers", "Status"])
     expect(html).toContain(`>${heading}</th>`);
   expect(html).toContain(">Action</th>");
-  expect(html).toContain("Due: Oct 8, 2099");
-  expect(html).toContain("Officers: 0 officers");
+  expect(html).not.toContain("Due: Oct 8, 2099");
+  expect(html).not.toContain("Officers: 0 officers");
   expect(html).toContain(">Open</span>");
   expect(html).toContain(">Intro</span>");
   expect(html).not.toContain(">Points</th>");

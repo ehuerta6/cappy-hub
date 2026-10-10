@@ -73,7 +73,7 @@ export default function EventForm({
   return (
     <form
       action={action}
-      className="sm:grid-cols-2"
+      className="grid-cols-2"
       onChange={(event) => {
         if (series)
           setEditedFields(changedFormFields(event.currentTarget, original));
@@ -118,7 +118,7 @@ export default function EventForm({
         />
       )}
 
-      <label className="sm:col-span-2">
+      <label className="col-span-2">
         Name
         <input
           name="name"
@@ -130,7 +130,7 @@ export default function EventForm({
         <FieldError id="event-name-error">{fieldErrors.name}</FieldError>
       </label>
 
-      <label className="sm:col-span-2">
+      <label className="col-span-2">
         Description
         <textarea
           name="description"
@@ -301,7 +301,7 @@ export default function EventForm({
         </FieldError>
       </label>
 
-      <label className="sm:col-span-2">
+      <label className="col-span-2">
         Date (El Paso)
         <input
           name="event_date"
@@ -320,7 +320,7 @@ export default function EventForm({
         <FieldError id="event-date-error">{fieldErrors.event_date}</FieldError>
       </label>
 
-      <p className="sm:col-span-2">
+      <p className="col-span-2">
         Choose one El Paso date. The event must start at or after 6:00 AM and
         end by 11:59 PM.
       </p>
@@ -372,7 +372,7 @@ export default function EventForm({
       </label>
 
       <fieldset
-        className="sm:col-span-2"
+        className="col-span-2"
         aria-invalid={Boolean(fieldErrors.branches)}
         aria-describedby={
           fieldErrors.branches ? "event-branches-error" : undefined

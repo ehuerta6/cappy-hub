@@ -3,11 +3,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 const {
   getAuthorizationContext,
+  canManagePoints,
   createClient,
   ordersByTable,
   totalOfficerIds,
 } = vi.hoisted(() => ({
   getAuthorizationContext: vi.fn(),
+  canManagePoints: vi.fn(),
   createClient: vi.fn(),
   ordersByTable: new Map<string, { column: string; ascending?: boolean }[]>(),
   totalOfficerIds: [] as number[][],
@@ -15,7 +17,7 @@ const {
 
 vi.mock("@/lib/authorization", () => ({
   getAuthorizationContext,
-  canManagePoints: () => false,
+  canManagePoints,
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
@@ -26,6 +28,7 @@ beforeEach(() => {
   ordersByTable.clear();
   totalOfficerIds.length = 0;
   getAuthorizationContext.mockResolvedValue({ id: 1 });
+  canManagePoints.mockReturnValue(false);
   createClient.mockResolvedValue({
     from: (table: string) => {
       const query = {
@@ -106,4 +109,38 @@ it("renders Rank from the existing sorted totals without changing their order", 
   expect(html).toMatch(/>2<\/td><td><a[^>]*>Second Officer<\/a>/);
   expect(html).toContain('class="w-20 tabular-nums text-muted"');
   expect(html).toContain('class="text-right"><span class="tabular-nums');
+});
+
+it("gives non-admins a centered totals table and keeps history full width", async () => {
+  const html = renderToStaticMarkup(
+    await PointsPage({ searchParams: Promise.resolve({}) }),
+  );
+
+  expect(html).toContain('class="mx-auto w-full max-w-4xl"');
+  expect(html).toContain("Participation rate:");
+  expect(html.indexOf("Officer totals")).toBeLessThan(
+    html.indexOf("Point history"),
+  );
+  expect(html).not.toContain("Point configuration");
+  expect(html).not.toContain("Add manual transaction or correction");
+});
+
+it("keeps the Admin totals and controls beside one another before full-width history", async () => {
+  canManagePoints.mockReturnValue(true);
+  const html = renderToStaticMarkup(
+    await PointsPage({ searchParams: Promise.resolve({}) }),
+  );
+
+  expect(html).toContain(
+    'class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(17rem,0.38fr)_minmax(0,0.62fr)]"',
+  );
+  expect(html.indexOf("Officer totals")).toBeLessThan(
+    html.indexOf("Point configuration"),
+  );
+  expect(html.indexOf("Point configuration")).toBeLessThan(
+    html.indexOf("Add manual transaction or correction"),
+  );
+  expect(html.indexOf("Add manual transaction or correction")).toBeLessThan(
+    html.indexOf("Point history"),
+  );
 });

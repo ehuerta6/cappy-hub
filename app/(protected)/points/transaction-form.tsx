@@ -22,8 +22,11 @@ export default function TransactionForm({
   );
   const fieldErrors = state.fieldErrors ?? {};
   return (
-    <form action={action} className="md:grid-cols-2 md:max-w-none">
-      <label className="md:col-span-2">
+    <form
+      action={action}
+      className="grid grid-cols-2 gap-x-4 gap-y-3 lg:max-w-none"
+    >
+      <label className="col-span-2">
         Officer
         <select
           name="officer_id"
@@ -62,7 +65,7 @@ export default function TransactionForm({
           {fieldErrors.points}
         </FieldError>
       </label>
-      <label className="md:col-span-2">
+      <label className="col-span-2">
         Reason
         <input
           name="reason"
@@ -105,7 +108,7 @@ export default function TransactionForm({
       </label>
       <button
         type="button"
-        className="button-secondary"
+        className="button-secondary self-end"
         disabled={searching || search.trim().length < 2}
         onClick={async () => {
           setSearching(true);
@@ -121,8 +124,12 @@ export default function TransactionForm({
       >
         {searching ? "Searching…" : "Search events"}
       </button>
-      {searchError && <FormMessage kind="error">{searchError}</FormMessage>}
-      <label>
+      {searchError && (
+        <div className="col-span-2">
+          <FormMessage kind="error">{searchError}</FormMessage>
+        </div>
+      )}
+      <label className="col-span-2">
         Event (optional)
         <select
           name="event_id"
@@ -143,8 +150,12 @@ export default function TransactionForm({
           {fieldErrors.event_id}
         </FieldError>
       </label>
-      <ActionFeedback state={state} />
-      <button disabled={pending} className="md:col-span-2">
+      {(state.error || state.success) && (
+        <div className="col-span-2">
+          <ActionFeedback state={state} />
+        </div>
+      )}
+      <button disabled={pending} className="lg:justify-self-start">
         {pending ? "Adding…" : "+ Add transaction"}
       </button>
     </form>
