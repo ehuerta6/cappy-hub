@@ -51,17 +51,18 @@ let tasks: ReturnType<typeof task>[];
 let warnings: ReturnType<typeof warning>[];
 let urls: URL[];
 let queryError: boolean;
+let failingTables: Set<string>;
 
 // Exercise the real Supabase query builder against synthetic responses. Filter
 // before limit, as PostgREST does; warning rows available here represent RLS reads.
 const mockFetch = async (input: RequestInfo | URL) => {
   const url = new URL(String(input));
   urls.push(url);
-  if (queryError)
+  const table = url.pathname.split("/").at(-1);
+  if (queryError || failingTables.has(table ?? ""))
     return new Response(JSON.stringify({ message: "Query failed" }), {
       status: 500,
     });
-  const table = url.pathname.split("/").at(-1);
   if (table === "dashboard_summary")
     return Response.json({ active_officer_count: 12, half_year_points: 42 });
   if (table === "officer_point_totals")
@@ -127,6 +128,7 @@ beforeEach(() => {
   warnings = [];
   urls = [];
   queryError = false;
+  failingTables = new Set();
   vi.mocked(requireCurrentOfficer).mockImplementation(async () => actor);
   vi.mocked(createClient).mockImplementation(async () => client());
 });
@@ -140,7 +142,7 @@ it("includes only this Officer's incomplete assignments", async () => {
     task(5, [], { removed_at: "2026-10-03" }),
   ];
   const result = await load();
-  expect(result.items.map((item) => [item.key, item.status])).toEqual([
+  expect(result!.items.map((item) => [item.key, item.status])).toEqual([
     ["task-1", "Not completed"],
     ["task-4", "Not completed"],
   ]);
@@ -208,7 +210,7 @@ it("prioritizes pending warnings and keeps Tasks ordered by due date and ID", as
     warning(2),
     warning(1, { created_at: "2026-10-01T00:00:00Z" }),
   ];
-  expect((await load()).items.map((item) => item.key)).toEqual([
+  expect((await load())!.items.map((item) => item.key)).toEqual([
     "warning-1",
     "warning-2",
     "warning-3",
@@ -216,7 +218,7 @@ it("prioritizes pending warnings and keeps Tasks ordered by due date and ID", as
     "task-2",
   ]);
   tasks = [];
-  expect((await load()).items.map((item) => item.key)).toEqual([
+  expect((await load())!.items.map((item) => item.key)).toEqual([
     "warning-1",
     "warning-2",
     "warning-3",
@@ -232,16 +234,16 @@ it("keeps a warning decision visible alongside five future Tasks", async () => {
   warnings = [warning(1)];
 
   const result = await load();
-  expect(result.items.map((item) => item.key)).toEqual([
+  expect(result!.items.map((item) => item.key)).toEqual([
     "warning-1",
     "task-1",
     "task-2",
     "task-3",
     "task-4",
   ]);
-  expect(result.items).toHaveLength(5);
-  expect(result.hasMore).toBe(true);
-  expect(result.hasPendingWarnings).toBe(true);
+  expect(result!.items).toHaveLength(5);
+  expect(result!.hasMore).toBe(true);
+  expect(result!.hasPendingWarnings).toBe(true);
 });
 
 it("caps the summary at five and bounds all source queries", async () => {
@@ -324,4 +326,54 @@ it("keeps the empty state lightweight and preserves profile, metrics and summary
   expect(html.indexOf('aria-label="Summary"')).toBeLessThan(
     html.indexOf('aria-label="Your action items"'),
   );
+});
+
+it("preserves other Dashboard content when recent point activity is unavailable", async () => {
+  failingTables.add("point_transactions");
+
+  const html = await render();
+
+  expect(html).toContain('aria-label="Summary"');
+  expect(html).toContain('aria-label="Upcoming events"');
+  expect(html).toContain("Recent point activity unavailable");
+  expect(html).not.toContain("No point transactions yet.");
+});
+
+it("keeps Task actions visible when Warning actions are unavailable", async () => {
+  tasks = [task(12)];
+  warnings = [warning(13)];
+  failingTables.add("officer_warnings");
+
+  const result = await load();
+  const html = await render();
+  const section = html
+    .split('aria-label="Your action items"')[1]
+    .split("</section>")[0];
+
+  expect(result.items.map((item) => item.key)).toEqual(["task-12"]);
+  expect(result.unavailableSources).toEqual({ tasks: false, warnings: true });
+  expect(section).toContain("Task 12");
+  expect(section).not.toContain("You&#x27;re all caught up.");
+  expect(section).toContain("Warning decisions unavailable");
+  expect(section).toContain("This list may be incomplete.");
+  expect(section).toContain("View warning decisions");
+});
+
+it("keeps Warning actions visible when Task actions are unavailable", async () => {
+  tasks = [task(12)];
+  warnings = [warning(13)];
+  failingTables.add("tasks");
+
+  const result = await load();
+  const html = await render();
+  const section = html
+    .split('aria-label="Your action items"')[1]
+    .split("</section>")[0];
+
+  expect(result.items.map((item) => item.key)).toEqual(["warning-13"]);
+  expect(result.unavailableSources).toEqual({ tasks: true, warnings: false });
+  expect(section).toContain("Warning for Alex");
+  expect(section).not.toContain("You&#x27;re all caught up.");
+  expect(section).toContain("Task actions unavailable");
+  expect(section).toContain("This list may be incomplete.");
 });

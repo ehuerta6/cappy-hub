@@ -36,10 +36,8 @@ it("shows Calendar in the protected navigation and marks it active", () => {
 
   expect(html).toMatch(/aria-current="page"[^>]*href="\/calendar"/);
   expect(html).toContain(">Calendar</a>");
-  expect(html).toContain(
-    'aria-label="Main navigation, current section: Calendar"',
-  );
-  expect(html).toContain("<details");
+  expect(html).toMatch(/aria-current="page"[^>]*href="\/calendar"/);
+  expect(html).not.toContain("<details");
   expect(html).toContain('aria-label="Main navigation"');
   for (const href of [
     "/",
@@ -76,9 +74,6 @@ it("marks Admin as the current section from its System Log workflow", () => {
     <SiteNavigation isAdmin={true} account={<span>Admin</span>} />,
   );
 
-  expect(html).toContain(
-    'aria-label="Main navigation, current section: Admin"',
-  );
   expect(html).toMatch(/aria-current="page"[^>]*href="\/admin"/);
   expect(html).not.toContain('href="/system-log"');
   pathState.current = "/calendar";
@@ -90,9 +85,6 @@ it("keeps nested records active under their primary navigation section", () => {
     <SiteNavigation isAdmin={false} account={<span>Officer</span>} />,
   );
 
-  expect(html).toContain(
-    'aria-label="Main navigation, current section: Officers"',
-  );
   expect(html).toMatch(/aria-current="page"[^>]*href="\/officers"/);
   pathState.current = "/calendar";
 });

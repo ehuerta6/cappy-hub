@@ -130,7 +130,7 @@ export default async function OfficersPage({
         active={hasFilters}
         clearHref="/officers"
       >
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-56 sm:flex-1">
+        <label className="min-w-56 flex-1">
           Search officers
           <input
             type="search"
@@ -140,7 +140,7 @@ export default async function OfficersPage({
             placeholder="Name or email"
           />
         </label>
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-36">
+        <label className="min-w-36">
           Status
           <select name="status" defaultValue={status}>
             <option value="active">Active</option>
@@ -148,7 +148,7 @@ export default async function OfficersPage({
             <option value="all">All</option>
           </select>
         </label>
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-44">
+        <label className="min-w-44">
           Position
           <select name="position" defaultValue={positionId ?? ""}>
             <option value="">All positions</option>
@@ -159,7 +159,7 @@ export default async function OfficersPage({
             ))}
           </select>
         </label>
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
+        <label className="min-w-40">
           Branch
           <select name="branch" defaultValue={branchId ?? ""}>
             <option value="">All branches</option>
@@ -207,24 +207,18 @@ export default async function OfficersPage({
                 <th scope="col" className="min-w-36">
                   Name
                 </th>
-                <th scope="col" className="hidden min-w-48 xl:table-cell">
+                <th scope="col" className="min-w-48">
                   UTEP email
                 </th>
-                <th scope="col" className="hidden min-w-48 xl:table-cell">
+                <th scope="col" className="min-w-48">
                   Personal email
                 </th>
-                <th scope="col" className="hidden min-w-44 xl:table-cell">
+                <th scope="col" className="min-w-44">
                   Position
                 </th>
-                <th scope="col" className="hidden xl:table-cell">
-                  Classification
-                </th>
-                <th scope="col" className="hidden xl:table-cell">
-                  Branches
-                </th>
-                <th scope="col" className="hidden xl:table-cell">
-                  Status
-                </th>
+                <th scope="col">Classification</th>
+                <th scope="col">Branches</th>
+                <th scope="col">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -237,75 +231,39 @@ export default async function OfficersPage({
                     >
                       {officer.name}
                     </Link>
-                    <div className="mt-2 space-y-2 xl:hidden">
-                      <div className="flex flex-wrap gap-x-1 text-sm text-muted">
-                        <span>{officer.positions.name}</span>
-                        <span aria-hidden="true">·</span>
-                        <span>
-                          {officer.classification
-                            ? formatLabel(officer.classification)
-                            : "Not specified"}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <BranchBadges
-                          branches={officer.officer_branches.map(
-                            (membership) => membership.branches.name,
-                          )}
-                        />
-                        <StatusBadge status={officer.status} />
-                      </div>
-                      <details>
-                        <summary className="flex min-h-11 cursor-pointer items-center">
-                          Contact details
-                        </summary>
-                        <dl className="text-sm">
-                          <dt>UTEP email</dt>
-                          <dd className="break-all">
-                            {officer.utep_email ? (
-                              <a href={"mailto:" + officer.utep_email}>
-                                {officer.utep_email}
-                              </a>
-                            ) : (
-                              "Not provided"
-                            )}
-                          </dd>
-                          <dt>Personal email</dt>
-                          <dd className="break-all">
-                            {officer.personal_email ? (
-                              <a href={"mailto:" + officer.personal_email}>
-                                {officer.personal_email}
-                              </a>
-                            ) : (
-                              "Not provided"
-                            )}
-                          </dd>
-                        </dl>
-                      </details>
-                    </div>
                   </td>
-                  <td className="hidden break-all text-muted xl:table-cell">
-                    {officer.utep_email ?? "—"}
+                  <td className="break-all text-muted">
+                    {officer.utep_email ? (
+                      <a href={`mailto:${officer.utep_email}`}>
+                        {officer.utep_email}
+                      </a>
+                    ) : (
+                      "—"
+                    )}
                   </td>
-                  <td className="hidden break-all text-muted xl:table-cell">
-                    {officer.personal_email ?? "—"}
+                  <td className="break-all text-muted">
+                    {officer.personal_email ? (
+                      <a href={`mailto:${officer.personal_email}`}>
+                        {officer.personal_email}
+                      </a>
+                    ) : (
+                      "—"
+                    )}
                   </td>
-                  <td className="hidden xl:table-cell">
-                    {officer.positions.name}
-                  </td>
-                  <td className="hidden xl:table-cell">
+                  <td>{officer.positions.name}</td>
+                  <td>
                     {officer.classification
                       ? formatLabel(officer.classification)
                       : "Not specified"}
                   </td>
-                  <td className="hidden xl:table-cell">
+                  <td>
                     <BranchBadges
                       branches={officer.officer_branches.map(
                         (membership) => membership.branches.name,
                       )}
                     />
                   </td>
-                  <td className="hidden xl:table-cell">
+                  <td>
                     <StatusBadge status={officer.status} />
                   </td>
                 </tr>

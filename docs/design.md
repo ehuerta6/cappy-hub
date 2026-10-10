@@ -27,7 +27,7 @@ The external design reference named in the changelog is only an influence on gen
 | Tasks               | `/tasks`                               | Search/filter, Your tasks and Other tasks, assignment counts, and available task actions.                   |
 | Task detail         | `/tasks/[id]`                          | Task details, per-Officer completion management, and recurring-task actions where applicable.               |
 | Create/edit task    | `/tasks/new`, `/tasks/[id]/edit`       | New tasks can repeat; authorized managers edit standalone and recurring Tasks.                              |
-| Calendar            | `/calendar`                            | FullCalendar month grid on desktop and month list on compact screens, with Event/Task visibility toggles.   |
+| Calendar            | `/calendar`                            | FullCalendar month grid with Event/Task visibility toggles.                                                 |
 | Officers            | `/officers`                            | Directory filters, officer table, and warning decisions awaiting the current user.                          |
 | Officer detail      | `/officers/[id]`                       | Profile, application access, warnings when visible, associated events, and points.                          |
 | Add/edit officer    | `/officers/new`, `/officers/[id]/edit` | Officer record fields; application role is managed separately.                                              |
@@ -43,7 +43,7 @@ The external design reference named in the changelog is only an influence on gen
 
 ### Current shell and access rules
 
-**CURRENT:** Protected pages require a current officer account. The compact top navigation links to Dashboard, Events, Tasks, Calendar, Officers, and Points. Admin appears there only when the current application role is `admin`. The right side shows the theme toggle, current officer name, and Sign out. System Log and Officer catalogs are not top-level navigation destinations; existing links into them come from Admin and Officers respectively.
+**CURRENT:** Protected pages require a current officer account. The horizontal navigation links to Dashboard, Events, Tasks, Calendar, Officers, and Points; it wraps naturally within the desktop header when needed. Admin appears there only when the current application role is `admin`. The right side shows the theme toggle, current officer name, and Sign out. System Log and Officer catalogs are not top-level navigation destinations; existing links into them come from Admin and Officers respectively.
 
 **CURRENT:** Admin-only tasks include the Admin landing page, officer/catalog management, point configuration and manual point actions, and System Log. Event/Task creation and management also depend on branch visibility: admins and the President/Vice Presidents can manage all branches; a Lead can manage work in their assigned branches. Active Officers may self-assign Tasks; only authorized managers control completion. Preserve the server-enforced permissions; visual hiding is not a substitute for them.
 
@@ -67,6 +67,7 @@ Use these questions when reviewing a screen or proposing a visual refinement. Ea
 - **Purpose:** What is this for? Does every visible element support the task, its hierarchy, or a meaningful brand detail? Remove elements with no such purpose.
 - **Agency:** Can a user tell what an action will do and what state the system is in? Can they leave a secondary workflow and recover from a mistake where the product permits recovery?
 - **Responsibility:** Does the UI reflect actual permissions and server results? Never imply access a user lacks, real-time behavior or synchronization that does not exist, or reversibility/security guarantees the application does not provide. Make consequences clear.
+- **Role composition:** When permissions remove controls, recompose the remaining content for that role. Do not preserve a grid column or empty panel solely for actions the user cannot access.
 - **Familiarity:** Do navigation, contextual return links, headers, tables, filters, forms, statuses, destructive actions, feedback, and empty states behave consistently with their established Cappy Hub patterns?
 - **Flexibility:** Does the layout remain understandable at laptop widths and in narrower browser windows, with long names, long event/task titles, many rows, multiple branches, keyboard-only use, and both themes?
 - **Simplicity:** Has every element earned its place? Remove redundant labels, duplicate status, decorative metadata, unnecessary containers, and repeated headings before adding styling. Minimalism means clarity, not hiding useful information.
@@ -104,9 +105,9 @@ A beautiful screen that fails an earlier category is not complete.
 
 ## 4. Capybara visual identity
 
-**CURRENT:** The header and login identify the product with the words “Cappy Hub”; there is no mascot graphic in the current UI.
+**CURRENT:** The authenticated header and login identify the product with the words “Cappy Hub”; the header also uses the CIC favicon mark. There is no separate mascot graphic in the current UI.
 
-**DESIGN DECISION:** Use one tiny, simplified capybara mark beside the Cappy Hub name on the login panel. Keep the authenticated global header text-only. The warmth of the rest of the interface should come from the palette and restrained geometry. A person unfamiliar with the mascot should read the product as a calm, professional tool.
+**DESIGN DECISION:** Keep the existing CIC mark small beside the Cappy Hub name in the authenticated header. Do not add separate mascot artwork to login or workflow screens. The warmth of the rest of the interface should come from the palette and restrained geometry. A person unfamiliar with the mark should read the product as a calm, professional tool.
 
 Do not add paw-print patterns, capybara art across application screens, animal-shaped controls, jungle motifs, brown gradients, water effects, novelty type, or mascot illustrations beside routine data. Tables, forms, admin workflows, and readability always take priority.
 
@@ -122,9 +123,9 @@ Dark mode is the current default and the visual flagship. Light mode is also imp
 | `foreground`                   | `#f4f4f5`                          | `#18181b`              |
 | `secondary`                    | `#d4d4d8`                          | `#3f3f46`              |
 | `muted`                        | `#a1a1aa`                          | `#52525b`              |
-| `subtle`                       | `#71717a`                          | `#71717a`              |
+| `subtle`                       | `#85858e`                          | `#6f6f78`              |
 | `border`                       | `#27272a`                          | `#e4e4e7`              |
-| `border-strong`                | `#3f3f46`                          | `#d4d4d8`              |
+| `border-strong`                | `#68686f`                          | `#8a8a93`              |
 | `surface`                      | `#111113`                          | `#ffffff`              |
 | `surface-muted`                | `#18181b`                          | `#f4f4f5`              |
 | `hover`                        | `#27272a`                          | `#f4f4f5`              |
@@ -147,21 +148,23 @@ Success, info, and danger also have matching border tokens in `globals.css`. The
 
 ## 6. Typography
 
-**CURRENT:** The application loads Geist Sans and Geist Mono through `next/font`. Normal UI uses Geist Sans. The body is 14px in many controls and tables. The shared `PageHeader` is 24px on small screens and 30px from the `sm` breakpoint; section headings are 18px; table headings are about 11px, medium weight, uppercase, and muted.
+**CURRENT:** The application loads Geist Sans and Geist Mono through `next/font`. Normal UI uses Geist Sans. The body is 14px in many controls and tables. The shared `PageHeader` is 24–30px; section headings are 18px; table headings are about 11px, medium weight, uppercase, and muted.
 
 **DESIGN DECISION:** Keep one modern sans-serif family for normal UI. Use a compact hierarchy: page titles around 24–28px semibold with tight tracking, section headings 16–18px semibold, body 14px, helper text 12–13px, table labels 11–12px medium and muted. Avoid oversized page titles and decorative type. Reserve monospace for genuinely technical identifiers or structured details where it improves scanning; do not use it as a visual theme.
 
 ## 7. Spacing, shape, and density
 
-**CURRENT:** Protected content uses a centered 72rem (1152px) reading width by default. Dashboard, Events, Tasks, Calendar, Officers, Points, Admin, and System Log can use a centered 80rem (1280px) width for data-heavy work. The shell keeps responsive side padding. Typical sections use 16–24px gaps, filters use compact padding, controls have 6px corners, and panels/table frames generally have 6–8px corners. There are no general drop shadows. Status and branch badges use compact fully rounded shapes.
+**CURRENT:** Protected content uses a centered 72rem (1152px) reading width by default. Dashboard, Events, Tasks, Calendar, Officers, Points, Admin, and System Log can use a centered 80rem (1280px) width for data-heavy work. The desktop shell uses consistent 24px side padding. Typical sections use 16–24px gaps, filters use compact padding, controls have 6px corners, and panels/table frames generally have 6–8px corners. There are no general drop shadows. Status and branch badges use compact fully rounded shapes.
 
 **DESIGN DECISION:** Use a simple 4px spacing rhythm (4, 8, 12, 16, 24, 32px). Keep common radii small to medium, roughly 6–10px, and borders close to 1px. Use almost no shadows. Keep full pills limited to short statuses or compact branch labels; do not make buttons, filter controls, or every field pill-shaped.
 
 On laptop/desktop, use the available width for lists and detail layouts. Aim for roughly 1200–1280px of content width when the screen benefits from it; the existing 1152px shared maximum is a useful current baseline, not a reason to squeeze data-heavy tables. Long reading text may remain narrower. Scrolling is acceptable; remove avoidable vertical space, oversized controls, repeated page chrome, and always-open forms before removing useful information.
 
+**DESIGN DECISION:** Cappy Hub is a desktop-only administrative application. Optimize for 1024–1920px, especially 1280px and 1440px. Phone and tablet layouts are unsupported and should not receive dedicated navigation, calendar, form, or table variants. Preserve keyboard access, browser zoom, text scaling, ordinary desktop window resizing, theme support, and appropriate horizontal overflow.
+
 ## 8. Application shell
 
-**CURRENT:** Authenticated pages share a compact top header. Cappy Hub is at the left; primary links occupy the middle; theme control, officer name, and Sign out sit to the right. On narrower screens, navigation wraps onto its own horizontally scrollable row. The page body is centered below it. There is no sidebar, avatar, notification bell, or global search.
+**CURRENT:** Authenticated pages share one compact top header. Cappy Hub is at the left; primary links occupy the middle; theme control, officer name, and Sign out sit to the right. Navigation links wrap within the header when a desktop window is resized or zoomed. The page body is centered below it. There is no sidebar, avatar, notification bell, or global search.
 
 **DESIGN DECISION:** Preserve this single compact navigation architecture. Keep the header understated and let the page title establish the screen. Do not add a sidebar, global search, command palette, notifications, organization switcher, required avatar, or breadcrumbs everywhere.
 
@@ -237,7 +240,7 @@ Use neutral badges for branches. Keep officer position and classification as pla
 
 Tables are a core pattern for directory, event, point, and audit work. **CURRENT:** Global table styling uses a subtly distinct header, muted uppercase labels, 1px horizontal separators, 8px vertical / 12px horizontal compact cell padding and 10px vertical / 14px horizontal standard cell padding, no vertical gridlines, a light row hover, and links that inherit the neutral theme rather than browser blue. Tables have a 38rem minimum width inside a horizontal overflow frame.
 
-**DESIGN DECISION:** Keep tables task-oriented and horizontally efficient. Use compact but readable rows, muted labels, subtle separators and hover, no heavy grid, no vertical borders, and tabular numerals for points, counts, and dates where useful. Give record names and important values enough room; allow horizontal scroll instead of truncating every column. Do not expose database columns just because they exist, and do not remove useful existing information without an explicit product decision. On narrow screens retain headers and horizontal scroll so a user can understand which value belongs to which column.
+**DESIGN DECISION:** Keep tables task-oriented and horizontally efficient. Use compact but readable rows, muted labels, subtle separators and hover, no heavy grid, no vertical borders, and tabular numerals for points, counts, and dates where useful. Give record names and important values enough room; allow horizontal scroll instead of truncating every column. Do not expose database columns just because they exist, and do not remove useful existing information without an explicit product decision. During desktop window resizing or zoom, retain headers and horizontal table scrolling so a user can understand which value belongs to which column.
 
 ## 15. Filters and search
 
@@ -260,7 +263,7 @@ Tables are a core pattern for directory, event, point, and audit work. **CURRENT
 
 Long workflows belong on dedicated pages, with a contextual return link. Small, focused actions can stay inline beside the record they affect. **CURRENT:** Event cancellation/archive, standalone and recurring Task archive, Point transaction removal, and warning approval/rejection use the shared in-app `ConfirmationDialog`, built on native HTML `<dialog>`. Recurring Event/Task actions show the selected occurrence scope from the existing form state. Other operations should be described according to their actual behavior, not assumed to share that confirmation pattern.
 
-**DESIGN DECISION:** Group long forms into clear sections using the field names and relationships already present. Use two columns on desktop only for natural pairs; collapse to one column on narrow screens. Prefer existing constrained choices over unnecessary free typing. Keep labels explicit and optional/required status faithful to current validation. Validate close to the relevant field or action. Do not infer required fields or change validation rules for a proposed layout. Any dialog used for a future focused action must have a clear name and exit, work by keyboard, and avoid stacking with another dialog.
+**DESIGN DECISION:** Group long forms into clear sections using the field names and relationships already present. Use two columns at supported desktop widths for natural pairs; collapse to one column only when desktop resizing or zoom leaves insufficient room. Prefer existing constrained choices over unnecessary free typing. Keep labels explicit and optional/required status faithful to current validation. Validate close to the relevant field or action. Do not infer required fields or change validation rules for a proposed layout. Any dialog used for a future focused action must have a clear name and exit, work by keyboard, and avoid stacking with another dialog.
 
 | Existing form                       | Current fields and constraints to preserve                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -285,7 +288,7 @@ Distinguish truly empty data from zero results caused by active filters. Use ter
 
 ## 18. Responsive behavior
 
-Desktop/laptop is the primary target. Keep the navigation usable as it wraps, let grids collapse naturally, change paired form columns to one column, and let filter bars wrap. Data-heavy tables may scroll horizontally. Calendar currently switches from a desktop month grid to a month list at compact widths (767px and below), keeping the browsed month when the view changes. Keep labels and table headings visible, preserve content order, and avoid replacing the product with a separate mobile feature model. Do not attempt to fit every page above the fold.
+Cappy Hub is designed for desktop and laptop widths from 1024px to 1920px, with 1280px and 1440px as the primary review widths. Desktop navigation can wrap naturally when the browser window narrows. Paired forms and filters use the desktop layout; data-heavy semantic tables retain every column and may scroll horizontally within their table frame. The Calendar uses its month grid. Do not add phone or tablet variants. Browser zoom, text scaling, keyboard navigation, and ordinary desktop resizing remain supported. Do not force every page above the fold.
 
 ## 19. Accessibility
 
@@ -322,7 +325,7 @@ The following sections describe the actual product workflows and the design dire
 - **Purpose:** Give each signed-in officer a useful current view and direct access to work that needs attention.
 - **Existing functionality that MUST be preserved — CURRENT:** Shows the current officer's name, club position, personal total points, and View profile link; three club summary metrics (active officers, upcoming events, points this half-year); a note defining January–June/July–December in America/Denver and that points include signed corrections; up to five personal action items from the current officer's incomplete Task assignments and pending warning decisions; all upcoming non-cancelled/non-removed events with schedule, signup status, and officer count; and the latest ten active point transactions with officer, related event/task or reason, points, and date. Links lead to the full owning area. The action-item list reports when more than five items exist.
 - **Information hierarchy:** Page title/profile access; compact summary metrics and their explanation; action items; then upcoming events and recent point activity.
-- **Recommended layout:** Keep the metrics in one modest row, action items as a simple divided list, and the two recent-activity sections side by side on wide screens. Let them stack on narrow screens.
+- **Recommended layout:** Keep the metrics in one modest row, action items as a simple divided list, and the two recent-activity sections side by side at desktop widths. Let them stack when desktop window resizing or zoom leaves insufficient room.
 - **Primary action:** No single global action; each action-item row is a direct link to its task or warning decision.
 - **Secondary actions:** View profile; View all Tasks; View warning decisions; View all Events; View all Points.
 - **Data presentation:** Small metric blocks, divided list rows, compact event list, compact point activity list. Use existing schedule and point formatters.
@@ -346,7 +349,7 @@ The following sections describe the actual product workflows and the design dire
 - **Purpose:** Understand an event, manage its participation, and review event-related points.
 - **Existing functionality that MUST be preserved — CURRENT:** Contextual link to Events that returns to the originating filtered list when opened from one; event description, type, location, date, start/end, processing rate state, status, branches, and optional Slides, Meeting notes, and Signup sheet resource links; current officer's signup state; signed-up officer table; eligible signup removal/self-signup/manager add actions; manager past-event attendee addition and saved-rate point award information; manager edit, cancel, restore-cancellation, archive, and restore-archive actions according to event state; latest 100 point transactions and link to all event history. Event management is branch-permission dependent. Restoring an archived Event does not uncancel it.
 - **Information hierarchy:** Event name/status and return link; event details and participation; event point history.
-- **Recommended layout:** Two aligned detail sections on desktop (event information, participation/progress), with point history below. Keep descriptions and links easy to scan.
+- **Recommended layout:** Two aligned detail sections on desktop (event information, participation/progress), with point history below. Keep descriptions and links easy to scan. Manager bulk add controls stay beside the roster in a compact disclosure; signed-up Officers and permitted removal actions remain visible. Regular Officers see their personal state and self-service action only.
 - **Primary action:** Edit event when the manager and event state allow it; otherwise show only the relevant signup/participation action.
 - **Secondary actions:** Cancel, restore cancellation, archive or restore archive, manage signups/attendees, open Slides/Meeting notes/Signup sheet resources, view all point history, and follow officer/event links where currently available.
 - **Data presentation:** Definition-list metadata, compact signup table, point transaction table, status badge, neutral branches.
@@ -358,8 +361,8 @@ The following sections describe the actual product workflows and the design dire
 - **Purpose:** Create an event or edit a selected event, including supported changes to a recurring series.
 - **Existing functionality that MUST be preserved — CURRENT:** Dedicated New event and Edit event pages with contextual return links. When edit starts from an event opened in a filtered list, the originating list context survives the edit form and save. Form fields and recurrence scope are specified in §16. Branch options are scoped to the actor; an authorized global event may have no branch. New event is available to admins/all-branch executives and Leads with branch membership. Existing event editing follows branch permissions.
 - **Information hierarchy:** Return link and page title; event identity/description; type/location and resource links; date/time; branch selection; optional recurrence; inline validation and save.
-- **Recommended layout:** Keep name/description full width, pair Type with Location and Start with End, group schedule help beside Date/time, and keep branch checkboxes and recurrence in clearly labeled fieldsets. One-column form on narrow screens.
-- **Primary action:** Save event; show pending “Saving…” feedback.
+- **Recommended layout:** Use a balanced two-column desktop composition: Event information beside Schedule and location, Resources across both columns, then Participation and capacity beside recurrence when present. Keep name and description comfortably wide within their section; avoid stretching every control across the page. At narrow desktop widths or zoom, use one column. Branch selection stays grouped with participation and capacity.
+- **Primary action:** Create event on the new-event form or Save event on the edit form; show pending “Saving…” feedback.
 - **Secondary actions:** Select all/Clear all branches; return to Events or the edited Event.
 - **Data presentation:** Labeled form controls, checkboxes for branches, optional URL fields, recurrence choices and scope.
 - **Minimalism notes:** Group fields without changing validation. Preserve the schedule restriction/help text and distinguish creation recurrence from series editing.
@@ -370,7 +373,7 @@ The following sections describe the actual product workflows and the design dire
 - **Purpose:** Find assigned and unassigned work, then open a Task to manage its Officers and completion.
 - **Existing functionality that MUST be preserved — CURRENT:** Search title/description; filter by Current/Past view, Open/In progress/Complete workflow status, branch, and assignee. Authorized managers also have an explicit Archived view. Current tasks are active records due today or later in **This week's tasks** (due through Sunday in America/Denver) and **Upcoming tasks** (due after Sunday). Past tasks require the explicit `view=past` filter and are due before today. Within every temporal view, **Your tasks** means the current Officer has an assignment and **Other tasks** means they do not; a Task assigned to other Officers remains in Other tasks for this Officer. Current tasks sort nearest due date first; Past tasks sort newest due date first. Table columns are Task, Due, Type, Branch, Officers, Status, and eligible Action; descriptions and Points are omitted from list rows. Eligible Current Other tasks offer Assign to me; Past is read-only. There is no row-level manager assignment or self-completion. Opening a task preserves view and other filter context through detail and edit. New task follows current branch permissions. Archived Tasks remain outside routine browsing and are visible only in the manager Archived view.
 - **Information hierarchy:** Page title/New task; filters; This week's tasks and Upcoming tasks, each containing Your tasks and Other tasks. Past and authorized Archived are separate explicit views; Past uses the same participation subgroups. Temporal view and workflow status remain separate filter dimensions.
-- **Recommended layout:** Keep compact tables inside semantic time sections and named assignment subgroups. Use a section-level empty message when a time group has no Tasks and concise subgroup empty messages otherwise. Rows show Task, Due, Type, Branch, Officers, Status, and an eligible Action; omit descriptions and Points from list rows. On narrow screens keep only scan metadata, without full descriptions.
+- **Recommended layout:** Keep compact tables inside semantic time sections and named assignment subgroups. Use a section-level empty message when a time group has no Tasks and concise subgroup empty messages otherwise. Rows show Task, Due, Type, Branch, Officers, Status, and an eligible Action; omit descriptions and Points from list rows. Preserve these table columns during desktop window resizing and use the table's horizontal overflow when needed.
 - **Primary action:** New task for authorized users; Assign to me in an eligible Other tasks row.
 - **Secondary actions:** Open a Task by selecting its name; apply or clear filters.
 - **Data presentation:** Task title, concise Denver calendar due date, type/branch metadata, a progress label such as `0 officers` or `2/3 completed`, and Open/In progress/Complete state. Description remains searchable and appears on Task detail; Points remain on detail and in Task behavior.
@@ -392,9 +395,9 @@ The following sections describe the actual product workflows and the design dire
 ### Create/edit Task
 
 - **Purpose:** Create a work item or change supported fields of a standalone or recurring Task.
-- **Existing functionality that MUST be preserved — CURRENT:** New task page allows authorized all-branch users or Leads with branches. It includes title, description, task type, branch, due date, points, optional Event links, and optional daily/weekly recurrence. Event links provide context only and follow the selected recurrence edit scope. Archived and cancelled Events are not offered as new links. Authorized managers can edit standalone Tasks; recurring Tasks retain occurrence/following/all scope. Points cannot be changed after a completion or Task award exists, preserving earned history. Assignment is managed after creation on Task detail. There is no approval field or approval workflow.
+- **Existing functionality that MUST be preserved — CURRENT:** New task page allows authorized all-branch users or Leads with branches. It includes title, description, task type, branch, due date, points, optional Event links, and optional daily/weekly recurrence. Event links provide context only and follow the selected recurrence edit scope; the form explains how to select multiple Events. Archived and cancelled Events are not offered as new links. Authorized managers can edit standalone Tasks; recurring Tasks retain occurrence/following/all scope. Points cannot be changed after a completion or Task award exists, preserving earned history. Assignment is managed after creation on Task detail. There is no approval field or approval workflow.
 - **Information hierarchy:** Return link and title; Task description/details; due date and points; optional linked Events; recurrence group for new/series edits; validation and save.
-- **Recommended layout:** Keep title/description easy to scan; pair Type with Branch and Due date with Points on desktop where the design fits. Collapse to one column on narrow screens.
+- **Recommended layout:** Use the available desktop width for the creation/edit form, capped at a readable wide measure. Pair Title with Description, Type with Branch, and Due date with Points. Let the optional Linked Events selector and recurrence controls span both columns; this two-column form serves supported desktop widths.
 - **Primary action:** Create Task or Save Task, with pending feedback.
 - **Secondary actions:** Recurrence-scope controls when editing; contextual return to Tasks or the Task.
 - **Data presentation:** Labeled inputs/selects, optional multi-select Event field, recurrence fieldset and recurrence scope explanation.
@@ -404,14 +407,14 @@ The following sections describe the actual product workflows and the design dire
 ### Calendar
 
 - **Purpose:** See event schedules and task due dates together.
-- **Existing functionality that MUST be preserved — CURRENT:** FullCalendar uses a desktop `dayGridMonth` and switches to `listMonth` at compact widths (767px and below), preserving the viewed month across the switch. Events and Tasks can be toggled independently and both are visible by default. It includes non-deleted, non-cancelled events and non-removed tasks; event times use America/Denver, task dates are all-day due dates, and selecting an entry opens its Event or Task detail. The month grid shows up to three entries per day before a “more” popover. Entry labels identify Event/Task and time/Due; entry links expose accessible descriptions. Calendar controls include Previous, Next, and Today; an empty/filtered state explains when there are no entries or no selected types. Event entries are blue and task due-date entries ochre to distinguish item types.
-- **Information hierarchy:** Page title/description; compact Event/Task visibility controls and timezone note; responsive month grid or month list.
-- **Recommended layout:** Retain FullCalendar and its current responsive month/list behavior and type toggles. Style its typography, controls, borders, entry contrast, and surfaces from the shared theme. Keep the calendar as the main content.
+- **Existing functionality that MUST be preserved — CURRENT:** FullCalendar uses the `dayGridMonth` desktop calendar. Events and Tasks can be toggled independently and both are visible by default. It includes non-deleted, non-cancelled events and non-removed tasks; event times use America/Denver, task dates are all-day due dates, and selecting an entry opens its Event or Task detail. The month grid shows up to three entries per day before a “more” popover. Entry labels identify Event/Task and time/Due; entry links expose accessible descriptions. Calendar controls include Previous, Next, and Today; an empty/filtered state explains when there are no entries or no selected types. Event entries are blue and task due-date entries ochre to distinguish item types.
+- **Information hierarchy:** Page title/description; Event/Task visibility controls and timezone note; month grid.
+- **Recommended layout:** Retain FullCalendar month grid and type toggles. Style its typography, controls, borders, entry contrast, and surfaces from the shared theme. Keep the calendar as the main content.
 - **Primary action:** Navigate the month; selecting an entry opens its detail page.
 - **Secondary actions:** Toggle event/task visibility; Today and previous/next month controls; open the “more” popover.
-- **Data presentation:** Native FullCalendar month grid on desktop and month list at compact widths, with compact event/task entries. The two colors mean item type, not status.
-- **Minimalism notes:** Make the calendar palette quiet in both themes, preserve the type toggles and FullCalendar overflow/list behavior, and keep event times readable.
-- **Do not add:** A custom calendar replacement, additional filters or views beyond the current type toggles and responsive month/list views, attendance indicators, drag/drop workflows, or new entry types.
+- **Data presentation:** Native FullCalendar month grid, with Event and Task entries. The two colors mean item type, not status.
+- **Minimalism notes:** Make the calendar palette quiet in both themes, preserve the type toggles and FullCalendar overflow behavior, and keep event times readable.
+- **Do not add:** A custom calendar replacement, additional filters or views beyond the current type toggles and month grid, attendance indicators, drag/drop workflows, or new entry types.
 
 ### Officers list
 
@@ -442,7 +445,7 @@ The following sections describe the actual product workflows and the design dire
 - **Purpose:** Create or update an officer record.
 - **Existing functionality that MUST be preserved — CURRENT:** Admin-only dedicated Add officer/Edit officer pages with contextual return links. When editing from a filtered directory, the return destination is preserved through the form and save. Required name and position; at least one of UTEP or personal email; optional classification and branches; status is editable on existing records only. Application role does not belong to this form.
 - **Information hierarchy:** Contextual link/title; name and contact; position/classification/status; branch choices; validation and save.
-- **Recommended layout:** Keep name full width, pair the two email fields and position/classification where natural, then use one branch fieldset. One column on narrow screens.
+- **Recommended layout:** Keep name full width, pair the two email fields and position/classification where natural, then use one branch fieldset. Keep these pairs on desktop; use one column only when browser resizing or zoom leaves insufficient room.
 - **Primary action:** Save officer.
 - **Secondary actions:** Return to Officers or the officer detail.
 - **Data presentation:** Labeled fields, optional text in labels, dropdowns, branch checkboxes, inline validation.
@@ -478,7 +481,7 @@ The following sections describe the actual product workflows and the design dire
 - **Purpose:** Explain and manage participation points, officer totals, and transaction history.
 - **Existing functionality that MUST be preserved — CURRENT:** Current participation rate is visible to everyone and editable by admins. Officer totals are shown for all officers, sorted by total then name. The page explains that finished-event participation awards are processed automatically. Admins can add manual transactions/corrections linked optionally to an event, search older events, edit point amounts, and remove transactions. History supports search, award type, officer, event, date range, and 25-row pagination; admins also filter active/removed/all and see actor/removal metadata and actions. Non-admin history remains limited to active records. Officer/Event/Task links in Point History preserve its filters and page for the contextual return path.
 - **Information hierarchy:** Rate/configuration; officer totals; admin transaction form when permitted; point history filters, results, and paging.
-- **Recommended layout:** Keep the long page as compact labeled sections. Do not turn every total into a card; allow officer totals and history to use the full available width. Keep manual entry visually separate from read-only history.
+- **Recommended layout:** For Admins, bound the totals table to a readable independent scroll region beside rate configuration and manual transaction entry, then give Point history the full content width. For everyone else, show the read-only participation rate beside the page heading, bound totals to an independently scrollable readable region, and place full-width Point history immediately after it. Keep history filters and the first rows discoverable without traversing every total. Admin transaction rows show read-only values by default with editing revealed on request; Remove remains available beside each row.
 - **Primary action:** Admin Save rate or Add transaction, depending on the task; history is the main browsing workflow for other users.
 - **Secondary actions:** Edit/remove available transaction; apply/clear filters; Previous/Next page; open officer/event/task records.
 - **Data presentation:** Ranked total table, admin form, filter bar, history table with signed PointValue and semantic type/status labels.
@@ -587,3 +590,5 @@ Every generated redesign must preserve the existing screen's access rules, actua
 - **2026-10-04 — Task management parity.** Updated the current Task list, assignment/completion, standalone edit/removal, Dashboard and due-date points behavior for Issue #129. The approval workflow remains only in legacy database compatibility and historical records.
 - **2026-10-04 — Task list presentation parity.** Removed descriptions and Points from Task list rows, formatted due dates for concise display, and matched the row assignment action to Event signup. Search, Task detail, and points behavior remain unchanged for Issue #136.
 - **2026-10-04 — Administrative presentation refinement.** Widened data-heavy protected pages while retaining the narrower reading width elsewhere, compacted table and filter spacing, refined Dashboard participation color, added a derived Rank to sorted Points totals, and simplified Admin links. Routes, data, workflows, and permissions remain unchanged for Issue #128.
+- **2026-10-09 — System-wide quality pass.** Raised secondary text and control-boundary contrast, separated protected navigation from the page main landmark with a skip link, improved date-filter error semantics, clarified linked-Event selection, and formatted Event dates consistently. Routes, filters, permissions, and domain behavior remain unchanged for Issue #203.
+- **2026-10-09 — Desktop workflow refinement.** Added role-aware Points composition: Admin controls remain beside totals, while Officers get a centered read-only totals table and full-width history. Grouped Task form fields for desktop entry. Replaced compact disclosure navigation with wrapping desktop navigation, removed Calendar list-view switching, and removed duplicate phone table presentations. Desktop-only target: 1024–1920px; permissions and workflows are unchanged.

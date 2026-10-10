@@ -38,6 +38,30 @@ it("shows retired catalog state and a reactivation action", () => {
   expect(html).toContain('name="operation" value="reactivate"');
 });
 
+it("renders compact editable management rows without unsupported location retirement", () => {
+  const branchHtml = renderToStaticMarkup(
+    createElement(CatalogManager, {
+      catalog: "branch",
+      title: "Branches",
+      records: [{ id: 8, name: "Systems", is_active: true }],
+    }),
+  );
+  const locationHtml = renderToStaticMarkup(
+    createElement(CatalogManager, {
+      catalog: "event_location",
+      title: "Event locations",
+      records: [{ id: 9, name: "Engineering Building" }],
+    }),
+  );
+
+  expect(branchHtml).toContain('class="catalog-record-row"');
+  expect(branchHtml).toContain("Branch name for Systems");
+  expect(branchHtml).toContain('name="operation" value="retire"');
+  expect(locationHtml).toContain('class="catalog-record-row"');
+  expect(locationHtml).not.toContain('name="operation" value="retire"');
+  expect(locationHtml).not.toContain('name="operation" value="reactivate"');
+});
+
 it.each([
   [
     "position",

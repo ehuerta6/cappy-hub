@@ -9,16 +9,11 @@ import {
 const harness = vi.hoisted(() => ({
   options: {} as CalendarOptions,
   visible: { event: true, task: true },
-  effects: [] as Array<() => (() => void) | void>,
-  api: { view: { type: "listMonth" }, changeView: vi.fn() },
   push: vi.fn(),
 }));
 
 vi.mock("react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react")>()),
-  useRef: () => ({ current: { getApi: () => harness.api } }),
-  useEffect: (effect: () => (() => void) | void) =>
-    harness.effects.push(effect),
   useState: () => [
     harness.visible,
     (update: (current: typeof harness.visible) => typeof harness.visible) => {
@@ -39,14 +34,11 @@ vi.mock("@fullcalendar/react", () => ({
 vi.mock("@fullcalendar/react/daygrid", () => ({
   default: { name: "daygrid" },
 }));
-vi.mock("@fullcalendar/react/list", () => ({ default: { name: "list" } }));
 vi.mock("@fullcalendar/react/themes/classic", () => ({
   default: { name: "classic" },
 }));
 
-import CalendarView, {
-  COMPACT_CALENDAR_QUERY,
-} from "@/app/(protected)/calendar/calendar-view";
+import CalendarView from "@/app/(protected)/calendar/calendar-view";
 
 const entries = [
   ...mapEventOccurrences([
@@ -62,52 +54,28 @@ const entries = [
 
 beforeEach(() => {
   harness.visible = { event: true, task: true };
-  harness.effects = [];
-  harness.api.view.type = "listMonth";
   vi.clearAllMocks();
   vi.unstubAllGlobals();
 });
 
-it("uses the installed list plugin, Denver time, and a read-only month with reachable overflow", () => {
+it("uses the desktop month view, Denver time, and a read-only calendar", () => {
   const html = renderToStaticMarkup(<CalendarView entries={entries} />);
   expect(html).toContain("Show Calendar entries");
   expect(html.match(/checked=""/g)).toHaveLength(2);
-  expect(harness.options.plugins).toContainEqual({ name: "list" });
+  expect(harness.options.plugins).toEqual([
+    { name: "classic" },
+    { name: "daygrid" },
+  ]);
   expect(harness.options.timeZone).toBe("America/Denver");
   expect(harness.options.editable).toBe(false);
   expect(harness.options.selectable).toBe(false);
-  expect(harness.options.initialView).toBe("listMonth");
+  expect(harness.options.initialView).toBe("dayGridMonth");
   expect(harness.options.fixedWeekCount).toBe(false);
   expect(harness.options.dayMaxEvents).toBe(3);
   expect(harness.options.popoverClass).toBe("calendar-shell calendar-popover");
   expect(harness.options.moreLinkClick).toBe("popover");
   expect(harness.options.noEventsText).toContain("No entries this month");
   expect(harness.options.colorScheme).toBe("light");
-});
-
-it("switches at the compact breakpoint without remounting or resetting the date", () => {
-  renderToStaticMarkup(<CalendarView entries={entries} />);
-  const media = {
-    matches: false,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  };
-  const matchMedia = vi.fn(() => media);
-  vi.stubGlobal("window", { matchMedia });
-  const cleanup = harness.effects[0]();
-  expect(matchMedia).toHaveBeenCalledWith(COMPACT_CALENDAR_QUERY);
-  expect(harness.api.changeView).toHaveBeenCalledWith("dayGridMonth");
-  harness.api.view.type = "dayGridMonth";
-  media.matches = true;
-  const onChange = media.addEventListener.mock.calls[0][1];
-  onChange();
-  expect(harness.api.changeView).toHaveBeenLastCalledWith("listMonth");
-  harness.api.view.type = "listMonth";
-  harness.api.changeView.mockClear();
-  onChange();
-  expect(harness.api.changeView).not.toHaveBeenCalled();
-  cleanup?.();
-  expect(media.removeEventListener).toHaveBeenCalledWith("change", onChange);
 });
 
 it("the checkbox callbacks update transient state and display the selected entries", () => {

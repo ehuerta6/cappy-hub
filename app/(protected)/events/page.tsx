@@ -178,8 +178,16 @@ export default async function EventsPage({
   const maySignUp = (title: string) =>
     title === "Other events" &&
     (status === undefined || status === "upcoming" || status === "happening");
-  const renderGroup = (title: string, groupEvents: EventListItem[]) => (
-    <section key={title} aria-label={title} className="space-y-3">
+  const renderGroup = (
+    title: string,
+    groupEvents: EventListItem[],
+    period: string,
+  ) => (
+    <section
+      key={`${period}-${title}`}
+      aria-label={`${period} — ${title}`}
+      className="space-y-3"
+    >
       <h3 className="font-semibold text-foreground">{title}</h3>
       {!groupEvents.length ? (
         <p>No events in this group.</p>
@@ -187,29 +195,19 @@ export default async function EventsPage({
         <TableFrame compact>
           <table>
             <thead>
-              <tr className="grid grid-cols-1 md:table-row">
+              <tr>
                 <th scope="col">Event</th>
-                <th scope="col" className="hidden xl:table-cell">
-                  Schedule (El Paso)
-                </th>
-                <th scope="col" className="hidden xl:table-cell">
-                  Type
-                </th>
-                <th scope="col" className="hidden xl:table-cell">
-                  Branches
-                </th>
-                <th scope="col" className="hidden xl:table-cell">
-                  Officers
-                </th>
-                <th scope="col" className="hidden xl:table-cell">
-                  Status
-                </th>
+                <th scope="col">Schedule (El Paso)</th>
+                <th scope="col">Type</th>
+                <th scope="col">Branches</th>
+                <th scope="col">Officers</th>
+                <th scope="col">Status</th>
                 {maySignUp(title) && <th scope="col">Action</th>}
               </tr>
             </thead>
             <tbody>
               {groupEvents.map((event) => (
-                <tr key={event.id} className="grid grid-cols-1 md:table-row">
+                <tr key={event.id}>
                   <td className="min-w-0">
                     <Link
                       href={withReturnTo(`/events/${event.id}`, returnTo)}
@@ -217,37 +215,20 @@ export default async function EventsPage({
                     >
                       {event.name}
                     </Link>
-                    <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted xl:hidden">
-                      <span>
-                        {formatEventSchedule(event.starts_at, event.ends_at)}
-                      </span>
-                      <span>{event.event_types.name}</span>
-                      <BranchBadges
-                        branches={event.event_branches.map(
-                          (eventBranch) => eventBranch.branches.name,
-                        )}
-                      />
-                      <span>{eventSignupCountLabel(event)}</span>
-                      <StatusBadge status={eventStatus(event, now.getTime())} />
-                    </div>
                   </td>
-                  <td className="hidden xl:table-cell">
-                    {formatEventSchedule(event.starts_at, event.ends_at)}
-                  </td>
-                  <td className="hidden xl:table-cell">
-                    {event.event_types.name}
-                  </td>
-                  <td className="hidden xl:table-cell">
+                  <td>{formatEventSchedule(event.starts_at, event.ends_at)}</td>
+                  <td>{event.event_types.name}</td>
+                  <td>
                     <BranchBadges
                       branches={event.event_branches.map(
                         (eventBranch) => eventBranch.branches.name,
                       )}
                     />
                   </td>
-                  <td className="hidden xl:table-cell tabular-nums">
+                  <td className="tabular-nums">
                     {eventSignupCountLabel(event)}
                   </td>
-                  <td className="hidden xl:table-cell">
+                  <td>
                     <StatusBadge status={eventStatus(event, now.getTime())} />
                   </td>
                   {maySignUp(title) && (
@@ -298,7 +279,7 @@ export default async function EventsPage({
         active={hasFilters}
         clearHref="/events"
       >
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-56 sm:flex-1">
+        <label className="min-w-56 flex-1">
           Search events
           <input
             type="search"
@@ -308,7 +289,7 @@ export default async function EventsPage({
             placeholder="Name, description, or location"
           />
         </label>
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
+        <label className="min-w-40">
           Status
           <select name="status" defaultValue={status ?? ""}>
             <option value="">Current events</option>
@@ -319,7 +300,7 @@ export default async function EventsPage({
             {mayBrowseArchived && <option value="archived">Archived</option>}
           </select>
         </label>
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
+        <label className="min-w-40">
           Event type
           <select name="type" defaultValue={typeId ?? ""}>
             <option value="">All event types</option>
@@ -330,7 +311,7 @@ export default async function EventsPage({
             ))}
           </select>
         </label>
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
+        <label className="min-w-40">
           Branch
           <select name="branch" defaultValue={branchId ?? ""}>
             <option value="">All branches</option>
@@ -361,10 +342,12 @@ export default async function EventsPage({
                     {renderGroup(
                       "Your events",
                       splitEvents(organizedEvents.thisWeek).your,
+                      "Events this week",
                     )}
                     {renderGroup(
                       "Other events",
                       splitEvents(organizedEvents.thisWeek).other,
+                      "Events this week",
                     )}
                   </>
                 )}
@@ -378,10 +361,12 @@ export default async function EventsPage({
                     {renderGroup(
                       "Your events",
                       splitEvents(organizedEvents.upcoming).your,
+                      "Upcoming Events",
                     )}
                     {renderGroup(
                       "Other events",
                       splitEvents(organizedEvents.upcoming).other,
+                      "Upcoming Events",
                     )}
                   </>
                 )}
@@ -403,10 +388,15 @@ export default async function EventsPage({
         </p>
       ) : (
         <>
-          {renderGroup("Your events", splitEvents(organizedEvents.events).your)}
+          {renderGroup(
+            "Your events",
+            splitEvents(organizedEvents.events).your,
+            "Events",
+          )}
           {renderGroup(
             "Other events",
             splitEvents(organizedEvents.events).other,
+            "Events",
           )}
         </>
       )}

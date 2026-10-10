@@ -1,10 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const eventTitle = "E2E Event - Core Workflow";
+const e2eRunId = Date.now().toString();
+const eventTitle = `E2E Event - Core Workflow ${e2eRunId}`;
 const initialEventDescription =
   "Event created through the browser smoke suite.";
 const updatedEventDescription = "Updated through the rendered Event form.";
-const taskTitle = "E2E Task - Officer Completion";
+const taskTitle = `E2E Task - Officer Completion ${e2eRunId}`;
 const taskDescription =
   "Task completion controlled by a manager in the browser UI.";
 
@@ -12,6 +13,7 @@ async function signInLocally(page: Page, account: string) {
   await page.goto("/login");
   await expect(page.getByRole("heading", { name: "Cappy Hub" })).toBeVisible();
   await page.getByRole("button", { name: account, exact: true }).click();
+  await expect(page).toHaveURL((url) => url.pathname === "/");
 }
 
 async function expectPath(page: Page, pathname: string) {
@@ -142,6 +144,7 @@ test("manager creates and updates an Event, adds an attendee, and confirms cance
   ).toBeVisible();
 
   const participation = page.getByRole("region", { name: "Participation" });
+  await participation.getByText("Add officers (", { exact: false }).click();
   await participation
     .getByRole("checkbox", { name: "Local Officer", exact: true })
     .check();
@@ -182,6 +185,48 @@ test("manager creates and updates an Event, adds an attendee, and confirms cance
       .getByRole("search", { name: "Event filters" })
       .getByLabel("Search events"),
   ).toHaveValue(eventTitle);
+});
+
+test("regular Officer sees personal Event signup states without manager controls", async ({
+  page,
+}) => {
+  await signInLocally(page, "Officer");
+
+  await page.goto("/events/-2010");
+  const confirmedParticipation = page.getByRole("region", {
+    name: "Participation",
+  });
+  await expect(confirmedParticipation).toContainText(
+    "Your participation: Confirmed",
+  );
+  await expect(
+    confirmedParticipation.getByRole("button", { name: "Remove signup" }),
+  ).toBeVisible();
+  await expect(confirmedParticipation.getByRole("combobox")).toHaveCount(0);
+  await expect(
+    confirmedParticipation.getByRole("button", { name: "Add officer" }),
+  ).toHaveCount(0);
+
+  await page.goto("/events/-2011");
+  const availableParticipation = page.getByRole("region", {
+    name: "Participation",
+  });
+  await expect(availableParticipation).toContainText(
+    "Your participation: Not signed up",
+  );
+  await expect(
+    availableParticipation.getByRole("button", { name: "Sign up" }),
+  ).toBeVisible();
+  await expect(availableParticipation.getByRole("combobox")).toHaveCount(0);
+
+  await page.goto("/events/-2004");
+  const closedParticipation = page.getByRole("region", {
+    name: "Participation",
+  });
+  await expect(closedParticipation).toContainText("Your participation:");
+  await expect(
+    closedParticipation.getByRole("button", { name: "Sign up" }),
+  ).toHaveCount(0);
 });
 
 test("manager adds multiple Officers and controls independent Task completion and points", async ({

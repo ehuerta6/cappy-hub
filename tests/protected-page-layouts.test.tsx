@@ -59,6 +59,7 @@ const event = {
   event_waitlist: [],
   max_volunteers: null,
   task_events: [],
+  event_date: "2099-10-08",
   starts_at: "2099-10-08T23:00:00Z",
   ends_at: "2099-10-09T01:00:00Z",
   participation_points_per_hour_at_end: null,
@@ -368,8 +369,21 @@ it("groups Event details, files and participation while retaining management con
   expect(participation).toContain("Signed-up officers");
   expect(participation).toContain("No officers signed up.");
   expect(participation).not.toContain("<table");
-  expect(participation).toContain("Add selected officers");
+  expect(participation).toContain("No active officers are available to add.");
+  expect(participation).not.toContain("Add officer");
   expect(html).toContain("Event point history");
+});
+
+it("keeps manager bulk signup available when eligible Officers exist", async () => {
+  officersForList = [{ id: 4, name: "Available Officer", status: "active" }];
+
+  const html = renderToStaticMarkup(
+    await EventDetail({ params: Promise.resolve({ id: "7" }) }),
+  );
+
+  expect(html).toContain("Add officers (1 available)");
+  expect(html).toContain("Select officers to add");
+  expect(html).toContain('name="officer_ids" value="4"');
 });
 
 it("renders populated Event participation as a compact semantic table", async () => {
@@ -529,7 +543,7 @@ it("Point History record links carry the same filtered page into Officers, Event
     expect(html).toContain(`href="${withReturnTo(record, returnTo)}"`);
 });
 
-it("keeps Point History values, source and admin context in its compact row", () => {
+it("keeps Point History values, source and admin context in table columns", () => {
   const transactions = [
     {
       id: 33,
@@ -574,11 +588,11 @@ it("keeps Point History values, source and admin context in its compact row", ()
   for (const value of [
     "Emi Huerta",
     "Workshop",
-    "Reason: Workshop correction",
+    "Workshop correction",
     "-2.5",
-    "Type: Correction",
-    "Activity date:",
-    "Actor: Club Administrator",
+    "Correction",
+    "Oct 2, 2026",
+    "Club Administrator",
     "Edit",
     "Remove",
   ])

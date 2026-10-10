@@ -6,6 +6,12 @@ export default async function ProtectedLayout({ children }: LayoutProps<"/">) {
   const officer = await requireCurrentOfficer();
   return (
     <>
+      <a
+        href="#main-content"
+        className="sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:not-sr-only focus:rounded-md focus:border focus:border-border-strong focus:bg-surface focus:px-3 focus:py-2 focus:text-foreground focus:outline-2 focus:outline-offset-2 focus:outline-muted"
+      >
+        Skip to content
+      </a>
       <SiteNavigation
         isAdmin={officer.applicationRole === "admin"}
         account={
@@ -24,7 +30,9 @@ export default async function ProtectedLayout({ children }: LayoutProps<"/">) {
           </div>
         }
       />
-      <div className="protected-page-width">{children}</div>
+      <main id="main-content" tabIndex={-1} className="protected-page-width">
+        {children}
+      </main>
     </>
   );
 }

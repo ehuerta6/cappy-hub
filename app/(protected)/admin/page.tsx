@@ -50,7 +50,7 @@ export default async function AdminPage() {
         title="Admin"
         description="Application-wide administration for Coding Interview Club."
       />
-      <div className="grid gap-x-8 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-x-8">
         {adminAreas.map((area) => (
           <section
             key={area.href}

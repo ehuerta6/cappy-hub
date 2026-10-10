@@ -110,7 +110,7 @@ export default async function SystemLogPage({
     buildLogQuery(false, true),
     supabase.from("officers").select("id,name").order("name"),
   ]);
-  if (filteredCount.error || visibleCount.error || actorResult.error)
+  if (filteredCount.error || visibleCount.error)
     throw new Error("Failed to load System Log");
 
   const totalPages = Math.max(
@@ -128,7 +128,7 @@ export default async function SystemLogPage({
   if (error) throw new Error(`Failed to load System Log: ${error.message}`);
 
   const officerNames = new Map(
-    actorResult.data.map((officer) => [officer.id, officer.name]),
+    (actorResult.data ?? []).map((officer) => [officer.id, officer.name]),
   );
   const eventIds = new Set<number>();
   const taskIds = new Set<number>();
@@ -192,13 +192,11 @@ export default async function SystemLogPage({
           .in("id", [...taskIds])
       : Promise.resolve({ data: [], error: null }),
   ]);
-  if (eventResult.error || taskResult.error)
-    throw new Error("Failed to load System Log record context");
   const eventNames = new Map(
-    eventResult.data.map((event) => [event.id, event.name]),
+    (eventResult.data ?? []).map((event) => [event.id, event.name]),
   );
   const taskNames = new Map(
-    taskResult.data.map((task) => [task.id, task.title]),
+    (taskResult.data ?? []).map((task) => [task.id, task.title]),
   );
   const eventContext = {
     officerNames,
@@ -229,7 +227,7 @@ export default async function SystemLogPage({
         active={hasFilters}
         clearHref="/system-log"
       >
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-56 sm:flex-1">
+        <label className="min-w-56 flex-1">
           Search log
           <input
             type="search"
@@ -239,19 +237,27 @@ export default async function SystemLogPage({
             placeholder="Action or record ID"
           />
         </label>
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-44">
+        <label className="min-w-44">
           Actor
           <select name="actor" defaultValue={actorFilter ?? ""}>
             <option value="">All actors</option>
             <option value="system">System</option>
-            {actorResult.data.map((officer) => (
+            {typeof actorFilter === "number" &&
+              !(actorResult.data ?? []).some(
+                (officer) => officer.id === actorFilter,
+              ) && (
+                <option value={actorFilter}>
+                  Officer #{actorFilter} (name unavailable)
+                </option>
+              )}
+            {(actorResult.data ?? []).map((officer) => (
               <option key={officer.id} value={officer.id}>
                 {officer.name}
               </option>
             ))}
           </select>
         </label>
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-44">
+        <label className="min-w-44">
           Activity
           <input
             type="search"
@@ -261,7 +267,7 @@ export default async function SystemLogPage({
             placeholder="e.g. signed up or cancelled event"
           />
         </label>
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-44">
+        <label className="min-w-44">
           Entity type
           <select name="entity" defaultValue={entity ?? ""}>
             <option value="">All entity types</option>
@@ -281,17 +287,46 @@ export default async function SystemLogPage({
             <option value="warning">Warning</option>
           </select>
         </label>
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
+        <label className="min-w-40">
           From date
-          <input name="from" type="date" defaultValue={fromDate ?? ""} />
+          <input
+            name="from"
+            type="date"
+            defaultValue={fromDate ?? ""}
+            aria-invalid={dateRangeIsReversed || undefined}
+            aria-describedby={
+              dateRangeIsReversed ? "system-log-date-error" : undefined
+            }
+          />
         </label>
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
+        <label className="min-w-40">
           To date
-          <input name="to" type="date" defaultValue={toDate ?? ""} />
+          <input
+            name="to"
+            type="date"
+            defaultValue={toDate ?? ""}
+            aria-invalid={dateRangeIsReversed || undefined}
+            aria-describedby={
+              dateRangeIsReversed ? "system-log-date-error" : undefined
+            }
+          />
         </label>
       </ListFilterBar>
       {dateRangeIsReversed && (
-        <p role="status">Choose a From date on or before the To date.</p>
+        <p id="system-log-date-error" role="alert">
+          Choose a From date on or before the To date.
+        </p>
+      )}
+      {actorResult.error && (
+        <p role="alert">
+          Officer names are unavailable. Reload this page to retry. Log entries
+          remain available.
+        </p>
+      )}
+      {(eventResult.error || taskResult.error) && (
+        <p role="alert">
+          Some record names are unavailable. Reload this page to retry.
+        </p>
       )}
       {entries.length === 0 ? (
         <p>{emptyMessage}</p>

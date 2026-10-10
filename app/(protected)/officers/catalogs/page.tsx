@@ -27,21 +27,25 @@ export default async function OfficerCatalogsPage() {
         Referenced records cannot be deleted; renaming and retirement retain
         their IDs and relationships.
       </p>
-      <CatalogManager
-        catalog="position"
-        title="Positions"
-        records={positions.data}
-      />
-      <CatalogManager
-        catalog="branch"
-        title="Branches"
-        records={branches.data}
-      />
-      <CatalogManager
-        catalog="event_location"
-        title="Event locations"
-        records={locations.data}
-      />
+      <div className="space-y-6">
+        <CatalogManager
+          catalog="position"
+          title="Positions"
+          records={positions.data}
+        />
+        <div className="grid grid-cols-1 gap-x-8 gap-y-6 xl:grid-cols-2">
+          <CatalogManager
+            catalog="branch"
+            title="Branches"
+            records={branches.data}
+          />
+          <CatalogManager
+            catalog="event_location"
+            title="Event locations"
+            records={locations.data}
+          />
+        </div>
+      </div>
     </div>
   );
 }

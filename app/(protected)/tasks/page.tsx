@@ -169,23 +169,13 @@ export default async function TasksPage({
         <TableFrame compact>
           <table>
             <thead>
-              <tr className="grid grid-cols-1 md:table-row">
+              <tr>
                 <th scope="col">Task</th>
-                <th scope="col" className="hidden xl:table-cell">
-                  Due
-                </th>
-                <th scope="col" className="hidden xl:table-cell">
-                  Type
-                </th>
-                <th scope="col" className="hidden xl:table-cell">
-                  Branch
-                </th>
-                <th scope="col" className="hidden xl:table-cell">
-                  Officers
-                </th>
-                <th scope="col" className="hidden xl:table-cell">
-                  Status
-                </th>
+                <th scope="col">Due</th>
+                <th scope="col">Type</th>
+                <th scope="col">Branch</th>
+                <th scope="col">Officers</th>
+                <th scope="col">Status</th>
                 {allowSelfAssign && <th scope="col">Action</th>}
               </tr>
             </thead>
@@ -195,11 +185,7 @@ export default async function TasksPage({
                 const taskState = taskStatus(assignments);
                 const progress = taskProgressLabel(assignments);
                 return (
-                  <tr
-                    key={task.id}
-                    id={`task-${task.id}`}
-                    className="grid grid-cols-1 md:table-row"
-                  >
+                  <tr key={task.id} id={`task-${task.id}`}>
                     <td className="min-w-0">
                       <Link
                         href={withReturnTo(`/tasks/${task.id}`, returnTo)}
@@ -207,27 +193,16 @@ export default async function TasksPage({
                       >
                         {task.title}
                       </Link>
-                      <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted xl:hidden">
-                        <span>Due: {formatTaskDueDate(task.due_date)}</span>
-                        <span>Type: {formatLabel(task.task_type)}</span>
-                        <BranchBadges branches={[task.branches.name]} />
-                        <span>Officers: {progress}</span>
-                        <StatusBadge status={taskState} />
-                      </div>
                     </td>
-                    <td className="hidden whitespace-nowrap xl:table-cell">
+                    <td className="whitespace-nowrap">
                       {formatTaskDueDate(task.due_date)}
                     </td>
-                    <td className="hidden xl:table-cell">
-                      {formatLabel(task.task_type)}
-                    </td>
-                    <td className="hidden xl:table-cell">
+                    <td>{formatLabel(task.task_type)}</td>
+                    <td>
                       <BranchBadges branches={[task.branches.name]} />
                     </td>
-                    <td className="hidden xl:table-cell tabular-nums">
-                      {progress}
-                    </td>
-                    <td className="hidden xl:table-cell">
+                    <td className="tabular-nums">{progress}</td>
+                    <td>
                       <StatusBadge status={taskState} />
                     </td>
                     {allowSelfAssign && (
@@ -288,7 +263,7 @@ export default async function TasksPage({
         active={hasFilters}
         clearHref="/tasks"
       >
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-56 sm:flex-1">
+        <label className="min-w-56 flex-1">
           Search tasks
           <input
             type="search"
@@ -298,7 +273,7 @@ export default async function TasksPage({
             placeholder="Title or description"
           />
         </label>
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
+        <label className="min-w-40">
           View
           <select name="view" defaultValue={view}>
             <option value="current">Current</option>
@@ -306,7 +281,7 @@ export default async function TasksPage({
             {mayBrowseArchived && <option value="archived">Archived</option>}
           </select>
         </label>
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-44">
+        <label className="min-w-44">
           Status
           <select name="status" defaultValue={status ?? ""}>
             <option value="">All statuses</option>
@@ -315,7 +290,7 @@ export default async function TasksPage({
             <option value="complete">Complete</option>
           </select>
         </label>
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-40">
+        <label className="min-w-40">
           Branch
           <select name="branch" defaultValue={branchId ?? ""}>
             <option value="">All branches</option>
@@ -326,7 +301,7 @@ export default async function TasksPage({
             ))}
           </select>
         </label>
-        <label className="w-full min-w-0 sm:w-auto sm:min-w-44">
+        <label className="min-w-44">
           Officer
           <select name="assignee" defaultValue={assigneeId ?? ""}>
             <option value="">All officers</option>

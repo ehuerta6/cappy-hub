@@ -10,10 +10,12 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import EventResourceLinks from "../event-resource-links";
 import { eventStatus, eventSignupOpen } from "@/lib/event-status";
-import { formatDateTime } from "@/lib/presentation";
+import { personalSignupState } from "../personal-signup-state";
+import { formatCalendarDate, formatDateTime } from "@/lib/presentation";
 import {
   BulkAddOfficersForm,
   SignupForm,
+  SelfSignupForm,
   CancelForm,
   RestoreCancelledEventForm,
   RestoreArchivedEventForm,
@@ -73,6 +75,9 @@ export default async function EventDetailPage({
   const waitlisted = event.event_waitlist.some(
     ({ officer_id }) => officer_id === actor.id,
   );
+  const confirmed = event.event_officers.some(
+    ({ officers: officer }) => officer.id === actor.id,
+  );
   const sortedWaitlist = [...event.event_waitlist].sort(
     (left, right) =>
       left.joined_at.localeCompare(right.joined_at) || left.id - right.id,
@@ -91,6 +96,25 @@ export default async function EventDetailPage({
   const canManage = canManageEvent(
     actor,
     event.event_branches.map((eventBranch) => eventBranch.branch_id),
+  );
+  const eligibleForSelfSignup = officers.data.some(
+    (officer) => officer.id === actor.id,
+  );
+  const full =
+    event.max_volunteers !== null && confirmedCount >= event.max_volunteers;
+  const personalSignup = personalSignupState({
+    open: signupOpen,
+    confirmed,
+    waitlisted,
+    eligible: eligibleForSelfSignup,
+    full,
+  });
+  const officersAvailableToAdd = officers.data.filter(
+    (officer) =>
+      !event.event_officers.some(
+        (eventSignup) => eventSignup.officers.id === officer.id,
+      ) &&
+      !event.event_waitlist.some((entry) => entry.officer_id === officer.id),
   );
   if (event.deleted_at && !canManage) notFound();
   const transactions = await supabase
@@ -146,7 +170,7 @@ export default async function EventDetailPage({
             <dt>Location</dt>
             <dd className="break-words">{event.location || "Not set"}</dd>
             <dt>Date</dt>
-            <dd>{event.event_date}</dd>
+            <dd>{formatCalendarDate(event.event_date)}</dd>
             <dt>Start</dt>
             <dd>{formatDateTime(event.starts_at)}</dd>
             <dt>End</dt>
@@ -212,9 +236,7 @@ export default async function EventDetailPage({
         >
           <p>
             Your participation:{" "}
-            {event.event_officers.some(
-              ({ officers: officer }) => officer.id === actor.id,
-            )
+            {confirmed
               ? "Confirmed"
               : waitlisted
                 ? "Waitlisted"
@@ -265,62 +287,59 @@ export default async function EventDetailPage({
             ) : (
               <p>No officers signed up.</p>
             )}
-            {signupOpen && waitlisted && (
+            {personalSignup === "waitlisted" && (
               <LeaveWaitlistForm eventId={event.id} />
             )}
-            {signupOpen && canManage && (
-              <BulkAddOfficersForm
-                eventId={event.id}
-                officers={officers.data.filter(
-                  (officer) =>
-                    !event.event_officers.some(
-                      (eventSignup) => eventSignup.officers.id === officer.id,
-                    ) &&
-                    !event.event_waitlist.some(
-                      (entry) => entry.officer_id === officer.id,
-                    ),
-                )}
-              />
-            )}
-            {signupOpen && !canManage && !waitlisted && (
-              <SignupForm
-                eventId={event.id}
-                full={
-                  event.max_volunteers !== null &&
-                  confirmedCount >= event.max_volunteers
-                }
-                officers={officers.data.filter(
-                  (officer) =>
-                    officer.id === actor.id &&
-                    !event.event_officers.some(
-                      (eventSignup) => eventSignup.officers.id === officer.id,
-                    ),
-                )}
-              />
-            )}
-            {canManage && past && !event.deleted_at && (
-              <BulkAddOfficersForm
-                eventId={event.id}
-                past
-                pointsPerOfficer={
-                  event.participation_points_per_hour_at_end === null
-                    ? undefined
-                    : ((new Date(event.ends_at).getTime() -
-                        new Date(event.starts_at).getTime()) /
-                        3_600_000) *
-                      event.participation_points_per_hour_at_end
-                }
-                officers={officers.data.filter(
-                  (officer) =>
-                    !event.event_officers.some(
-                      (eventSignup) => eventSignup.officers.id === officer.id,
-                    ) &&
-                    !event.event_waitlist.some(
-                      (entry) => entry.officer_id === officer.id,
-                    ),
-                )}
-              />
-            )}
+            {signupOpen &&
+              canManage &&
+              (officersAvailableToAdd.length > 0 ? (
+                <details className="event-roster-disclosure">
+                  <summary>
+                    Add officers ({officersAvailableToAdd.length} available)
+                  </summary>
+                  <BulkAddOfficersForm
+                    eventId={event.id}
+                    officers={officersAvailableToAdd}
+                  />
+                </details>
+              ) : (
+                <p className="text-sm text-muted">
+                  No active officers are available to add.
+                </p>
+              ))}
+            {!canManage &&
+              (personalSignup === "available" || personalSignup === "full") && (
+                <SelfSignupForm
+                  eventId={event.id}
+                  eventName={event.name}
+                  full={personalSignup === "full"}
+                />
+              )}
+            {canManage &&
+              past &&
+              !event.deleted_at &&
+              (officersAvailableToAdd.length > 0 ? (
+                <details className="event-roster-disclosure">
+                  <summary>Add attendees and award points</summary>
+                  <BulkAddOfficersForm
+                    eventId={event.id}
+                    past
+                    pointsPerOfficer={
+                      event.participation_points_per_hour_at_end === null
+                        ? undefined
+                        : ((new Date(event.ends_at).getTime() -
+                            new Date(event.starts_at).getTime()) /
+                            3_600_000) *
+                          event.participation_points_per_hour_at_end
+                    }
+                    officers={officersAvailableToAdd}
+                  />
+                </details>
+              ) : (
+                <p className="text-sm text-muted">
+                  No active officers are available to add.
+                </p>
+              ))}
             {canManage && waitlistCount > 0 && (
               <section aria-label="Waitlist" className="space-y-2">
                 <SectionHeading title={`Waitlist (${waitlistCount})`} />

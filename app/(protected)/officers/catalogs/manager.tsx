@@ -36,8 +36,14 @@ function CatalogForm({
       : catalog === "branch"
         ? "Branch"
         : "Position";
+  const formClassName =
+    operation === "create"
+      ? "catalog-create-form"
+      : operation === "rename"
+        ? "catalog-rename-form"
+        : "catalog-action-form";
   return (
-    <form action={action} className="flex flex-wrap items-center gap-2">
+    <form action={action} className={formClassName}>
       <input type="hidden" name="catalog" value={catalog} />
       <input type="hidden" name="operation" value={operation} />
       {record && <input type="hidden" name="id" value={record.id} />}
@@ -50,7 +56,9 @@ function CatalogForm({
           className="sr-only"
           htmlFor={`${catalog}-${operation}-${record?.id ?? "new"}`}
         >
-          Name
+          {operation === "create"
+            ? `New ${catalogName} name`
+            : `${catalogName} name for ${record?.name ?? "record"}`}
         </label>
       )}
       {(operation === "create" || operation === "rename") && (
@@ -126,14 +134,22 @@ export default function CatalogManager({
   records: CatalogRecord[];
 }) {
   return (
-    <section className="space-y-4">
+    <section className="catalog-manager space-y-3">
       <h2 className="text-lg font-semibold">{title}</h2>
       <CatalogForm catalog={catalog} operation="create" />
-      <ul className="space-y-3">
+      <ul
+        className={
+          catalog === "position"
+            ? "catalog-position-list"
+            : "catalog-record-list"
+        }
+      >
         {records.map((record) => {
           const required = catalog === "position" && record.code != null;
+          const supportsLifecycle =
+            catalog === "branch" || (catalog === "position" && !required);
           return (
-            <li key={record.id} className="rounded-lg border border-border p-3">
+            <li key={record.id} className="catalog-record-row">
               {required ? (
                 <p>
                   {record.name}{" "}
@@ -141,20 +157,20 @@ export default function CatalogManager({
                 </p>
               ) : (
                 <>
+                  <CatalogForm
+                    catalog={catalog}
+                    operation="rename"
+                    record={record}
+                  />
                   {record.is_active === false && (
-                    <p className="mb-2 text-sm text-muted">Retired</p>
+                    <span className="catalog-record-status">Retired</span>
                   )}
-                  <div className="flex flex-wrap items-center gap-3">
-                    <CatalogForm
-                      catalog={catalog}
-                      operation="rename"
-                      record={record}
-                    />
-                    <CatalogForm
-                      catalog={catalog}
-                      operation="delete"
-                      record={record}
-                    />
+                  <CatalogForm
+                    catalog={catalog}
+                    operation="delete"
+                    record={record}
+                  />
+                  {supportsLifecycle && (
                     <CatalogForm
                       catalog={catalog}
                       operation={
@@ -162,7 +178,7 @@ export default function CatalogManager({
                       }
                       record={record}
                     />
-                  </div>
+                  )}
                 </>
               )}
             </li>
