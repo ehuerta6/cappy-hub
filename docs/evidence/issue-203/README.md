@@ -10,7 +10,7 @@ These screenshots were captured with Chromium against local synthetic Supabase d
 ## After
 
 - **events-dark-after.png** and **events-light-after.png** — Events, Admin, dark and light themes, 1440 × 1000.
-- **system-log-reversed-after.png** — System Log with reversed dates and associated error feedback, Admin, light theme, 1440 × 1000.
+- **system-log-reversed-after.png** — System Log with reversed dates and associated error feedback, Admin, dark theme, 1440 × 1000.
 - **task-create-mobile-after.png** — New Task form and multi-select guidance, Admin, light theme, 390 × 844.
 - **admin-mobile-navigation-after.png** — Events with compact navigation expanded, Admin, dark theme, 390 × 844.
 - **officer-dashboard-mobile-after.png** — Dashboard, regular Officer, dark theme, 390 × 844.
