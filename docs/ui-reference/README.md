@@ -1,7 +1,19 @@
-# Cappy Hub visual reference
+# Cappy Hub visual catalog
 
-Open [`index.html`](index.html) in a browser to browse the current screenshot reference without running the application. Each thumbnail links to its full-size PNG.
+Open [`index.html`](index.html) in a browser to browse, filter, and open the full-size screenshots. [`coverage.md`](coverage.md) summarizes role, domain, and theme coverage, and lists states that could not be captured safely or were unavailable in the retained local data. [`manifest.json`](manifest.json) is the source of truth for the catalog entries.
 
-This is the first repository copy of the UI audit and a starting point for future UI reviews. It contains 155 screenshots captured from the local application with synthetic development accounts. It is not yet a complete role-by-theme catalog; the screenshots reflect the roles, routes, themes, and states captured in this audit. Expand and refresh the relevant entries as the catalog work in [Issue #205](https://github.com/ehuerta6/cappy-hub/issues/205) proceeds.
+This catalog covers the three primary UI roles: Admin, Lead, and Officer. Lead views include both single-branch and multi-branch synthetic accounts because their permitted Event and Task scope depends on branch membership. Shared login and access-denied states are included separately. President and other secondary roles are outside this catalog's scope.
 
-The captures include desktop viewports at 1024, 1280, 1440, and 1920 CSS pixels. The index labels each screenshot with its route, role group, viewport, theme, and state where available. Workflow forms were not submitted during the capture.
+Every included dark screenshot state has a matching light screenshot for the same role, scope, route, viewport width, and capture mode. The catalog covers 1024, 1280, 1440, and 1920 CSS pixel widths; 1440px is the primary review size. The application is desktop-only.
+
+## Update the catalog
+
+1. Read the current product and visual requirements in `docs/product/design-doc.md` and `docs/design.md`.
+2. Use synthetic accounts from [`docs/local-development.md`](../local-development.md). Start or reuse the local Supabase stack with `npm run local:start`; do not use `npm run local:reset` for catalog capture unless resetting the local database has been explicitly authorized.
+3. Run the local application and capture actual browser screenshots for each affected role and theme. Include relevant changed pages, permission-dependent views, and meaningful states. Do not submit workflows against the retained local database; capture forms and confirmation dialogs before submission.
+4. Save full-resolution PNGs under the corresponding role and domain folders. Use filenames that identify the page/state, viewport width, and theme.
+5. Add or update entries in `manifest.json`, keeping role, branch scope where applicable, domain, route, theme, viewport, state, and image path accurate.
+6. Run `node scripts/build-ui-reference.mjs` to validate image links and dark/light pairs, then regenerate `index.html` and `coverage.md`.
+7. In the Pull Request template, confirm that the catalog was updated or that the PR has no rendered UI changes.
+
+All screenshots in this initial catalog come from the local application with synthetic development data. The existing local database was retained, no form was submitted, and no records were changed. Some result states remain untested or unavailable; see `coverage.md` for the precise gaps.
