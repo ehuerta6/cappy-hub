@@ -248,7 +248,9 @@ if (!reuseCiSeed) {
     { input: seed },
   );
 } else {
-  console.log("\nUsing the already-verified disposable CI database and synthetic seed...");
+  console.log(
+    "\nUsing the already-verified disposable CI database and synthetic seed...",
+  );
 }
 
 console.log("\nReading local Supabase credentials...");
