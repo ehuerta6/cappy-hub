@@ -257,7 +257,7 @@
     max-width: none;
     min-width: min(18rem, 100%);
     flex: 1 1 18rem;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
     gap: 0.375rem;
   }
@@ -271,6 +271,10 @@
     grid-row: 1;
   }
 
+  .catalog-rename-form > button:last-of-type {
+    grid-column: 3;
+  }
+
   .catalog-rename-form > span,
   .catalog-rename-form > p {
     grid-column: 1 / -1;
@@ -279,6 +283,15 @@
   .catalog-record-status {
     color: var(--muted);
     font-size: 0.8125rem;
+  }
+
+  .catalog-record-name {
+    display: flex;
+    min-width: min(18rem, 100%);
+    flex: 1 1 18rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
   }
 
   .catalog-position-list {

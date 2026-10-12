@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { ActionFeedback, FieldError } from "@/components/ui";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
@@ -20,7 +20,7 @@ function CatalogForm({
   record,
 }: {
   catalog: Catalog;
-  operation: "create" | "rename" | "delete" | "retire" | "reactivate";
+  operation: "create" | "delete" | "retire" | "reactivate";
   record?: CatalogRecord;
 }) {
   const [state, action, pending] = useActionState(
@@ -37,11 +37,7 @@ function CatalogForm({
         ? "Branch"
         : "Position";
   const formClassName =
-    operation === "create"
-      ? "catalog-create-form"
-      : operation === "rename"
-        ? "catalog-rename-form"
-        : "catalog-action-form";
+    operation === "create" ? "catalog-create-form" : "catalog-action-form";
   return (
     <form action={action} className={formClassName}>
       <input type="hidden" name="catalog" value={catalog} />
@@ -51,17 +47,15 @@ function CatalogForm({
         operation === "retire" ||
         operation === "reactivate") &&
         record && <input type="hidden" name="name" value={record.name} />}
-      {(operation === "create" || operation === "rename") && (
+      {operation === "create" && (
         <label
           className="sr-only"
           htmlFor={`${catalog}-${operation}-${record?.id ?? "new"}`}
         >
-          {operation === "create"
-            ? `New ${catalogName} name`
-            : `${catalogName} name for ${record?.name ?? "record"}`}
+          {`New ${catalogName} name`}
         </label>
       )}
-      {(operation === "create" || operation === "rename") && (
+      {operation === "create" && (
         <>
           <input
             id={fieldId}
@@ -69,11 +63,7 @@ function CatalogForm({
             required
             aria-invalid={Boolean(fieldErrors.name)}
             aria-describedby={fieldErrors.name ? errorId : undefined}
-            defaultValue={submittedValue(
-              state.values,
-              "name",
-              operation === "rename" ? (record?.name ?? "") : "",
-            )}
+            defaultValue={submittedValue(state.values, "name", "")}
             placeholder="Name"
           />
           <FieldError id={errorId}>{fieldErrors.name}</FieldError>
@@ -110,15 +100,112 @@ function CatalogForm({
         </button>
       ) : (
         <button type="submit" disabled={pending} className="button-secondary">
-          {pending
-            ? operation === "create"
-              ? "Adding…"
-              : "Saving…"
-            : operation === "create"
-              ? "Add"
-              : "Rename"}
+          {pending ? "Adding…" : "Add"}
         </button>
       )}
+      <ActionFeedback state={state} />
+    </form>
+  );
+}
+
+function CatalogRename({
+  catalog,
+  record,
+}: {
+  catalog: Catalog;
+  record: CatalogRecord;
+}) {
+  const [state, action, pending] = useActionState(
+    changeCatalog,
+    initialFormActionState,
+  );
+  const [editing, setEditing] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const renameButtonRef = useRef<HTMLButtonElement>(null);
+  const previousStateRef = useRef(state);
+  const focusRenameButtonRef = useRef(false);
+  const fieldId = `${catalog}-rename-${record.id}`;
+  const errorId = `${fieldId}-error`;
+  const catalogName =
+    catalog === "event_location"
+      ? "Event location"
+      : catalog === "branch"
+        ? "Branch"
+        : "Position";
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  useEffect(() => {
+    if (editing && previousStateRef.current !== state) {
+      if (state.success) {
+        focusRenameButtonRef.current = true;
+        window.setTimeout(() => setEditing(false), 0);
+      } else if (state.error) {
+        inputRef.current?.focus();
+      }
+    }
+    previousStateRef.current = state;
+  }, [editing, state]);
+
+  useEffect(() => {
+    if (!editing && focusRenameButtonRef.current) {
+      focusRenameButtonRef.current = false;
+      renameButtonRef.current?.focus();
+    }
+  }, [editing]);
+
+  if (!editing) {
+    return (
+      <div className="catalog-record-name">
+        <p>{record.name}</p>
+        <button
+          ref={renameButtonRef}
+          type="button"
+          className="button-secondary"
+          onClick={() => setEditing(true)}
+        >
+          Rename
+        </button>
+        {state.success && <ActionFeedback state={state} />}
+      </div>
+    );
+  }
+
+  return (
+    <form action={action} className="catalog-rename-form">
+      <input type="hidden" name="catalog" value={catalog} />
+      <input type="hidden" name="operation" value="rename" />
+      <input type="hidden" name="id" value={record.id} />
+      <label className="sr-only" htmlFor={fieldId}>
+        {catalogName} name for {record.name}
+      </label>
+      <input
+        ref={inputRef}
+        id={fieldId}
+        name="name"
+        required
+        aria-invalid={Boolean(state.fieldErrors?.name)}
+        aria-describedby={state.fieldErrors?.name ? errorId : undefined}
+        defaultValue={submittedValue(state.values, "name", record.name)}
+        placeholder="Name"
+      />
+      <button type="submit" disabled={pending} className="button-secondary">
+        {pending ? "Saving…" : "Save"}
+      </button>
+      <button
+        type="button"
+        className="button-secondary"
+        disabled={pending}
+        onClick={() => {
+          focusRenameButtonRef.current = true;
+          setEditing(false);
+        }}
+      >
+        Cancel
+      </button>
+      <FieldError id={errorId}>{state.fieldErrors?.name}</FieldError>
       <ActionFeedback state={state} />
     </form>
   );
@@ -157,11 +244,7 @@ export default function CatalogManager({
                 </p>
               ) : (
                 <>
-                  <CatalogForm
-                    catalog={catalog}
-                    operation="rename"
-                    record={record}
-                  />
+                  <CatalogRename catalog={catalog} record={record} />
                   {record.is_active === false && (
                     <span className="catalog-record-status">Retired</span>
                   )}
