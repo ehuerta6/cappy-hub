@@ -4,6 +4,8 @@ Open [`index.html`](index.html) in a browser to browse, filter, and open the ful
 
 This catalog covers the three primary UI roles: Admin, Lead, and Officer. Lead views include both single-branch and multi-branch synthetic accounts because their permitted Event and Task scope depends on branch membership. Shared login and access-denied states are included separately. President and other secondary roles are outside this catalog's scope.
 
+The Admin Officer warning screenshots labeled **Earlier Create Warning form** show the pre-dialog layout. The on-demand Create warning dialog and updated profile hierarchy are not yet captured. The local Supabase/Docker service was unavailable during this change, so no local database reset was attempted.
+
 Every included dark screenshot state has a matching light screenshot for the same role, scope, route, viewport width, and capture mode. The catalog covers 1024, 1280, 1440, and 1920 CSS pixel widths; 1440px is the primary review size. The application is desktop-only.
 
 ## Update the catalog

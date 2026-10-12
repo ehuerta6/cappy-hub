@@ -1,7 +1,14 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { ActionFeedback, FieldError } from "@/components/ui";
+import {
+  useActionState,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { useRouter } from "next/navigation";
+import { ActionFeedback, FieldError, FormMessage } from "@/components/ui";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { createWarning, decideWarning, voidWarning } from "./warning-actions";
@@ -9,17 +16,124 @@ import { createWarning, decideWarning, voidWarning } from "./warning-actions";
 const initial = initialFormActionState;
 
 export function CreateWarningForm({ officerId }: { officerId: number }) {
+  const router = useRouter();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const wasOpen = useRef(false);
+  const [open, setOpen] = useState(false);
+  const [formKey, setFormKey] = useState(0);
+  const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open && !dialog.open) {
+      dialog.showModal();
+      requestAnimationFrame(() =>
+        dialog.querySelector<HTMLElement>("[data-initial-focus]")?.focus(),
+      );
+    } else if (!open && dialog.open) {
+      dialog.close();
+    }
+    if (!open && wasOpen.current) triggerRef.current?.focus();
+    wasOpen.current = open;
+  }, [open]);
+
+  const handleSuccess = useCallback(
+    (message: string) => {
+      setSuccess(message);
+      setFormKey((key) => key + 1);
+      setOpen(false);
+      router.refresh();
+    },
+    [router],
+  );
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        ref={triggerRef}
+        type="button"
+        className="button-secondary min-h-11"
+        onClick={() => {
+          setSuccess("");
+          setOpen(true);
+        }}
+      >
+        Create warning
+      </button>
+      {success && <FormMessage kind="success">{success}</FormMessage>}
+      <dialog
+        ref={dialogRef}
+        aria-labelledby="create-warning-title"
+        aria-describedby="create-warning-description"
+        onClose={() => setOpen(false)}
+        onCancel={(event) => {
+          if (
+            dialogRef.current?.querySelector("form")?.dataset.pending === "true"
+          )
+            event.preventDefault();
+        }}
+        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-lg border border-border bg-surface p-5 text-foreground backdrop:bg-black/60 sm:p-6"
+      >
+        <div className="space-y-5">
+          <header className="space-y-1.5">
+            <h2
+              id="create-warning-title"
+              className="text-lg font-semibold tracking-tight"
+            >
+              Create warning
+            </h2>
+            <p
+              id="create-warning-description"
+              className="text-sm leading-5 text-secondary"
+            >
+              The reason is permanent. A new warning starts pending and requires
+              approval from the current President and Vice Presidents.
+            </p>
+          </header>
+          <CreateWarningFields
+            key={formKey}
+            officerId={officerId}
+            onSuccess={handleSuccess}
+          />
+        </div>
+      </dialog>
+    </div>
+  );
+}
+
+function CreateWarningFields({
+  officerId,
+  onSuccess,
+}: {
+  officerId: number;
+  onSuccess: (message: string) => void;
+}) {
   const [state, action, pending] = useActionState(createWarning, initial);
   const fieldErrors = state.fieldErrors ?? {};
+
+  useEffect(() => {
+    if (state.success) onSuccess(state.success);
+  }, [onSuccess, state.success]);
+
   return (
-    <form action={action} className="space-y-3">
+    <form
+      key={JSON.stringify(state.values ?? {})}
+      action={action}
+      data-pending={pending}
+      className="space-y-3"
+      onReset={(event) => event.preventDefault()}
+    >
       <input type="hidden" name="officer_id" value={officerId} />
       <label>
         Reason
         <textarea
+          data-initial-focus
           name="reason"
           required
           rows={3}
+          disabled={pending}
           aria-invalid={Boolean(fieldErrors.reason)}
           aria-describedby={
             fieldErrors.reason ? "warning-reason-error" : undefined
@@ -28,14 +142,20 @@ export function CreateWarningForm({ officerId }: { officerId: number }) {
         />
         <FieldError id="warning-reason-error">{fieldErrors.reason}</FieldError>
       </label>
-      <p className="text-sm text-muted">
-        The warning starts pending and requires approval from the current
-        President and Vice Presidents. Its reason cannot be edited afterward.
-      </p>
-      <ActionFeedback state={state} />
-      <button disabled={pending}>
-        {pending ? "Creating…" : "Create warning"}
-      </button>
+      {state.error && <ActionFeedback state={state} />}
+      <div className="flex justify-end gap-2 border-t border-border pt-4">
+        <button
+          type="button"
+          className="button-secondary"
+          disabled={pending}
+          onClick={(event) => event.currentTarget.closest("dialog")?.close()}
+        >
+          Cancel
+        </button>
+        <button disabled={pending}>
+          {pending ? "Creating…" : "Create warning"}
+        </button>
+      </div>
     </form>
   );
 }

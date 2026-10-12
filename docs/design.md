@@ -433,11 +433,11 @@ The following sections describe the actual product workflows and the design dire
 - **Purpose:** Review one officer's record, access, warnings, event association, and point history.
 - **Existing functionality that MUST be preserved — CURRENT:** Contextual Officers link that returns to the originating filtered directory when opened from one; edit action for admins; UTEP/personal email, position, application role, classification, status, branches, and total points. Admins can change another officer's application role separately from club position. The officer and admins can see that officer's warning section; admins see all warning states and approval details, can filter by warning status, create and void Warnings, and see the three-approved-warning Admin Review message. The officer and admins can see associated Events that are not cancelled or archived, plus the latest 100 active point transactions, with a link to full point history; historical Event references remain in Point history and System Log.
 - **Information hierarchy:** Name/edit action; identity and status/branches; role and warning controls by permission; associated events; point history.
-- **Recommended layout:** Keep identity/profile data in a concise definition list, separate status/branches and access controls, then show warnings and associated events as distinct sections. Point history spans the content width below.
+- **Recommended layout:** Keep identity/profile data in a concise definition list. Use a compact, proportionate secondary column for status, branches, application access, and warning count. Keep warnings and associated Events as distinct sections, sizing the wider column for warning history. Point history spans the content width below.
 - **Primary action:** Edit officer when admin; otherwise no global mutation action.
-- **Secondary actions:** Save another officer's application role, warning actions available by role, open associated events, and view all points.
+- **Secondary actions:** Save another officer's application role, open Create warning on demand, void an active warning with confirmation, open associated events, and view all points.
 - **Data presentation:** Plain-text profile fields, status badge, neutral branch badges, warning status/date/reason/approval details, event list, point transaction table.
-- **Minimalism notes:** Keep application role visibly separate from position. Preserve the explanatory note that deactivation is a separate manual decision after the warning threshold.
+- **Minimalism notes:** Keep application role visibly separate from position. Create warning opens a focused dialog with the immutable-reason and leadership-approval consequences. Preserve the explanatory note that deactivation is a separate manual decision after the warning threshold.
 - **Do not add:** An automatic deactivation, a combined role/position selector, warnings for users who are not the officer or an admin, or duplicate point totals.
 
 ### Add/edit Officer
@@ -467,11 +467,11 @@ The following sections describe the actual product workflows and the design dire
 ### Officer warnings (embedded workflows)
 
 - **Purpose:** Let assigned officers make warning decisions and admins manage warning records.
-- **Existing functionality that MUST be preserved — CURRENT:** The Officers list may show pending decisions assigned to the signed-in user, including officer, reason, created time, Approve, and Reject. Officer detail shows warnings to the officer and admins; admins can filter active statuses, inspect Voided or All history, create a pending warning, inspect approval decisions, and void an active warning. Void retains the warning and its approvals, removes it from active totals, and is terminal. Warning reasons cannot be edited after creation. Creation requires approval from current President and Vice Presidents. The approved-warning threshold message does not itself deactivate an officer.
+- **Existing functionality that MUST be preserved — CURRENT:** The Officers list may show pending decisions assigned to the signed-in user, including officer, reason, created time, Approve, and Reject. Officer detail shows warnings to the officer and admins; admins can filter active statuses, inspect Voided or All history, create a pending warning through an on-demand dialog, inspect approval decisions, and void an active warning. The dialog explains that the reason is immutable and approval is required from the current President and Vice Presidents; errors retain entered values, while success closes the dialog and refreshes warning history. Void retains the warning and its approvals, removes it from active totals, and is terminal. Warning reasons cannot be edited after creation. The approved-warning threshold message does not itself deactivate an officer.
 - **Information hierarchy:** Decision target/officer and reason; current status and date; required approval controls/details.
 - **Recommended layout:** Use restrained, bordered articles and compact approve/reject actions. Keep decision buttons visually equal in priority; Void remains a secondary action with confirmation.
 - **Primary action:** Approve or Reject a pending decision assigned to the current user.
-- **Secondary actions:** Admin create/void and warning-history navigation.
+- **Secondary actions:** Admin Create warning dialog, Void confirmation, and warning-history navigation.
 - **Data presentation:** Plain text reason, status label, readable date, approval count and decision list for admins.
 - **Minimalism notes:** Keep warning decision content separate from the directory table and visible only where access permits.
 - **Do not add:** Editable warning reasons, automatic consequences, warning analytics, or invented approval roles.

@@ -132,7 +132,7 @@ export default async function OfficerDetailPage({
         }
       />
       <SuccessNotice status={context.feedback} />
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(18rem,1fr)]">
         <div className="min-w-0 space-y-4">
           <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-5 gap-y-2 rounded-lg border border-border bg-surface/30 p-4 text-sm [&>dt]:mt-0 [&>dd]:mt-0 [&>dd]:min-w-0 [&>dd]:break-words">
             <dt>UTEP email</dt>
@@ -209,7 +209,14 @@ export default async function OfficerDetailPage({
             aria-label="Warnings"
             className="min-w-0 space-y-3 rounded-lg border border-border p-4"
           >
-            <SectionHeading title="Warnings" />
+            <SectionHeading
+              title="Warnings"
+              action={
+                isAdmin(actor) && !warnings?.error ? (
+                  <CreateWarningForm officerId={officer.id} />
+                ) : undefined
+              }
+            />
             {warnings?.error && (
               <p role="alert" className="text-sm">
                 Warning history unavailable. Reload this page to retry.
@@ -323,9 +330,6 @@ export default async function OfficerDetailPage({
                   )}
                 </article>
               ))}
-            {isAdmin(actor) && !warnings?.error && (
-              <CreateWarningForm officerId={officer.id} />
-            )}
           </section>
         )}
         <section

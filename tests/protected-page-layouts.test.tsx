@@ -16,6 +16,7 @@ vi.mock("@/lib/authorization", () => ({
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
   notFound: () => {
     throw new Error("Not found");
   },
@@ -442,6 +443,9 @@ it("retains Officer operational sections and full point history", async () => {
   ])
     expect(html).toContain(text);
   expect(html).toContain('aria-label="Warnings"');
+  expect(html).toContain("Create warning");
+  expect(html).toContain('aria-labelledby="create-warning-title"');
+  expect(html).toContain("The reason is permanent");
   expect(html).toContain('aria-label="Associated events"');
   expect(html).toContain('href="/points?officer=7"');
 });
