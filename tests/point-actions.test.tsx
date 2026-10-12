@@ -10,6 +10,10 @@ vi.mock("@/app/(protected)/points/actions", () => ({
 }));
 
 import PointActions from "@/app/(protected)/points/point-actions";
+import {
+  PointHistoryAmount,
+  PointHistoryState,
+} from "@/app/(protected)/points/point-history-state";
 import { editPointTransaction } from "@/app/(protected)/points/actions";
 
 declare global {
@@ -36,7 +40,21 @@ afterEach(async () => {
 async function renderPointActions() {
   await act(async () => {
     root.render(
-      createElement(PointActions, { transactionId: 18, points: -2.5 }),
+      createElement(
+        PointHistoryState,
+        {
+          initialAmounts: [{ transactionId: 18, points: -2.5 }],
+        },
+        createElement(
+          "div",
+          null,
+          createElement(PointHistoryAmount, {
+            transactionId: 18,
+            fallback: -2.5,
+          }),
+          createElement(PointActions, { transactionId: 18, points: -2.5 }),
+        ),
+      ),
     );
   });
 }
@@ -128,4 +146,40 @@ it("retains the proposed amount and field error after a rejected save", async ()
       vi.mocked(editPointTransaction).mock.calls[0][1] as FormData,
     ),
   ).toMatchObject({ transaction_id: "18", points: "-3.25" });
+});
+
+it("updates the displayed amount and exits editing after a successful save", async () => {
+  vi.mocked(editPointTransaction).mockResolvedValueOnce({
+    error: "",
+    success: "Point transaction updated",
+  });
+  await renderPointActions();
+  const edit = host.querySelector<HTMLButtonElement>(
+    'button[type="button"].button-secondary',
+  );
+  if (!edit) throw new Error("Edit points button not found");
+  await act(async () => edit.click());
+
+  const input = host.querySelector<HTMLInputElement>('input[name="points"]');
+  if (!input) throw new Error("Proposed amount input not found");
+  const form = input.closest("form");
+  if (!form) throw new Error("Edit form not found");
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )?.set?.call(input, "4.75");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    form.requestSubmit();
+    await Promise.resolve();
+  });
+
+  expect(host.textContent).toContain("4.75");
+  expect(host.querySelector('input[name="points"]')).toBeNull();
+  expect(host.textContent).toContain("Edit points");
+  expect(host.querySelector('[role="status"]')?.textContent).toBe(
+    "Point transaction updated",
+  );
+  expect(host.ownerDocument.activeElement?.textContent).toBe("Edit points");
 });

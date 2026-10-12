@@ -8,6 +8,7 @@ import {
 } from "@/lib/presentation";
 import { PointValue, StatusBadge } from "@/components/ui";
 import PointActions from "./point-actions";
+import { PointHistoryAmount, PointHistoryState } from "./point-history-state";
 
 function OfficerLink({
   transaction,
@@ -72,69 +73,89 @@ export default function HistoryTable({
 }) {
   if (!transactions.length) return <p>{emptyMessage}</p>;
   return (
-    <table className="point-history-table">
-      <thead>
-        <tr>
-          <th scope="col">Officer</th>
-          <th scope="col">Event / task</th>
-          <th scope="col">Reason</th>
-          <th scope="col">Points</th>
-          <th scope="col">Type</th>
-          <th scope="col">Activity date</th>
-          {isAdmin && <th scope="col">Actor / status</th>}
-          {isAdmin && <th scope="col">Action</th>}
-        </tr>
-      </thead>
-      <tbody>
-        {transactions.map((transaction) => (
-          <tr key={transaction.id}>
-            <td>
-              <OfficerLink transaction={transaction} returnTo={returnTo} />
-            </td>
-            <td>
-              <TransactionSource
-                transaction={transaction}
-                returnTo={returnTo}
-              />
-            </td>
-            <td className="break-words">{transaction.reason}</td>
-            <td>
-              <PointValue value={transaction.points ?? 0} />
-            </td>
-            <td>{formatLabel(transaction.award_type ?? "")}</td>
-            <td>
-              {transaction.activity_date
-                ? formatCalendarDate(transaction.activity_date)
-                : "—"}
-            </td>
-            {isAdmin && (
+    <PointHistoryState
+      initialAmounts={transactions.flatMap((transaction) =>
+        transaction.id == null
+          ? []
+          : [
+              {
+                transactionId: transaction.id,
+                points: transaction.points ?? 0,
+              },
+            ],
+      )}
+    >
+      <table className="point-history-table">
+        <thead>
+          <tr>
+            <th scope="col">Officer</th>
+            <th scope="col">Event / task</th>
+            <th scope="col">Reason</th>
+            <th scope="col">Points</th>
+            <th scope="col">Type</th>
+            <th scope="col">Activity date</th>
+            {isAdmin && <th scope="col">Actor / status</th>}
+            {isAdmin && <th scope="col">Action</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {transactions.map((transaction) => (
+            <tr key={transaction.id}>
               <td>
-                <div>{actorName(transaction)}</div>
-                {transaction.removed_at && (
-                  <div className="space-y-1">
-                    <StatusBadge status="removed" />
-                    <div>
-                      Removed by{" "}
-                      {transaction.removed_by_name ?? "Unlinked account"}
-                    </div>
-                    <div>{formatDate(transaction.removed_at)}</div>
-                  </div>
-                )}
+                <OfficerLink transaction={transaction} returnTo={returnTo} />
               </td>
-            )}
-            {isAdmin && (
-              <td className="min-w-0">
-                {transaction.id && !transaction.removed_at && (
-                  <PointActions
+              <td>
+                <TransactionSource
+                  transaction={transaction}
+                  returnTo={returnTo}
+                />
+              </td>
+              <td className="break-words">{transaction.reason}</td>
+              <td>
+                {transaction.id == null ? (
+                  <PointValue value={transaction.points ?? 0} />
+                ) : (
+                  <PointHistoryAmount
                     transactionId={transaction.id}
-                    points={transaction.points ?? 0}
+                    fallback={transaction.points ?? 0}
                   />
                 )}
               </td>
-            )}
-          </tr>
-        ))}
-      </tbody>
-    </table>
+              <td>{formatLabel(transaction.award_type ?? "")}</td>
+              <td>
+                {transaction.activity_date
+                  ? formatCalendarDate(transaction.activity_date)
+                  : "—"}
+              </td>
+              {isAdmin && (
+                <td>
+                  <div>{actorName(transaction)}</div>
+                  {transaction.removed_at && (
+                    <div className="space-y-1">
+                      <StatusBadge status="removed" />
+                      <div>
+                        Removed by{" "}
+                        {transaction.removed_by_name ?? "Unlinked account"}
+                      </div>
+                      <div>{formatDate(transaction.removed_at)}</div>
+                    </div>
+                  )}
+                </td>
+              )}
+              {isAdmin && (
+                <td className="min-w-0">
+                  {transaction.id && !transaction.removed_at && (
+                    <PointActions
+                      transactionId={transaction.id}
+                      points={transaction.points ?? 0}
+                    />
+                  )}
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </PointHistoryState>
   );
 }

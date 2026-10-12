@@ -166,7 +166,7 @@ export default async function TasksPage({
         <h3 className="font-semibold text-foreground">{title}</h3>
       )}
       {groupTasks.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted">
           <span className="font-semibold text-foreground">{title}:</span> No
           tasks in this group.
         </p>
@@ -235,7 +235,7 @@ export default async function TasksPage({
       return (
         <section aria-label={title} className="space-y-2">
           <SectionHeading title={title} />
-          <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+          <p className="text-sm text-muted">{emptyMessage}</p>
         </section>
       );
     const groups = splitTasks(rows);

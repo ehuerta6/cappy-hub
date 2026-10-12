@@ -1,9 +1,16 @@
 "use client";
-import { useActionState, useEffect, useRef, useState } from "react";
+import {
+  useActionState,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { ActionFeedback, FieldError } from "@/components/ui";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { editPointTransaction, removePointTransaction } from "./actions";
+import { useSetPointHistoryAmount } from "./point-history-state";
 
 export default function PointActions({
   transactionId,
@@ -17,6 +24,16 @@ export default function PointActions({
     initialFormActionState,
   );
   const [editing, setEditing] = useState(false);
+  const [editSuccess, setEditSuccess] = useState("");
+  const setAmount = useSetPointHistoryAmount();
+  const handleEditSuccess = useCallback(
+    (amount: number, message: string) => {
+      setAmount(transactionId, amount);
+      setEditSuccess(message);
+      setEditing(false);
+    },
+    [setAmount, transactionId],
+  );
   const editTrigger = useRef<HTMLButtonElement>(null);
   const wasEditing = useRef(false);
 
@@ -32,6 +49,7 @@ export default function PointActions({
           transactionId={transactionId}
           points={points}
           onCancel={() => setEditing(false)}
+          onSuccess={handleEditSuccess}
         />
       ) : (
         <button
@@ -56,6 +74,9 @@ export default function PointActions({
         />
       </form>
       <ActionFeedback state={removeState} />
+      {editSuccess && (
+        <ActionFeedback state={{ error: "", success: editSuccess }} />
+      )}
     </div>
   );
 }
@@ -64,24 +85,34 @@ function EditPointForm({
   transactionId,
   points,
   onCancel,
+  onSuccess,
 }: {
   transactionId: number;
   points: number;
   onCancel: () => void;
+  onSuccess: (amount: number, message: string) => void;
 }) {
   const [editState, editAction, pending] = useActionState(
     editPointTransaction,
     initialFormActionState,
   );
   const input = useRef<HTMLInputElement>(null);
+  const proposedAmount = useRef(points);
   const fieldErrors = editState.fieldErrors ?? {};
 
   useEffect(() => input.current?.focus(), []);
+  useEffect(() => {
+    if (editState.success) onSuccess(proposedAmount.current, editState.success);
+  }, [editState.success, onSuccess]);
 
   return (
     <form
       key={JSON.stringify(editState.values ?? {})}
       action={editAction}
+      onSubmit={(event) => {
+        const formData = new FormData(event.currentTarget);
+        proposedAmount.current = Number(formData.get("points"));
+      }}
       onReset={(event) => event.preventDefault()}
       className="point-edit-form"
     >

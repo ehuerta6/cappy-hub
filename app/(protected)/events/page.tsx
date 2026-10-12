@@ -192,7 +192,7 @@ export default async function EventsPage({
         <h3 className="font-semibold text-foreground">{title}</h3>
       )}
       {!groupEvents.length ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted">
           <span className="font-semibold text-foreground">{title}:</span> No
           events in this group.
         </p>
