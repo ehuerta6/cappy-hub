@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import type { Tables } from "@/lib/database.types";
 import {
   initialFormActionState,
@@ -16,7 +16,7 @@ import {
 import { createTask, editRecurringTask, editStandaloneTask } from "./actions";
 import { RecurrenceFields } from "@/components/recurrence-fields";
 import { TASK_TYPES } from "@/lib/task-types";
-import { formatEventFilterOption } from "@/lib/presentation";
+import { TaskEventCombobox } from "@/components/task-event-combobox";
 
 export default function TaskCreateForm({
   returnTo,
@@ -47,6 +47,13 @@ export default function TaskCreateForm({
   );
   const fieldErrors = state.fieldErrors ?? {};
   const [editedFields, setEditedFields] = useState<string[]>([]);
+  const initialEventIds = submittedValues(
+    state.values,
+    "event_ids",
+    taskEventIds.map(String),
+  );
+  const selectedEventIds = useRef(initialEventIds);
+  const formRef = useRef<HTMLFormElement>(null);
   const original: Record<string, string | string[]> = task
     ? {
         title: task.title,
@@ -58,14 +65,28 @@ export default function TaskCreateForm({
         event_ids: taskEventIds.map(String),
       }
     : {};
+
+  function updateEditedFields() {
+    if (!task || !formRef.current) return;
+    const changed = changedFormFields(formRef.current, original).filter(
+      (field) => field !== "event_ids",
+    );
+    const originalEventIds = [...(original.event_ids as string[])].sort();
+    if (
+      JSON.stringify([...selectedEventIds.current].sort()) !==
+      JSON.stringify(originalEventIds)
+    ) {
+      changed.push("event_ids");
+    }
+    setEditedFields(changed);
+  }
+
   return (
     <form
+      ref={formRef}
       action={action}
       className="grid max-w-6xl grid-cols-2 gap-x-6 gap-y-4"
-      onChange={(event) => {
-        if (task)
-          setEditedFields(changedFormFields(event.currentTarget, original));
-      }}
+      onChange={updateEditedFields}
     >
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
       {task && <input type="hidden" name="task_id" value={task.id} />}
@@ -227,37 +248,15 @@ export default function TaskCreateForm({
         />
         <FieldError id="task-points-error">{fieldErrors.points}</FieldError>
       </label>
-      <label className="col-span-2">
-        Linked Events
-        <select
-          name="event_ids"
-          multiple
-          size={Math.min(8, Math.max(4, events.length))}
-          defaultValue={submittedValues(
-            state.values,
-            "event_ids",
-            taskEventIds.map(String),
-          )}
-          aria-describedby="task-events-help"
-        >
-          {events.map((event) => (
-            <option key={event.id} value={event.id}>
-              {formatEventFilterOption(event.name, event.event_date)}
-              {event.deleted_at
-                ? " (Archived)"
-                : event.status === "cancelled"
-                  ? " (Cancelled)"
-                  : ""}
-            </option>
-          ))}
-        </select>
-        <span id="task-events-help" className="text-sm text-muted">
-          Select one or more Events as optional context. Hold Command (Mac) or
-          Control (Windows/Linux) to select additional Events. Event and Task
-          permissions, completion, and Points stay separate.
-        </span>
-        <FieldError id="task-events-error">{fieldErrors.event_ids}</FieldError>
-      </label>
+      <TaskEventCombobox
+        events={events}
+        initialSelectedIds={initialEventIds}
+        error={fieldErrors.event_ids}
+        onSelectionChange={(ids) => {
+          selectedEventIds.current = ids;
+          updateEditedFields();
+        }}
+      />
       {!task && (
         <div className="col-span-2">
           <RecurrenceFields

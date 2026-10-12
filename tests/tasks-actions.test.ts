@@ -81,6 +81,18 @@ it("validates and submits multiple Event links through the atomic Task mutation"
   );
 });
 
+it("retains selected Event IDs in Action state after validation fails", async () => {
+  const form = taskForm();
+  form.set("points", "invalid");
+  form.append("event_ids", "21");
+  form.append("event_ids", "22");
+
+  const result = await createTask({ error: "", success: "" }, form);
+
+  expect(result.values?.event_ids).toEqual(["21", "22"]);
+  expect(rpc).not.toHaveBeenCalled();
+});
+
 it("rejects duplicate linked Event IDs before calling the Task mutation", async () => {
   const form = taskForm();
   form.append("event_ids", "21");

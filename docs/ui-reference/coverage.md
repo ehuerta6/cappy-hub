@@ -4,7 +4,7 @@ This report is generated with node scripts/build-ui-reference.mjs from [manifest
 
 ## Summary
 
-- Screenshots: **278** (139 dark, 139 light).
+- Screenshots: **314** (157 dark, 157 light).
 - Roles: **Admin, Lead, and Officer**, plus shared login/access states.
 - Lead coverage includes both a single-branch Lead and a multi-branch Lead account. This reflects the app's branch-scoped permissions while keeping Lead as one primary role.
 - Every included dark screenshot state has a corresponding light-theme capture at the same role, scope, domain, route, width, and capture mode.
@@ -29,7 +29,7 @@ Counts are dark / light.
 | Points     | 17 / 17 | 0 / 0 |   4 / 4 |
 | States     |   0 / 0 | 0 / 0 |   0 / 0 |
 | System Log |   5 / 5 | 0 / 0 |   0 / 0 |
-| Tasks      | 17 / 17 | 4 / 4 |   2 / 2 |
+| Tasks      | 35 / 35 | 4 / 4 |   2 / 2 |
 
 ## Not captured
 

@@ -136,7 +136,7 @@ test("new Task form has no detectable accessibility violations", async ({
   await expect(page.getByRole("heading", { name: "New task" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Create task" })).toBeVisible();
   await expect(
-    page.getByText(/Select one or more Events as optional context\./),
+    page.getByText(/Optional context: search and select any number of Events/),
   ).toBeVisible();
   await expectNoAxeViolations(page);
 });

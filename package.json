@@ -24,6 +24,7 @@
     "local:setup": "npm run local:reset"
   },
   "dependencies": {
+    "@base-ui/react": "^1.9.0",
     "@fullcalendar/react": "^7.1.0",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.117.2",
