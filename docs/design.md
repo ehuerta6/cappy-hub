@@ -288,7 +288,7 @@ Distinguish truly empty data from zero results caused by active filters. Use ter
 
 ## 18. Responsive behavior
 
-Cappy Hub is designed for desktop and laptop widths from 1024px to 1920px, with 1280px and 1440px as the primary review widths. Desktop navigation can wrap naturally when the browser window narrows. Paired forms and filters use the desktop layout; data-heavy semantic tables retain every column and may scroll horizontally within their table frame. The Calendar uses its month grid. Do not add phone or tablet variants. Browser zoom, text scaling, keyboard navigation, and ordinary desktop resizing remain supported. Do not force every page above the fold.
+Cappy Hub is designed for desktop and laptop widths from 1024px to 1920px, with 1280px and 1440px as the primary review widths. Desktop navigation stays on one row across those supported widths. Paired forms and filters use the desktop layout; data-heavy semantic tables retain every column and may scroll horizontally within their table frame. The Calendar uses its month grid. Do not add phone or tablet variants. Browser zoom, text scaling, keyboard navigation, and ordinary desktop resizing remain supported. Do not force every page above the fold.
 
 ## 19. Accessibility
 
