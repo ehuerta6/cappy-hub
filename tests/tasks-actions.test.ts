@@ -156,6 +156,22 @@ it("validates and bulk-adds multiple Officers through the trusted RPC", async ()
   });
 });
 
+it("retains selected Officer IDs when Task ID validation fails", async () => {
+  const form = new FormData();
+  form.set("task_id", "invalid");
+  form.append("officer_ids", "-10");
+  form.append("officer_ids", "-11");
+
+  expect(
+    await bulkAssignTaskOfficers({ error: "", success: "" }, form),
+  ).toMatchObject({
+    error: "Task not found",
+    fieldErrors: { task_id: "Task not found" },
+    values: { task_id: "invalid", officer_ids: ["-10", "-11"] },
+  });
+  expect(rpc).not.toHaveBeenCalled();
+});
+
 it("requires at least one unique Officer for bulk assignment", async () => {
   const form = new FormData();
   form.set("task_id", "-9");
