@@ -382,7 +382,7 @@
     align-self: start;
   }
 
-  .event-form-recurrence > fieldset {
+  .event-form-recurrence .event-recurrence-fields {
     min-width: 0;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -390,7 +390,7 @@
     gap: 1rem 1.25rem;
   }
 
-  .event-form-recurrence > fieldset > label {
+  .event-form-recurrence .event-recurrence-fields > label {
     display: grid;
     align-content: start;
     gap: 0.4rem;
@@ -402,15 +402,9 @@
     font-size: 0.8125rem;
   }
 
-  .event-form-recurrence > fieldset > fieldset {
+  .event-form-recurrence .event-recurrence-fields > fieldset {
     grid-column: 1 / -1;
     min-width: 0;
-  }
-
-  .event-form-recurrence > fieldset > fieldset > label {
-    display: grid;
-    align-content: start;
-    gap: 0.4rem;
   }
 
   @media (max-width: 1023px) {
