@@ -10,7 +10,10 @@ import { ActionFeedback, FieldError } from "@/components/ui";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { editPointTransaction, removePointTransaction } from "./actions";
-import { useSetPointHistoryAmount } from "./point-history-state";
+import {
+  usePointHistoryAmount,
+  useSetPointHistoryAmount,
+} from "./point-history-state";
 
 export default function PointActions({
   transactionId,
@@ -25,6 +28,7 @@ export default function PointActions({
   );
   const [editing, setEditing] = useState(false);
   const [editSuccess, setEditSuccess] = useState("");
+  const currentPoints = usePointHistoryAmount(transactionId, points);
   const setAmount = useSetPointHistoryAmount();
   const handleEditSuccess = useCallback(
     (amount: number, message: string) => {
@@ -47,7 +51,7 @@ export default function PointActions({
       {editing ? (
         <EditPointForm
           transactionId={transactionId}
-          points={points}
+          points={currentPoints}
           onCancel={() => setEditing(false)}
           onSuccess={handleEditSuccess}
         />

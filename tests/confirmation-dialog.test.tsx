@@ -36,6 +36,7 @@ import {
   WarningDecisionForm,
 } from "@/app/(protected)/officers/warning-forms";
 import PointActions from "@/app/(protected)/points/point-actions";
+import { PointHistoryState } from "@/app/(protected)/points/point-history-state";
 
 const series = {
   id: 12,
@@ -180,7 +181,11 @@ it("preserves warning decision submit values inside the dialogs", () => {
 
 it("explains that Point transaction removal is logical and retains feedback", () => {
   const pointHtml = renderToStaticMarkup(
-    createElement(PointActions, { transactionId: 8, points: 2 }),
+    createElement(
+      PointHistoryState,
+      { initialAmounts: [{ transactionId: 8, points: 2 }] },
+      createElement(PointActions, { transactionId: 8, points: 2 }),
+    ),
   );
   const feedbackHtml = renderToStaticMarkup(
     createElement("form", null, [

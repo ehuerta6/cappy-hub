@@ -183,3 +183,42 @@ it("updates the displayed amount and exits editing after a successful save", asy
   );
   expect(host.ownerDocument.activeElement?.textContent).toBe("Edit points");
 });
+
+it("reopens editing with the latest amount after a successful save", async () => {
+  vi.mocked(editPointTransaction).mockResolvedValueOnce({
+    error: "",
+    success: "Point transaction updated",
+  });
+  await renderPointActions();
+  const edit = host.querySelector<HTMLButtonElement>(
+    'button[type="button"].button-secondary',
+  );
+  if (!edit) throw new Error("Edit points button not found");
+  await act(async () => edit.click());
+
+  const input = host.querySelector<HTMLInputElement>('input[name="points"]');
+  if (!input) throw new Error("Proposed amount input not found");
+  const form = input.closest("form");
+  if (!form) throw new Error("Edit form not found");
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )?.set?.call(input, "4.75");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    form.requestSubmit();
+    await Promise.resolve();
+  });
+
+  const readOnlyEdit = host.querySelector<HTMLButtonElement>(
+    'button[type="button"].button-secondary',
+  );
+  if (!readOnlyEdit) throw new Error("Read-only Edit points button not found");
+  await act(async () => readOnlyEdit.click());
+
+  expect(host.textContent).toContain("Current amount: 4.75 points");
+  expect(
+    host.querySelector<HTMLInputElement>('input[name="points"]')?.value,
+  ).toBe("4.75");
+});

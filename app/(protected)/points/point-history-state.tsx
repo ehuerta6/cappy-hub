@@ -59,6 +59,10 @@ export function PointHistoryAmount({
   return <PointValue value={amounts.get(transactionId) ?? fallback} />;
 }
 
+export function usePointHistoryAmount(transactionId: number, fallback: number) {
+  return usePointHistoryState().amounts.get(transactionId) ?? fallback;
+}
+
 export function useSetPointHistoryAmount() {
   return usePointHistoryState().setAmount;
 }
