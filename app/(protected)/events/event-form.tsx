@@ -283,7 +283,7 @@ export default function EventForm({
         </div>
       </fieldset>
 
-      <fieldset className="event-form-section col-span-2">
+      <fieldset className="event-form-section event-form-resources col-span-2">
         <legend>Resources (optional)</legend>
         <p className="event-form-section-description">
           Add links that are useful for this event. All resource links are
