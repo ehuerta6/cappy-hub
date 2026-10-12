@@ -140,8 +140,13 @@ export function RecurrenceFields({
   return (
     <fieldset ref={fieldsRef} className="col-span-2 space-y-3">
       <legend>Repeat</legend>
+      {recordType === "Event" && (
+        <p className="event-recurrence-description">
+          Each scheduled occurrence is created as a separate event.
+        </p>
+      )}
       <label>
-        Repeat
+        {recordType === "Event" ? "Frequency" : "Repeat"}
         <select
           name="recurrence_frequency"
           value={frequency}

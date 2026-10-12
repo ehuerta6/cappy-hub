@@ -58,3 +58,18 @@ it("clarifies the external sheet in create/edit forms and displays the saved URL
   expect(html).toContain('name="max_volunteers"');
   expect(html).toContain('value="5"');
 });
+
+it("groups optional resources and recurrence after event details and capacity", () => {
+  const html = renderEventForm();
+  expect(html).toContain("Resources (optional)");
+  expect(html).toContain(
+    "Add links that are useful for this event. All resource links are optional.",
+  );
+  expect(html).toContain(
+    "Each scheduled occurrence is created as a separate event.",
+  );
+  expect(html.indexOf("Participation and capacity")).toBeLessThan(
+    html.indexOf("Each scheduled occurrence is created as a separate event."),
+  );
+  expect(html).toContain('name="recurrence_frequency"');
+});
