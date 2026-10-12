@@ -7,7 +7,7 @@ vi.mock("@/app/(protected)/events/actions", () => ({
 
 import EventForm from "@/app/(protected)/events/event-form";
 
-const renderEventForm = (editing = false) =>
+const renderEventForm = (editing = false, recurring = false) =>
   renderToStaticMarkup(
     <EventForm
       branches={[]}
@@ -34,6 +34,17 @@ const renderEventForm = (editing = false) =>
             } as never)
           : undefined
       }
+      series={
+        recurring
+          ? ({
+              id: 19,
+              revision: 2,
+              recurrence_rule: "FREQ=WEEKLY;INTERVAL=1;BYDAY=MO;COUNT=4",
+              starts_on: "2026-10-12",
+            } as never)
+          : undefined
+      }
+      mutationRequestKey={recurring ? "test-request-key" : undefined}
     />,
   );
 
@@ -57,4 +68,29 @@ it("clarifies the external sheet in create/edit forms and displays the saved URL
   expect(html).toContain("Max volunteers (optional)");
   expect(html).toContain('name="max_volunteers"');
   expect(html).toContain('value="5"');
+});
+
+it("groups optional resources and recurrence after event details and capacity", () => {
+  const html = renderEventForm();
+  expect(html).toContain("Resources (optional)");
+  expect(html).toContain(
+    "Add links that are useful for this event. All resource links are optional.",
+  );
+  expect(html).toContain(
+    "Each scheduled occurrence is created as a separate event.",
+  );
+  expect(html.indexOf("Participation and capacity")).toBeLessThan(
+    html.indexOf("Each scheduled occurrence is created as a separate event."),
+  );
+  expect(html).toContain('name="recurrence_frequency"');
+});
+
+it("keeps recurring edit scope choices as inline radio labels", () => {
+  const html = renderEventForm(true, true);
+
+  expect(html).toContain('class="event-recurrence-scope col-span-2 space-y-3"');
+  expect(html.match(/class="flex items-center gap-2"/g)).toHaveLength(3);
+  expect(html.indexOf("Participation and capacity")).toBeLessThan(
+    html.indexOf("event-recurrence-scope"),
+  );
 });

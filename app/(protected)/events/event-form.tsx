@@ -105,21 +105,6 @@ export default function EventForm({
           value={recurrenceRequestKey}
         />
       )}
-      {series && mutationRequestKey && (
-        <div className="col-span-2">
-          <RecurrenceScope
-            series={series}
-            requestKey={mutationRequestKey}
-            recordType="Event"
-            editing
-            selectedKey={event?.recurrence_key}
-            selectedDate={event?.event_date}
-            values={state.values}
-            fieldErrors={fieldErrors}
-          />
-        </div>
-      )}
-
       <fieldset className="event-form-section">
         <legend>Event information</legend>
         <div className="event-form-fields">
@@ -298,8 +283,12 @@ export default function EventForm({
         </div>
       </fieldset>
 
-      <fieldset className="event-form-section col-span-2">
-        <legend>Resources</legend>
+      <fieldset className="event-form-section event-form-resources col-span-2">
+        <legend>Resources (optional)</legend>
+        <p className="event-form-section-description">
+          Add links that are useful for this event. All resource links are
+          optional.
+        </p>
         <div className="event-form-fields event-form-resource-fields">
           <label>
             Slides URL (optional)
@@ -460,8 +449,23 @@ export default function EventForm({
         </fieldset>
       </fieldset>
 
+      {series && mutationRequestKey && (
+        <div className="event-form-recurrence col-span-2">
+          <RecurrenceScope
+            series={series}
+            requestKey={mutationRequestKey}
+            recordType="Event"
+            editing
+            selectedKey={event?.recurrence_key}
+            selectedDate={event?.event_date}
+            values={state.values}
+            fieldErrors={fieldErrors}
+          />
+        </div>
+      )}
+
       {!event && (
-        <div className="event-form-recurrence">
+        <div className="event-form-recurrence col-span-2">
           <RecurrenceFields
             recordType="Event"
             values={state.values}

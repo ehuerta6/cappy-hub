@@ -289,15 +289,24 @@ test("manager adds multiple Officers and controls independent Task completion an
     const officerSection = managerPage.getByRole("region", {
       name: "Officers",
     });
-    await officerSection
+    await expect(
+      officerSection.getByRole("dialog", { name: "Add officers to this task" }),
+    ).toHaveCount(0);
+    await officerSection.getByRole("button", { name: "Add officers" }).click();
+    const assignmentDialog = officerSection.getByRole("dialog", {
+      name: "Add officers to this task",
+    });
+    await expect(assignmentDialog).toBeVisible();
+    await assignmentDialog
       .getByRole("checkbox", { name: "Local Officer", exact: true })
       .check();
-    await officerSection
+    await assignmentDialog
       .getByRole("checkbox", { name: "Avery Chen", exact: true })
       .check();
-    await officerSection
+    await assignmentDialog
       .getByRole("button", { name: "Add selected officers", exact: true })
       .click();
+    await expect(assignmentDialog).toBeHidden();
     await expect(
       officerSection.getByText("2 officers added", { exact: true }),
     ).toBeVisible();
@@ -309,6 +318,9 @@ test("manager adds multiple Officers and controls independent Task completion an
       .filter({ hasText: "Avery Chen" });
     await expect(localOfficerRow).toContainText("Not completed");
     await expect(averyRow).toContainText("Not completed");
+    await expect(
+      localOfficerRow.getByRole("button", { name: "Save" }),
+    ).toHaveCount(0);
     await localOfficerRow
       .getByRole("checkbox", {
         name: "Completed for Local Officer",

@@ -50,6 +50,10 @@ test("Cappy Hub navigation remains visible across desktop widths and themes", as
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   for (const width of [1920, 1440, 1280, 1024]) {
     await page.setViewportSize({ width, height: 1000 });
+    const navigation = page.getByRole("navigation", {
+      name: "Main navigation",
+    });
+    const linkPositions: number[] = [];
     for (const label of [
       "Dashboard",
       "Events",
@@ -58,14 +62,42 @@ test("Cappy Hub navigation remains visible across desktop widths and themes", as
       "Officers",
       "Points",
       "Admin",
-    ])
+    ]) {
       await expect(
-        page
-          .getByRole("navigation", { name: "Main navigation" })
-          .getByRole("link", { name: label, exact: true }),
+        navigation.getByRole("link", { name: label, exact: true }),
       ).toBeVisible();
+      linkPositions.push(
+        await navigation
+          .getByRole("link", { name: label, exact: true })
+          .evaluate((link) => link.getBoundingClientRect().top),
+      );
+    }
+    expect(new Set(linkPositions.map((top) => Math.round(top))).size).toBe(1);
+    expect(
+      await navigation.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      ),
+    ).toBe(true);
     await expectNoPageOverflow(page);
   }
+
+  await page.setViewportSize({ width: 1024, height: 1000 });
+  await page.getByRole("button", { name: "Switch to light theme" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  const navigation = page.getByRole("navigation", {
+    name: "Main navigation",
+  });
+  const navBox = await navigation.boundingBox();
+  const adminBox = await navigation
+    .getByRole("link", { name: "Admin", exact: true })
+    .boundingBox();
+  expect(navBox).not.toBeNull();
+  expect(adminBox).not.toBeNull();
+  expect(adminBox!.y).toBeGreaterThanOrEqual(navBox!.y);
+  expect(adminBox!.y + adminBox!.height).toBeLessThanOrEqual(
+    navBox!.y + navBox!.height,
+  );
+  await expectNoPageOverflow(page);
 });
 
 test("administrative pages remain usable across desktop widths", async ({

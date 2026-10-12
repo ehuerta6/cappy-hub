@@ -330,20 +330,44 @@
     width: 100%;
     max-width: 72rem;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 1.25rem 1.5rem;
+    gap: 1.5rem;
     margin-inline: auto;
   }
 
   .event-form-section {
     display: block;
     min-width: 0;
-    padding: 0.875rem 1rem 1rem;
+    padding: 1rem 1.125rem 1.125rem;
+  }
+
+  .event-form-resources {
+    border-color: var(--border);
+    border-radius: 0.375rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .event-form-resources > legend {
+    color: var(--muted);
+    font-size: 0.8125rem;
+  }
+
+  .event-form-resources .event-form-section-description {
+    margin-bottom: 0.625rem;
+  }
+
+  .event-form-resources .event-form-fields {
+    gap: 0.75rem 1rem;
+  }
+
+  .event-form-section-description {
+    margin: 0 0 0.875rem;
+    font-size: 0.8125rem;
   }
 
   .event-form-fields {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem 1rem;
+    gap: 1rem 1.125rem;
   }
 
   .event-form-fields > label,
@@ -377,7 +401,28 @@
     align-self: start;
   }
 
-  .event-form-recurrence > fieldset {
+  .event-form-recurrence .event-recurrence-fields {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 1rem 1.25rem;
+  }
+
+  .event-form-recurrence .event-recurrence-fields > label {
+    display: grid;
+    align-content: start;
+    gap: 0.4rem;
+  }
+
+  .event-form-recurrence .event-recurrence-description {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: 0.8125rem;
+  }
+
+  .event-form-recurrence .event-recurrence-fields > fieldset {
+    grid-column: 1 / -1;
     min-width: 0;
   }
 
@@ -387,6 +432,10 @@
     }
 
     .event-form-section.col-span-2 {
+      grid-column: auto;
+    }
+
+    .event-form-recurrence.col-span-2 {
       grid-column: auto;
     }
   }
