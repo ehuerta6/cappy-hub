@@ -43,7 +43,7 @@ The external design reference named in the changelog is only an influence on gen
 
 ### Current shell and access rules
 
-**CURRENT:** Protected pages require a current officer account. The horizontal navigation links to Dashboard, Events, Tasks, Calendar, Officers, and Points; it wraps naturally within the desktop header when needed. Admin appears there only when the current application role is `admin`. The right side shows the theme toggle, current officer name, and Sign out. System Log and Officer catalogs are not top-level navigation destinations; existing links into them come from Admin and Officers respectively.
+**CURRENT:** Protected pages require a current officer account. The horizontal navigation links to Dashboard, Events, Tasks, Calendar, Officers, and Points; it stays on one row at supported desktop widths (1024–1920px). Admin appears there only when the current application role is `admin`. The right side shows the theme toggle, current officer name, and Sign out. System Log and Officer catalogs are not top-level navigation destinations; existing links into them come from Admin and Officers respectively.
 
 **CURRENT:** Admin-only tasks include the Admin landing page, officer/catalog management, point configuration and manual point actions, and System Log. Event/Task creation and management also depend on branch visibility: admins and the President/Vice Presidents can manage all branches; a Lead can manage work in their assigned branches. Active Officers may self-assign Tasks; only authorized managers control completion. Preserve the server-enforced permissions; visual hiding is not a substitute for them.
 
@@ -288,7 +288,7 @@ Distinguish truly empty data from zero results caused by active filters. Use ter
 
 ## 18. Responsive behavior
 
-Cappy Hub is designed for desktop and laptop widths from 1024px to 1920px, with 1280px and 1440px as the primary review widths. Desktop navigation can wrap naturally when the browser window narrows. Paired forms and filters use the desktop layout; data-heavy semantic tables retain every column and may scroll horizontally within their table frame. The Calendar uses its month grid. Do not add phone or tablet variants. Browser zoom, text scaling, keyboard navigation, and ordinary desktop resizing remain supported. Do not force every page above the fold.
+Cappy Hub is designed for desktop and laptop widths from 1024px to 1920px, with 1280px and 1440px as the primary review widths. Desktop navigation stays on one row across those supported widths. Paired forms and filters use the desktop layout; data-heavy semantic tables retain every column and may scroll horizontally within their table frame. The Calendar uses its month grid. Do not add phone or tablet variants. Browser zoom, text scaling, keyboard navigation, and ordinary desktop resizing remain supported. Do not force every page above the fold.
 
 ## 19. Accessibility
 
@@ -595,3 +595,4 @@ Every generated redesign must preserve the existing screen's access rules, actua
 - **2026-10-09 — Desktop workflow refinement.** Added role-aware Points composition: Admin controls remain beside totals, while Officers get a centered read-only totals table and full-width history. Grouped Task form fields for desktop entry. Replaced compact disclosure navigation with wrapping desktop navigation, removed Calendar list-view switching, and removed duplicate phone table presentations. Desktop-only target: 1024–1920px; permissions and workflows are unchanged.
 - **2026-10-11 — Task Linked Events Combobox experiment.** Replaced the modifier-key-dependent native multi-select with a compact searchable, removable multi-select built from Base UI primitives styled to Cappy Hub tokens. Create/edit eligibility, historical linked Events, recurrence field tracking, and the repeated `event_ids` Server Action contract remain intact.
 - **2026-10-11 — Event form grouping.** Increased form section and field spacing, clarified optional resource links, and placed recurrence scope and settings after event participation details. Event fields, validation, capacity, recurrence behavior, and Server Actions remain unchanged.
+- **2026-10-11 — Desktop header navigation.** Kept all existing navigation links on one row at the supported 1024–1920px desktop widths and slightly reduced link padding at desktop sizes. Admin remains visible only to Admins; destinations and role behavior are unchanged.

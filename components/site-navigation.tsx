@@ -36,10 +36,10 @@ export default function SiteNavigation({
 
   return (
     <header className="border-b border-border bg-background">
-      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3">
+      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3 lg:flex-nowrap">
         <Link
           href="/"
-          className="flex min-w-0 items-center gap-2 text-sm font-semibold tracking-tight text-foreground hover:text-foreground"
+          className="flex min-w-0 shrink-0 items-center gap-2 text-sm font-semibold tracking-tight text-foreground hover:text-foreground"
         >
           <Image
             src="/favicon.ico"
@@ -53,7 +53,7 @@ export default function SiteNavigation({
         </Link>
         <nav
           aria-label="Main navigation"
-          className="flex min-w-0 flex-1 flex-wrap gap-x-1"
+          className="flex min-w-0 flex-1 flex-wrap gap-x-1 lg:flex-nowrap"
         >
           {visibleLinks.map(({ href, label }) => {
             const isActive = active(href);
@@ -64,8 +64,8 @@ export default function SiteNavigation({
                 aria-current={isActive ? "page" : undefined}
                 className={
                   isActive
-                    ? "shrink-0 whitespace-nowrap border-b border-foreground px-2 py-2 text-sm font-medium text-foreground"
-                    : "shrink-0 whitespace-nowrap border-b border-transparent px-2 py-2 text-sm text-muted hover:text-foreground"
+                    ? "shrink-0 whitespace-nowrap border-b border-foreground px-2 py-2 text-sm font-medium text-foreground lg:px-1.5"
+                    : "shrink-0 whitespace-nowrap border-b border-transparent px-2 py-2 text-sm text-muted hover:text-foreground lg:px-1.5"
                 }
               >
                 {label}
