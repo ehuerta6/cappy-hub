@@ -155,16 +155,18 @@ it("keeps success visible and moves focus to the Officers section after the last
 it.each([
   {
     failure: "validation",
+    taskId: Number.NaN,
     state: {
-      error: "Choose at least one active Officer",
+      error: "Task not found",
       success: "",
-      fieldErrors: { officer_ids: "Choose at least one active Officer" },
-      values: { task_id: "17", officer_ids: ["3", "4"] },
+      fieldErrors: { task_id: "Task not found" },
+      values: { task_id: "NaN", officer_ids: ["3", "4"] },
     },
-    message: "Choose at least one active Officer",
+    message: "Task not found",
   },
   {
     failure: "persistence",
+    taskId: 17,
     state: {
       error: "Could not update task assignments",
       success: "",
@@ -174,13 +176,13 @@ it.each([
   },
 ])(
   "preserves selected Officers after $failure failure",
-  async ({ state, message }) => {
+  async ({ state, taskId, message }) => {
     vi.mocked(bulkAssignTaskOfficers).mockResolvedValue(state);
 
     await act(async () =>
       root.render(
         createElement(BulkTaskOfficersForm, {
-          taskId: 17,
+          taskId,
           officers: [
             { id: 3, name: "Avery Chen" },
             { id: 4, name: "Casey Nguyen" },
