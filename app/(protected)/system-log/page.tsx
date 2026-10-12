@@ -373,39 +373,42 @@ export default async function SystemLogPage({
                       )}
                     </td>
                     <td>
-                      {presentation.changes.length === 0 ? (
+                      {presentation.changes.length === 0 && (
                         <p>{presentation.detailSummary}</p>
-                      ) : (
-                        <details className="text-xs text-muted">
-                          <summary className="cursor-pointer">
-                            {presentation.changes.length} change
-                            {presentation.changes.length === 1 ? "" : "s"}
-                          </summary>
-                          <ul className="mt-1 space-y-1">
-                            {presentation.changes.map((change) => (
-                              <li key={change.label}>
-                                {change.label}: {change.value}
-                              </li>
-                            ))}
-                          </ul>
-                        </details>
                       )}
-                      <details className="mt-1 text-xs text-muted">
-                        <summary className="cursor-pointer">
-                          Technical details
-                        </summary>
-                        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-                          <dt>Action</dt>
-                          <dd>{entry.action}</dd>
-                          <dt>Entity type</dt>
-                          <dd>{entry.entity_type}</dd>
-                          <dt>Entity ID</dt>
-                          <dd>{entry.entity_id}</dd>
-                        </dl>
-                        <pre className="mt-2 max-w-md overflow-x-auto whitespace-pre-wrap">
-                          {JSON.stringify(entry.details, null, 2)}
-                        </pre>
-                      </details>
+                      <div className="flex flex-wrap items-center gap-x-3">
+                        {presentation.changes.length > 0 && (
+                          <details className="max-w-full text-xs text-muted">
+                            <summary className="min-h-10 cursor-pointer">
+                              {presentation.changes.length} change
+                              {presentation.changes.length === 1 ? "" : "s"}
+                            </summary>
+                            <ul className="mt-1 space-y-1">
+                              {presentation.changes.map((change) => (
+                                <li key={change.label}>
+                                  {change.label}: {change.value}
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
+                        <details className="max-w-full text-xs text-muted">
+                          <summary className="min-h-10 cursor-pointer">
+                            Technical details
+                          </summary>
+                          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                            <dt>Action</dt>
+                            <dd>{entry.action}</dd>
+                            <dt>Entity type</dt>
+                            <dd>{entry.entity_type}</dd>
+                            <dt>Entity ID</dt>
+                            <dd>{entry.entity_id}</dd>
+                          </dl>
+                          <pre className="mt-2 max-w-md overflow-x-auto whitespace-pre-wrap">
+                            {JSON.stringify(entry.details, null, 2)}
+                          </pre>
+                        </details>
+                      </div>
                     </td>
                   </tr>
                 );

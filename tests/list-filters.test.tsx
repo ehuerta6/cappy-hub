@@ -952,7 +952,12 @@ it("preserves the full System Log row and provides a keyboard-scroll region", as
   expect(html).toContain("Old room");
   expect(html).toContain("New room");
   expect(html).toContain("A long audit value that stays available in full.");
-  expect(html).toContain("Technical details");
+  expect(html).toMatch(
+    /<summary class="min-h-10 cursor-pointer">2 changes<\/summary>/,
+  );
+  expect(html).toContain(
+    '<summary class="min-h-10 cursor-pointer">Technical details</summary>',
+  );
   expect(html).toContain('type="date"');
 });
 
