@@ -376,16 +376,22 @@ export default async function SystemLogPage({
                       {presentation.changes.length === 0 ? (
                         <p>{presentation.detailSummary}</p>
                       ) : (
-                        <ul className="mt-1 space-y-1 text-xs text-muted">
-                          {presentation.changes.map((change) => (
-                            <li key={change.label}>
-                              {change.label}: {change.value}
-                            </li>
-                          ))}
-                        </ul>
+                        <details className="text-xs text-muted">
+                          <summary className="cursor-pointer">
+                            {presentation.changes.length} change
+                            {presentation.changes.length === 1 ? "" : "s"}
+                          </summary>
+                          <ul className="mt-1 space-y-1">
+                            {presentation.changes.map((change) => (
+                              <li key={change.label}>
+                                {change.label}: {change.value}
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
                       )}
                       <details className="mt-1 text-xs text-muted">
-                        <summary className="min-h-11 cursor-pointer">
+                        <summary className="cursor-pointer">
                           Technical details
                         </summary>
                         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">

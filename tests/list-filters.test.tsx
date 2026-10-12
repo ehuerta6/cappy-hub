@@ -924,7 +924,18 @@ it("preserves the full System Log row and provides a keyboard-scroll region", as
       action: "event.updated",
       entity_type: "event",
       entity_id: 8,
-      details: { name: "Synthetic workshop room" },
+      details: {
+        before: {
+          name: "Synthetic workshop room",
+          location: "Old room",
+          description: "A long audit value that stays available in full.",
+        },
+        after: {
+          name: "Synthetic workshop room 2",
+          location: "New room",
+          description: "A long audit value that stays available in full.",
+        },
+      },
       created_at: "2026-10-03T12:00:00.000Z",
     },
   ];
@@ -936,7 +947,11 @@ it("preserves the full System Log row and provides a keyboard-scroll region", as
   for (const heading of ["Time", "Actor", "Activity", "Record", "Details"])
     expect(html).toContain(`<th scope="col">${heading}</th>`);
   expect(html).toContain("System");
-  expect(html).toContain("Synthetic workshop room");
+  expect(html).toContain("Synthetic workshop room 2");
+  expect(html).toContain("2 changes");
+  expect(html).toContain("Old room");
+  expect(html).toContain("New room");
+  expect(html).toContain("A long audit value that stays available in full.");
   expect(html).toContain("Technical details");
   expect(html).toContain('type="date"');
 });
