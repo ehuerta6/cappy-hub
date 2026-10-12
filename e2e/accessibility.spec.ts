@@ -100,7 +100,7 @@ test("older Event search preserves the Event already selected", async ({
 
 test("server validation keeps the transaction dialog open and retains values", async ({
   page,
-}) => {
+}, testInfo) => {
   await signInAsAdmin(page);
   await page.goto("/points");
   await page.getByRole("button", { name: "Add transaction" }).click();
@@ -134,7 +134,7 @@ test("server validation keeps the transaction dialog open and retains values", a
   await expect(event).not.toHaveValue("");
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.screenshot({
-    path: "docs/ui-reference/admin/points/206-add-transaction-validation-1440-dark.png",
+    path: testInfo.outputPath("points-validation-dark.png"),
   });
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await page.getByRole("button", { name: "Switch to light theme" }).click();
@@ -144,7 +144,7 @@ test("server validation keeps the transaction dialog open and retains values", a
   await expect(points).toHaveValue("0");
   await expect(officer).not.toHaveValue("");
   await page.screenshot({
-    path: "docs/ui-reference/admin/points/206-add-transaction-validation-1440-light.png",
+    path: testInfo.outputPath("points-validation-light.png"),
   });
 });
 

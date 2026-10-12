@@ -10,6 +10,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import { getAuthorizationContext } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
 import {
   addTransaction,
   changeParticipationRate,
@@ -54,6 +55,7 @@ it("submits an admin correction with an authenticated client", async () => {
   transaction.set("event_id", "12");
   const result = await addTransaction({ error: "", success: "" }, transaction);
   expect(result.success).toBe("Point transaction added");
+  expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
   expect(rpc).toHaveBeenCalledWith("add_manual_transaction", {
     p_officer_id: 3,
     p_event_id: 12,

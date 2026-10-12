@@ -159,6 +159,7 @@ function TransactionFields({
 
   return (
     <form
+      key={JSON.stringify(state.values ?? {})}
       action={action}
       data-pending={pending}
       onReset={(event) => event.preventDefault()}
