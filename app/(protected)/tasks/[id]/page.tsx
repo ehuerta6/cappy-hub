@@ -189,6 +189,7 @@ export default async function TaskDetailPage({
 
         <section
           aria-label="Officers"
+          tabIndex={-1}
           className="min-w-0 space-y-4 rounded-lg border border-border p-4"
         >
           <SectionHeading title="Officers" />
