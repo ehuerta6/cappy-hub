@@ -309,16 +309,31 @@
 
   .event-roster-disclosure {
     display: block;
-    border: 1px solid var(--border);
-    border-radius: 0.375rem;
-    padding: 0.5rem 0.75rem;
   }
 
   .event-roster-disclosure > summary {
+    width: fit-content;
+    border: 1px solid var(--border-strong);
+    border-radius: 0.375rem;
+    background: var(--surface-muted);
+    padding: 0.4rem 0.65rem;
     cursor: pointer;
     color: var(--secondary);
     font-size: 0.875rem;
     font-weight: 500;
+  }
+
+  .event-roster-disclosure > summary:focus-visible {
+    outline: 2px solid var(--muted);
+    outline-offset: 2px;
+  }
+
+  .event-bulk-officer-list {
+    max-block-size: 12rem;
+    min-width: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0.25rem;
   }
 
   .event-form {

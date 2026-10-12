@@ -161,7 +161,7 @@ export function BulkAddOfficersForm({
       >
         <legend>{past ? "Select attendees" : "Select officers to add"}</legend>
         {officers.length ? (
-          <div className="mt-2 grid gap-2 grid-cols-2">
+          <div className="event-bulk-officer-list mt-2 grid grid-cols-2 gap-2">
             {officers.map((officer) => (
               <label key={officer.id} className="flex items-center gap-2">
                 <input
