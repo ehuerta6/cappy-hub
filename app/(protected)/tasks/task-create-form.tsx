@@ -85,7 +85,7 @@ export default function TaskCreateForm({
     <form
       ref={formRef}
       action={action}
-      className="grid max-w-6xl grid-cols-2 gap-x-6 gap-y-4"
+      className="task-form grid max-w-6xl grid-cols-2 gap-x-6 gap-y-4"
       onChange={updateEditedFields}
     >
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
@@ -126,11 +126,12 @@ export default function TaskCreateForm({
         name="recurrence_request_key"
         value={recurrenceRequestKey}
       />
-      <label>
+      <label className="task-form-title self-start">
         Title
         <input
           name="title"
           required
+          className="h-10 text-base font-medium"
           aria-invalid={Boolean(fieldErrors.title)}
           aria-describedby={fieldErrors.title ? "task-title-error" : undefined}
           defaultValue={submittedValue(
@@ -141,7 +142,7 @@ export default function TaskCreateForm({
         />
         <FieldError id="task-title-error">{fieldErrors.title}</FieldError>
       </label>
-      <label>
+      <label className="task-form-description self-start">
         Description
         <textarea
           name="description"

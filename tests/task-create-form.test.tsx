@@ -46,6 +46,22 @@ it("offers searchable Event links and retains a historical linked Event", () => 
   expect(html).toContain("Search and select Events");
 });
 
+it("keeps the task title compact and describes recurrence as optional", () => {
+  const html = renderToStaticMarkup(
+    <TaskCreateForm
+      branches={[]}
+      recurrenceRequestKey="00000000-0000-4000-8000-000000000001"
+    />,
+  );
+
+  expect(html).toContain('class="task-form grid max-w-6xl grid-cols-2');
+  expect(html).toContain('class="task-form-title self-start"');
+  expect(html).toContain('class="h-10 text-base font-medium"');
+  expect(html).toContain('class="task-recurrence-fields"');
+  expect(html).toContain("Optional recurrence");
+  expect(html).not.toContain("<legend>Repeat</legend>");
+});
+
 it("submits an empty event_ids selection without adding a placeholder value", () => {
   const html = renderToStaticMarkup(
     <TaskCreateForm
