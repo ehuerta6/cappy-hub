@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
+import { migrationSqlForUpgradeTest } from "./upgrade-test-migration.mjs";
 
 process.env.SUPABASE_TELEMETRY_DISABLED = "true";
 
@@ -68,7 +69,12 @@ try {
     )
     .sort();
   for (const migration of migrations) {
-    psql(readFileSync(`supabase/migrations/${migration}`));
+    psql(
+      migrationSqlForUpgradeTest(
+        migration,
+        readFileSync(`supabase/migrations/${migration}`, "utf8"),
+      ),
+    );
   }
   psql(readFileSync("supabase/fixtures/pre-simplify-untimed.sql"));
   psql(readFileSync("supabase/migrations/20261001060843_simplify_events.sql"));

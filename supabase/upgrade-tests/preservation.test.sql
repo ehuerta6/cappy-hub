@@ -3,6 +3,10 @@ create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 select no_plan();
 
+select is((select count(*)::integer from cron.job
+  where jobname='cappy-process-finished-events'),0,
+  'historical upgrade replay leaves the Event processor unscheduled');
+
 select results_eq(
   $$select id,name,utep_email,personal_email,classification,status,created_at from officers where id between 90001 and 90003 order by id$$,
   $$select (original->>'id')::bigint,original->>'name',original->>'utep_email',original->>'personal_email',original->>'classification',original->>'status',(original->>'created_at')::timestamptz from upgrade_fixture.officers order by (original->>'id')::bigint$$,
