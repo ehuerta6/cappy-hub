@@ -5,6 +5,13 @@ import { createClient } from "@supabase/supabase-js";
 const PROJECT_ID = "cappy-hub";
 const LOCAL_PASSWORD = "CappyLocal123!";
 
+// CI already verified and loaded the synthetic seed into a disposable database.
+// Keep the regular local:reset workflow unchanged for developer machines.
+const reuseCiSeed = process.argv.includes("--reuse-ci-seed");
+if (reuseCiSeed && process.env.CI !== "true") {
+  throw new Error("--reuse-ci-seed is only supported in disposable CI runners");
+}
+
 const accounts = [
   { officerId: -1001, email: "admin@cappy.test", label: "Admin" },
   { officerId: -1002, email: "president@cappy.test", label: "President" },
@@ -218,27 +225,31 @@ async function verifySeed(admin) {
   }
 }
 
-console.log("\nResetting local database from migrations...");
-run("npx", ["supabase", "db", "reset", "--local", "--no-seed"]);
+if (!reuseCiSeed) {
+  console.log("\nResetting local database from migrations...");
+  run("npx", ["supabase", "db", "reset", "--local", "--no-seed"]);
 
-console.log("\nLoading synthetic Cappy Hub data...");
-const seed = await readFile("supabase/seed.sql", "utf8");
-run(
-  "docker",
-  [
-    "exec",
-    "-i",
-    `supabase_db_${PROJECT_ID}`,
-    "psql",
-    "-U",
-    "postgres",
-    "-d",
-    "postgres",
-    "-v",
-    "ON_ERROR_STOP=1",
-  ],
-  { input: seed },
-);
+  console.log("\nLoading synthetic Cappy Hub data...");
+  const seed = await readFile("supabase/seed.sql", "utf8");
+  run(
+    "docker",
+    [
+      "exec",
+      "-i",
+      `supabase_db_${PROJECT_ID}`,
+      "psql",
+      "-U",
+      "postgres",
+      "-d",
+      "postgres",
+      "-v",
+      "ON_ERROR_STOP=1",
+    ],
+    { input: seed },
+  );
+} else {
+  console.log("\nUsing the already-verified disposable CI database and synthetic seed...");
+}
 
 console.log("\nReading local Supabase credentials...");
 const env = parseEnv(

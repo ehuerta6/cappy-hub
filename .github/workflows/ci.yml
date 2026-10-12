@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
 
+# Cancel superseded PR runs, but never cancel main's release-gating CI.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   checks:
     name: Quality checks
@@ -54,7 +59,11 @@ jobs:
 
       - name: Start disposable local database and replay migrations
         id: db_start
-        run: npm run db:start
+        # Keep the Auth/API services needed for later login checks in this same
+        # container stack. Omit UI, mail, storage, and other unused services.
+        run: >-
+          npx supabase start -x
+          realtime,storage-api,imgproxy,mailpit,studio,edge-runtime,logflare,vector,supavisor
 
       - name: Diagnose local database startup failure
         if: ${{ failure() && steps.db_start.outcome == 'failure' }}
@@ -78,8 +87,9 @@ jobs:
       - name: Verify synthetic local seed
         run: npm run test:local-seed
 
-      - name: Prepare the full local app and seeded auth accounts
-        run: npm run local:reset
+      - name: Link and verify synthetic Auth accounts without restarting Supabase
+        # test:local-seed just loaded and validated this disposable database.
+        run: node scripts/setup-local-dev.mjs --reuse-ci-seed
 
       - name: Build for production
         run: npm run build

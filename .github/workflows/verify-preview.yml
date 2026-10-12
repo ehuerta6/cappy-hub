@@ -9,6 +9,11 @@ permissions:
   contents: read
   deployments: read
 
+# A newer PR revision supersedes its earlier Preview wait/smoke run.
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   smoke:
     name: Verify Preview login
