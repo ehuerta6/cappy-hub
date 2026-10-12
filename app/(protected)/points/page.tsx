@@ -212,7 +212,12 @@ export default async function PointsPage({
         title="Points"
         description="Finished events receive participation awards automatically from the scheduled database processor."
         action={
-          !admin && (
+          admin ? (
+            <TransactionForm
+              officers={activeOfficers.data}
+              events={recentEvents.data}
+            />
+          ) : (
             <p className="text-sm text-secondary">
               Participation rate:{" "}
               {configuration.data.participation_points_per_hour} points/hour
@@ -233,15 +238,6 @@ export default async function PointsPage({
               <RateForm
                 rate={configuration.data.participation_points_per_hour}
               />
-            </section>
-            <section>
-              <SectionHeading title="Add manual transaction or correction" />
-              <div className="rounded-lg border border-border bg-surface/40 p-4 sm:p-5">
-                <TransactionForm
-                  officers={activeOfficers.data}
-                  events={recentEvents.data}
-                />
-              </div>
             </section>
           </div>
         </div>

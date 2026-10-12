@@ -20,7 +20,10 @@ vi.mock("@/lib/authorization", () => ({
   canManagePoints,
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient }));
-vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn(),
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
 
 import PointsPage from "@/app/(protected)/points/page";
 
@@ -122,10 +125,10 @@ it("gives non-admins a centered totals table and keeps history full width", asyn
     html.indexOf("Point history"),
   );
   expect(html).not.toContain("Point configuration");
-  expect(html).not.toContain("Add manual transaction or correction");
+  expect(html).not.toContain("Add transaction");
 });
 
-it("keeps the Admin totals and controls beside one another before full-width history", async () => {
+it("shows the Admin transaction action by the heading and keeps rate controls beside totals", async () => {
   canManagePoints.mockReturnValue(true);
   const html = renderToStaticMarkup(
     await PointsPage({ searchParams: Promise.resolve({}) }),
@@ -137,10 +140,11 @@ it("keeps the Admin totals and controls beside one another before full-width his
   expect(html.indexOf("Officer totals")).toBeLessThan(
     html.indexOf("Point configuration"),
   );
-  expect(html.indexOf("Point configuration")).toBeLessThan(
-    html.indexOf("Add manual transaction or correction"),
+  expect(html).toContain('aria-labelledby="add-transaction-title"');
+  expect(html.indexOf("Add transaction")).toBeLessThan(
+    html.indexOf("Officer totals"),
   );
-  expect(html.indexOf("Add manual transaction or correction")).toBeLessThan(
+  expect(html.indexOf("Point configuration")).toBeLessThan(
     html.indexOf("Point history"),
   );
 });

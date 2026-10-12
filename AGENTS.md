@@ -40,21 +40,21 @@
 
 ## Workflow skills
 
-Reusable project workflows live in `.ai/skills/`.
+Reusable project workflows live in `.agents/skills/`.
 
 When a workflow applies, read its `SKILL.md` before performing that workflow.
 
-- unresolved product or technical decisions → `.ai/skills/grill-me/SKILL.md`
-- resolved decisions needing a durable feature specification → `.ai/skills/to-spec/SKILL.md`
-- approved work needing GitHub Issues → `.ai/skills/to-issues/SKILL.md`
-- implementing one approved Issue → `.ai/skills/implement-issue/SKILL.md`
-- substantial debugging → `.ai/skills/debug-with-evidence/SKILL.md`
-- schema, migrations, constraints, RLS, database functions, authorization, or generated database types → `.ai/skills/database-change/SKILL.md`
-- local Supabase or database-test state → `.ai/skills/local-database-workflow/SKILL.md`
-- final implementation validation → `.ai/skills/verify-change/SKILL.md`
-- independent implementation or Pull Request review → `.ai/skills/review-pr/SKILL.md`
-- UI/UX shaping, critique, audit, hardening, or polish → `.ai/skills/impeccable/SKILL.md`
-- continuing unfinished work in another chat, agent, or session → `.ai/skills/handoff/SKILL.md`
+- unresolved product or technical decisions → `.agents/skills/grill-me/SKILL.md`
+- resolved decisions needing a durable feature specification → `.agents/skills/to-spec/SKILL.md`
+- approved work needing GitHub Issues → `.agents/skills/to-issues/SKILL.md`
+- implementing one approved Issue → `.agents/skills/implement-issue/SKILL.md`
+- substantial debugging → `.agents/skills/debug-with-evidence/SKILL.md`
+- schema, migrations, constraints, RLS, database functions, authorization, or generated database types → `.agents/skills/database-change/SKILL.md`
+- local Supabase or database-test state → `.agents/skills/local-database-workflow/SKILL.md`
+- final implementation validation → `.agents/skills/verify-change/SKILL.md`
+- independent implementation or Pull Request review → `.agents/skills/review-pr/SKILL.md`
+- UI/UX shaping, critique, audit, hardening, or polish → `.agents/skills/impeccable/SKILL.md`
+- continuing unfinished work in another chat, agent, or session → `.agents/skills/handoff/SKILL.md`
 
 Do not force a workflow onto a simple task.
 

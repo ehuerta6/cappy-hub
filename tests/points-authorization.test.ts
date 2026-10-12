@@ -63,6 +63,47 @@ it("submits an admin correction with an authenticated client", async () => {
   });
 });
 
+it("submits manual transactions without an Event relationship", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    applicationRole: "admin",
+  } as never);
+  const transaction = form();
+  transaction.set("award_type", "manual");
+  transaction.set("event_id", "");
+  const result = await addTransaction({ error: "", success: "" }, transaction);
+  expect(result.success).toBe("Point transaction added");
+  expect(rpc).toHaveBeenCalledWith("add_manual_transaction", {
+    p_officer_id: 3,
+    p_event_id: undefined,
+    p_points: 2,
+    p_reason: "Correction",
+    p_award_type: "manual",
+  });
+});
+
+it("returns persistence errors with submitted values for retry", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    applicationRole: "admin",
+  } as never);
+  rpc.mockResolvedValueOnce({
+    error: { message: "unexpected database failure" },
+  });
+  const transaction = form();
+  transaction.set("event_id", "12");
+  const result = await addTransaction({ error: "", success: "" }, transaction);
+  expect(result).toMatchObject({
+    error: "Could not save changes",
+    success: "",
+    values: {
+      officer_id: "3",
+      points: "2",
+      reason: "Correction",
+      award_type: "correction",
+      event_id: "12",
+    },
+  });
+});
+
 it("loads Event dates for older Event search results", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     applicationRole: "admin",
@@ -106,7 +147,13 @@ it("rejects zero point changes before the admin correction RPC", async () => {
     fieldErrors: {
       points: "Enter a nonzero positive or negative point value",
     },
-    values: { points: "0" },
+    values: {
+      points: "0",
+      officer_id: "3",
+      reason: "Correction",
+      event_id: "",
+      award_type: "correction",
+    },
   });
   expect(rpc).not.toHaveBeenCalled();
 });

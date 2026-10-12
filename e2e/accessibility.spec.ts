@@ -19,6 +19,13 @@ async function signInAsAdmin(page: Page) {
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
 }
 
+async function signInAsOfficer(page: Page) {
+  await page.goto("/login");
+  await page.getByRole("button", { name: "Officer", exact: true }).click();
+  await expect(page).toHaveURL((url) => url.pathname === "/");
+  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+}
+
 test("local login has no detectable accessibility violations", async ({
   page,
 }) => {
@@ -48,6 +55,112 @@ test("Points layout has no detectable accessibility violations", async ({
   await expect(
     page.getByRole("heading", { name: "Point history" }),
   ).toBeVisible();
+  await expectNoAxeViolations(page);
+});
+
+test("Add transaction dialog is accessible and restores focus after Escape", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/points");
+  const trigger = page.getByRole("button", { name: "Add transaction" });
+  await trigger.click();
+  const dialog = page.getByRole("dialog", { name: "Add transaction" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('select[name="officer_id"]')).toBeFocused();
+  await expectNoAxeViolations(page);
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(trigger).toBeFocused();
+
+  await trigger.click();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(trigger).toBeFocused();
+});
+
+test("older Event search preserves the Event already selected", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+  await page.goto("/points");
+  await page.getByRole("button", { name: "Add transaction" }).click();
+  const eventSelect = page.getByLabel("Event (optional)");
+  await expect(eventSelect.locator("option").nth(1)).toBeAttached();
+  const selectedOption = eventSelect.locator("option").nth(1);
+  const selectedEventId = await selectedOption.getAttribute("value");
+  const optionCount = await eventSelect.locator("option").count();
+  await eventSelect.selectOption(selectedEventId ?? "");
+  await page.getByLabel("Search older events").fill("zzzz-no-match");
+  await page.getByRole("button", { name: "Search events" }).click();
+  await expect(eventSelect).toHaveValue(selectedEventId ?? "");
+  await expect(eventSelect.locator("option")).toHaveCount(optionCount);
+});
+
+test("server validation keeps the transaction dialog open and retains values", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+  await page.goto("/points");
+  await page.getByRole("button", { name: "Add transaction" }).click();
+  const dialog = page.getByRole("dialog", { name: "Add transaction" });
+  const officer = dialog.locator('select[name="officer_id"]');
+  const points = dialog.locator('input[name="points"]');
+  const reason = dialog.locator('input[name="reason"]');
+  const awardType = dialog.locator('select[name="award_type"]');
+  const event = dialog.locator('select[name="event_id"]');
+  await officer.selectOption({ index: 1 });
+  await points.fill("0");
+  await reason.fill("Validation check; no transaction should be written");
+  await awardType.selectOption("correction");
+  await event.selectOption({ index: 1 });
+  await dialog.getByRole("button", { name: "Add transaction" }).click();
+  await expect(dialog).toBeVisible();
+  await expect(officer).toHaveAttribute("aria-invalid", "true");
+  await expect(points).toHaveAttribute("aria-invalid", "true");
+  await expect(dialog.getByText("Select an officer").first()).toBeVisible();
+  await expect(
+    dialog
+      .getByText("Enter a nonzero positive or negative point value")
+      .first(),
+  ).toBeVisible();
+  await expect(points).toHaveValue("0");
+  await expect(officer).not.toHaveValue("");
+  await expect(reason).toHaveValue(
+    "Validation check; no transaction should be written",
+  );
+  await expect(awardType).toHaveValue("correction");
+  await expect(event).not.toHaveValue("");
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({
+    path: "docs/ui-reference/admin/points/206-add-transaction-validation-1440-dark.png",
+  });
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await page.getByRole("button", { name: "Switch to light theme" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.getByRole("button", { name: "Add transaction" }).click();
+  await expect(dialog).toBeVisible();
+  await expect(points).toHaveValue("0");
+  await expect(officer).not.toHaveValue("");
+  await page.screenshot({
+    path: "docs/ui-reference/admin/points/206-add-transaction-validation-1440-light.png",
+  });
+});
+
+test("Officer Points remains read-only", async ({ page }) => {
+  await signInAsOfficer(page);
+  await page.goto("/points");
+  await expect(
+    page.getByRole("heading", { name: "Officer totals" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Point history" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Add transaction" }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Save rate" })).toHaveCount(0);
   await expectNoAxeViolations(page);
 });
 
