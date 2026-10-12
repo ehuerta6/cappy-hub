@@ -151,3 +151,67 @@ it("keeps success visible and moves focus to the Officers section after the last
     host.querySelector<HTMLElement>('[aria-label="Officers"]'),
   );
 });
+
+it.each([
+  {
+    failure: "validation",
+    state: {
+      error: "Choose at least one active Officer",
+      success: "",
+      fieldErrors: { officer_ids: "Choose at least one active Officer" },
+      values: { task_id: "17", officer_ids: ["3", "4"] },
+    },
+    message: "Choose at least one active Officer",
+  },
+  {
+    failure: "persistence",
+    state: {
+      error: "Could not update task assignments",
+      success: "",
+      values: { task_id: "17", officer_ids: ["3", "4"] },
+    },
+    message: "Could not update task assignments",
+  },
+])(
+  "preserves selected Officers after $failure failure",
+  async ({ state, message }) => {
+    vi.mocked(bulkAssignTaskOfficers).mockResolvedValue(state);
+
+    await act(async () =>
+      root.render(
+        createElement(BulkTaskOfficersForm, {
+          taskId: 17,
+          officers: [
+            { id: 3, name: "Avery Chen" },
+            { id: 4, name: "Casey Nguyen" },
+          ],
+        }),
+      ),
+    );
+    const trigger = host.querySelector<HTMLButtonElement>(
+      'button[type="button"]',
+    );
+    if (!trigger) throw new Error("Add officers button not found");
+    await act(async () => trigger.click());
+
+    const dialog = host.querySelector<HTMLDialogElement>("dialog");
+    const checkboxes = Array.from(
+      host.querySelectorAll<HTMLInputElement>('input[name="officer_ids"]'),
+    );
+    const form = host.querySelector<HTMLFormElement>("dialog form");
+    if (!dialog || checkboxes.length !== 2 || !form)
+      throw new Error("Assignment dialog controls not found");
+    await act(async () => {
+      checkboxes.forEach((checkbox) => checkbox.click());
+      form.requestSubmit();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(dialog.open).toBe(true);
+    expect(checkboxes.map((checkbox) => checkbox.checked)).toEqual([
+      true,
+      true,
+    ]);
+    expect(host.textContent).toContain(message);
+  },
+);
