@@ -186,11 +186,16 @@ export default async function EventsPage({
     <section
       key={`${period}-${title}`}
       aria-label={`${period} — ${title}`}
-      className="space-y-3"
+      className={groupEvents.length ? "space-y-3" : "space-y-1"}
     >
-      <h3 className="font-semibold text-foreground">{title}</h3>
+      {groupEvents.length > 0 && (
+        <h3 className="font-semibold text-foreground">{title}</h3>
+      )}
       {!groupEvents.length ? (
-        <p>No events in this group.</p>
+        <p className="text-sm text-muted-foreground">
+          <span className="font-semibold text-foreground">{title}:</span> No
+          events in this group.
+        </p>
       ) : (
         <TableFrame compact>
           <table>

@@ -160,11 +160,16 @@ export default async function TasksPage({
     <section
       key={title}
       aria-label={`${sectionTitle}: ${title}`}
-      className="space-y-3"
+      className={groupTasks.length ? "space-y-3" : "space-y-1"}
     >
-      <h3 className="font-semibold text-foreground">{title}</h3>
+      {groupTasks.length > 0 && (
+        <h3 className="font-semibold text-foreground">{title}</h3>
+      )}
       {groupTasks.length === 0 ? (
-        <p>No tasks in this group.</p>
+        <p className="text-sm text-muted-foreground">
+          <span className="font-semibold text-foreground">{title}:</span> No
+          tasks in this group.
+        </p>
       ) : (
         <TableFrame compact>
           <table>
@@ -228,9 +233,9 @@ export default async function TasksPage({
   ) => {
     if (rows.length === 0)
       return (
-        <section aria-label={title} className="space-y-4">
+        <section aria-label={title} className="space-y-2">
           <SectionHeading title={title} />
-          <p>{emptyMessage}</p>
+          <p className="text-sm text-muted-foreground">{emptyMessage}</p>
         </section>
       );
     const groups = splitTasks(rows);

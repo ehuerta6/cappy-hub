@@ -269,6 +269,67 @@ it("combines search, type, and Branch filters with current temporal sections", a
   expect(html).toContain("Upcoming events");
 });
 
+it("keeps empty Events and Task assignment groups labeled in a compact line", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-10-05T06:00:00.000Z"));
+  try {
+    rows.events = [
+      {
+        id: 7,
+        name: "Upcoming workshop",
+        event_date: "2099-10-08",
+        status: "scheduled",
+        deleted_at: null,
+        participation_points_per_hour_at_end: null,
+        event_types: { name: "Workshop" },
+        event_branches: [],
+        event_officers: [],
+        starts_at: "2099-10-08T23:00:00Z",
+        ends_at: "2099-10-09T01:00:00Z",
+      },
+    ];
+    const eventsHtml = await render(EventsPage);
+    expect(eventsHtml).toContain('aria-label="Upcoming Events — Your events"');
+    expect(eventsHtml).toContain("Your events:");
+    expect(eventsHtml).toContain("No events in this group.");
+    expect(
+      eventsHtml
+        .split('aria-label="Upcoming Events — Your events"')[1]
+        .split("</section>")[0],
+    ).not.toContain("<h3");
+    expect(eventsHtml).toContain("Other events");
+    expect(eventsHtml).toContain("Upcoming workshop");
+
+    queries = [];
+    rows.tasks = [
+      {
+        id: 8,
+        title: "Upcoming task",
+        description: "Assigned to another Officer",
+        task_type: "one_time",
+        branch_id: 2,
+        due_date: "2099-10-08",
+        points: 3,
+        branches: { name: "intro" },
+        task_officer_assignments: [{ officer_id: 2, completed_at: null }],
+      },
+    ];
+    const tasksHtml = await render(TasksPage);
+    expect(tasksHtml).toContain('aria-label="Upcoming tasks: Your tasks"');
+    expect(tasksHtml).toContain("Your tasks:");
+    expect(tasksHtml).toContain("No tasks in this group.");
+    expect(
+      tasksHtml
+        .split('aria-label="Upcoming tasks: Your tasks"')[1]
+        .split("</section>")[0],
+    ).not.toContain("<h3");
+    expect(tasksHtml).toContain("Other tasks");
+    expect(tasksHtml).toContain("Upcoming task");
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it("preserves an explicit Past filter in Event return context", async () => {
   rows.events = [
     {
