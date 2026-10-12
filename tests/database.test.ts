@@ -167,11 +167,17 @@ it("serializes concurrent signup requests so capacity cannot be overfilled", asy
         (select id from public.positions where name='Officer'),'active'),
         (${secondOfficerId},'Capacity concurrency second','capacity-second@example.test',
         (select id from public.positions where name='Officer'),'active');
+    with event_start as (
+      select ((now() at time zone 'America/Denver')::date + 3 + time '10:00') as starts_at_local
+    )
     insert into public.events(id,name,description,location,event_type_id,event_date,starts_at,ends_at,status,max_volunteers)
-      values (${eventId},'Capacity concurrency','Test event','TBA',
+      select ${eventId},'Capacity concurrency','Test event','TBA',
         (select id from public.event_types where name='Meeting'),
-        ((now()+interval '2 days') at time zone 'America/Denver')::date,
-        now()+interval '2 days',now()+interval '2 days 1 hour','upcoming',1);
+        starts_at_local::date,
+        starts_at_local at time zone 'America/Denver',
+        (starts_at_local + interval '1 hour') at time zone 'America/Denver',
+        'upcoming',1
+      from event_start;
   `);
 
   try {
