@@ -12,10 +12,10 @@ Every included dark screenshot state has a matching light screenshot for the sam
 
 1. Read the current product and visual requirements in `docs/product/design-doc.md` and `docs/design.md`.
 2. Use synthetic accounts from [`docs/local-development.md`](../local-development.md). Start or reuse the local Supabase stack with `npm run local:start`; do not use `npm run local:reset` for catalog capture unless resetting the local database has been explicitly authorized.
-3. Run the local application and capture actual browser screenshots for each affected role and theme. Include relevant changed pages, permission-dependent views, and meaningful states. Do not submit workflows against the retained local database; capture forms and confirmation dialogs before submission.
+3. Manually review the local application and capture actual screenshots for each affected role and theme when the UI changes. Do not use browser automation or automated screenshot generation. Include relevant changed pages, permission-dependent views, and meaningful states. Do not submit workflows against the retained local database; capture forms and confirmation dialogs before submission.
 4. Save full-resolution PNGs under the corresponding role and domain folders. Use filenames that identify the page/state, viewport width, and theme.
 5. Add or update entries in `manifest.json`, keeping role, branch scope where applicable, domain, route, theme, viewport, state, and image path accurate.
-6. Run `node scripts/build-ui-reference.mjs` to validate image links and dark/light pairs, then regenerate `index.html` and `coverage.md`.
+6. Run `node scripts/build-ui-reference.mjs` to validate image links and dark/light pairs, then regenerate `index.html` and `coverage.md`. This script processes catalog metadata only; it does not open a browser or capture screenshots.
 7. In the Pull Request template, confirm that the catalog was updated or that the PR has no rendered UI changes.
 
 All screenshots come from the local application with synthetic development data. The retained local database was not reset; the form and dialog captures were not submitted, and no domain records were changed. Some result states remain untested or unavailable; see `coverage.md` for the precise gaps.

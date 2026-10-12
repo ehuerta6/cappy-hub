@@ -1,6 +1,6 @@
 ---
 name: local-database-workflow
-description: Put local Supabase into the correct state before Cappy Hub database, application, seed, or browser tests.
+description: Put local Supabase into the correct state before Cappy Hub database, application, and seed tests.
 ---
 
 # Local database workflow
@@ -19,27 +19,21 @@ npm test
 
 `db:start` starts the reduced local Supabase/database stack but does not reset rows. `db:reset` recreates the local database from migrations with no synthetic development seed. `npm test` includes `tests/database.test.ts`, which runs `supabase test db --local`; PostgreSQL is expected at `127.0.0.1:54322`. pgTAP tests assume this isolated migrations-only database and create their own fixtures. Never run the database suite against an arbitrary existing local state. Reset first unless the immediately preceding documented command guarantees a clean migrations-only database.
 
-## Local app and Playwright
+## Local interactive app
 
-For interactive development or browser tests, use the distinct seeded state:
+For interactive development or manual visual review, use the distinct seeded state:
 
 ```bash
 npm run local:reset
 ```
 
-This starts the full stack, replays migrations, loads synthetic `supabase/seed.sql`, creates local Auth accounts, links synthetic Officers, and updates `.env.local`. For browser smoke:
+This starts the full stack, replays migrations, loads synthetic `supabase/seed.sql`, creates local Auth accounts, links synthetic Officers, and updates `.env.local`.
 
-```bash
-npm run local:reset
-npm run build
-npm run test:e2e
-```
-
-Install Chromium first only when needed: `npx playwright install chromium`.
+Automated browser testing is not part of Cappy Hub's supported workflow. Do not install, launch, or configure browsers for automated tests or screenshot generation. Manual visual review and the maintained UI screenshot catalog are supported. Preview and Production smoke checks remain HTTP-only.
 
 `db:reset` → migrations-only DB → correct for `npm test` / pgTAP.
-`local:reset` → seeded DB plus Auth accounts → correct for local app / Playwright.
-After pgTAP, run `npm run local:reset` to restore the app. After local development or Playwright, run `npm run db:reset` before full `npm test`.
+`local:reset` → seeded DB plus Auth accounts → correct for local app development and manual review.
+After pgTAP, run `npm run local:reset` to restore the app. After local development, run `npm run db:reset` before full `npm test`.
 
 ## Diagnose failures
 

@@ -72,6 +72,12 @@ Project-specific requirements, repository documentation, and explicit user decis
 - Do not merge unless explicitly authorized.
 - Keep the application and its documentation understandable for future CIC officers.
 
+## Testing policy
+
+- Cappy Hub does not use automated browser testing in local development, GitHub Actions, CI/CD, or deployment validation. Do not install, launch, or configure browsers for automated checks, and do not generate screenshots automatically.
+- Use Vitest, PostgreSQL/pgTAP, migration and upgrade checks, authorization/RLS and integration tests, ESLint, Prettier, TypeScript, and production builds where applicable.
+- Keep Preview and Production smoke checks HTTP-only. Manual visual review and the maintained UI screenshot catalog are supported.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

@@ -5,8 +5,6 @@
 npm run local:start
 npm run local:setup
 npm run local:reset
-npm run build
-npm run test:e2e
 npm run local:stop
 npm run dev
 
@@ -18,7 +16,7 @@ npm run format:check
 npm run lint
 npm run typecheck
 
-# Tests and production build
+# Production build
 npm run build
 
 # Full tests, including pgTAP (migrations-only local database)

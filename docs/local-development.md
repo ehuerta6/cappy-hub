@@ -34,24 +34,13 @@ Use these emails on the local login page. Every account uses the same local-only
 
 These synthetic accounts are created only by the local setup/reset workflow. Never use this password or these accounts in production.
 
-## Browser smoke tests
+## Visual review and automated testing
 
-The Playwright smoke suite uses the rendered local app and local Supabase. Before each run, reset the database to its synthetic seed, build the app, install Chromium once, then run the suite:
+Cappy Hub does not use automated browser testing in local development, GitHub Actions, CI/CD, or deployment validation. Do not install, launch, or configure browsers for automated checks, and do not generate screenshots automatically. This includes Playwright and browser-based accessibility checks.
 
-```bash
-npm run local:reset
-npx playwright install chromium
-npm run build
-npm run test:e2e
-```
+Use the existing Vitest, PostgreSQL/pgTAP, migration, authorization, lint, format, type, and production build checks where applicable. Preview and Production smoke checks remain HTTP-only. Manual visual review is acceptable; the maintained [UI screenshot catalog](ui-reference/README.md) is the visual reference. Capture catalog images manually when a UI change requires updated evidence; `scripts/build-ui-reference.mjs` only validates catalog metadata and generates its HTML index and coverage report.
 
-The suite does not reset data itself. `local:reset` clears prior local changes, reloads the synthetic seed, creates the local Auth accounts, and updates `.env.local`. Run it again before rerunning the suite so the stable `E2E Event - Core Workflow` and `E2E Task - Approval Workflow` records start from a clean database.
-
-Tests run serially against a locally started production build. They sign in through the local login page using the seeded **Admin**, **Officer**, and **Inactive Officer** accounts. The Admin creates and updates an Event, adds the Officer as a participant, and tests the Event cancellation confirmation and filtered return navigation. A separate Task workflow has the Admin create and assign a Task, the Officer complete it, and the Admin approve it before checking the awarded Task Point in Point History. The inactive account must reach Access denied. Selectors use the app's visible labels, links, buttons, headings, and tables.
-
-The hosted `Quality checks` workflow does not run this browser suite. Run it locally with the commands above when browser workflow coverage is needed. Local failure artifacts are written under `test-results/`.
-
-The same Playwright run includes a small axe accessibility smoke spec for local login, the authenticated Dashboard, new Event and Task forms, and an open Event cancellation dialog. Run it alone with `npx playwright test e2e/accessibility.spec.ts` after the reset and build above, or with the functional smoke through `npm run test:e2e`. Axe catches detectable issues on these representative states; manual keyboard and accessibility review is still needed.
+For local interactive development, `npm run local:reset` prepares synthetic data and local Auth accounts. It is destructive to the local database; see [Rebuild local from scratch](#rebuild-local-from-scratch) before using it.
 
 ## Daily development
 
