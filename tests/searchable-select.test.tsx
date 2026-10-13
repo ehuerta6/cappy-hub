@@ -159,3 +159,16 @@ it("exposes server errors and disables selection while pending", async () => {
       ?.textContent,
   ).toBe("Select an officer");
 });
+
+it("serializes the Task Assignee parameter as a stable ID or empty value", async () => {
+  const empty = await renderSelect({ name: "assignee" });
+  expect(new FormData(empty.form).getAll("assignee")).toEqual([""]);
+
+  await act(async () => root.unmount());
+  root = createRoot(host);
+  const selected = await renderSelect({
+    name: "assignee",
+    initialValue: "7",
+  });
+  expect(new FormData(selected.form).getAll("assignee")).toEqual(["7"]);
+});

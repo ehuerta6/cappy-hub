@@ -19,6 +19,7 @@ import { searchOrFilter } from "@/lib/list-search";
 import { currentDenverWeek } from "@/lib/current-denver-week";
 import { organizeTaskList } from "@/lib/task-list";
 import { taskListFiltersSchema } from "./filter-validation";
+import { SearchableSelect } from "@/components/searchable-select";
 import {
   splitTasksByOfficer,
   taskProgressLabel,
@@ -26,7 +27,19 @@ import {
 } from "@/lib/task-status";
 import TaskSelfAssignForm from "./task-action-form";
 import { listReturnUrl, withReturnTo } from "@/lib/return-context";
+import { listPageUrl } from "@/lib/list-url";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import type { Tables } from "@/lib/database.types";
+
+const TASKS_PER_PAGE = 8;
+type TaskListRow = Tables<"tasks"> & {
+  branches: Pick<Tables<"branches">, "name">;
+  task_officer_assignments: Pick<
+    Tables<"task_officer_assignments">,
+    "officer_id" | "completed_at"
+  >[];
+};
 
 type TaskListSearchParams = Record<string, string | string[] | undefined>;
 
@@ -38,7 +51,13 @@ export default async function TasksPage({
   const actor = await getAuthorizationContext();
   const params = await searchParams;
   const filters = taskListFiltersSchema.parse(params);
-  const { q: search, status, branch: branchId, assignee: assigneeId } = filters;
+  const {
+    q: search,
+    status,
+    branch: branchId,
+    assignee: assigneeId,
+    page: requestedPage,
+  } = filters;
   const mayBrowseArchived =
     canSeeAllBranches(actor) || (isLead(actor) && actor.branchIds.length > 0);
   const view =
@@ -52,13 +71,26 @@ export default async function TasksPage({
     status,
     branch: branchId?.toString(),
     assignee: assigneeId?.toString(),
+    page: requestedPage > 1 ? String(requestedPage) : undefined,
   });
   const supabase = await createClient();
+  const taskSelection = [
+    "*,branches(name),task_officer_assignments(officer_id,completed_at)",
+    assigneeId !== undefined &&
+      "assignee_filter:task_officer_assignments!inner(officer_id)",
+    status === "open" && "no_assignments:task_officer_assignments(id)",
+    status === "in_progress" &&
+      "incomplete_assignment:task_officer_assignments!inner(id,completed_at)",
+    status === "complete" &&
+      "any_assignment:task_officer_assignments!inner(id)",
+    status === "complete" &&
+      "incomplete_assignment:task_officer_assignments(id)",
+  ]
+    .filter(Boolean)
+    .join(",");
   let tasksQuery = supabase
     .from("tasks")
-    .select(
-      "*,branches(name),task_officer_assignments(officer_id,completed_at,officers!task_officer_assignments_officer_id_fkey(id,name))",
-    );
+    .select(taskSelection, { count: "exact" });
   if (view === "archived")
     tasksQuery = tasksQuery.not("removed_at", "is", null);
   else tasksQuery = tasksQuery.is("removed_at", null);
@@ -74,9 +106,20 @@ export default async function TasksPage({
       searchOrFilter(search, ["title", "description"]),
     );
   if (branchId !== undefined) tasksQuery = tasksQuery.eq("branch_id", branchId);
+  if (assigneeId !== undefined)
+    tasksQuery = tasksQuery.eq("assignee_filter.officer_id", assigneeId);
+  if (status === "open") tasksQuery = tasksQuery.is("no_assignments.id", null);
+  if (status === "in_progress")
+    tasksQuery = tasksQuery.is("incomplete_assignment.completed_at", null);
+  if (status === "complete")
+    tasksQuery = tasksQuery.is("incomplete_assignment.id", null);
   tasksQuery = tasksQuery
-    .order("due_date", { ascending: view !== "past" })
-    .order("id", { ascending: view !== "past" });
+    .order("due_date", { ascending: view === "current" })
+    .order("id", { ascending: view === "current" })
+    .range(
+      (requestedPage - 1) * TASKS_PER_PAGE,
+      requestedPage * TASKS_PER_PAGE - 1,
+    );
 
   let taskCountQuery = supabase
     .from("tasks")
@@ -108,29 +151,16 @@ export default async function TasksPage({
   )
     throw new Error("Failed to load tasks");
 
-  const tasks = tasksResult.data.filter((task) => {
-    const assignments = task.task_officer_assignments;
-    if (
-      assigneeId !== undefined &&
-      !assignments.some((assignment) => assignment.officer_id === assigneeId)
-    )
-      return false;
-    if (status === "open" && assignments.length !== 0) return false;
-    if (status === "in_progress" && taskStatus(assignments) !== "In progress")
-      return false;
-    if (status === "complete" && taskStatus(assignments) !== "Complete")
-      return false;
-    return true;
-  });
-  const archivedTasks =
-    view === "archived"
-      ? tasks
-          .filter((task) => task.removed_at !== null)
-          .sort(
-            (left, right) =>
-              right.due_date.localeCompare(left.due_date) || right.id - left.id,
-          )
-      : [];
+  const totalCount = tasksResult.count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / TASKS_PER_PAGE));
+  const page = Math.min(requestedPage, totalPages);
+  if (page !== requestedPage)
+    redirect(
+      listPageUrl("/tasks", new URLSearchParams(returnTo.split("?")[1]), page),
+    );
+
+  const tasks = tasksResult.data as unknown as TaskListRow[];
+  const archivedTasks = view === "archived" ? tasks : [];
   const organizedTasks =
     view === "archived"
       ? organizeTaskList(tasks, "current", today, sunday)
@@ -138,7 +168,7 @@ export default async function TasksPage({
   const splitTasks = (items: typeof tasks) =>
     splitTasksByOfficer(items, actor.id);
   const filteredToNothing =
-    tasks.length === 0 &&
+    totalCount === 0 &&
     (taskCountResult.count ?? 0) > 0 &&
     Boolean(
       search || status || branchId !== undefined || assigneeId !== undefined,
@@ -156,21 +186,14 @@ export default async function TasksPage({
     title: string,
     groupTasks: typeof tasks,
     allowSelfAssign: boolean,
-  ) => (
-    <section
-      key={title}
-      aria-label={`${sectionTitle}: ${title}`}
-      className={groupTasks.length ? "space-y-3" : "space-y-1"}
-    >
-      {groupTasks.length > 0 && (
+  ) =>
+    groupTasks.length ? (
+      <section
+        key={title}
+        aria-label={`${sectionTitle}: ${title}`}
+        className="space-y-3"
+      >
         <h3 className="font-semibold text-foreground">{title}</h3>
-      )}
-      {groupTasks.length === 0 ? (
-        <p className="text-sm text-muted">
-          <span className="font-semibold text-foreground">{title}:</span> No
-          tasks in this group.
-        </p>
-      ) : (
         <TableFrame compact label={`Tasks table: ${sectionTitle}: ${title}`}>
           <table>
             <thead>
@@ -221,23 +244,15 @@ export default async function TasksPage({
             </tbody>
           </table>
         </TableFrame>
-      )}
-    </section>
-  );
+      </section>
+    ) : null;
 
   const renderSection = (
     title: string,
     rows: typeof tasks,
-    emptyMessage: string,
     allowSelfAssign: boolean,
   ) => {
-    if (rows.length === 0)
-      return (
-        <section aria-label={title} className="space-y-2">
-          <SectionHeading title={title} />
-          <p className="text-sm text-muted">{emptyMessage}</p>
-        </section>
-      );
+    if (rows.length === 0) return null;
     const groups = splitTasks(rows);
     return (
       <section aria-label={title} className="space-y-4">
@@ -306,18 +321,30 @@ export default async function TasksPage({
             ))}
           </select>
         </label>
-        <label className="min-w-44">
-          Officer
-          <select name="assignee" defaultValue={assigneeId ?? ""}>
-            <option value="">All officers</option>
-            {officersResult.data.map((officer) => (
-              <option key={officer.id} value={officer.id}>
-                {officer.name}
-                {officer.status === "inactive" ? " (inactive)" : ""}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="min-w-44 flex-1">
+          <SearchableSelect
+            name="assignee"
+            label="Assignee"
+            placeholder="All officers"
+            initialValue={assigneeId?.toString() ?? ""}
+            options={[
+              { id: "", label: "All officers" },
+              ...officersResult.data.map((officer) => ({
+                id: String(officer.id),
+                label: `${officer.name}${officer.status === "inactive" ? " (inactive)" : ""}`,
+              })),
+              ...(assigneeId !== undefined &&
+              !officersResult.data.some((officer) => officer.id === assigneeId)
+                ? [
+                    {
+                      id: String(assigneeId),
+                      label: `Officer #${assigneeId} (name unavailable)`,
+                    },
+                  ]
+                : []),
+            ]}
+          />
+        </div>
       </ListFilterBar>
 
       {view === "archived" ? (
@@ -336,10 +363,10 @@ export default async function TasksPage({
         )
       ) : filteredToNothing ? (
         <p>No tasks match these filters.</p>
+      ) : tasks.length === 0 ? (
+        <p>{view === "past" ? "No past tasks." : "No current tasks."}</p>
       ) : organizedTasks.view === "past" ? (
-        organizedTasks.tasks.length === 0 ? (
-          <p>No past tasks.</p>
-        ) : (
+        organizedTasks.tasks.length > 0 ? (
           <section aria-label="Past tasks" className="space-y-4">
             <SectionHeading title="Past tasks" />
             {renderGroup(
@@ -355,23 +382,54 @@ export default async function TasksPage({
               false,
             )}
           </section>
-        )
+        ) : null
       ) : (
         <>
           {renderSection(
             "This week's tasks",
             organizedTasks.view === "current" ? organizedTasks.thisWeek : [],
-            "No tasks due this week.",
             true,
           )}
           {renderSection(
             "Upcoming tasks",
             organizedTasks.view === "current" ? organizedTasks.upcoming : [],
-            "No upcoming tasks.",
             true,
           )}
         </>
       )}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
+        <span>
+          Page {page} of {totalPages} · {totalCount}{" "}
+          {totalCount === 1 ? "task" : "tasks"}
+        </span>
+        <nav
+          aria-label="Task pages"
+          className="flex flex-wrap items-center gap-4"
+        >
+          {page > 1 && (
+            <Link
+              href={listPageUrl(
+                "/tasks",
+                new URLSearchParams(returnTo.split("?")[1]),
+                page - 1,
+              )}
+            >
+              Previous
+            </Link>
+          )}
+          {page < totalPages && (
+            <Link
+              href={listPageUrl(
+                "/tasks",
+                new URLSearchParams(returnTo.split("?")[1]),
+                page + 1,
+              )}
+            >
+              Next
+            </Link>
+          )}
+        </nav>
+      </div>
     </div>
   );
 }

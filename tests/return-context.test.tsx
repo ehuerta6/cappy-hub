@@ -136,8 +136,14 @@ it("preserves the explicit Past Task view with workflow and assignment filters",
       status: "complete",
       branch: "2",
       assignee: "123",
+      page: "3",
     }),
-  ).toBe("/tasks?q=flyer&view=past&status=complete&branch=2&assignee=123");
+  ).toBe(
+    "/tasks?q=flyer&view=past&status=complete&branch=2&assignee=123&page=3",
+  );
+  expect(
+    listPageUrl("/tasks", new URLSearchParams("q=flyer&assignee=123"), 2),
+  ).toBe("/tasks?q=flyer&assignee=123&page=2");
 });
 
 it("does not retain the removed Event browse parameter", () => {

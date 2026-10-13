@@ -68,6 +68,10 @@ it("parses each page's domain filters", () => {
   expect(taskListFiltersSchema.parse({ view: "archived" }).view).toBe(
     "archived",
   );
+  expect(taskListFiltersSchema.parse({}).page).toBe(1);
+  expect(taskListFiltersSchema.parse({ page: "2" }).page).toBe(2);
+  expect(taskListFiltersSchema.parse({ page: "not-a-page" }).page).toBe(1);
+  expect(taskListFiltersSchema.parse({ page: ["2", "3"] }).page).toBe(1);
   expect(
     taskListFiltersSchema.parse({ status: "awaiting" }).status,
   ).toBeUndefined();

@@ -3,7 +3,7 @@ import type { ListRoute } from "@/lib/return-context";
 export function listPageUrl(
   pathname: Extract<
     ListRoute,
-    "/events" | "/officers" | "/points" | "/system-log"
+    "/events" | "/officers" | "/points" | "/system-log" | "/tasks"
   >,
   filters: URLSearchParams,
   page: number,
