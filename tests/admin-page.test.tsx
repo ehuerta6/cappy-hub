@@ -38,9 +38,12 @@ it("surfaces existing administration areas and their current destinations", asyn
   expect(html).toContain("hover:bg-hover");
 });
 
-it.each(["lead", "officer"])("denies direct access to %s", async (role) => {
+it.each([
+  ["Lead", { applicationRole: "officer", positionCode: "lead" }],
+  ["Officer", { applicationRole: "officer", positionCode: "officer" }],
+])("denies direct access to %s", async (_role, actor) => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
-    applicationRole: role,
+    ...actor,
   } as never);
 
   await expect(AdminPage()).rejects.toThrow("Not found");
