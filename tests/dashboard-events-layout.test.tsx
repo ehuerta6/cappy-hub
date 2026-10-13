@@ -145,12 +145,30 @@ const from = vi.fn((table: string) => {
       operations.push(["limit", args]);
       return query;
     },
+    range: (...args: unknown[]) => {
+      operations.push(["range", args]);
+      return query;
+    },
     single: () => {
       operations.push(["single", []]);
       return Promise.resolve(result);
     },
-    then: (resolve: (value: typeof result) => unknown) =>
-      Promise.resolve(result).then(resolve),
+    then: (resolve: (value: typeof result & { count?: number }) => unknown) => {
+      const range = operations.find(([method]) => method === "range")?.[1];
+      const head = operations.some(
+        ([method, args]) =>
+          method === "select" &&
+          (args[1] as { head?: boolean } | undefined)?.head,
+      );
+      return Promise.resolve({
+        ...result,
+        data:
+          table === "events" && range
+            ? events.slice(Number(range[0]), Number(range[1]) + 1)
+            : result.data,
+        count: table === "events" && head ? events.length : undefined,
+      }).then(resolve);
+    },
   };
   dashboardQueries.push({ table, operations });
   return query;
@@ -173,40 +191,51 @@ beforeEach(() => {
   vi.mocked(getAuthorizationContext).mockResolvedValue(actor as never);
   vi.mocked(createClient).mockResolvedValue({
     from,
-    rpc: async () => ({
-      data: events.map((event) => ({
+    rpc: () => {
+      const counts = events.map((event) => ({
         event_id: event.id,
         confirmed_count: event.event_officers.length,
         waitlist_count: event.event_waitlist?.length ?? 0,
-      })),
-      error: null,
-    }),
+      }));
+      return Object.assign(Promise.resolve({ data: counts, error: null }), {
+        in: async (_column: string, ids: number[]) => ({
+          data: counts.filter(({ event_id }) => ids.includes(event_id)),
+          error: null,
+        }),
+      });
+    },
   } as never);
 });
 const renderEvents = async () =>
   renderToStaticMarkup(await EventsPage({ searchParams: Promise.resolve({}) }));
 
-it("groups relationships into distinct sections from the filtered event query", async () => {
+it("labels relationships in one table from the bounded event query", async () => {
   const html = await renderEvents();
   const your = html
-    .split('aria-label="Upcoming Events — Your events"')[1]
-    .split("</section>")[0];
+    .split("Upcoming events · Your events")[1]
+    .split("</tbody>")[0];
   const other = html
-    .split('aria-label="Upcoming Events — Other events"')[1]
-    .split("</section>")[0];
+    .split("Upcoming events · Other events")[1]
+    .split("</tbody>")[0];
   expect(your).toContain("Participating event");
   expect(your).not.toContain("Available event");
   expect(other).toContain("Available event");
   expect(other).toContain("Meeting");
   expect(other).toContain("Upcoming");
   expect(other).not.toContain("Participating event");
-  expect(other).toContain('<th scope="col">Action</th>');
+  expect(html).toContain('<th scope="col">Action</th>');
   expect(html).not.toMatch(/Your participation|Your signup/i);
   expect(other).toContain('aria-label="Sign up for Available event"');
   expect(your).not.toContain("Sign up for");
   expect(from.mock.calls.filter(([table]) => table === "events")).toHaveLength(
-    2,
+    3,
   );
+  expect(
+    dashboardQueries.find(
+      ({ table, operations }) =>
+        table === "events" && operations.some(([method]) => method === "range"),
+    )?.operations,
+  ).toContainEqual(["range", [0, 7]]);
 });
 
 it("offers signup while happening, but never for past, cancelled, removed or processed events", async () => {
@@ -246,8 +275,7 @@ it("offers signup while happening, but never for past, cancelled, removed or pro
 it("shows useful empty messages without empty tables", async () => {
   events = [];
   const html = await renderEvents();
-  expect(html).toContain("No events this week.");
-  expect(html).toContain("No upcoming events.");
+  expect(html).toContain("No current events.");
   expect(html).not.toContain("<table");
 });
 
