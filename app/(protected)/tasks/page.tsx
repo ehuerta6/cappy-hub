@@ -15,9 +15,9 @@ import {
   TableFrame,
 } from "@/components/ui";
 import { formatLabel, formatTaskDueDate } from "@/lib/presentation";
-import { searchOrFilter } from "@/lib/list-search";
 import { currentDenverWeek } from "@/lib/current-denver-week";
 import { organizeTaskList } from "@/lib/task-list";
+import { buildTaskListQuery, TASKS_PER_PAGE } from "@/lib/task-list-query";
 import { taskListFiltersSchema } from "./filter-validation";
 import { SearchableSelect } from "@/components/searchable-select";
 import {
@@ -32,7 +32,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Tables } from "@/lib/database.types";
 
-const TASKS_PER_PAGE = 8;
 type TaskListRow = Tables<"tasks"> & {
   branches: Pick<Tables<"branches">, "name">;
   task_officer_assignments: Pick<
@@ -74,52 +73,19 @@ export default async function TasksPage({
     page: requestedPage > 1 ? String(requestedPage) : undefined,
   });
   const supabase = await createClient();
-  const taskSelection = [
-    "*,branches(name),task_officer_assignments(officer_id,completed_at)",
-    assigneeId !== undefined &&
-      "assignee_filter:task_officer_assignments!inner(officer_id)",
-    status === "open" && "no_assignments:task_officer_assignments(id)",
-    status === "in_progress" &&
-      "incomplete_assignment:task_officer_assignments!inner(id,completed_at)",
-    status === "complete" &&
-      "any_assignment:task_officer_assignments!inner(id)",
-    status === "complete" &&
-      "incomplete_assignment:task_officer_assignments(id)",
-  ]
-    .filter(Boolean)
-    .join(",");
-  let tasksQuery = supabase
-    .from("tasks")
-    .select(taskSelection, { count: "exact" });
-  if (view === "archived")
-    tasksQuery = tasksQuery.not("removed_at", "is", null);
-  else tasksQuery = tasksQuery.is("removed_at", null);
-  if (view !== "archived")
-    tasksQuery =
-      view === "past"
-        ? tasksQuery.lt("due_date", today)
-        : tasksQuery.gte("due_date", today);
-  if (view === "archived" && isLead(actor) && !canSeeAllBranches(actor))
-    tasksQuery = tasksQuery.in("branch_id", actor.branchIds);
-  if (search)
-    tasksQuery = tasksQuery.or(
-      searchOrFilter(search, ["title", "description"]),
-    );
-  if (branchId !== undefined) tasksQuery = tasksQuery.eq("branch_id", branchId);
-  if (assigneeId !== undefined)
-    tasksQuery = tasksQuery.eq("assignee_filter.officer_id", assigneeId);
-  if (status === "open") tasksQuery = tasksQuery.is("no_assignments.id", null);
-  if (status === "in_progress")
-    tasksQuery = tasksQuery.is("incomplete_assignment.completed_at", null);
-  if (status === "complete")
-    tasksQuery = tasksQuery.is("incomplete_assignment.id", null);
-  tasksQuery = tasksQuery
-    .order("due_date", { ascending: view === "current" })
-    .order("id", { ascending: view === "current" })
-    .range(
-      (requestedPage - 1) * TASKS_PER_PAGE,
-      requestedPage * TASKS_PER_PAGE - 1,
-    );
+  const tasksQuery = buildTaskListQuery(supabase, {
+    view,
+    today,
+    search,
+    status,
+    branchId,
+    assigneeId,
+    branchScope:
+      view === "archived" && isLead(actor) && !canSeeAllBranches(actor)
+        ? actor.branchIds
+        : undefined,
+    page: requestedPage,
+  });
 
   let taskCountQuery = supabase
     .from("tasks")

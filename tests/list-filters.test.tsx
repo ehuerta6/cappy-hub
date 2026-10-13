@@ -101,19 +101,44 @@ function taskRowsForQuery(record: Query, source: unknown[]) {
         ),
       );
   }
-  if (selection.includes("no_assignments:task_officer_assignments"))
+  if (
+    calls.some(
+      ([method, column, value]) =>
+        method === "is" && column === "no_assignments" && value === null,
+    )
+  )
     result = result.filter(
       (task) => (task.task_officer_assignments as unknown[]).length === 0,
     );
   if (
-    selection.includes("incomplete_assignment:task_officer_assignments!inner")
+    selection.includes(
+      "incomplete_assignment:task_officer_assignments!inner",
+    ) &&
+    calls.some(
+      ([method, column, value]) =>
+        method === "is" &&
+        column === "incomplete_assignment.completed_at" &&
+        value === null,
+    )
   )
     result = result.filter((task) =>
       (task.task_officer_assignments as { completed_at: string | null }[]).some(
         (assignment) => assignment.completed_at === null,
       ),
     );
-  if (selection.includes("incomplete_assignment:task_officer_assignments("))
+  if (
+    selection.includes("any_assignment:task_officer_assignments!inner(") &&
+    calls.some(
+      ([method, column, value]) =>
+        method === "is" && column === "incomplete_assignment" && value === null,
+    ) &&
+    calls.some(
+      ([method, column, value]) =>
+        method === "is" &&
+        column === "incomplete_assignment.completed_at" &&
+        value === null,
+    )
+  )
     result = result.filter((task) => {
       const assignments = task.task_officer_assignments as {
         completed_at: string | null;
@@ -756,6 +781,20 @@ it.each(["open", "in_progress", "complete"])(
           },
         ],
       },
+      {
+        id: 11,
+        title: "Mixed assignments task",
+        description: "Slides: one complete and one incomplete",
+        task_type: "Post",
+        branch_id: 3,
+        due_date: "2099-10-11",
+        points: 4,
+        branches: { name: "intro" },
+        task_officer_assignments: [
+          { officer_id: 2, completed_at: "2099-10-01" },
+          { officer_id: 3, completed_at: null },
+        ],
+      },
     ];
     const html = await render(TasksPage, {
       status,
@@ -776,7 +815,20 @@ it.each(["open", "in_progress", "complete"])(
     if (status === "open") expect(html).toContain("No assignment");
     if (status === "in_progress")
       expect(html).toContain("Other Officer&#x27;s task");
-    if (status === "complete") expect(html).toContain("Completed team task");
+    if (status === "in_progress")
+      expect(html).toContain("Mixed assignments task");
+    if (status === "complete") {
+      expect(html).toContain("Completed team task");
+      expect(html).not.toContain("Mixed assignments task");
+      expect(query.calls[0][1]).toContain(
+        "any_assignment:task_officer_assignments!inner(task_id)",
+      );
+      expect(query.calls[0][1]).toContain(
+        "incomplete_assignment:task_officer_assignments(completed_at)",
+      );
+      has(query, "is", "incomplete_assignment.completed_at", null);
+      has(query, "is", "incomplete_assignment", null);
+    }
   },
 );
 
@@ -1111,7 +1163,7 @@ it("filters assignee, status, branch, search and view before the eight-row page"
     "assignee_filter:task_officer_assignments!inner(officer_id)",
   );
   expect(query.calls[0][1]).toContain(
-    "incomplete_assignment:task_officer_assignments!inner(id,completed_at)",
+    "incomplete_assignment:task_officer_assignments!inner(task_id,completed_at)",
   );
   has(query, "eq", "assignee_filter.officer_id", 2);
   has(query, "is", "incomplete_assignment.completed_at", null);
@@ -1145,7 +1197,7 @@ it("combines Open and Assignee filters on the server with no false matches", asy
   const html = await render(TasksPage, { assignee: "2", status: "open" });
   const query = forTable("tasks")[0];
   has(query, "eq", "assignee_filter.officer_id", 2);
-  has(query, "is", "no_assignments.id", null);
+  has(query, "is", "no_assignments", null);
   expect(html).toContain("No tasks match these filters.");
   expect(html).toContain("Page 1 of 1 · 0 tasks");
 });
