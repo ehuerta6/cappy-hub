@@ -7,21 +7,24 @@ vi.mock("@/app/(protected)/events/actions", () => ({
 
 import EventForm from "@/app/(protected)/events/event-form";
 
-const renderEventForm = (editing = false, recurring = false) =>
+const renderEventForm = (editing = false, recurring = false, location = "") =>
   renderToStaticMarkup(
     <EventForm
       branches={[]}
       eventTypes={
         [{ id: 9, name: "Session", available_for_new_events: true }] as never
       }
-      locations={[]}
+      locations={[
+        { id: 1, name: "Engineering Building" },
+        { id: 2, name: "University Library" },
+      ]}
       event={
         editing
           ? ({
               id: 12,
               name: "CIC meeting",
               description: "Agenda",
-              location: "Campus",
+              location: location || "Campus",
               event_type_id: 2,
               slides_url: null,
               meeting_notes_url: null,
@@ -51,6 +54,17 @@ const renderEventForm = (editing = false, recurring = false) =>
 it("uses operation-specific primary action wording for new and edited Events", () => {
   expect(renderEventForm()).toContain(">Create event</button>");
   expect(renderEventForm(true)).toContain(">Save event</button>");
+});
+
+it("uses the Event Location Autocomplete while keeping location as required text", () => {
+  const createHtml = renderEventForm(false, false);
+  const editHtml = renderEventForm(true, false, "Custom campus room");
+
+  expect(createHtml).toContain('name="location"');
+  expect(createHtml).toContain("required");
+  expect(createHtml).not.toContain("<datalist");
+  expect(editHtml).toContain('name="location"');
+  expect(editHtml).toContain('value="Custom campus room"');
 });
 
 it("clarifies the external sheet in create/edit forms and displays the saved URL", () => {

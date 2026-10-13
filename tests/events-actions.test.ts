@@ -175,6 +175,7 @@ it("trims a free-entry location before the trusted Event RPC", async () => {
     "save_event_with_capacity",
     expect.objectContaining({ p_location: "CCSB   1.032" }),
   );
+  expect(rpc).toHaveBeenCalledTimes(1);
 });
 
 it("rejects blank free-entry locations before calling a trusted Event RPC", async () => {

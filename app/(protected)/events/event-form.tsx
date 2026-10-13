@@ -16,6 +16,7 @@ import {
   type RecurrenceSeries,
 } from "@/components/recurrence-scope";
 import { RecurrenceFields } from "@/components/recurrence-fields";
+import { EventLocationAutocomplete } from "@/components/event-location-autocomplete";
 
 export default function EventForm({
   returnTo,
@@ -52,6 +53,44 @@ export default function EventForm({
     ),
   );
   const fieldErrors = state.fieldErrors ?? {};
+  const restoredLocation = submittedValue(
+    state.values,
+    "location",
+    event?.location ?? "",
+  );
+  const [locationDraft, setLocationDraft] = useState(() => ({
+    source: restoredLocation,
+    value: restoredLocation,
+  }));
+  if (locationDraft.source !== restoredLocation) {
+    setLocationDraft({ source: restoredLocation, value: restoredLocation });
+  }
+  const [resourcesChanged, setResourcesChanged] = useState(false);
+  const [recurrenceChanged, setRecurrenceChanged] = useState(false);
+
+  const resourceFields = [
+    ["slides_url", event?.slides_url],
+    ["meeting_notes_url", event?.meeting_notes_url],
+    ["signup_sheet_url", event?.signup_sheet_url],
+  ] as const;
+  const resourcesNeedReveal = resourceFields.some(
+    ([name, existingValue]) =>
+      Boolean(submittedValue(state.values, name, existingValue ?? "")) ||
+      Boolean(fieldErrors[name]),
+  );
+  const recurrenceFields = [
+    "recurrence_frequency",
+    "recurrence_interval",
+    "recurrence_weekdays",
+    "recurrence_end_mode",
+    "recurrence_count",
+    "recurrence_until",
+  ];
+  const recurrenceNeedReveal = recurrenceFields.some(
+    (name) =>
+      Boolean(submittedValue(state.values, name, "")) ||
+      Boolean(fieldErrors[name]),
+  );
 
   const [editedFields, setEditedFields] = useState<string[]>([]);
   const original: Record<string, string | string[]> = event
@@ -70,14 +109,15 @@ export default function EventForm({
         branches: branchIds.map(String),
       }
     : {};
+  const updateEditedFields = (form: HTMLFormElement) => {
+    if (series) setEditedFields(changedFormFields(form, original));
+  };
+
   return (
     <form
       action={action}
       className="event-form"
-      onChange={(event) => {
-        if (series)
-          setEditedFields(changedFormFields(event.currentTarget, original));
-      }}
+      onChange={(event) => updateEditedFields(event.currentTarget)}
     >
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
       {editedFields.map((field) => (
@@ -108,7 +148,7 @@ export default function EventForm({
       <fieldset className="event-form-section">
         <legend>Event information</legend>
         <div className="event-form-fields">
-          <label className="col-span-full">
+          <label>
             Name
             <input
               name="name"
@@ -146,7 +186,7 @@ export default function EventForm({
             </FieldError>
           </label>
 
-          <label className="col-span-full">
+          <label>
             Type
             <select
               name="event_type_id"
@@ -183,33 +223,20 @@ export default function EventForm({
       <fieldset className="event-form-section">
         <legend>Schedule and location</legend>
         <div className="event-form-fields">
-          <label className="col-span-full">
+          <label>
             Location
-            <input
-              name="location"
-              list="event-location-suggestions"
-              required
-              aria-invalid={Boolean(fieldErrors.location)}
-              aria-describedby={
-                fieldErrors.location ? "event-location-error" : undefined
+            <EventLocationAutocomplete
+              locations={locations}
+              initialValue={restoredLocation}
+              value={locationDraft.value}
+              onValueChange={(value) =>
+                setLocationDraft((current) => ({ ...current, value }))
               }
-              defaultValue={submittedValue(
-                state.values,
-                "location",
-                event?.location ?? "",
-              )}
+              error={fieldErrors.location}
             />
-            <datalist id="event-location-suggestions">
-              {locations.map((location) => (
-                <option key={location.id} value={location.name} />
-              ))}
-            </datalist>
-            <FieldError id="event-location-error">
-              {fieldErrors.location}
-            </FieldError>
           </label>
 
-          <label className="col-span-full">
+          <label>
             Date (El Paso)
             <input
               name="event_date"
@@ -283,82 +310,91 @@ export default function EventForm({
         </div>
       </fieldset>
 
-      <fieldset className="event-form-section event-form-resources col-span-2">
-        <legend>Resources (optional)</legend>
-        <p className="event-form-section-description">
-          Add links that are useful for this event. All resource links are
-          optional.
-        </p>
-        <div className="event-form-fields event-form-resource-fields">
-          <label>
-            Slides URL (optional)
-            <input
-              name="slides_url"
-              type="url"
-              aria-invalid={Boolean(fieldErrors.slides_url)}
-              aria-describedby={
-                fieldErrors.slides_url ? "event-slides-url-error" : undefined
-              }
-              defaultValue={submittedValue(
-                state.values,
-                "slides_url",
-                event?.slides_url ?? "",
-              )}
-            />
-            <FieldError id="event-slides-url-error">
-              {fieldErrors.slides_url}
-            </FieldError>
-          </label>
+      <details
+        className="event-form-resources col-span-2"
+        open={resourcesChanged || resourcesNeedReveal}
+        onToggle={(toggleEvent) =>
+          setResourcesChanged(toggleEvent.currentTarget.open)
+        }
+        onChange={() => setResourcesChanged(true)}
+      >
+        <summary>Resources (optional)</summary>
+        <div className="event-form-resources-content">
+          <p className="event-form-section-description">
+            Add links that are useful for this event. All resource links are
+            optional.
+          </p>
+          <div className="event-form-fields event-form-resource-fields">
+            <label>
+              Slides URL (optional)
+              <input
+                name="slides_url"
+                type="url"
+                aria-invalid={Boolean(fieldErrors.slides_url)}
+                aria-describedby={
+                  fieldErrors.slides_url ? "event-slides-url-error" : undefined
+                }
+                defaultValue={submittedValue(
+                  state.values,
+                  "slides_url",
+                  event?.slides_url ?? "",
+                )}
+              />
+              <FieldError id="event-slides-url-error">
+                {fieldErrors.slides_url}
+              </FieldError>
+            </label>
 
-          <label>
-            Meeting notes URL (optional)
-            <input
-              name="meeting_notes_url"
-              type="url"
-              aria-invalid={Boolean(fieldErrors.meeting_notes_url)}
-              aria-describedby={
-                fieldErrors.meeting_notes_url
-                  ? "event-meeting-notes-url-error"
-                  : undefined
-              }
-              defaultValue={submittedValue(
-                state.values,
-                "meeting_notes_url",
-                event?.meeting_notes_url ?? "",
-              )}
-            />
-            <FieldError id="event-meeting-notes-url-error">
-              {fieldErrors.meeting_notes_url}
-            </FieldError>
-          </label>
+            <label>
+              Meeting notes URL (optional)
+              <input
+                name="meeting_notes_url"
+                type="url"
+                aria-invalid={Boolean(fieldErrors.meeting_notes_url)}
+                aria-describedby={
+                  fieldErrors.meeting_notes_url
+                    ? "event-meeting-notes-url-error"
+                    : undefined
+                }
+                defaultValue={submittedValue(
+                  state.values,
+                  "meeting_notes_url",
+                  event?.meeting_notes_url ?? "",
+                )}
+              />
+              <FieldError id="event-meeting-notes-url-error">
+                {fieldErrors.meeting_notes_url}
+              </FieldError>
+            </label>
 
-          <label>
-            External roster / signup sheet URL (optional)
-            <input
-              name="signup_sheet_url"
-              type="url"
-              aria-invalid={Boolean(fieldErrors.signup_sheet_url)}
-              aria-describedby={
-                fieldErrors.signup_sheet_url
-                  ? "event-signup-sheet-url-error"
-                  : undefined
-              }
-              defaultValue={submittedValue(
-                state.values,
-                "signup_sheet_url",
-                event?.signup_sheet_url ?? "",
-              )}
-            />
-            <span className="text-sm text-muted">
-              External Google Sheet resource. Cappy Hub signups, capacity,
-              waitlist, and participation are managed separately.
-            </span>
-            <FieldError id="event-signup-sheet-url-error">
-              {fieldErrors.signup_sheet_url}
-            </FieldError>
-          </label>
+            <label>
+              External roster / signup sheet URL (optional)
+              <input
+                name="signup_sheet_url"
+                type="url"
+                aria-invalid={Boolean(fieldErrors.signup_sheet_url)}
+                aria-describedby={
+                  fieldErrors.signup_sheet_url
+                    ? "event-signup-sheet-url-error"
+                    : undefined
+                }
+                defaultValue={submittedValue(
+                  state.values,
+                  "signup_sheet_url",
+                  event?.signup_sheet_url ?? "",
+                )}
+              />
+              <span className="text-sm text-muted">
+                External Google Sheet resource. Cappy Hub signups, capacity,
+                waitlist, and participation are managed separately.
+              </span>
+              <FieldError id="event-signup-sheet-url-error">
+                {fieldErrors.signup_sheet_url}
+              </FieldError>
+            </label>
+          </div>
         </div>
-      </fieldset>
+      </details>
 
       <fieldset className="event-form-section">
         <legend>Participation and capacity</legend>
@@ -466,12 +502,22 @@ export default function EventForm({
 
       {!event && (
         <div className="event-form-recurrence col-span-2">
-          <RecurrenceFields
-            recordType="Event"
-            values={state.values}
-            fieldErrors={fieldErrors}
-            firstDate={submittedValue(state.values, "event_date", "")}
-          />
+          <details
+            className="event-form-new-recurrence"
+            open={recurrenceChanged || recurrenceNeedReveal}
+            onToggle={(toggleEvent) =>
+              setRecurrenceChanged(toggleEvent.currentTarget.open)
+            }
+            onChange={() => setRecurrenceChanged(true)}
+          >
+            <summary>Recurrence settings (optional)</summary>
+            <RecurrenceFields
+              recordType="Event"
+              values={state.values}
+              fieldErrors={fieldErrors}
+              firstDate={submittedValue(state.values, "event_date", "")}
+            />
+          </details>
         </div>
       )}
 
