@@ -12,6 +12,7 @@ import type { Tables } from "@/lib/database.types";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { formatEventFilterOption } from "@/lib/presentation";
 import { ActionFeedback, FieldError, FormMessage } from "@/components/ui";
+import { SearchableSelect } from "@/components/searchable-select";
 import { addTransaction, searchEvents } from "./actions";
 
 type PointEvent = Pick<Tables<"events">, "id" | "name" | "event_date">;
@@ -111,6 +112,7 @@ export default function TransactionForm({
             key={formKey}
             officers={officers}
             events={events}
+            dialogRef={dialogRef}
             onSuccess={handleSuccess}
           />
         </div>
@@ -122,10 +124,12 @@ export default function TransactionForm({
 function TransactionFields({
   officers,
   events,
+  dialogRef,
   onSuccess,
 }: {
   officers: Pick<Tables<"officers">, "id" | "name">[];
   events: PointEvent[];
+  dialogRef: React.RefObject<HTMLDialogElement | null>;
   onSuccess: (message: string) => void;
 }) {
   const [search, setSearch] = useState("");
@@ -165,30 +169,21 @@ function TransactionFields({
       onReset={(event) => event.preventDefault()}
       className="!grid !max-w-none grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2"
     >
-      <label className="sm:col-span-1">
-        Officer
-        <select
-          data-initial-focus
-          name="officer_id"
-          required
-          aria-invalid={Boolean(fieldErrors.officer_id)}
-          aria-describedby={
-            fieldErrors.officer_id ? "transaction-officer-error" : undefined
-          }
-          defaultValue={submittedValue(state.values, "officer_id")}
-          disabled={pending}
-        >
-          <option value="">Select officer</option>
-          {officers.map((officer) => (
-            <option key={officer.id} value={officer.id}>
-              {officer.name}
-            </option>
-          ))}
-        </select>
-        <FieldError id="transaction-officer-error">
-          {fieldErrors.officer_id}
-        </FieldError>
-      </label>
+      <SearchableSelect
+        name="officer_id"
+        label="Officer"
+        options={officers.map((officer) => ({
+          id: String(officer.id),
+          label: officer.name,
+        }))}
+        initialValue={submittedValue(state.values, "officer_id")}
+        required
+        error={fieldErrors.officer_id}
+        disabled={pending}
+        placeholder="Search Officers"
+        portalContainer={dialogRef}
+        initialFocus
+      />
       <label>
         Points
         <input

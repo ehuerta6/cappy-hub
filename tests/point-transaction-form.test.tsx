@@ -82,8 +82,8 @@ function openDialog() {
 }
 
 function fillTransaction(dialog: HTMLDialogElement) {
-  const officer = dialog.querySelector<HTMLSelectElement>(
-    'select[name="officer_id"]',
+  const officer = dialog.querySelector<HTMLInputElement>(
+    'input[placeholder="Search Officers"]',
   )!;
   const points = dialog.querySelector<HTMLInputElement>(
     'input[name="points"]',
@@ -92,11 +92,26 @@ function fillTransaction(dialog: HTMLDialogElement) {
     'input[name="reason"]',
   )!;
   act(() => {
-    Object.getOwnPropertyDescriptor(
-      HTMLSelectElement.prototype,
-      "value",
-    )?.set?.call(officer, "3");
-    officer.dispatchEvent(new Event("change", { bubbles: true }));
+    officer.focus();
+    officer.click();
+  });
+  act(() => {
+    officer.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+    );
+  });
+  act(() => {
+    officer.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+    );
+  });
+  expect(document.querySelector('[role="option"]')?.outerHTML).toContain(
+    "data-highlighted",
+  );
+  act(() => {
+    officer.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
     for (const [input, value] of [
       [points, "2.5"],
       [reason, "Lifecycle check"],
@@ -108,6 +123,9 @@ function fillTransaction(dialog: HTMLDialogElement) {
       input.dispatchEvent(new Event("input", { bubbles: true }));
     }
   });
+  expect(
+    dialog.querySelector<HTMLInputElement>('input[name="officer_id"]')?.value,
+  ).toBe("3");
 }
 
 async function submit(dialog: HTMLDialogElement) {
@@ -182,6 +200,11 @@ it("keeps the dialog and submitted values after persistence failure, blocks pend
     points: "2.5",
     reason: "Lifecycle check",
   });
+  expect(
+    (vi.mocked(addTransaction).mock.calls[0][1] as FormData).getAll(
+      "officer_id",
+    ),
+  ).toEqual(["3"]);
 
   await act(async () => {
     rejectSave({
@@ -198,7 +221,7 @@ it("keeps the dialog and submitted values after persistence failure, blocks pend
   });
   expect(dialog.open).toBe(true);
   expect(
-    dialog.querySelector<HTMLSelectElement>('select[name="officer_id"]')?.value,
+    dialog.querySelector<HTMLInputElement>('input[name="officer_id"]')?.value,
   ).toBe("3");
   expect(
     dialog.querySelector<HTMLInputElement>('input[name="points"]')?.value,
@@ -208,7 +231,34 @@ it("keeps the dialog and submitted values after persistence failure, blocks pend
   ).toBe("Lifecycle check");
   expect(dialog.textContent).toContain("Could not save changes");
 
+  const officerSearch = dialog.querySelector<HTMLInputElement>(
+    'input[placeholder="Search Officers"]',
+  )!;
+  act(() => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )?.set?.call(officerSearch, "Nobody");
+    officerSearch.dispatchEvent(
+      new InputEvent("input", {
+        bubbles: true,
+        data: "Nobody",
+        inputType: "insertText",
+      }),
+    );
+  });
+  expect(officerSearch.value).toBe("Nobody");
+  expect(dialog.textContent).toContain("Selected: Test Officer");
+  expect(
+    dialog.querySelector<HTMLInputElement>('input[name="officer_id"]')?.value,
+  ).toBe("3");
+
   await submit(dialog);
+  expect(
+    (vi.mocked(addTransaction).mock.calls[1][1] as FormData).getAll(
+      "officer_id",
+    ),
+  ).toEqual(["3"]);
   expect(dialog.open).toBe(false);
   expect(trigger.ownerDocument.activeElement).toBe(trigger);
   expect(refresh).toHaveBeenCalledOnce();
@@ -220,7 +270,7 @@ it("keeps the dialog and submitted values after persistence failure, blocks pend
   const nextDialog = host.querySelector<HTMLDialogElement>("dialog")!;
   expect(nextDialog.open).toBe(true);
   expect(
-    nextDialog.querySelector<HTMLSelectElement>('select[name="officer_id"]')
+    nextDialog.querySelector<HTMLInputElement>('input[name="officer_id"]')
       ?.value,
   ).toBe("");
   expect(
