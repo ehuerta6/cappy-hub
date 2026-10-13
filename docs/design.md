@@ -453,8 +453,8 @@ The following sections describe the actual product workflows and the design dire
 
 - **Purpose:** Create or update an officer record.
 - **Existing functionality that MUST be preserved — CURRENT:** Admin-only dedicated Add officer/Edit officer pages with contextual return links. When editing from a filtered directory, the return destination is preserved through the form and save. Required name and position; at least one of UTEP or personal email; optional classification and branches; status is editable on existing records only. Application role does not belong to this form.
-- **Information hierarchy:** Contextual link/title; name and contact; position/classification/status; branch choices; validation and save.
-- **Recommended layout:** Keep name full width, pair the two email fields and position/classification where natural, then use one branch fieldset. Keep these pairs on desktop; use one column only when browser resizing or zoom leaves insufficient room.
+- **Information hierarchy:** Contextual link/title; name; paired email contacts; position/classification and edit-only status; branch choices; validation and save.
+- **Recommended layout:** Use a compact, capped form width. Keep the name readable, pair the two email fields and position/classification on desktop, then use one optional branch fieldset. Stack the pairs when browser resizing or zoom leaves insufficient room. Keep errors and Save in document flow.
 - **Primary action:** Save officer.
 - **Secondary actions:** Return to Officers or the officer detail.
 - **Data presentation:** Labeled fields, optional text in labels, dropdowns, branch checkboxes, inline validation.

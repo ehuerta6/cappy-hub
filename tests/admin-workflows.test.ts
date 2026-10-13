@@ -116,6 +116,52 @@ it("returns a field error and keeps entered values when an Officer name is blank
   expect(rpc).not.toHaveBeenCalled();
 });
 
+it("requires one email while allowing either email field to be empty", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 601,
+    applicationRole: "admin",
+  } as never);
+  const data = new FormData();
+  data.set("name", "Alex Example");
+  data.set("utep_email", "");
+  data.set("personal_email", "alex.personal@example.com");
+  data.set("position_id", "4");
+  rpc.mockResolvedValueOnce({ data: 603, error: null });
+  await saveOfficer(previous, data);
+
+  expect(rpc).toHaveBeenCalledWith("save_officer", {
+    p_officer_id: undefined,
+    p_name: "Alex Example",
+    p_utep_email: undefined,
+    p_personal_email: "alex.personal@example.com",
+    p_position_id: 4,
+    p_classification: undefined,
+    p_status: "active",
+    p_branch_ids: [],
+  });
+  expect(redirect).toHaveBeenCalledWith("/officers/603?feedback=officer-saved");
+});
+
+it("rejects an Officer with neither email and preserves submitted email values", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 601,
+    applicationRole: "admin",
+  } as never);
+  const data = new FormData();
+  data.set("name", "Alex Example");
+  data.set("utep_email", "");
+  data.set("personal_email", "");
+  data.set("position_id", "4");
+  const result = await saveOfficer(previous, data);
+
+  expect(result).toMatchObject({
+    error: "Provide at least one email",
+    fieldErrors: { utep_email: "Provide at least one email" },
+    values: { utep_email: "", personal_email: "" },
+  });
+  expect(rpc).not.toHaveBeenCalled();
+});
+
 it("denies a non-admin role action before calling the RPC", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 603,
@@ -315,6 +361,24 @@ it("return context grants no Officer save permission", async () => {
   expect((await saveOfficer({ error: "", success: "" }, data)).error).toBe(
     "Admin required",
   );
+  expect(rpc).not.toHaveBeenCalled();
+  expect(redirect).not.toHaveBeenCalled();
+});
+
+it("denies an assigned Lead direct access to Officer mutation", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 603,
+    applicationRole: "officer",
+    positionCode: "lead",
+    branchIds: [2],
+  } as never);
+  const data = new FormData();
+  data.set("name", "Alex Example");
+  data.set("utep_email", "alex@example.edu");
+  data.set("personal_email", "");
+  data.set("position_id", "4");
+
+  expect((await saveOfficer(previous, data)).error).toBe("Admin required");
   expect(rpc).not.toHaveBeenCalled();
   expect(redirect).not.toHaveBeenCalled();
 });

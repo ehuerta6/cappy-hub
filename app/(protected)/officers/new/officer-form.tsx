@@ -8,7 +8,12 @@ import {
   submittedValue,
   submittedValues,
 } from "@/lib/form-feedback";
-import { ActionFeedback, FieldError } from "@/components/ui";
+import {
+  ActionFeedback,
+  FieldDescription,
+  FieldError,
+  fieldLabelClassName,
+} from "@/components/ui";
 import { saveOfficer } from "../actions";
 
 type OfficerFormProps = {
@@ -34,146 +39,175 @@ export default function OfficerForm({
     submittedValues(state.values, "branches", branchIds.map(String)),
   );
   const fieldErrors = state.fieldErrors ?? {};
+
   return (
-    <form action={action} className="grid-cols-2">
+    <form
+      action={action}
+      className="grid-cols-1 gap-4 max-w-3xl sm:grid-cols-2"
+    >
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
       {officer && <input type="hidden" name="id" value={officer.id} />}
-      <label className="col-span-2">
-        Name
-        <input
-          name="name"
-          required
-          aria-invalid={Boolean(fieldErrors.name)}
-          aria-describedby={fieldErrors.name ? "officer-name-error" : undefined}
-          defaultValue={submittedValue(
-            state.values,
-            "name",
-            officer?.name ?? "",
-          )}
-        />
-        <FieldError id="officer-name-error">{fieldErrors.name}</FieldError>
-      </label>
-      <p className="col-span-2">Provide at least one email address.</p>
-      <label>
-        UTEP email (optional)
-        <input
-          name="utep_email"
-          type="email"
-          aria-invalid={Boolean(fieldErrors.utep_email)}
-          aria-describedby={
-            fieldErrors.utep_email ? "officer-utep-email-error" : undefined
-          }
-          defaultValue={submittedValue(
-            state.values,
-            "utep_email",
-            officer?.utep_email ?? "",
-          )}
-        />
-        <FieldError id="officer-utep-email-error">
-          {fieldErrors.utep_email}
-        </FieldError>
-      </label>
-      <label>
-        Personal email (optional)
-        <input
-          name="personal_email"
-          type="email"
-          aria-invalid={Boolean(fieldErrors.personal_email)}
-          aria-describedby={
-            fieldErrors.personal_email
-              ? "officer-personal-email-error"
-              : undefined
-          }
-          defaultValue={submittedValue(
-            state.values,
-            "personal_email",
-            officer?.personal_email ?? "",
-          )}
-        />
-        <FieldError id="officer-personal-email-error">
-          {fieldErrors.personal_email}
-        </FieldError>
-      </label>
-      <label>
-        Position
-        <select
-          name="position_id"
-          required
-          aria-invalid={Boolean(fieldErrors.position_id)}
-          aria-describedby={
-            fieldErrors.position_id ? "officer-position-error" : undefined
-          }
-          defaultValue={submittedValue(
-            state.values,
-            "position_id",
-            String(officer?.position_id ?? ""),
-          )}
-        >
-          <option value="">Select position</option>
-          {positions.map((position) => (
-            <option key={position.id} value={position.id}>
-              {position.name}
-            </option>
-          ))}
-        </select>
-        <FieldError id="officer-position-error">
-          {fieldErrors.position_id}
-        </FieldError>
-      </label>
-      <label>
-        Classification (optional)
-        <select
-          name="classification"
-          aria-invalid={Boolean(fieldErrors.classification)}
-          aria-describedby={
-            fieldErrors.classification
-              ? "officer-classification-error"
-              : undefined
-          }
-          defaultValue={submittedValue(
-            state.values,
-            "classification",
-            officer?.classification ?? "",
-          )}
-        >
-          <option value="">Not specified</option>
-          {["freshman", "sophomore", "junior", "senior", "graduate"].map(
-            (value) => (
-              <option key={value} value={value}>
-                {formatLabel(value)}
-              </option>
-            ),
-          )}
-        </select>
-        <FieldError id="officer-classification-error">
-          {fieldErrors.classification}
-        </FieldError>
-      </label>
-      {officer && (
-        <label>
-          Status
-          <select
-            name="status"
-            aria-invalid={Boolean(fieldErrors.status)}
+
+      <section aria-label="Officer name" className="col-span-full grid min-w-0">
+        <label className={fieldLabelClassName}>
+          Name
+          <input
+            name="name"
+            required
+            aria-invalid={Boolean(fieldErrors.name)}
             aria-describedby={
-              fieldErrors.status ? "officer-status-error" : undefined
+              fieldErrors.name ? "officer-name-error" : undefined
             }
             defaultValue={submittedValue(
               state.values,
-              "status",
-              officer.status,
+              "name",
+              officer?.name ?? "",
+            )}
+          />
+          <FieldError id="officer-name-error">{fieldErrors.name}</FieldError>
+        </label>
+      </section>
+
+      <section
+        aria-label="Contact information"
+        className="col-span-full grid min-w-0 gap-3"
+      >
+        <div className="space-y-1">
+          <h2 className="text-sm font-medium text-foreground">Contact</h2>
+          <FieldDescription>
+            Provide at least one email address.
+          </FieldDescription>
+        </div>
+        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className={fieldLabelClassName}>
+            UTEP email (optional)
+            <input
+              name="utep_email"
+              type="email"
+              aria-invalid={Boolean(fieldErrors.utep_email)}
+              aria-describedby={
+                fieldErrors.utep_email ? "officer-utep-email-error" : undefined
+              }
+              defaultValue={submittedValue(
+                state.values,
+                "utep_email",
+                officer?.utep_email ?? "",
+              )}
+            />
+            <FieldError id="officer-utep-email-error">
+              {fieldErrors.utep_email}
+            </FieldError>
+          </label>
+          <label className={fieldLabelClassName}>
+            Personal email (optional)
+            <input
+              name="personal_email"
+              type="email"
+              aria-invalid={Boolean(fieldErrors.personal_email)}
+              aria-describedby={
+                fieldErrors.personal_email
+                  ? "officer-personal-email-error"
+                  : undefined
+              }
+              defaultValue={submittedValue(
+                state.values,
+                "personal_email",
+                officer?.personal_email ?? "",
+              )}
+            />
+            <FieldError id="officer-personal-email-error">
+              {fieldErrors.personal_email}
+            </FieldError>
+          </label>
+        </div>
+      </section>
+
+      <section
+        aria-label="Position and classification"
+        className="col-span-full grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2"
+      >
+        <label className={fieldLabelClassName}>
+          Position
+          <select
+            name="position_id"
+            required
+            aria-invalid={Boolean(fieldErrors.position_id)}
+            aria-describedby={
+              fieldErrors.position_id ? "officer-position-error" : undefined
+            }
+            defaultValue={submittedValue(
+              state.values,
+              "position_id",
+              String(officer?.position_id ?? ""),
             )}
           >
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
+            <option value="">Select position</option>
+            {positions.map((position) => (
+              <option key={position.id} value={position.id}>
+                {position.name}
+              </option>
+            ))}
           </select>
-          <FieldError id="officer-status-error">
-            {fieldErrors.status}
+          <FieldError id="officer-position-error">
+            {fieldErrors.position_id}
           </FieldError>
         </label>
-      )}
+        <label className={fieldLabelClassName}>
+          Classification (optional)
+          <select
+            name="classification"
+            aria-invalid={Boolean(fieldErrors.classification)}
+            aria-describedby={
+              fieldErrors.classification
+                ? "officer-classification-error"
+                : undefined
+            }
+            defaultValue={submittedValue(
+              state.values,
+              "classification",
+              officer?.classification ?? "",
+            )}
+          >
+            <option value="">Not specified</option>
+            {["freshman", "sophomore", "junior", "senior", "graduate"].map(
+              (value) => (
+                <option key={value} value={value}>
+                  {formatLabel(value)}
+                </option>
+              ),
+            )}
+          </select>
+          <FieldError id="officer-classification-error">
+            {fieldErrors.classification}
+          </FieldError>
+        </label>
+        {officer && (
+          <label className={fieldLabelClassName}>
+            Status
+            <select
+              name="status"
+              aria-invalid={Boolean(fieldErrors.status)}
+              aria-describedby={
+                fieldErrors.status ? "officer-status-error" : undefined
+              }
+              defaultValue={submittedValue(
+                state.values,
+                "status",
+                officer.status,
+              )}
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <FieldError id="officer-status-error">
+              {fieldErrors.status}
+            </FieldError>
+          </label>
+        )}
+      </section>
+
       <fieldset
-        className="col-span-2"
+        className="col-span-full"
         aria-invalid={Boolean(fieldErrors.branches)}
         aria-describedby={
           fieldErrors.branches ? "officer-branches-error" : undefined
@@ -202,10 +236,13 @@ export default function OfficerForm({
           {fieldErrors.branches}
         </FieldError>
       </fieldset>
-      <ActionFeedback state={state} />
-      <button disabled={pending}>
-        {pending ? (officer ? "Saving…" : "Creating…") : "Save officer"}
-      </button>
+
+      <div className="col-span-full grid justify-items-start gap-3">
+        <ActionFeedback state={state} />
+        <button disabled={pending}>
+          {pending ? (officer ? "Saving…" : "Creating…") : "Save officer"}
+        </button>
+      </div>
     </form>
   );
 }
