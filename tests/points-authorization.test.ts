@@ -83,6 +83,25 @@ it("submits manual transactions without an Event relationship", async () => {
   });
 });
 
+it.each(["", "not-an-id"])(
+  "rejects an empty or invalid Officer ID (%s) before the RPC",
+  async (officerId) => {
+    vi.mocked(getAuthorizationContext).mockResolvedValue({
+      applicationRole: "admin",
+    } as never);
+    const transaction = form();
+    transaction.set("officer_id", officerId);
+    expect(
+      await addTransaction({ error: "", success: "" }, transaction),
+    ).toMatchObject({
+      error: "Select an officer",
+      fieldErrors: { officer_id: "Select an officer" },
+      values: { officer_id: officerId },
+    });
+    expect(rpc).not.toHaveBeenCalled();
+  },
+);
+
 it("returns persistence errors with submitted values for retry", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     applicationRole: "admin",

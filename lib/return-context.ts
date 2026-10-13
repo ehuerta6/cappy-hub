@@ -16,7 +16,7 @@ const listRoutes = {
     "view",
     "reviewPage",
   ],
-  "/events": ["q", "status", "type", "branch"],
+  "/events": ["q", "status", "type", "branch", "page"],
   "/tasks": ["q", "view", "status", "branch", "assignee"],
   "/points": ["q", "type", "officer", "event", "status", "from", "to", "page"],
   "/system-log": ["q", "actor", "action", "entity", "from", "to", "page"],

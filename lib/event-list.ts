@@ -63,11 +63,13 @@ export function organizeEventList(
   });
 
   const sort = (left: EventListItem, right: EventListItem) => {
-    if (status === "past") return right.ends_at.localeCompare(left.ends_at);
+    if (status === "past")
+      return right.ends_at.localeCompare(left.ends_at) || right.id - left.id;
     if (status === "cancelled" || status === "archived") {
       return (
         right.event_date.localeCompare(left.event_date) ||
-        right.starts_at.localeCompare(left.starts_at)
+        right.starts_at.localeCompare(left.starts_at) ||
+        right.id - left.id
       );
     }
     return left.starts_at.localeCompare(right.starts_at) || left.id - right.id;
@@ -81,4 +83,34 @@ export function organizeEventList(
     thisWeek: visible.filter((event) => event.event_date <= sunday),
     upcoming: visible.filter((event) => event.event_date > sunday),
   };
+}
+
+// Group only adjacent page rows: moving all personal Events ahead of other
+// Events would change the schedule order used by server pagination.
+export function groupEventPage(
+  events: EventListItem[],
+  status: EventListStatus,
+  officerId: number,
+  now: Date,
+) {
+  const { sunday } = currentDenverWeek(now);
+  const groups: { label: string; events: EventListItem[] }[] = [];
+  for (const event of events) {
+    const yourEvent =
+      event.event_officers.some(({ officer_id }) => officer_id === officerId) ||
+      (event.event_waitlist ?? []).some(
+        ({ officer_id }) => officer_id === officerId,
+      );
+    const period =
+      status === undefined
+        ? event.event_date <= sunday
+          ? "This week's events · "
+          : "Upcoming events · "
+        : "";
+    const label = `${period}${yourEvent ? "Your events" : "Other events"}`;
+    const last = groups.at(-1);
+    if (last?.label === label) last.events.push(event);
+    else groups.push({ label, events: [event] });
+  }
+  return groups;
 }

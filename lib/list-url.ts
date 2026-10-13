@@ -1,7 +1,7 @@
 import type { ListRoute } from "@/lib/return-context";
 
 export function listPageUrl(
-  pathname: Extract<ListRoute, "/officers" | "/points" | "/system-log">,
+  pathname: Extract<ListRoute, "/events" | "/officers" | "/points" | "/system-log">,
   filters: URLSearchParams,
   page: number,
 ) {

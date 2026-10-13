@@ -7,12 +7,14 @@ const {
   createClient,
   ordersByTable,
   totalOfficerIds,
+  activeOfficerFilters,
 } = vi.hoisted(() => ({
   getAuthorizationContext: vi.fn(),
   canManagePoints: vi.fn(),
   createClient: vi.fn(),
   ordersByTable: new Map<string, { column: string; ascending?: boolean }[]>(),
   totalOfficerIds: [] as number[][],
+  activeOfficerFilters: [] as { column: string; value: string }[],
 }));
 
 vi.mock("@/lib/authorization", () => ({
@@ -30,6 +32,7 @@ import PointsPage from "@/app/(protected)/points/page";
 beforeEach(() => {
   ordersByTable.clear();
   totalOfficerIds.length = 0;
+  activeOfficerFilters.length = 0;
   getAuthorizationContext.mockResolvedValue({ id: 1 });
   canManagePoints.mockReturnValue(false);
   createClient.mockResolvedValue({
@@ -39,7 +42,11 @@ beforeEach(() => {
         is: () => query,
         not: () => query,
         filter: () => query,
-        eq: () => query,
+        eq: (column: string, value: string) => {
+          if (table === "officers")
+            activeOfficerFilters.push({ column, value });
+          return query;
+        },
         in: (_column: string, ids: number[]) => {
           if (table === "officer_point_totals") totalOfficerIds.push(ids);
           return query;
@@ -94,6 +101,10 @@ it("keeps the Officer selector alphabetical", async () => {
     { column: "name" },
     { column: "name" },
   ]);
+  expect(activeOfficerFilters).toContainEqual({
+    column: "status",
+    value: "active",
+  });
 });
 
 it("queries Officer totals only for active recipients", async () => {
