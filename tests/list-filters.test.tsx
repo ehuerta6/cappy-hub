@@ -919,8 +919,7 @@ it("keeps officer identity, status and contact information in a semantic table",
   expect(html).toContain("<table");
   expect(html).toMatch(/<th[^>]*scope="col"[^>]*>Name<\/th>/);
   for (const heading of [
-    "UTEP email",
-    "Personal email",
+    "Contact",
     "Position",
     "Classification",
     "Branches",
@@ -931,7 +930,8 @@ it("keeps officer identity, status and contact information in a semantic table",
   expect(html).toContain("Technical Officer");
   expect(html).toContain("Intro");
   expect(html).toContain("Active");
-  expect(html).not.toContain("Contact details");
+  expect(html).toContain(">UTEP</span>");
+  expect(html).toContain(">Personal</span>");
   expect(html).toContain('href="mailto:emi@miners.utep.edu"');
   expect(html).toContain('href="mailto:emi@example.test"');
 });

@@ -428,13 +428,13 @@ The following sections describe the actual product workflows and the design dire
 ### Officers list
 
 - **Purpose:** Find and review club officers and branch memberships.
-- **Existing functionality that MUST be preserved — CURRENT:** Search name, UTEP email, or personal email; filter active/inactive status, position, and branch. The directory table contains Name, UTEP email, Personal email, Position, Classification, Branches, and Status. Opening an officer preserves the current filter context for the contextual return link. Admins can add officers and open Manage positions and branches. Separately, an officer sees warning decisions awaiting their own approval, if any.
-- **Information hierarchy:** Title and admin Add officer action; catalog-management link where permitted; filters; pending decisions (only when present); directory.
-- **Recommended layout:** Keep a readable desktop table that prioritizes name, contact, position/classification, branches, and status. Maintain the distinction between directory results and warning decisions.
+- **Existing functionality that MUST be preserved — CURRENT:** Search name, UTEP email, or personal email; filter active/inactive status, position, and branch. The directory table contains Name, both labeled email addresses, Position, Classification, Branches, and Status. Opening an officer preserves the current filtered page for the contextual return link. Admins can add officers and open Manage positions and branches. Eligible approvers can reach their pending Warning decisions from a compact count on this route.
+- **Information hierarchy:** Title and authorized management actions; pending decision count/entry when applicable; filters; directory results and pager. The Warning review view replaces the directory body while keeping a return link.
+- **Recommended layout:** Group both email addresses in one contact cell so the compact six-column table remains readable at desktop widths. Show eight fully filtered Officers per URL-backed page, an exact filtered count, and Previous/Next links. Applying or clearing filters returns to the first directory page. The same route's URL-backed Warning review view shows five eligible decisions per page with full reason, date, and existing actions.
 - **Primary action:** Add officer for admins; otherwise opening a name is the main navigation action.
 - **Secondary actions:** Manage positions and branches; approve/reject a warning assigned to the current user; apply/clear filters.
-- **Data presentation:** Directory table, neutral branch badges, plain-text position/classification, semantic Active/Inactive status; compact warning decision articles.
-- **Minimalism notes:** **OPTIONAL REFINEMENT:** If two email columns make the table too dense, show UTEP email as the primary contact and nest personal email beneath the officer identity. This is presentation only: keep both values searchable and available on detail.
+- **Data presentation:** Directory table with labeled UTEP/personal contacts, neutral branch badges, plain-text position/classification, semantic Active/Inactive status; bounded warning decision articles in review view.
+- **Minimalism notes:** Keep both email values directly visible without expanding a row. Long identity/contact text wraps, and natural page scrolling remains available.
 - **Do not add:** A participation metric, position/classification badges, filters absent from the current list, or warning details/actions for users who cannot see or decide them.
 
 ### Officer detail

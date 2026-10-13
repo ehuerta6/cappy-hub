@@ -8,34 +8,43 @@ vi.mock("@/lib/authorization", () => ({
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
     from: (table: string) => {
-      let officerLookup = false;
+      let countOnly = false;
       const query = {
-        select: () => query,
-        eq: () => query,
-        in: () => {
-          officerLookup = true;
+        select: (_selection: string, options?: { head?: boolean }) => {
+          countOnly = options?.head ?? false;
           return query;
         },
+        eq: () => query,
+        is: () => query,
         order: () => query,
         or: () => query,
         not: () => query,
+        range: () => query,
         then: (resolve: (value: unknown) => unknown) => {
           const data =
-            table === "warning_approvals"
-              ? [{ warning_id: 9, approver_role: "President" }]
-              : table === "officer_warnings"
-                ? [
-                    {
-                      id: 9,
-                      officer_id: 12,
-                      reason: "Missed a scheduled event",
-                      created_at: "2026-10-06T23:53:11Z",
-                    },
-                  ]
-                : table === "officers" && officerLookup
-                  ? [{ id: 12, name: "Synthetic Officer" }]
-                  : [];
-          return Promise.resolve({ data, count: 0, error: null }).then(resolve);
+            table === "officer_warnings" && !countOnly
+              ? [
+                  {
+                    id: 9,
+                    officer_id: 12,
+                    reason: "Missed a scheduled event",
+                    created_at: "2026-10-06T23:53:11Z",
+                    officers: { id: 12, name: "Synthetic Officer" },
+                    warning_approvals: [
+                      {
+                        approver_role: "President",
+                        decision: "pending",
+                        decided_at: null,
+                      },
+                    ],
+                  },
+                ]
+              : [];
+          return Promise.resolve({
+            data,
+            count: table === "officer_warnings" ? 1 : 0,
+            error: null,
+          }).then(resolve);
         },
       };
       return query;
@@ -50,7 +59,7 @@ import OfficersPage from "@/app/(protected)/officers/page";
 
 it("renders pending warning creation time in America/Denver", async () => {
   const html = renderToStaticMarkup(
-    await OfficersPage({ searchParams: Promise.resolve({}) }),
+    await OfficersPage({ searchParams: Promise.resolve({ view: "warnings" }) }),
   );
 
   expect(html).toContain("Oct 6, 2026, 5:53 PM");

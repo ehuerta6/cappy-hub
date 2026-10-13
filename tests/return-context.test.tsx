@@ -6,6 +6,7 @@ import {
   safeReturnTo,
   withReturnTo,
 } from "@/lib/return-context";
+import { listPageUrl } from "@/lib/list-url";
 
 it.each([
   undefined,
@@ -96,6 +97,30 @@ it.each(["/points", "/system-log"] as const)(
     ).toBe(`${route}?q=change&from=2026-10-01&page=3`);
   },
 );
+
+it("preserves Officers directory and review pages through record navigation", () => {
+  const destination = listReturnUrl("/officers", {
+    q: "Alex",
+    branch: "3",
+    page: "2",
+    view: "warnings",
+    reviewPage: "3",
+    unrelated: "ignored",
+  });
+  expect(destination).toBe(
+    "/officers?q=Alex&branch=3&page=2&view=warnings&reviewPage=3",
+  );
+  expect(safeReturnTo(destination)).toBe(destination);
+  expect(
+    new URL(
+      withReturnTo("/officers/7", destination),
+      "https://cappy.invalid",
+    ).searchParams.get("returnTo"),
+  ).toBe(destination);
+  expect(listPageUrl("/officers", new URLSearchParams("q=Alex"), 2)).toBe(
+    "/officers?q=Alex&page=2",
+  );
+});
 
 it("omits repeated query values just as list schemas do", () => {
   expect(

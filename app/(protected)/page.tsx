@@ -152,7 +152,7 @@ export default async function DashboardPage() {
               {(actionItems.hasPendingWarnings ||
                 actionItems.unavailableSources.warnings) && (
                 <Link
-                  href="/officers"
+                  href="/officers?view=warnings"
                   className="inline-flex min-h-9 items-center underline underline-offset-4"
                 >
                   View warning decisions

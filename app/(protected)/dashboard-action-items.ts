@@ -25,7 +25,7 @@ type ActionWarning = Pick<Tables<"officer_warnings">, "id" | "created_at"> & {
 export type ActionItem = {
   key: string;
   title: string;
-  href: `/tasks/${number}` | `/officers#warning-${number}`;
+  href: `/tasks/${number}` | `/officers?view=warnings#warning-${number}`;
   status: string;
   dueDate?: string;
 };
@@ -61,7 +61,7 @@ export function dashboardActionItems(
       title: warning.officers
         ? `Warning for ${warning.officers.name}`
         : "Warning decision",
-      href: `/officers#warning-${warning.id}`,
+      href: `/officers?view=warnings#warning-${warning.id}`,
       status: "Needs decision",
     }));
   const pendingTasks = personalTasks

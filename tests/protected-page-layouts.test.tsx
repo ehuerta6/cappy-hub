@@ -111,9 +111,11 @@ beforeEach(() => {
         gte: () => query,
         in: () => query,
         is: () => query,
+        not: () => query,
         lt: () => query,
         lte: () => query,
         order: () => query,
+        range: () => query,
         limit: () => query,
         or: () => query,
         single: async () => ({
@@ -138,6 +140,7 @@ beforeEach(() => {
         then: (resolve: (value: unknown) => unknown) =>
           Promise.resolve({
             data: table === "officers" ? officersForList : [],
+            count: table === "officers" ? officersForList.length : 0,
             error: null,
           }).then(resolve),
       };
@@ -314,7 +317,7 @@ it("does not add contextual Back links to Officer or Task main pages", async () 
   ).not.toContain("Back to");
 });
 
-it("keeps all Officer directory columns distinct and marks the directory as wide", async () => {
+it("groups both Officer contacts in the wide directory table", async () => {
   officersForList = [
     {
       id: 7,
@@ -335,8 +338,7 @@ it("keeps all Officer directory columns distinct and marks the directory as wide
   expect(html).toContain('data-page-width="wide"');
   for (const heading of [
     "Name",
-    "UTEP email",
-    "Personal email",
+    "Contact",
     "Position",
     "Classification",
     "Branches",
@@ -345,6 +347,8 @@ it("keeps all Officer directory columns distinct and marks the directory as wide
     expect(html).toContain(`>${heading}</th>`);
   expect(html).toContain("synthetic@utep.edu");
   expect(html).toContain("officer@example.com");
+  expect(html).toContain(">UTEP</span>");
+  expect(html).toContain(">Personal</span>");
 });
 
 it("groups Event details, files and participation while retaining management controls and history", async () => {

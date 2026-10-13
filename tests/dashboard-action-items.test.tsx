@@ -178,7 +178,7 @@ it("includes only current pending snapshotted warning decisions, even for admins
     warning(5, { status: "approved" }),
   ];
   const html = await render();
-  expect(html).toContain('href="/officers#warning-1"');
+  expect(html).toContain('href="/officers?view=warnings#warning-1"');
   expect(html).toContain("Warning for Alex");
   for (const id of [2, 3, 4, 5]) expect(html).not.toContain(`warning-${id}`);
   const url = urls.find((url) => url.pathname.endsWith("officer_warnings"))!;
@@ -255,15 +255,15 @@ it("caps the summary at five and bounds all source queries", async () => {
     .split('aria-label="Your action items"')[1]
     .split("</section>")[0];
   expect(section.match(/<li>/g)).toHaveLength(5);
-  expect(section).toContain('href="/officers#warning-5"');
-  expect(section).not.toContain('href="/officers#warning-6"');
+  expect(section).toContain('href="/officers?view=warnings#warning-5"');
+  expect(section).not.toContain('href="/officers?view=warnings#warning-6"');
   expect(section).toContain("Showing the first 5 items");
   expect(section).toContain('href="/tasks"');
-  expect(section).toContain('href="/officers"');
+  expect(section).toContain('href="/officers?view=warnings"');
   expect(
-    [...section.matchAll(/href="\/officers#warning-(\d+)"/g)].map(
-      (match) => match[1],
-    ),
+    [
+      ...section.matchAll(/href="\/officers\?view=warnings#warning-(\d+)"/g),
+    ].map((match) => match[1]),
   ).toEqual(["1", "2", "3", "4", "5"]);
   for (const url of urls.filter((url) =>
     ["tasks", "officer_warnings"].includes(url.pathname.split("/").at(-1)!),
@@ -287,7 +287,7 @@ it("renders personal completion status and warning decisions with canonical link
   expect(section).toContain("Due Oct 5, 2026");
   expect(section).toContain("Not completed");
   expect(section).not.toContain("Awaiting approval");
-  expect(section).toContain('href="/officers#warning-2"');
+  expect(section).toContain('href="/officers?view=warnings#warning-2"');
   expect(section).toContain("Warning for Alex");
   expect(section).toContain("Needs decision");
   expect(section).not.toContain("<form");
