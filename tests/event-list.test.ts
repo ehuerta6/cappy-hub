@@ -1,6 +1,10 @@
 import { expect, it } from "vitest";
 import { currentDenverWeek } from "@/lib/current-denver-week";
-import { organizeEventList, type EventListItem } from "@/lib/event-list";
+import {
+  groupEventPage,
+  organizeEventList,
+  type EventListItem,
+} from "@/lib/event-list";
 import { eventListFiltersSchema } from "@/app/(protected)/events/filter-validation";
 
 const now = new Date("2026-10-07T00:00:00.000Z"); // Tuesday, 6 PM in Denver
@@ -231,6 +235,13 @@ it("does not accept Removed as an Event list status", () => {
   ).toBeUndefined();
 });
 
+it("accepts positive URL pages and falls back for malformed page values", () => {
+  expect(eventListFiltersSchema.parse({ page: "2" }).page).toBe(2);
+  expect(eventListFiltersSchema.parse({ page: "0" }).page).toBe(1);
+  expect(eventListFiltersSchema.parse({ page: "2x" }).page).toBe(1);
+  expect(eventListFiltersSchema.parse({ page: ["2", "3"] }).page).toBe(1);
+});
+
 it("shows archived Events only in the explicit Archived view", () => {
   const result = organizeEventList(
     [
@@ -260,4 +271,82 @@ it("shows archived Events only in the explicit Archived view", () => {
     expect(result.events.map(({ deleted_at }) => deleted_at)).toEqual([
       "2026-10-01T00:00:00Z",
     ]);
+});
+
+it("keeps schedule order when own and other Events cross a page group boundary", () => {
+  const items = [
+    event(
+      1,
+      "Other first",
+      "2026-10-06",
+      "2026-10-07T01:00:00Z",
+      "2026-10-07T02:00:00Z",
+    ),
+    event(
+      2,
+      "Own second",
+      "2026-10-06",
+      "2026-10-07T02:00:00Z",
+      "2026-10-07T03:00:00Z",
+      {
+        event_officers: [{ officer_id: 7 }],
+      },
+    ),
+    event(
+      3,
+      "Other next week",
+      "2026-10-12",
+      "2026-10-12T17:00:00Z",
+      "2026-10-12T18:00:00Z",
+    ),
+    event(
+      4,
+      "Waitlisted next week",
+      "2026-10-12",
+      "2026-10-12T18:00:00Z",
+      "2026-10-12T19:00:00Z",
+      {
+        event_waitlist: [{ officer_id: 7 }],
+      },
+    ),
+  ];
+  const groups = groupEventPage(items, undefined, 7, now);
+  expect(groups.map(({ label }) => label)).toEqual([
+    "This week's events · Other events",
+    "This week's events · Your events",
+    "Upcoming events · Other events",
+    "Upcoming events · Your events",
+  ]);
+  expect(groups.flatMap(({ events }) => events.map(({ id }) => id))).toEqual([
+    1, 2, 3, 4,
+  ]);
+});
+
+it("uses event IDs to break schedule ties in every selected view", () => {
+  const tied = [
+    event(
+      1,
+      "First",
+      "2026-10-12",
+      "2026-10-12T17:00:00Z",
+      "2026-10-12T18:00:00Z",
+    ),
+    event(
+      2,
+      "Second",
+      "2026-10-12",
+      "2026-10-12T17:00:00Z",
+      "2026-10-12T18:00:00Z",
+    ),
+  ];
+  expect(organizeEventList([...tied].reverse(), "upcoming", now)).toMatchObject(
+    {
+      events: [{ id: 1 }, { id: 2 }],
+    },
+  );
+  expect(
+    organizeEventList([...tied], "past", new Date("2026-10-13T00:00:00Z")),
+  ).toMatchObject({
+    events: [{ id: 2 }, { id: 1 }],
+  });
 });

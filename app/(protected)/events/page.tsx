@@ -1,11 +1,13 @@
-import { formatEventSchedule } from "@/lib/presentation";
+import { formatEventSchedule, formatLabel } from "@/lib/presentation";
 import {
   getAuthorizationContext,
   isLead,
   canSeeAllBranches,
 } from "@/lib/authorization";
 import { listReturnUrl, withReturnTo } from "@/lib/return-context";
+import { listPageUrl } from "@/lib/list-url";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { eventStatus, eventSignupOpen } from "@/lib/event-status";
 import {
@@ -13,21 +15,24 @@ import {
   BranchBadges,
   ListFilterBar,
   PageHeader,
-  SectionHeading,
   StatusBadge,
   TableFrame,
 } from "@/components/ui";
-import { formatLabel } from "@/lib/presentation";
 import { searchOrFilter } from "@/lib/list-search";
 import { eventListFiltersSchema } from "./filter-validation";
 import { currentDenverWeek } from "@/lib/current-denver-week";
-import { SelfSignupForm } from "./event-controls";
+import {
+  LeaveWaitlistForm,
+  SelfSignupForm,
+  SignupForm,
+} from "./event-controls";
 import {
   eventSignupCountLabel,
-  organizeEventList,
+  groupEventPage,
   type EventListItem,
 } from "@/lib/event-list";
 
+const EVENT_PAGE_SIZE = 8;
 type EventListSearchParams = Record<string, string | string[] | undefined>;
 
 export default async function EventsPage({
@@ -37,35 +42,34 @@ export default async function EventsPage({
 }) {
   const actor = await getAuthorizationContext();
   const params = await searchParams;
-  const parsedFilters = eventListFiltersSchema.parse(params);
+  const filters = eventListFiltersSchema.parse(params);
   const mayBrowseArchived =
     canSeeAllBranches(actor) || (isLead(actor) && actor.branchIds.length > 0);
   const status =
-    parsedFilters.status === "archived" && !mayBrowseArchived
+    filters.status === "archived" && !mayBrowseArchived
       ? undefined
-      : parsedFilters.status;
-  const returnTo = listReturnUrl("/events", {
-    ...params,
-    status,
-  });
-  const { q: search, type: typeId, branch: branchId } = parsedFilters;
+      : filters.status;
+  const {
+    q: search,
+    type: typeId,
+    branch: branchId,
+    page: requestedPage,
+  } = filters;
   const now = new Date();
   const nowIso = now.toISOString();
   const { today } = currentDenverWeek(now);
   const supabase = await createClient();
-  const eventSelection =
-    "*,event_types(name),event_branches(branch_id,branches(name)),filter_branch:event_branches(branch_id),event_officers(officer_id),event_waitlist(officer_id)";
-  const authorizedEventIds =
-    status === "archived" && isLead(actor) && !canSeeAllBranches(actor)
-      ? await supabase
-          .from("event_branches")
-          .select("event_id")
-          .in("branch_id", actor.branchIds)
-      : undefined;
-  if (authorizedEventIds?.error)
-    throw new Error("Failed to load archived Events");
+  const filtersInUrl = new URLSearchParams();
+  if (search) filtersInUrl.set("q", search);
+  if (status) filtersInUrl.set("status", status);
+  if (typeId !== undefined) filtersInUrl.set("type", String(typeId));
+  if (branchId !== undefined) filtersInUrl.set("branch", String(branchId));
 
-  const buildEventQuery = (countOnly = false) => {
+  const archivedLead =
+    status === "archived" && isLead(actor) && !canSeeAllBranches(actor);
+  const eventSelection =
+    "id,name,event_date,starts_at,ends_at,status,deleted_at,max_volunteers,participation_points_per_hour_at_end,event_types(name),event_branches(branch_id,branches(name)),filter_branch:event_branches(branch_id),scope_branch:event_branches(branch_id),event_officers(officer_id),event_waitlist(officer_id)";
+  const buildEventQuery = (includeFilters: boolean, countOnly = false) => {
     let query = supabase
       .from("events")
       .select(
@@ -76,20 +80,16 @@ export default async function EventsPage({
       status === "archived"
         ? query.not("deleted_at", "is", null)
         : query.is("deleted_at", null);
-    if (authorizedEventIds)
-      query = query.in(
-        "id",
-        authorizedEventIds.data.length
-          ? authorizedEventIds.data.map(({ event_id }) => event_id)
-          : [-1],
-      );
+    if (archivedLead)
+      query = query
+        .in("scope_branch.branch_id", actor.branchIds)
+        .not("scope_branch", "is", null);
 
     if (status === undefined)
       query = query
         .neq("status", "cancelled")
         .gte("event_date", today)
         .gt("ends_at", nowIso);
-
     if (status === "upcoming")
       query = query.neq("status", "cancelled").gt("starts_at", nowIso);
     if (status === "happening")
@@ -100,12 +100,8 @@ export default async function EventsPage({
     if (status === "past")
       query = query.neq("status", "cancelled").lte("ends_at", nowIso);
     if (status === "cancelled") query = query.eq("status", "cancelled");
-    if (status === "archived" && branchId !== undefined)
-      query = query
-        .eq("filter_branch.branch_id", branchId)
-        .not("filter_branch", "is", null);
 
-    if (!countOnly) {
+    if (includeFilters) {
       if (search)
         query = query.or(
           searchOrFilter(search, ["name", "description", "location"]),
@@ -115,158 +111,95 @@ export default async function EventsPage({
         query = query
           .eq("filter_branch.branch_id", branchId)
           .not("filter_branch", "is", null);
+    }
+    if (!countOnly)
       query =
         status === "past"
-          ? query.order("ends_at", { ascending: false })
-          : status === "cancelled"
-            ? query.order("event_date", { ascending: false })
-            : query.order("starts_at", { ascending: true });
-    }
+          ? query
+              .order("ends_at", { ascending: false })
+              .order("id", { ascending: false })
+          : status === "cancelled" || status === "archived"
+            ? query
+                .order("event_date", { ascending: false })
+                .order("starts_at", { ascending: false })
+                .order("id", { ascending: false })
+            : query
+                .order("starts_at", { ascending: true })
+                .order("id", { ascending: true });
     return query;
   };
 
-  const [
-    eventsResult,
-    eventCountResult,
-    eventTypesResult,
-    branchesResult,
-    countsResult,
-  ] = await Promise.all([
-    buildEventQuery(),
-    buildEventQuery(true),
-    supabase.from("event_types").select("id,name").order("name"),
-    supabase.from("branches").select("id,name").order("name"),
-    supabase.rpc("event_signup_counts"),
-  ]);
+  const [filteredCount, baseCount, eventTypesResult, branchesResult] =
+    await Promise.all([
+      buildEventQuery(true, true),
+      buildEventQuery(false, true),
+      supabase.from("event_types").select("id,name").order("name"),
+      supabase.from("branches").select("id,name").order("name"),
+    ]);
   if (
-    eventsResult.error ||
-    eventCountResult.error ||
+    filteredCount.error ||
+    baseCount.error ||
     eventTypesResult.error ||
-    branchesResult.error ||
-    countsResult.error
+    branchesResult.error
   )
     throw new Error("Failed to load events");
 
-  const counts = new Map(countsResult.data.map((row) => [row.event_id, row]));
-  const events = (eventsResult.data as EventListItem[]).map((event) => ({
+  const totalCount = filteredCount.count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / EVENT_PAGE_SIZE));
+  const page = Math.min(requestedPage, totalPages);
+  if (page !== requestedPage)
+    redirect(listPageUrl("/events", filtersInUrl, page));
+
+  const { data: pageEvents, error: pageError } = await buildEventQuery(
+    true,
+  ).range((page - 1) * EVENT_PAGE_SIZE, page * EVENT_PAGE_SIZE - 1);
+  if (pageError) throw new Error("Failed to load events");
+  const eventIds = (pageEvents ?? []).map((event) => event.id);
+  const signupCounts = eventIds.length
+    ? await supabase.rpc("event_signup_counts").in("event_id", eventIds)
+    : { data: [], error: null };
+  if (signupCounts.error) throw new Error("Failed to load event signup counts");
+  const counts = new Map(
+    (signupCounts.data ?? []).map((row) => [row.event_id, row]),
+  );
+  const events = (pageEvents as EventListItem[]).map((event) => ({
     ...event,
     confirmed_count: Number(
       counts.get(event.id)?.confirmed_count ?? event.event_officers.length,
     ),
     waitlist_count: Number(counts.get(event.id)?.waitlist_count ?? 0),
   }));
-  const organizedEvents = organizeEventList(events, status, now);
-  const splitEvents = (items: EventListItem[]) => ({
-    your: items.filter(
-      (event) =>
-        event.event_officers.some((signup) => signup.officer_id === actor.id) ||
-        (event.event_waitlist ?? []).some(
-          (entry) => entry.officer_id === actor.id,
-        ),
-    ),
-    other: items.filter(
-      (event) =>
-        !event.event_officers.some(
-          (signup) => signup.officer_id === actor.id,
-        ) &&
-        !(event.event_waitlist ?? []).some(
-          (entry) => entry.officer_id === actor.id,
-        ),
-    ),
+  const groups = groupEventPage(events, status, actor.id, now);
+  const returnTo = listReturnUrl("/events", {
+    q: search,
+    status,
+    type: typeId?.toString(),
+    branch: branchId?.toString(),
+    page: page > 1 ? String(page) : undefined,
   });
   const hasFilters = Boolean(search || status || typeId || branchId);
-  const maySignUp = (title: string) =>
-    title === "Other events" &&
-    (status === undefined || status === "upcoming" || status === "happening");
-  const renderGroup = (
-    title: string,
-    groupEvents: EventListItem[],
-    period: string,
-  ) => (
-    <section
-      key={`${period}-${title}`}
-      aria-label={`${period} — ${title}`}
-      className={groupEvents.length ? "space-y-3" : "space-y-1"}
-    >
-      {groupEvents.length > 0 && (
-        <h3 className="font-semibold text-foreground">{title}</h3>
-      )}
-      {!groupEvents.length ? (
-        <p className="text-sm text-muted">
-          <span className="font-semibold text-foreground">{title}:</span> No
-          events in this group.
-        </p>
-      ) : (
-        <TableFrame compact label={`Events table: ${period} — ${title}`}>
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">Event</th>
-                <th scope="col">Schedule (El Paso)</th>
-                <th scope="col">Type</th>
-                <th scope="col">Branches</th>
-                <th scope="col">Officers</th>
-                <th scope="col">Status</th>
-                {maySignUp(title) && <th scope="col">Action</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {groupEvents.map((event) => (
-                <tr key={event.id}>
-                  <td className="min-w-0">
-                    <Link
-                      href={withReturnTo(`/events/${event.id}`, returnTo)}
-                      className="block break-words"
-                    >
-                      {event.name}
-                    </Link>
-                  </td>
-                  <td>{formatEventSchedule(event.starts_at, event.ends_at)}</td>
-                  <td>{event.event_types.name}</td>
-                  <td>
-                    <BranchBadges
-                      branches={event.event_branches.map(
-                        (eventBranch) => eventBranch.branches.name,
-                      )}
-                    />
-                  </td>
-                  <td className="tabular-nums">
-                    {eventSignupCountLabel(event)}
-                  </td>
-                  <td>
-                    <StatusBadge status={eventStatus(event, now.getTime())} />
-                  </td>
-                  {maySignUp(title) && (
-                    <td className="min-w-0">
-                      {eventSignupOpen(event, now.getTime()) &&
-                        ((event.event_waitlist ?? []).some(
-                          (entry) => entry.officer_id === actor.id,
-                        ) ? (
-                          <span>Waitlisted</span>
-                        ) : (
-                          <SelfSignupForm
-                            eventId={event.id}
-                            eventName={event.name}
-                            full={
-                              event.max_volunteers != null &&
-                              (event.confirmed_count ?? 0) >=
-                                event.max_volunteers
-                            }
-                          />
-                        ))}
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TableFrame>
-      )}
-    </section>
-  );
+  const filteredToNothing =
+    totalCount === 0 &&
+    (baseCount.count ?? 0) > 0 &&
+    Boolean(search || typeId !== undefined || branchId !== undefined);
+  const emptyMessage = filteredToNothing
+    ? "No events match these filters."
+    : status === "past"
+      ? "No past events."
+      : status === "cancelled"
+        ? "No cancelled events."
+        : status === "archived"
+          ? "No archived Events."
+          : status === "upcoming"
+            ? "No upcoming events."
+            : status === "happening"
+              ? "No events happening now."
+              : "No current events.";
+  const signupActionsOpen =
+    status === undefined || status === "upcoming" || status === "happening";
 
   return (
-    <div data-page-width="wide" className="space-y-5">
+    <div data-page-width="wide" className="space-y-4">
       <PageHeader
         title="Events"
         description="Club events and participation."
@@ -294,7 +227,7 @@ export default async function EventsPage({
             placeholder="Name, description, or location"
           />
         </label>
-        <label className="min-w-40">
+        <label className="min-w-36">
           Status
           <select name="status" defaultValue={status ?? ""}>
             <option value="">Current events</option>
@@ -305,7 +238,7 @@ export default async function EventsPage({
             {mayBrowseArchived && <option value="archived">Archived</option>}
           </select>
         </label>
-        <label className="min-w-40">
+        <label className="min-w-36">
           Event type
           <select name="type" defaultValue={typeId ?? ""}>
             <option value="">All event types</option>
@@ -316,7 +249,7 @@ export default async function EventsPage({
             ))}
           </select>
         </label>
-        <label className="min-w-40">
+        <label className="min-w-36">
           Branch
           <select name="branch" defaultValue={branchId ?? ""}>
             <option value="">All branches</option>
@@ -329,82 +262,118 @@ export default async function EventsPage({
         </label>
       </ListFilterBar>
 
-      {organizedEvents.view === "current" ? (
-        <>
-          {!organizedEvents.thisWeek.length &&
-          !organizedEvents.upcoming.length &&
-          hasFilters &&
-          (eventCountResult.count ?? 0) > 0 ? (
-            <p>No events match these filters.</p>
-          ) : (
-            <>
-              <section aria-label="This week's events" className="space-y-4">
-                <SectionHeading title="This week's events" />
-                {!organizedEvents.thisWeek.length ? (
-                  <p>No events this week.</p>
-                ) : (
-                  <>
-                    {renderGroup(
-                      "Your events",
-                      splitEvents(organizedEvents.thisWeek).your,
-                      "Events this week",
-                    )}
-                    {renderGroup(
-                      "Other events",
-                      splitEvents(organizedEvents.thisWeek).other,
-                      "Events this week",
-                    )}
-                  </>
-                )}
-              </section>
-              <section aria-label="Upcoming events" className="space-y-4">
-                <SectionHeading title="Upcoming events" />
-                {!organizedEvents.upcoming.length ? (
-                  <p>No upcoming events.</p>
-                ) : (
-                  <>
-                    {renderGroup(
-                      "Your events",
-                      splitEvents(organizedEvents.upcoming).your,
-                      "Upcoming Events",
-                    )}
-                    {renderGroup(
-                      "Other events",
-                      splitEvents(organizedEvents.upcoming).other,
-                      "Upcoming Events",
-                    )}
-                  </>
-                )}
-              </section>
-            </>
-          )}
-        </>
-      ) : organizedEvents.events.length === 0 ? (
-        <p>
-          {hasFilters && (eventCountResult.count ?? 0) > 0
-            ? "No events match these filters."
-            : status === "past"
-              ? "No past events."
-              : status === "cancelled"
-                ? "No cancelled events."
-                : status === "archived"
-                  ? "No archived Events."
-                  : "No events in this group."}
-        </p>
+      {events.length === 0 ? (
+        <p>{emptyMessage}</p>
       ) : (
-        <>
-          {renderGroup(
-            "Your events",
-            splitEvents(organizedEvents.events).your,
-            "Events",
-          )}
-          {renderGroup(
-            "Other events",
-            splitEvents(organizedEvents.events).other,
-            "Events",
-          )}
-        </>
+        <TableFrame compact label="Events results">
+          <table className="events-list-table">
+            <thead>
+              <tr>
+                <th scope="col">Event</th>
+                <th scope="col">Schedule (El Paso)</th>
+                <th scope="col">Type</th>
+                <th scope="col">Branches</th>
+                <th scope="col">Officers</th>
+                <th scope="col">Status</th>
+                <th scope="col">Action</th>
+              </tr>
+            </thead>
+            {groups.map((group, index) => (
+              <tbody key={`${index}-${group.label}`}>
+                <tr className="bg-surface-muted/50">
+                  <th scope="rowgroup" colSpan={7} className="text-foreground">
+                    {group.label}
+                  </th>
+                </tr>
+                {group.events.map((event) => {
+                  const signedUp = event.event_officers.some(
+                    ({ officer_id }) => officer_id === actor.id,
+                  );
+                  const waitlisted = (event.event_waitlist ?? []).some(
+                    ({ officer_id }) => officer_id === actor.id,
+                  );
+                  const canAct =
+                    signupActionsOpen && eventSignupOpen(event, now.getTime());
+                  return (
+                    <tr key={event.id}>
+                      <td className="min-w-0">
+                        <Link
+                          href={withReturnTo(`/events/${event.id}`, returnTo)}
+                          className="block break-words"
+                        >
+                          {event.name}
+                        </Link>
+                      </td>
+                      <td>
+                        {formatEventSchedule(event.starts_at, event.ends_at)}
+                      </td>
+                      <td>{event.event_types.name}</td>
+                      <td>
+                        <BranchBadges
+                          branches={event.event_branches.map(
+                            (eventBranch) => eventBranch.branches.name,
+                          )}
+                        />
+                      </td>
+                      <td className="tabular-nums">
+                        {eventSignupCountLabel(event)}
+                      </td>
+                      <td>
+                        <StatusBadge
+                          status={eventStatus(event, now.getTime())}
+                        />
+                      </td>
+                      <td className="min-w-0">
+                        {canAct &&
+                          (waitlisted ? (
+                            <LeaveWaitlistForm eventId={event.id} />
+                          ) : signedUp ? (
+                            <SignupForm
+                              eventId={event.id}
+                              officerId={actor.id}
+                              remove
+                            />
+                          ) : (
+                            <SelfSignupForm
+                              eventId={event.id}
+                              eventName={event.name}
+                              full={
+                                event.max_volunteers != null &&
+                                (event.confirmed_count ?? 0) >=
+                                  event.max_volunteers
+                              }
+                            />
+                          ))}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            ))}
+          </table>
+        </TableFrame>
       )}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
+        <span>
+          Page {page} of {totalPages} · {totalCount}{" "}
+          {totalCount === 1 ? "event" : "events"}
+        </span>
+        <nav
+          aria-label="Event pages"
+          className="flex flex-wrap items-center gap-4"
+        >
+          {page > 1 && (
+            <Link href={listPageUrl("/events", filtersInUrl, page - 1)}>
+              Previous
+            </Link>
+          )}
+          {page < totalPages && (
+            <Link href={listPageUrl("/events", filtersInUrl, page + 1)}>
+              Next
+            </Link>
+          )}
+        </nav>
+      </div>
     </div>
   );
 }
