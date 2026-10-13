@@ -902,7 +902,30 @@ it("keeps all Points capabilities with one GET form and preserves pagination fil
   has(history, "gte", "activity_date", params.from);
   has(history, "lte", "activity_date", params.to);
   has(history, "not", "removed_at", "is", null);
+  const eventOptions = forTable("events").find((query) =>
+    query.calls.some(
+      ([method, columns]) =>
+        method === "select" && columns === "id,name,event_date",
+    ),
+  )!;
+  expect(eventOptions.calls).toContainEqual([
+    "order",
+    "event_date",
+    { ascending: false },
+  ]);
+  expect(
+    eventOptions.calls.some(
+      ([method, column]) =>
+        method === "is" ||
+        (method === "eq" &&
+          ["status", "cancelled_at", "archived_at", "deleted_at"].includes(
+            String(column),
+          )),
+    ),
+  ).toBe(false);
   expect(html).toContain('method="get"');
+  expect(html).toContain("Officer #-1013 (name unavailable)");
+  expect(html).toContain("Event #-2001 (name unavailable)");
   expect(html).not.toContain('name="page"');
   expect(html).toContain(
     'data-return-to="/points?q=Avery&amp;type=manual&amp;officer=-1013&amp;event=-2001&amp;status=removed&amp;from=2026-09-01&amp;to=2026-10-01&amp;page=2"',

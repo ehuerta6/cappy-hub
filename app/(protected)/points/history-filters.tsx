@@ -1,4 +1,5 @@
 import { ListFilterBar } from "@/components/ui";
+import { SearchableSelect } from "@/components/searchable-select";
 import { formatEventFilterOption } from "@/lib/presentation";
 
 type PointHistoryFilterControlsProps = {
@@ -28,6 +29,32 @@ export default function PointHistoryFilterControls({
   eventId,
   dateRangeIsReversed,
 }: PointHistoryFilterControlsProps) {
+  const officerOptions = officers.map((officer) => ({
+    id: String(officer.id),
+    label: officer.name,
+  }));
+  if (
+    officerId !== undefined &&
+    !officerOptions.some((option) => option.id === String(officerId))
+  )
+    officerOptions.push({
+      id: String(officerId),
+      label: `Officer #${officerId} (name unavailable)`,
+    });
+
+  const eventOptions = events.map((event) => ({
+    id: String(event.id),
+    label: formatEventFilterOption(event.name, event.event_date),
+  }));
+  if (
+    eventId !== undefined &&
+    !eventOptions.some((option) => option.id === String(eventId))
+  )
+    eventOptions.push({
+      id: String(eventId),
+      label: `Event #${eventId} (name unavailable)`,
+    });
+
   const active = Boolean(
     searchQuery ||
     awardType ||
@@ -74,28 +101,24 @@ export default function PointHistoryFilterControls({
           <option value="correction">Correction</option>
         </select>
       </label>
-      <label className="min-w-40">
-        Officer
-        <select name="officer" defaultValue={officerId ?? ""}>
-          <option value="">All officers</option>
-          {officers.map((officer) => (
-            <option key={officer.id} value={officer.id}>
-              {officer.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="min-w-48 flex-1">
-        Event
-        <select name="event" defaultValue={eventId ?? ""}>
-          <option value="">All events</option>
-          {events.map((event) => (
-            <option key={event.id} value={event.id}>
-              {formatEventFilterOption(event.name, event.event_date)}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="min-w-40 flex-1">
+        <SearchableSelect
+          name="officer"
+          label="Officer"
+          options={officerOptions}
+          initialValue={officerId === undefined ? "" : String(officerId)}
+          placeholder="All officers"
+        />
+      </div>
+      <div className="min-w-48 flex-1">
+        <SearchableSelect
+          name="event"
+          label="Event"
+          options={eventOptions}
+          initialValue={eventId === undefined ? "" : String(eventId)}
+          placeholder="All events"
+        />
+      </div>
       {isAdmin && (
         <label className="min-w-32">
           Status
