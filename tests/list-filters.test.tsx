@@ -365,10 +365,10 @@ it("gives each grouped Event table a distinct accessible name", async () => {
 
     const html = await render(EventsPage);
     expect(html).toContain(
-      'role="region" aria-label="Events this week — Your events" tabindex="0"',
+      'role="region" aria-label="Events table: Events this week — Your events" tabindex="0"',
     );
     expect(html).toContain(
-      'role="region" aria-label="Upcoming Events — Other events" tabindex="0"',
+      'role="region" aria-label="Events table: Upcoming Events — Other events" tabindex="0"',
     );
     expect(
       html.match(/role="region" aria-label="[^"]+" tabindex="0"/g),
@@ -611,13 +611,13 @@ it("groups current Tasks by Denver week before splitting multi-Officer assignmen
     expect(html).toContain('aria-label="Upcoming tasks: Your tasks"');
     expect(html).toContain('aria-label="Upcoming tasks: Other tasks"');
     expect(html).toContain(
-      'role="region" aria-label="This week&#x27;s tasks: Your tasks" tabindex="0"',
+      'role="region" aria-label="Tasks table: This week&#x27;s tasks: Your tasks" tabindex="0"',
     );
     expect(html).toContain(
-      'role="region" aria-label="This week&#x27;s tasks: Other tasks" tabindex="0"',
+      'role="region" aria-label="Tasks table: This week&#x27;s tasks: Other tasks" tabindex="0"',
     );
     expect(html).toContain(
-      'role="region" aria-label="Upcoming tasks: Other tasks" tabindex="0"',
+      'role="region" aria-label="Tasks table: Upcoming tasks: Other tasks" tabindex="0"',
     );
     expect(
       html.match(/role="region" aria-label="[^"]+" tabindex="0"/g),

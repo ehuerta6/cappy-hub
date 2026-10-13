@@ -197,7 +197,7 @@ export default async function EventsPage({
           events in this group.
         </p>
       ) : (
-        <TableFrame compact label={`${period} — ${title}`}>
+        <TableFrame compact label={`Events table: ${period} — ${title}`}>
           <table>
             <thead>
               <tr>
