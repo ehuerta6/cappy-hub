@@ -171,7 +171,7 @@ export default async function TasksPage({
           tasks in this group.
         </p>
       ) : (
-        <TableFrame compact label="Tasks">
+        <TableFrame compact label={`${sectionTitle}: ${title}`}>
           <table>
             <thead>
               <tr>

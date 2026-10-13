@@ -330,6 +330,54 @@ it("keeps empty Events and Task assignment groups labeled in a compact line", as
   }
 });
 
+it("gives each grouped Event table a distinct accessible name", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-10-05T06:00:00.000Z"));
+  try {
+    rows.events = [
+      {
+        id: 11,
+        name: "This week event",
+        event_date: "2026-10-08",
+        status: "scheduled",
+        deleted_at: null,
+        participation_points_per_hour_at_end: null,
+        event_types: { name: "Workshop" },
+        event_branches: [],
+        event_officers: [{ officer_id: 1 }],
+        starts_at: "2026-10-08T23:00:00Z",
+        ends_at: "2026-10-09T01:00:00Z",
+      },
+      {
+        id: 12,
+        name: "Upcoming event",
+        event_date: "2026-10-12",
+        status: "scheduled",
+        deleted_at: null,
+        participation_points_per_hour_at_end: null,
+        event_types: { name: "Workshop" },
+        event_branches: [],
+        event_officers: [],
+        starts_at: "2026-10-12T23:00:00Z",
+        ends_at: "2026-10-13T01:00:00Z",
+      },
+    ];
+
+    const html = await render(EventsPage);
+    expect(html).toContain(
+      'role="region" aria-label="Events this week — Your events" tabindex="0"',
+    );
+    expect(html).toContain(
+      'role="region" aria-label="Upcoming Events — Other events" tabindex="0"',
+    );
+    expect(
+      html.match(/role="region" aria-label="[^"]+" tabindex="0"/g),
+    ).toHaveLength(2);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it("preserves an explicit Past filter in Event return context", async () => {
   rows.events = [
     {
@@ -562,6 +610,18 @@ it("groups current Tasks by Denver week before splitting multi-Officer assignmen
     expect(html).toContain('aria-label="This week&#x27;s tasks: Other tasks"');
     expect(html).toContain('aria-label="Upcoming tasks: Your tasks"');
     expect(html).toContain('aria-label="Upcoming tasks: Other tasks"');
+    expect(html).toContain(
+      'role="region" aria-label="This week&#x27;s tasks: Your tasks" tabindex="0"',
+    );
+    expect(html).toContain(
+      'role="region" aria-label="This week&#x27;s tasks: Other tasks" tabindex="0"',
+    );
+    expect(html).toContain(
+      'role="region" aria-label="Upcoming tasks: Other tasks" tabindex="0"',
+    );
+    expect(
+      html.match(/role="region" aria-label="[^"]+" tabindex="0"/g),
+    ).toHaveLength(3);
     expect(html.indexOf("Today&#x27;s work")).toBeLessThan(
       html.indexOf("Sunday deadline"),
     );
