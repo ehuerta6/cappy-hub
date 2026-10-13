@@ -1,5 +1,6 @@
 import { canViewSystemLog, getAuthorizationContext } from "@/lib/authorization";
 import { PageHeader, ListFilterBar, TableFrame } from "@/components/ui";
+import { SearchableSelect } from "@/components/searchable-select";
 import { createClient } from "@/lib/supabase/server";
 import { searchOrFilter, literalSearchPattern } from "@/lib/list-search";
 import { listPageUrl } from "@/lib/list-url";
@@ -14,7 +15,7 @@ import type { Route } from "next";
 import { redirect } from "next/navigation";
 
 type SystemLogSearchParams = Record<string, string | string[] | undefined>;
-const SYSTEM_LOG_PAGE_SIZE = 50;
+const SYSTEM_LOG_PAGE_SIZE = 6;
 
 function nextDate(date: string) {
   const next = new Date(`${date}T00:00:00Z`);
@@ -206,6 +207,25 @@ export default async function SystemLogPage({
     availableTaskIds: new Set(taskNames.keys()),
     availableOfficerIds: new Set(officerNames.keys()),
   };
+  const actorOptions = [
+    { id: "", label: "All actors" },
+    { id: "system", label: "System" },
+    ...(typeof actorFilter === "number" && !officerNames.has(actorFilter)
+      ? [
+          {
+            id: String(actorFilter),
+            label: `Officer #${actorFilter} (name unavailable)`,
+          },
+        ]
+      : []),
+    ...(typeof actorFilter === "string" && actorFilter !== "system"
+      ? [{ id: actorFilter, label: `Account ${actorFilter}` }]
+      : []),
+    ...(actorResult.data ?? []).map((officer) => ({
+      id: String(officer.id),
+      label: officer.name,
+    })),
+  ];
   const hasFilters = Boolean(
     search || actorFilter || action || entity || fromDate || toDate,
   );
@@ -237,26 +257,15 @@ export default async function SystemLogPage({
             placeholder="Action or record ID"
           />
         </label>
-        <label className="min-w-44">
-          Actor
-          <select name="actor" defaultValue={actorFilter ?? ""}>
-            <option value="">All actors</option>
-            <option value="system">System</option>
-            {typeof actorFilter === "number" &&
-              !(actorResult.data ?? []).some(
-                (officer) => officer.id === actorFilter,
-              ) && (
-                <option value={actorFilter}>
-                  Officer #{actorFilter} (name unavailable)
-                </option>
-              )}
-            {(actorResult.data ?? []).map((officer) => (
-              <option key={officer.id} value={officer.id}>
-                {officer.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="min-w-44">
+          <SearchableSelect
+            name="actor"
+            label="Actor"
+            options={actorOptions}
+            initialValue={actorFilter === undefined ? "" : String(actorFilter)}
+            placeholder="Search actors"
+          />
+        </div>
         <label className="min-w-44">
           Activity
           <input
@@ -404,7 +413,7 @@ export default async function SystemLogPage({
                             <dt>Entity ID</dt>
                             <dd>{entry.entity_id}</dd>
                           </dl>
-                          <pre className="mt-2 max-w-md overflow-x-auto whitespace-pre-wrap">
+                          <pre className="mt-2 max-w-full whitespace-pre-wrap break-words">
                             {JSON.stringify(entry.details, null, 2)}
                           </pre>
                         </details>

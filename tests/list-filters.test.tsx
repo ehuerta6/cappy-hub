@@ -952,13 +952,17 @@ it("matches readable System Log activity wording to audit action codes", async (
   expect(activityFilter).toContain('action.imatch."cancelled event"');
 });
 
-it("rejects System Log before querying for non-admins", async () => {
-  admin = false;
-  await expect(
-    render(SystemLogPage, { actor: actor.authUserId }),
-  ).rejects.toThrow("redirect:/access-denied");
-  expect(queries).toHaveLength(0);
-});
+it.each(["Lead", "Officer"])(
+  "rejects System Log before querying for %s with forged actor and page parameters",
+  async (role) => {
+    admin = false;
+    lead = role === "Lead";
+    await expect(
+      render(SystemLogPage, { actor: actor.authUserId, page: "999" }),
+    ).rejects.toThrow("redirect:/access-denied");
+    expect(queries).toHaveLength(0);
+  },
+);
 
 it.each([PointsPage, SystemLogPage])(
   "reports reversed dates and omits date predicates",
@@ -1202,16 +1206,9 @@ it("preserves a selected Officer actor filter when Officer names are unavailable
     q: "updated",
     page: "2",
   });
-  const actorFilter = html
-    .split('<select name="actor"')[1]
-    .split("</select>")[0];
-
-  expect(actorFilter).toContain(
-    '<option value="' +
-      actor.id +
-      '" selected="">Officer #' +
-      actor.id +
-      " (name unavailable)</option>",
+  expect(html).toContain(`>Officer #${actor.id} (name unavailable)</span>`);
+  expect(html).toContain(
+    `<input type="hidden" name="actor" value="${actor.id}"/>`,
   );
   expect(html).toContain("Officer names are unavailable");
   expect(html).toContain("officer.updated");
@@ -1219,6 +1216,41 @@ it("preserves a selected Officer actor filter when Officer names are unavailable
   expect(html).toContain("actor=1");
   expect(html).toContain("q=updated&amp;actor=1&amp;page=3");
   has(forTable("audit_logs")[0], "eq", "actor_officer_id", actor.id);
+});
+
+it("preserves legacy account actor identifiers in the searchable filter", async () => {
+  const legacyActor = "00000000-0000-0000-0000-000000000002";
+  const html = await render(SystemLogPage, { actor: legacyActor });
+
+  expect(html).toContain(`>Account ${legacyActor}</span>`);
+  expect(html).toContain(
+    `<input type="hidden" name="actor" value="${legacyActor}"/>`,
+  );
+  has(forTable("audit_logs")[0], "eq", "actor_id", legacyActor);
+});
+
+it("shows exact filtered totals and requests six newest-first rows per System Log page", async () => {
+  filteredCount = 13;
+  const html = await render(SystemLogPage, {
+    q: "change",
+    actor: String(actor.id),
+    action: "updated",
+    entity: "officer",
+    from: "2026-10-01",
+    to: "2026-10-12",
+    page: "2",
+  });
+  const entryQuery = forTable("audit_logs").find(({ calls }) =>
+    calls.some(([method]) => method === "range"),
+  )!;
+  has(entryQuery, "range", 6, 11);
+  has(entryQuery, "order", "created_at", { ascending: false });
+  has(entryQuery, "order", "id", { ascending: false });
+  expect(html).toContain("Page 2 · 13 entries");
+  expect(html).toContain(
+    "q=change&amp;actor=1&amp;action=updated&amp;entity=officer",
+  );
+  expect(html).toContain("page=3");
 });
 
 it.each([

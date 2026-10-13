@@ -49,7 +49,9 @@ async function renderSelect(
   return {
     form: host.querySelector("form")!,
     input: host.querySelector<HTMLInputElement>('[role="combobox"]')!,
-    hidden: host.querySelector<HTMLInputElement>('input[name="officer_id"]')!,
+    hidden: host.querySelector<HTMLInputElement>(
+      `input[name="${props.name ?? "officer_id"}"]`,
+    )!,
   };
 }
 
@@ -101,6 +103,22 @@ it("starts empty, filters names, selects one stable ID by keyboard, and retains 
   expect(hidden.value).toBe("7");
   changeInput(input, "");
   expect(new FormData(form).getAll("officer_id")).toEqual(["7"]);
+});
+
+it("restores a System Log actor ID and serializes the actor GET field", async () => {
+  const { form, hidden } = await renderSelect({
+    name: "actor",
+    label: "Actor",
+    options: [
+      { id: "", label: "All actors" },
+      { id: "system", label: "System" },
+      { id: "42", label: "Known Officer" },
+    ],
+    initialValue: "42",
+  });
+
+  expect(hidden.value).toBe("42");
+  expect(new FormData(form).getAll("actor")).toEqual(["42"]);
 });
 
 it("clears only through the clear control and never accepts an unknown initial ID", async () => {
