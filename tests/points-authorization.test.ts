@@ -130,15 +130,23 @@ it("loads Event dates for older Event search results", async () => {
     applicationRole: "admin",
   } as never);
   const selectedColumns = vi.fn();
+  const archivedFilter = vi.fn();
+  const limit = vi.fn();
   const query = {
     select: (columns: string) => {
       selectedColumns(columns);
       return query;
     },
-    is: () => query,
+    is: (...args: unknown[]) => {
+      archivedFilter(...args);
+      return query;
+    },
     ilike: () => query,
     order: () => query,
-    limit: () => query,
+    limit: (count: number) => {
+      limit(count);
+      return query;
+    },
     then: (resolve: (value: unknown) => unknown) =>
       Promise.resolve({
         data: [{ id: 12, name: "Repeated event", event_date: "2026-10-15" }],
@@ -149,10 +157,63 @@ it("loads Event dates for older Event search results", async () => {
     from: () => query,
   } as never);
 
-  await expect(searchEvents("Repeated")).resolves.toEqual([
-    { id: 12, name: "Repeated event", event_date: "2026-10-15" },
-  ]);
+  await expect(searchEvents("Repeated")).resolves.toEqual({
+    events: [{ id: 12, name: "Repeated event", event_date: "2026-10-15" }],
+    error: false,
+  });
   expect(selectedColumns).toHaveBeenCalledWith("id,name,event_date");
+  expect(archivedFilter).toHaveBeenCalledWith("deleted_at", null);
+  expect(limit).toHaveBeenCalledWith(20);
+});
+
+it.each(["Officer", "Lead"])(
+  "denies %s direct access to Event lookup",
+  async (positionName) => {
+    vi.mocked(getAuthorizationContext).mockResolvedValue({
+      applicationRole: "officer",
+      positionName,
+      positionCode: positionName === "Lead" ? "lead" : "officer",
+    } as never);
+
+    await expect(searchEvents("Repeated")).resolves.toEqual({
+      events: [],
+      error: true,
+    });
+    expect(createClient).not.toHaveBeenCalled();
+  },
+);
+
+it("distinguishes no matching Events from genuine lookup failures", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    applicationRole: "admin",
+  } as never);
+  const makeQuery = (result: unknown) => {
+    const query = {
+      select: () => query,
+      is: () => query,
+      ilike: () => query,
+      order: () => query,
+      limit: () => query,
+      then: (resolve: (value: unknown) => unknown) =>
+        Promise.resolve(result).then(resolve),
+    };
+    return query;
+  };
+  vi.mocked(createClient).mockResolvedValueOnce({
+    from: () => makeQuery({ data: [], error: null }),
+  } as never);
+  vi.mocked(createClient).mockResolvedValueOnce({
+    from: () => makeQuery({ data: null, error: { message: "private detail" } }),
+  } as never);
+
+  await expect(searchEvents("No match")).resolves.toEqual({
+    events: [],
+    error: false,
+  });
+  await expect(searchEvents("Request failure")).resolves.toEqual({
+    events: [],
+    error: true,
+  });
 });
 
 it("rejects zero point changes before the admin correction RPC", async () => {

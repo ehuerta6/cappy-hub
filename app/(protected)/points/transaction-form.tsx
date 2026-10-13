@@ -10,21 +10,12 @@ import {
 import { useRouter } from "next/navigation";
 import type { Tables } from "@/lib/database.types";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
-import { formatEventFilterOption } from "@/lib/presentation";
 import { ActionFeedback, FieldError, FormMessage } from "@/components/ui";
 import { SearchableSelect } from "@/components/searchable-select";
-import { addTransaction, searchEvents } from "./actions";
+import { addTransaction } from "./actions";
+import { EventSearchSelect } from "./event-search-select";
 
 type PointEvent = Pick<Tables<"events">, "id" | "name" | "event_date">;
-
-export function mergeEventSearchResults(
-  current: PointEvent[],
-  results: PointEvent[],
-) {
-  const byId = new Map(current.map((event) => [event.id, event]));
-  for (const event of results) byId.set(event.id, event);
-  return [...byId.values()];
-}
 
 export default function TransactionForm({
   officers,
@@ -132,10 +123,6 @@ function TransactionFields({
   dialogRef: React.RefObject<HTMLDialogElement | null>;
   onSuccess: (message: string) => void;
 }) {
-  const [search, setSearch] = useState("");
-  const [availableEvents, setAvailableEvents] = useState(events);
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState("");
   const [state, action, pending] = useActionState(
     addTransaction,
     initialFormActionState,
@@ -145,21 +132,6 @@ function TransactionFields({
   useEffect(() => {
     if (state.success) onSuccess(state.success);
   }, [onSuccess, state.success]);
-
-  async function searchOlderEvents() {
-    setSearching(true);
-    setSearchError("");
-    try {
-      const results = await searchEvents(search);
-      setAvailableEvents((current) =>
-        mergeEventSearchResults(current, results),
-      );
-    } catch {
-      setSearchError("Could not search events");
-    } finally {
-      setSearching(false);
-    }
-  }
 
   return (
     <form
@@ -236,51 +208,13 @@ function TransactionFields({
           {fieldErrors.award_type}
         </FieldError>
       </label>
-      <label>
-        Search older events
-        <input
-          type="search"
-          value={search}
-          onChange={(change) => setSearch(change.target.value)}
-          placeholder="At least two letters"
-          disabled={pending}
-        />
-      </label>
-      <button
-        type="button"
-        className="button-secondary self-end sm:col-span-2 sm:justify-self-start"
-        disabled={pending || searching || search.trim().length < 2}
-        onClick={searchOlderEvents}
-      >
-        {searching ? "Searching…" : "Search events"}
-      </button>
-      {searchError && (
-        <div className="sm:col-span-2">
-          <FormMessage kind="error">{searchError}</FormMessage>
-        </div>
-      )}
-      <label className="sm:col-span-2">
-        Event (optional)
-        <select
-          name="event_id"
-          aria-invalid={Boolean(fieldErrors.event_id)}
-          aria-describedby={
-            fieldErrors.event_id ? "transaction-event-error" : undefined
-          }
-          defaultValue={submittedValue(state.values, "event_id")}
-          disabled={pending}
-        >
-          <option value="">No event</option>
-          {availableEvents.map((event) => (
-            <option key={event.id} value={event.id}>
-              {formatEventFilterOption(event.name, event.event_date)}
-            </option>
-          ))}
-        </select>
-        <FieldError id="transaction-event-error">
-          {fieldErrors.event_id}
-        </FieldError>
-      </label>
+      <EventSearchSelect
+        events={events}
+        initialValue={submittedValue(state.values, "event_id")}
+        error={fieldErrors.event_id}
+        disabled={pending}
+        portalContainer={dialogRef}
+      />
       {(state.error || state.success) && (
         <div className="sm:col-span-2">
           <ActionFeedback state={state} />

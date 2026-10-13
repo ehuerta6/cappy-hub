@@ -166,20 +166,24 @@ export async function removePointTransaction(
 }
 export async function searchEvents(term: string) {
   const actor = await getAuthorizationContext();
-  if (!canManagePoints(actor)) return [];
+  if (!canManagePoints(actor)) return { events: [], error: true as const };
   const validationResult = eventSearchInputSchema.safeParse(term);
-  if (!validationResult.success) return [];
+  if (!validationResult.success) return { events: [], error: false as const };
   const query = validationResult.data;
-  if (query.length < 2) return [];
+  if (query.trim().length < 2) return { events: [], error: false as const };
   const literal = query.replace(/[\\%_]/g, "\\$&");
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("events")
-    .select("id,name,event_date")
-    .is("deleted_at", null)
-    .ilike("name", `%${literal}%`)
-    .order("event_date", { ascending: false })
-    .limit(20);
-  if (error) return [];
-  return data;
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("events")
+      .select("id,name,event_date")
+      .is("deleted_at", null)
+      .ilike("name", `%${literal}%`)
+      .order("event_date", { ascending: false })
+      .limit(20);
+    if (error || !data) return { events: [], error: true as const };
+    return { events: data, error: false as const };
+  } catch {
+    return { events: [], error: true as const };
+  }
 }
