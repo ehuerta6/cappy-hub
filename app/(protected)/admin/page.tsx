@@ -50,23 +50,26 @@ export default async function AdminPage() {
         title="Admin"
         description="Application-wide administration for Coding Interview Club."
       />
-      <div className="grid grid-cols-2 gap-x-8">
-        {adminAreas.map((area) => (
-          <section
-            key={area.href}
-            className="flex flex-col items-start gap-2 border-t border-border py-4 first:border-0 first:pt-0 sm:[&:nth-child(2)]:border-0"
-          >
-            <h2 className="font-semibold">{area.title}</h2>
-            <p className="text-sm">{area.description}</p>
-            <Link
-              className="text-sm font-medium text-foreground underline"
-              href={area.href}
-            >
-              {area.link}
-            </Link>
-          </section>
-        ))}
-      </div>
+      <nav aria-label="Administration areas">
+        <ul className="grid grid-cols-2 gap-4">
+          {adminAreas.map((area) => (
+            <li key={area.href} className="min-w-0">
+              <Link
+                className="group flex h-full min-h-11 flex-col items-start gap-1.5 rounded-md border border-border bg-surface/30 px-4 py-3 hover:border-border-strong hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted"
+                href={area.href}
+              >
+                <h2 className="font-semibold text-foreground group-hover:underline group-hover:underline-offset-4">
+                  {area.title}
+                </h2>
+                <span className="text-sm text-muted">{area.description}</span>
+                <span className="text-sm font-medium text-foreground underline underline-offset-4">
+                  {area.link}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
     </div>
   );
 }

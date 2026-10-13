@@ -251,7 +251,7 @@ export default async function EventDetailPage({
           <section className="space-y-3">
             <SectionHeading title="Signed-up officers" />
             {event.event_officers.length ? (
-              <TableFrame compact>
+              <TableFrame compact label="Event signups">
                 <table className="min-w-full">
                   <thead>
                     <tr>
@@ -384,7 +384,7 @@ export default async function EventDetailPage({
           title="Event point history"
           description="Latest 100 transactions"
         />
-        <TableFrame compact>
+        <TableFrame compact label="Event point history">
           <PointTransactionTable transactions={transactions.data} />
         </TableFrame>
         <Link

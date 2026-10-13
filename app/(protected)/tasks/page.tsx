@@ -171,7 +171,7 @@ export default async function TasksPage({
           tasks in this group.
         </p>
       ) : (
-        <TableFrame compact>
+        <TableFrame compact label="Tasks">
           <table>
             <thead>
               <tr>

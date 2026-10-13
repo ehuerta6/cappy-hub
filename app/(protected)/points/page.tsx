@@ -267,7 +267,7 @@ export default async function PointsPage({
             Choose a From date on or before the To date.
           </p>
         )}
-        <TableFrame compact>
+        <TableFrame compact label="Point history">
           <HistoryTable
             returnTo={listPageUrl("/points", currentFilterSearch, page)}
             transactions={transactions.data}

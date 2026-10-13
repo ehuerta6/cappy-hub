@@ -2,6 +2,15 @@
 
 import { useId, useMemo, useState } from "react";
 import { Combobox } from "@base-ui/react/combobox";
+import { Check, X } from "lucide-react";
+import {
+  FieldDescription,
+  fieldLabelClassName,
+  FieldError,
+  popupListClassName,
+  popupOptionClassName,
+  popupSurfaceClassName,
+} from "@/components/ui";
 import { formatEventFilterOption } from "@/lib/presentation";
 
 type EventOption = {
@@ -57,10 +66,7 @@ export function TaskEventCombobox({
 
   return (
     <div className="col-span-2 min-w-0 space-y-1.5">
-      <label
-        htmlFor={inputId}
-        className="block text-sm font-medium text-secondary"
-      >
+      <label htmlFor={inputId} className={fieldLabelClassName}>
         Linked Events
       </label>
       <Combobox.Root
@@ -90,7 +96,7 @@ export function TaskEventCombobox({
                       aria-label={`Remove ${label}`}
                       className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border-0 bg-transparent p-0 text-secondary hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-muted"
                     >
-                      <span aria-hidden="true">×</span>
+                      <X aria-hidden="true" size={16} />
                     </Combobox.ChipRemove>
                   </Combobox.Chip>
                 );
@@ -112,21 +118,21 @@ export function TaskEventCombobox({
             sideOffset={4}
             className="z-50 w-(--anchor-width)"
           >
-            <Combobox.Popup className="overflow-hidden rounded-md border border-border-strong bg-surface p-1 text-foreground shadow-lg">
+            <Combobox.Popup className={`${popupSurfaceClassName} p-1`}>
               <Combobox.Empty className="px-3 py-2 text-sm text-muted">
                 {events.length ? "No matching Events." : "No eligible Events."}
               </Combobox.Empty>
-              <Combobox.List className="max-h-72 overflow-y-auto">
+              <Combobox.List className={popupListClassName}>
                 {(event: EventOption) => {
                   const label = eventLabel(event);
                   return (
                     <Combobox.Item
                       key={event.id}
                       value={String(event.id)}
-                      className="flex cursor-default items-start gap-2 rounded px-2 py-2 text-sm text-secondary outline-none data-[highlighted]:bg-hover data-[selected]:text-foreground"
+                      className={popupOptionClassName}
                     >
                       <Combobox.ItemIndicator className="mt-0.5 w-4 shrink-0 text-secondary">
-                        ✓
+                        <Check aria-hidden="true" size={16} />
                       </Combobox.ItemIndicator>
                       <span className="min-w-0 whitespace-normal break-words">
                         {label}
@@ -139,16 +145,12 @@ export function TaskEventCombobox({
           </Combobox.Positioner>
         </Combobox.Portal>
       </Combobox.Root>
-      <p id={helpId} className="text-sm text-muted">
+      <FieldDescription id={helpId}>
         Optional context: search and select any number of Events, then remove
         them from their chips. Links do not change Event or Task permissions,
         completion, or Points.
-      </p>
-      {error && (
-        <span id={errorId} className="text-sm text-danger">
-          {error}
-        </span>
-      )}
+      </FieldDescription>
+      <FieldError id={errorId}>{error}</FieldError>
       {selectedIds.map((id) => (
         <input
           key={`submission-${id}`}

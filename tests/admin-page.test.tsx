@@ -32,11 +32,15 @@ it("surfaces existing administration areas and their current destinations", asyn
   expect(html).toContain('href="/points"');
   expect(html).toContain("System log");
   expect(html).toContain('href="/system-log"');
+  expect(html.match(/<a\b/g)).toHaveLength(4);
+  expect(html).toContain('aria-label="Administration areas"');
+  expect(html).toContain("focus-visible:outline-2");
+  expect(html).toContain("hover:bg-hover");
 });
 
-it("denies direct access to non-admins", async () => {
+it.each(["lead", "officer"])("denies direct access to %s", async (role) => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
-    applicationRole: "officer",
+    applicationRole: role,
   } as never);
 
   await expect(AdminPage()).rejects.toThrow("Not found");

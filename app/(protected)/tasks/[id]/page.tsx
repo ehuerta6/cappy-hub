@@ -207,7 +207,7 @@ export default async function TaskDetailPage({
           {assignments.length === 0 ? (
             <p>No Officers are assigned to this task.</p>
           ) : (
-            <TableFrame compact>
+            <TableFrame compact label="Task assignment progress">
               <table>
                 <thead>
                   <tr>

@@ -200,7 +200,7 @@ export default async function OfficersPage({
             : "No officers yet."}
         </p>
       ) : (
-        <TableFrame compact>
+        <TableFrame compact label="Officers">
           <table>
             <thead>
               <tr>

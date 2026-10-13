@@ -376,7 +376,7 @@ export default async function OfficerDetailPage({
             Point history unavailable. Reload this page to retry.
           </p>
         ) : (
-          <TableFrame compact>
+          <TableFrame compact label="Officer point history">
             <PointTransactionTable transactions={transactions.data ?? []} />
           </TableFrame>
         )}

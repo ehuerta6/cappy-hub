@@ -68,6 +68,14 @@ it("shows the Admin navigation item only to application admins", () => {
   expect(officerHtml).not.toContain('href="/system-log"');
 });
 
+it.each(["lead", "officer"])("omits Admin navigation for %s", (role) => {
+  const html = renderToStaticMarkup(
+    <SiteNavigation isAdmin={false} account={<span>{role}</span>} />,
+  );
+
+  expect(html).not.toContain('href="/admin"');
+});
+
 it("marks Admin as the current section from its System Log workflow", () => {
   pathState.current = "/system-log";
   const html = renderToStaticMarkup(

@@ -6,6 +6,14 @@ import { formatLabel } from "@/lib/presentation";
 import type { FormActionState } from "@/lib/form-feedback";
 import { successNotice } from "@/lib/mutation-feedback";
 
+export const fieldLabelClassName = "block text-sm font-medium text-secondary";
+export const fieldDescriptionClassName = "text-sm text-muted";
+export const popupSurfaceClassName =
+  "overflow-hidden rounded-md border border-border-strong bg-surface text-foreground shadow-lg";
+export const popupListClassName = "max-h-72 overflow-y-auto";
+export const popupOptionClassName =
+  "flex cursor-default items-start gap-2 rounded px-2 py-2 text-sm text-secondary outline-none data-[highlighted]:bg-hover data-[selected]:bg-hover data-[selected]:font-medium data-[selected]:text-foreground";
+
 export function FormMessage({
   kind,
   children,
@@ -42,6 +50,20 @@ export function FieldError({
     <span id={id} className="text-sm text-danger">
       {children}
     </span>
+  );
+}
+
+export function FieldDescription({
+  id,
+  children,
+}: {
+  id?: string;
+  children: ReactNode;
+}) {
+  return (
+    <p id={id} className={fieldDescriptionClassName}>
+      {children}
+    </p>
   );
 }
 
@@ -117,7 +139,7 @@ export function ActionLink<T extends string>({
   return (
     <Link
       href={href}
-      className="inline-flex min-h-11 w-fit max-w-full items-center justify-center break-words rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-foreground hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted lg:min-h-0"
+      className="inline-flex min-h-11 w-fit max-w-full items-center justify-center break-words rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-foreground hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted lg:min-h-0"
     >
       {children}
     </Link>
@@ -189,18 +211,18 @@ export function TableFrame({
 }: {
   children: ReactNode;
   compact?: boolean;
-  label?: string;
+  label: string;
 }) {
   return (
     <div
       className={
         "overflow-x-auto rounded-lg border border-border" +
         (compact ? " table-frame--compact" : "") +
-        (label ? " table-frame--keyboard-scroll" : "")
+        " table-frame--keyboard-scroll"
       }
-      role={label ? "region" : undefined}
+      role="region"
       aria-label={label}
-      tabIndex={label ? 0 : undefined}
+      tabIndex={0}
     >
       {children}
     </div>

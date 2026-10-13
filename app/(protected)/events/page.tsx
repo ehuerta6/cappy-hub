@@ -197,7 +197,7 @@ export default async function EventsPage({
           events in this group.
         </p>
       ) : (
-        <TableFrame compact>
+        <TableFrame compact label="Events">
           <table>
             <thead>
               <tr>

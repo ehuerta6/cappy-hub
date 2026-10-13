@@ -402,7 +402,7 @@ it("renders populated Event participation as a compact semantic table", async ()
   const participation = html.split('aria-label="Participation"')[1];
 
   expect(participation).toContain(
-    'class="overflow-x-auto rounded-lg border border-border table-frame--compact"',
+    'class="overflow-x-auto rounded-lg border border-border table-frame--compact table-frame--keyboard-scroll" role="region" aria-label="Event signups" tabindex="0"',
   );
   expect(participation).toContain('<table class="min-w-full">');
   expect(participation).toContain(">Officer</th>");

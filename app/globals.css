@@ -569,6 +569,37 @@
     outline-offset: 2px;
   }
 
+  input:not([type="checkbox"]):hover:not(:disabled),
+  select:hover:not(:disabled),
+  textarea:hover:not(:disabled) {
+    border-color: var(--subtle);
+  }
+
+  input[aria-invalid="true"],
+  select[aria-invalid="true"],
+  textarea[aria-invalid="true"] {
+    border-color: var(--danger-border);
+  }
+
+  input[aria-invalid="true"]:focus-visible,
+  select[aria-invalid="true"]:focus-visible,
+  textarea[aria-invalid="true"]:focus-visible {
+    outline-color: var(--danger);
+  }
+
+  input:not([type="checkbox"]):disabled,
+  select:disabled,
+  textarea:disabled {
+    border-color: var(--border);
+    background: var(--background);
+    color: var(--muted);
+    cursor: not-allowed;
+  }
+
+  input[type="checkbox"]:disabled {
+    cursor: not-allowed;
+  }
+
   input[type="checkbox"] {
     accent-color: var(--accent);
   }
@@ -609,8 +640,10 @@
   }
 
   button:disabled {
-    opacity: 0.55;
-    cursor: wait;
+    border-color: var(--border-strong);
+    background: var(--surface-muted);
+    color: var(--muted);
+    cursor: not-allowed;
   }
 
   fieldset {
@@ -698,16 +731,19 @@
   width: 21%;
 }
 
+.table-frame--compact > table {
+  min-width: 0;
+}
+
+.table-frame--compact th,
+.table-frame--compact td {
+  overflow-wrap: anywhere;
+  padding: 0.5rem 0.625rem;
+}
+
 @media (max-width: 1279px) {
   .table-frame--compact > table {
-    min-width: 0;
     table-layout: fixed;
-  }
-
-  .table-frame--compact th,
-  .table-frame--compact td {
-    overflow-wrap: anywhere;
-    padding: 0.5rem 0.625rem;
   }
 }
 
