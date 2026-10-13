@@ -127,7 +127,7 @@ export default async function OfficersPage({
       ? await supabase
           .from("officer_warnings")
           .select(
-            "id,officer_id,reason,created_at,officers!officer_warnings_officer_id_fkey(id,name),eligible:warning_approvals!inner(approver_role,approver_officer_id,decision),warning_approvals(approver_role,decision,decided_at)",
+            "id,officer_id,reason,created_at,officers!officer_warnings_officer_id_fkey(id,name),eligible:warning_approvals!inner(approver_officer_id,decision)",
           )
           .eq("status", "pending")
           .is("voided_at", null)
@@ -215,21 +215,6 @@ export default async function OfficersPage({
                   Created {formatDateTime(warning.created_at)} · Your decision:
                   Pending
                 </p>
-                <div className="text-sm">
-                  <p className="font-medium text-secondary">
-                    Approval decisions
-                  </p>
-                  <ul className="flex flex-wrap gap-x-4 gap-y-1 text-muted">
-                    {warning.warning_approvals.map((approval, index) => (
-                      <li key={`${approval.approver_role}-${index}`}>
-                        {approval.approver_role}:{" "}
-                        {formatLabel(approval.decision)}
-                        {approval.decided_at &&
-                          ` · ${formatDateTime(approval.decided_at)}`}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
                 <WarningDecisionForm warningId={warning.id} />
               </article>
             ))

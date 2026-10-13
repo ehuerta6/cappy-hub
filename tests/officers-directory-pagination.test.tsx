@@ -245,7 +245,7 @@ it.each(["admin", "lead", "officer"] as const)(
     expect(review).toContain("Decide warning 6");
     expect(review).toContain("Created Oct 6, 2026");
     expect(review).toContain("Your decision: Pending");
-    expect(review).toContain("President: Pending");
+    expect(review).not.toContain("Approval decisions");
     expect(review).toContain(
       "returnTo=%2Fofficers%3Fview%3Dwarnings%26reviewPage%3D2",
     );
@@ -274,6 +274,9 @@ it.each(["admin", "lead", "officer"] as const)(
       "eligible.approver_officer_id",
       50,
     ]);
+    expect(
+      pageQuery.calls.find((call) => call[0] === "select")?.[1],
+    ).not.toContain(",warning_approvals(");
   },
 );
 
