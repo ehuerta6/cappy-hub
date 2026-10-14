@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import type { Tables } from "@/lib/database.types";
 import { denverParts } from "@/lib/event-time";
 import {
@@ -93,6 +93,7 @@ export default function EventForm({
   );
 
   const [editedFields, setEditedFields] = useState<string[]>([]);
+  const formRef = useRef<HTMLFormElement>(null);
   const original: Record<string, string | string[]> = event
     ? {
         name: event.name,
@@ -109,12 +110,22 @@ export default function EventForm({
         branches: branchIds.map(String),
       }
     : {};
-  const updateEditedFields = (form: HTMLFormElement) => {
-    if (series) setEditedFields(changedFormFields(form, original));
+  const updateEditedFields = (
+    form: HTMLFormElement,
+    overrides: Record<string, string> = {},
+  ) => {
+    if (!series) return;
+    const changed = new Set(changedFormFields(form, original));
+    for (const [name, value] of Object.entries(overrides)) {
+      if (value === String(original[name] ?? "")) changed.delete(name);
+      else changed.add(name);
+    }
+    setEditedFields(Object.keys(original).filter((name) => changed.has(name)));
   };
 
   return (
     <form
+      ref={formRef}
       action={action}
       className="event-form"
       onChange={(event) => updateEditedFields(event.currentTarget)}
@@ -229,9 +240,12 @@ export default function EventForm({
               locations={locations}
               initialValue={restoredLocation}
               value={locationDraft.value}
-              onValueChange={(value) =>
-                setLocationDraft((current) => ({ ...current, value }))
-              }
+              onValueChange={(value) => {
+                setLocationDraft((current) => ({ ...current, value }));
+                if (formRef.current) {
+                  updateEditedFields(formRef.current, { location: value });
+                }
+              }}
               error={fieldErrors.location}
             />
           </label>

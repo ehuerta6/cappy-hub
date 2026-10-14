@@ -204,3 +204,63 @@ it("tracks an edited free-text Location for the existing recurring-edit patch", 
   expect(new FormData(form).get("location")).toBe("New campus room");
   expect(new FormData(form).getAll("edited_fields")).toContain("location");
 });
+
+it("tracks a catalog Location selected directly in the recurring Event form with the keyboard", async () => {
+  const host = await mount(
+    <EventForm
+      branches={[]}
+      eventTypes={[{ id: 9, name: "Session" }]}
+      locations={[{ id: 1, name: "Engineering Building" }]}
+      event={
+        {
+          id: 12,
+          name: "CIC meeting",
+          description: "Agenda",
+          location: "Engineering",
+          event_type_id: 9,
+          slides_url: null,
+          meeting_notes_url: null,
+          signup_sheet_url: null,
+          max_volunteers: null,
+          event_date: "2026-10-12",
+          starts_at: "2026-10-12T16:00:00.000Z",
+          ends_at: "2026-10-12T17:00:00.000Z",
+          recurrence_key: "2026-10-12",
+        } as never
+      }
+      series={
+        {
+          id: 19,
+          revision: 2,
+          recurrence_rule: "FREQ=WEEKLY;INTERVAL=1;BYDAY=MO;COUNT=4",
+          starts_on: "2026-10-12",
+        } as never
+      }
+      mutationRequestKey="test-request-key"
+    />,
+  );
+
+  const form = host.querySelector<HTMLFormElement>("form")!;
+  const input = form.querySelector<HTMLInputElement>('input[name="location"]')!;
+  expect(input.value).toBe("Engineering");
+  expect(new FormData(form).getAll("edited_fields")).not.toContain("location");
+
+  await act(async () => {
+    input.focus();
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+    );
+  });
+
+  const option = document.body.querySelector<HTMLElement>('[role="option"]');
+  expect(option?.textContent).toContain("Engineering Building");
+  await act(async () => {
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+  });
+
+  const submitted = new FormData(form);
+  expect(submitted.get("location")).toBe("Engineering Building");
+  expect(submitted.getAll("edited_fields")).toContain("location");
+});
