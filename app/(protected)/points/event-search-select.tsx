@@ -42,6 +42,9 @@ export function EventSearchSelect({
   const queryRef = useRef("");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(initialValue);
+  const [selectedEvent, setSelectedEvent] = useState<PointEvent | null>(
+    () => events.find((event) => String(event.id) === initialValue) ?? null,
+  );
   const [remoteEvents, setRemoteEvents] = useState<PointEvent[]>([]);
   const [searchState, setSearchState] = useState<
     "idle" | "loading" | "empty" | "error"
@@ -50,7 +53,11 @@ export function EventSearchSelect({
   const options = useMemo(() => {
     const byId = new Map<string, EventOption>();
     byId.set("", { id: "", label: "No event" });
-    for (const event of [...events, ...remoteEvents]) {
+    for (const event of [
+      ...events,
+      ...remoteEvents,
+      ...(selectedEvent ? [selectedEvent] : []),
+    ]) {
       const option = eventOption(event);
       byId.set(option.id, option);
     }
@@ -58,7 +65,7 @@ export function EventSearchSelect({
       byId.set(selectedId, { id: selectedId, label: `Event #${selectedId}` });
     }
     return [...byId.values()];
-  }, [events, remoteEvents, selectedId]);
+  }, [events, remoteEvents, selectedEvent, selectedId]);
   const items = useMemo(
     () =>
       Combobox.createItems(options, {
@@ -125,10 +132,19 @@ export function EventSearchSelect({
         value={selectedId}
         onValueChange={(value, details) => {
           if (details.reason === "item-press") {
-            setSelectedId(value ?? "");
+            const nextId = value ?? "";
+            setSelectedId(nextId);
+            setSelectedEvent(
+              nextId
+                ? ([...events, ...remoteEvents].find(
+                    (event) => String(event.id) === nextId,
+                  ) ?? null)
+                : null,
+            );
             updateQuery("");
           } else if (details.reason === "clear-press") {
             setSelectedId("");
+            setSelectedEvent(null);
             updateQuery("");
           } else details.cancel();
         }}

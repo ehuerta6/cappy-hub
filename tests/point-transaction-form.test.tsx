@@ -136,6 +136,134 @@ async function submit(dialog: HTMLDialogElement) {
   });
 }
 
+async function renderEventSelector() {
+  await act(async () => {
+    root.render(
+      createElement(
+        "form",
+        null,
+        createElement(EventSearchSelect, { events: [] }),
+      ),
+    );
+  });
+  return host.querySelector<HTMLFormElement>("form")!;
+}
+
+function setEventQuery(input: HTMLInputElement, query: string) {
+  act(() => {
+    input.focus();
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )?.set?.call(input, query);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+async function finishEventSearch() {
+  await act(async () => vi.advanceTimersByTimeAsync(300));
+}
+
+async function selectEventOption(input: HTMLInputElement, label: string) {
+  await act(async () => {
+    input.focus();
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+    );
+  });
+  const option = [
+    ...document.querySelectorAll<HTMLElement>('[role="option"]'),
+  ].find((candidate) => candidate.textContent?.includes(label));
+  if (!option) throw new Error(`Event option not found: ${label}`);
+  await act(async () => {
+    option.dispatchEvent(
+      new MouseEvent("mousedown", { bubbles: true, button: 0 }),
+    );
+    option.dispatchEvent(
+      new MouseEvent("mouseup", { bubbles: true, button: 0 }),
+    );
+    option.click();
+  });
+}
+
+it("retains a selected remote Event label and FormData ID across clearing and another search", async () => {
+  vi.useFakeTimers();
+  const selectedEvent = {
+    id: 51,
+    name: "Remote review session",
+    event_date: "2026-10-20",
+  };
+  const anotherEvent = {
+    id: 52,
+    name: "Another event",
+    event_date: "2026-10-21",
+  };
+  vi.mocked(searchEvents)
+    .mockResolvedValueOnce({ events: [selectedEvent], error: false })
+    .mockResolvedValueOnce({ events: [anotherEvent], error: false });
+
+  const form = await renderEventSelector();
+  const input = form.querySelector<HTMLInputElement>(
+    'input[placeholder="Search Events"]',
+  )!;
+  setEventQuery(input, "Remote");
+  await finishEventSearch();
+  expect(searchEvents).toHaveBeenCalledWith("Remote");
+
+  await selectEventOption(input, "Remote review session");
+  expect(
+    form.querySelector<HTMLInputElement>('input[name="event_id"]')?.value,
+  ).toBe("51");
+  expect(document.body.textContent).toContain(
+    "Selected: Remote review session — Oct 20, 2026",
+  );
+
+  setEventQuery(input, "Cleared query");
+  setEventQuery(input, "");
+  await act(async () => vi.advanceTimersByTimeAsync(350));
+  expect(searchEvents).toHaveBeenCalledTimes(1);
+  expect(
+    form.querySelector<HTMLInputElement>('input[name="event_id"]')?.value,
+  ).toBe("51");
+  expect(document.body.textContent).toContain(
+    "Selected: Remote review session — Oct 20, 2026",
+  );
+
+  setEventQuery(input, "Another");
+  await finishEventSearch();
+  expect(searchEvents).toHaveBeenCalledTimes(2);
+  await act(async () => {
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+    );
+  });
+  expect(document.body.textContent).toContain("Another event — Oct 21, 2026");
+  expect(document.body.textContent).toContain(
+    "Selected: Remote review session — Oct 20, 2026",
+  );
+  expect(
+    form.querySelector<HTMLInputElement>('input[name="event_id"]')?.value,
+  ).toBe("51");
+
+  setEventQuery(input, "");
+  await act(async () => {
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+    );
+  });
+  const noEvent = [
+    ...document.querySelectorAll<HTMLElement>('[role="option"]'),
+  ].find((option) => option.textContent?.includes("No event"));
+  expect(noEvent).toBeDefined();
+  await act(async () => noEvent!.click());
+  expect(
+    form.querySelector<HTMLInputElement>('input[name="event_id"]')?.value,
+  ).toBe("");
+  expect(document.body.textContent).not.toContain(
+    "Selected: Remote review session",
+  );
+});
+
 it("renders recent Events with dates and an explicit No event option", async () => {
   await renderTransactionForm();
   const { dialog } = openDialog();
@@ -273,6 +401,7 @@ it("keeps newer results when an older request resolves last", async () => {
   )!;
   const setQuery = (value: string) =>
     act(() => {
+      input.focus();
       Object.getOwnPropertyDescriptor(
         HTMLInputElement.prototype,
         "value",
@@ -290,6 +419,7 @@ it("keeps newer results when an older request resolves last", async () => {
       error: false,
     });
   });
+  await selectEventOption(input, "Newer Event");
   await act(async () => {
     resolveOlder({
       events: [{ id: 1, name: "Older Event", event_date: "2026-10-15" }],
@@ -302,7 +432,12 @@ it("keeps newer results when an older request resolves last", async () => {
       new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
     ),
   );
-  expect(document.body.textContent).toContain("Newer Event — Oct 16, 2026");
+  expect(document.body.textContent).toContain(
+    "Selected: Newer Event — Oct 16, 2026",
+  );
+  expect(
+    host.querySelector<HTMLInputElement>('input[name="event_id"]')?.value,
+  ).toBe("2");
   expect(document.body.textContent).not.toContain("Older Event — Oct 15, 2026");
 });
 
