@@ -94,106 +94,129 @@ export default async function PointsPage({
   if (fromDate) currentFilterSearch.set("from", fromDate);
   if (toDate) currentFilterSearch.set("to", toDate);
 
-  const [
-    historyCount,
-    visibleHistoryCount,
-    officers,
-    activeOfficers,
-    events,
-    recentEvents,
-    configuration,
-  ] = await Promise.all([
-    buildPointHistoryQuery(true, true),
-    buildPointHistoryQuery(false, true),
-    supabase.from("officers").select("id,name,status").order("name"),
-    supabase
-      .from("officers")
-      .select("id,name")
-      .eq("status", "active")
-      .order("name"),
-    supabase
-      .from("events")
-      .select("id,name,event_date")
-      .order("event_date", { ascending: false }),
-    supabase
-      .from("events")
-      .select("id,name,event_date")
-      .is("deleted_at", null)
-      .order("event_date", { ascending: false })
-      .limit(5),
-    supabase
-      .from("application_config")
-      .select("participation_points_per_hour")
-      .eq("id", 1)
-      .single(),
-  ]);
-  if (
-    historyCount.error ||
-    visibleHistoryCount.error ||
-    officers.error ||
-    activeOfficers.error ||
-    events.error ||
-    recentEvents.error ||
-    configuration.error
-  )
-    throw new Error("Failed to load points");
+  const overviewData = view === "overview" ? await loadOverviewData() : null;
+  const historyData = view === "history" ? await loadHistoryData() : null;
 
-  const totals = await supabase
-    .from("officer_point_totals")
-    .select("*", { count: "exact" })
-    .in(
-      "id",
-      activeOfficers.data.map((officer) => officer.id),
-    )
-    .order("total_points", { ascending: false })
-    .order("name", { ascending: true })
-    .order("id", { ascending: true })
-    .range(
-      (requestedRankPage - 1) * OFFICER_RANKING_PAGE_SIZE,
-      requestedRankPage * OFFICER_RANKING_PAGE_SIZE - 1,
+  async function loadOverviewData() {
+    const [activeOfficers, configuration, recentEvents] = await Promise.all([
+      supabase
+        .from("officers")
+        .select("id,name")
+        .eq("status", "active")
+        .order("name"),
+      supabase
+        .from("application_config")
+        .select("participation_points_per_hour")
+        .eq("id", 1)
+        .single(),
+      admin
+        ? supabase
+            .from("events")
+            .select("id,name,event_date")
+            .is("deleted_at", null)
+            .order("event_date", { ascending: false })
+            .limit(5)
+        : Promise.resolve(null),
+    ]);
+    if (activeOfficers.error || configuration.error || recentEvents?.error)
+      throw new Error("Failed to load points");
+
+    const totals = await supabase
+      .from("officer_point_totals")
+      .select("*", { count: "exact" })
+      .in(
+        "id",
+        activeOfficers.data.map((officer) => officer.id),
+      )
+      .order("total_points", { ascending: false })
+      .order("name", { ascending: true })
+      .order("id", { ascending: true })
+      .range(
+        (requestedRankPage - 1) * OFFICER_RANKING_PAGE_SIZE,
+        requestedRankPage * OFFICER_RANKING_PAGE_SIZE - 1,
+      );
+    if (totals.error) throw new Error("Failed to load officer point totals");
+
+    const rankingTotalPages = Math.max(
+      1,
+      Math.ceil((totals.count ?? 0) / OFFICER_RANKING_PAGE_SIZE),
     );
-  if (totals.error) throw new Error("Failed to load officer point totals");
+    const rankPage = Math.min(requestedRankPage, rankingTotalPages);
+    if (rankPage !== requestedRankPage) {
+      const search = new URLSearchParams();
+      if (rankPage > 1) search.set("rankPage", String(rankPage));
+      const query = search.toString();
+      redirect(query ? `/points?${query}` : "/points");
+    }
 
-  const rankingTotalPages = Math.max(
-    1,
-    Math.ceil((totals.count ?? 0) / OFFICER_RANKING_PAGE_SIZE),
-  );
-  const rankPage = Math.min(requestedRankPage, rankingTotalPages);
-  if (view === "overview" && rankPage !== requestedRankPage) {
-    const search = new URLSearchParams();
-    if (rankPage > 1) search.set("rankPage", String(rankPage));
-    const query = search.toString();
-    redirect(query ? `/points?${query}` : "/points");
+    return {
+      activeOfficers,
+      configuration,
+      recentEvents,
+      totals,
+      rankingTotalPages,
+      rankPage,
+    };
   }
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil((historyCount.count ?? 0) / POINT_HISTORY_PAGE_SIZE),
-  );
-  const page = Math.min(requestedPage, totalPages);
-  if (view === "history" && page !== requestedPage)
-    redirect(listPageUrl("/points", currentFilterSearch, page));
+  async function loadHistoryData() {
+    const [historyCount, visibleHistoryCount, officers, events] =
+      await Promise.all([
+        buildPointHistoryQuery(true, true),
+        buildPointHistoryQuery(false, true),
+        supabase.from("officers").select("id,name,status").order("name"),
+        supabase
+          .from("events")
+          .select("id,name,event_date")
+          .order("event_date", { ascending: false }),
+      ]);
+    if (
+      historyCount.error ||
+      visibleHistoryCount.error ||
+      officers.error ||
+      events.error
+    )
+      throw new Error("Failed to load points");
 
-  const transactions = await buildPointHistoryQuery(true)
-    .order("activity_date", { ascending: false })
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .range(
-      (page - 1) * POINT_HISTORY_PAGE_SIZE,
-      page * POINT_HISTORY_PAGE_SIZE - 1,
+    const totalPages = Math.max(
+      1,
+      Math.ceil((historyCount.count ?? 0) / POINT_HISTORY_PAGE_SIZE),
     );
-  if (transactions.error) throw new Error("Failed to load points");
+    const page = Math.min(requestedPage, totalPages);
+    if (page !== requestedPage)
+      redirect(listPageUrl("/points", currentFilterSearch, page));
 
-  const historyEmptyMessage =
-    (visibleHistoryCount.count ?? 0) > 0
-      ? "No point transactions match these filters."
-      : status === "active"
-        ? "No active point transactions yet."
-        : status === "removed"
-          ? "No removed point transactions."
-          : "No point transactions yet.";
+    const transactions = await buildPointHistoryQuery(true)
+      .order("activity_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(
+        (page - 1) * POINT_HISTORY_PAGE_SIZE,
+        page * POINT_HISTORY_PAGE_SIZE - 1,
+      );
+    if (transactions.error) throw new Error("Failed to load points");
 
-  const officerTotals = (
+    const emptyMessage =
+      (visibleHistoryCount.count ?? 0) > 0
+        ? "No point transactions match these filters."
+        : status === "active"
+          ? "No active point transactions yet."
+          : status === "removed"
+            ? "No removed point transactions."
+            : "No point transactions yet.";
+
+    return {
+      historyCount,
+      officers,
+      events,
+      totalPages,
+      page,
+      transactions,
+      emptyMessage,
+    };
+  }
+
+  const officerTotals = overviewData ? (
     <section className="min-w-0">
       <SectionHeading title="Officer ranking" />
       <div className="rounded-lg border border-border">
@@ -208,10 +231,12 @@ export default async function PointsPage({
             </tr>
           </thead>
           <tbody>
-            {totals.data.map((officer, index) => (
+            {overviewData!.totals.data.map((officer, index) => (
               <tr key={officer.id}>
                 <td className="w-20 tabular-nums text-muted">
-                  {(rankPage - 1) * OFFICER_RANKING_PAGE_SIZE + index + 1}
+                  {(overviewData!.rankPage - 1) * OFFICER_RANKING_PAGE_SIZE +
+                    index +
+                    1}
                 </td>
                 <td>
                   <Link href={`/officers/${officer.id}`}>{officer.name}</Link>
@@ -228,18 +253,21 @@ export default async function PointsPage({
         aria-label="Officer ranking pages"
         className="flex flex-wrap items-center gap-4 pt-3 text-sm"
       >
-        {rankPage > 1 && (
-          <Link href={rankingPageUrl(rankPage - 1)}>Previous</Link>
+        {overviewData!.rankPage > 1 && (
+          <Link href={rankingPageUrl(overviewData!.rankPage - 1)}>
+            Previous
+          </Link>
         )}
         <span>
-          Page {rankPage} of {rankingTotalPages} · Officer ranking
+          Page {overviewData!.rankPage} of {overviewData!.rankingTotalPages} ·
+          Officer ranking
         </span>
-        {rankPage < rankingTotalPages && (
-          <Link href={rankingPageUrl(rankPage + 1)}>Next</Link>
+        {overviewData!.rankPage < overviewData!.rankingTotalPages && (
+          <Link href={rankingPageUrl(overviewData!.rankPage + 1)}>Next</Link>
         )}
       </nav>
     </section>
-  );
+  ) : null;
 
   function rankingPageUrl(targetPage: number): Route<"/points"> {
     const search = new URLSearchParams();
@@ -282,16 +310,20 @@ export default async function PointsPage({
             />
             <p>
               Current participation rate:{" "}
-              {configuration.data.participation_points_per_hour} points/hour
+              {overviewData!.configuration.data.participation_points_per_hour}{" "}
+              points/hour
             </p>
             {admin && (
               <>
                 <RateForm
-                  rate={configuration.data.participation_points_per_hour}
+                  rate={
+                    overviewData!.configuration.data
+                      .participation_points_per_hour
+                  }
                 />
                 <TransactionForm
-                  officers={activeOfficers.data}
-                  events={recentEvents.data}
+                  officers={overviewData!.activeOfficers.data}
+                  events={overviewData!.recentEvents!.data}
                 />
               </>
             )}
@@ -304,8 +336,8 @@ export default async function PointsPage({
             description="Search and filter all transactions, 8 per page."
           />
           <PointHistoryFilterControls
-            officers={officers.data}
-            events={events.data}
+            officers={historyData!.officers.data}
+            events={historyData!.events.data}
             isAdmin={admin}
             status={status}
             fromDate={fromDate ?? ""}
@@ -323,30 +355,42 @@ export default async function PointsPage({
           )}
           <TableFrame compact label="Point history">
             <HistoryTable
-              returnTo={listPageUrl("/points", currentFilterSearch, page)}
-              transactions={transactions.data}
+              returnTo={listPageUrl(
+                "/points",
+                currentFilterSearch,
+                historyData!.page,
+              )}
+              transactions={historyData!.transactions.data}
               isAdmin={admin}
-              emptyMessage={historyEmptyMessage}
+              emptyMessage={historyData!.emptyMessage}
             />
           </TableFrame>
           <nav
             aria-label="Point history pages"
             className="flex flex-wrap items-center gap-4 text-sm"
           >
-            {page > 1 && (
+            {historyData!.page > 1 && (
               <Link
-                href={listPageUrl("/points", currentFilterSearch, page - 1)}
+                href={listPageUrl(
+                  "/points",
+                  currentFilterSearch,
+                  historyData!.page - 1,
+                )}
               >
                 Previous
               </Link>
             )}
             <span>
-              Page {page} of {totalPages} · {historyCount.count ?? 0}{" "}
-              transactions
+              Page {historyData!.page} of {historyData!.totalPages} ·{" "}
+              {historyData!.historyCount.count ?? 0} transactions
             </span>
-            {page < totalPages && (
+            {historyData!.page < historyData!.totalPages && (
               <Link
-                href={listPageUrl("/points", currentFilterSearch, page + 1)}
+                href={listPageUrl(
+                  "/points",
+                  currentFilterSearch,
+                  historyData!.page + 1,
+                )}
               >
                 Next
               </Link>

@@ -11,6 +11,7 @@ const {
   rangesByTable,
   totalCount,
   totalRows,
+  queriedTables,
 } = vi.hoisted(() => ({
   getAuthorizationContext: vi.fn(),
   canManagePoints: vi.fn(),
@@ -23,6 +24,7 @@ const {
   totalRows: {
     value: null as null | { id: number; name: string; total_points: number }[],
   },
+  queriedTables: [] as string[],
 }));
 
 vi.mock("@/lib/authorization", () => ({
@@ -44,10 +46,12 @@ beforeEach(() => {
   rangesByTable.clear();
   totalCount.officers = 0;
   totalRows.value = null;
+  queriedTables.length = 0;
   getAuthorizationContext.mockResolvedValue({ id: 1 });
   canManagePoints.mockReturnValue(false);
   createClient.mockResolvedValue({
     from: (table: string) => {
+      queriedTables.push(table);
       const query = {
         select: () => query,
         is: () => query,
@@ -111,17 +115,11 @@ it("orders Officer totals by points descending, then name ascending", async () =
   ]);
 });
 
-it("keeps the Officer selector alphabetical", async () => {
-  await PointsPage({ searchParams: Promise.resolve({}) });
+it("keeps the History Officer selector alphabetical", async () => {
+  await PointsPage({ searchParams: Promise.resolve({ view: "history" }) });
 
-  expect(ordersByTable.get("officers")).toEqual([
-    { column: "name" },
-    { column: "name" },
-  ]);
-  expect(activeOfficerFilters).toContainEqual({
-    column: "status",
-    value: "active",
-  });
+  expect(ordersByTable.get("officers")).toEqual([{ column: "name" }]);
+  expect(activeOfficerFilters).toEqual([]);
 });
 
 it("queries Officer totals only for active recipients", async () => {
@@ -154,6 +152,8 @@ it("defaults to the Overview view and shows read-only rate to non-admins", async
   expect(html).toContain("Participation rate");
   expect(html).not.toContain("Point configuration");
   expect(html).not.toContain("Add transaction");
+  expect(queriedTables).not.toContain("point_history");
+  expect(queriedTables).not.toContain("events");
 });
 
 it("shows Admin configuration and Add transaction in Overview", async () => {
@@ -164,6 +164,10 @@ it("shows Admin configuration and Add transaction in Overview", async () => {
 
   expect(html).toContain('aria-labelledby="add-transaction-title"');
   expect(html).toContain("Point configuration");
+  expect(queriedTables).not.toContain("point_history");
+  expect(queriedTables).toContain("events");
+  expect(queriedTables.filter((table) => table === "events")).toHaveLength(1);
+  expect(queriedTables.filter((table) => table === "officers")).toHaveLength(1);
 });
 
 it("shows History when explicitly selected", async () => {
@@ -175,6 +179,16 @@ it("shows History when explicitly selected", async () => {
   expect(html).toContain("Point history filters");
   expect(html).toContain("Point history");
   expect(html).not.toContain("Officer totals");
+  expect(queriedTables).toContain("point_history");
+  expect(queriedTables).toContain("officers");
+  expect(queriedTables).toContain("events");
+  expect(queriedTables.filter((table) => table === "events")).toHaveLength(1);
+  expect(queriedTables.filter((table) => table === "officers")).toHaveLength(1);
+  expect(
+    queriedTables.filter((table) => table === "point_history"),
+  ).toHaveLength(3);
+  expect(queriedTables).not.toContain("officer_point_totals");
+  expect(queriedTables).not.toContain("application_config");
 });
 
 it("keeps an explicit Overview selection even when old filters are present", async () => {
