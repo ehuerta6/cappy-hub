@@ -502,12 +502,50 @@
   .task-form > label {
     min-width: 0;
     align-content: start;
+    line-height: 1.35;
+  }
+
+  .task-form > label > input,
+  .task-form > label > select,
+  .task-form > label > textarea {
+    margin-top: 0.1rem;
+  }
+
+  .task-form > label > textarea {
+    min-height: 7rem;
+  }
+
+  .task-form .event-recurrence-scope {
+    display: grid;
+    min-width: 0;
+    gap: 0.65rem;
+    border-color: var(--border-strong);
+    background: var(--surface);
+  }
+
+  .task-form .event-recurrence-scope > legend {
+    color: var(--secondary);
+    font-weight: 500;
+  }
+
+  .task-form .event-recurrence-scope > label {
+    width: fit-content;
+    min-height: 2.25rem;
+  }
+
+  .task-form .event-recurrence-scope > p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.8125rem;
+    line-height: 1.5;
   }
 
   .task-recurrence-fields {
     display: grid;
     min-width: 0;
     gap: 0.75rem;
+    border-color: var(--border-strong);
+    background: var(--surface);
   }
 
   .task-recurrence-fields:not(.task-recurrence-fields-expanded) {
@@ -531,6 +569,7 @@
     color: var(--secondary);
     font-size: 0.875rem;
     font-weight: 500;
+    line-height: 1.35;
   }
 
   .task-recurrence-fields-expanded {
@@ -542,6 +581,44 @@
   .task-recurrence-fields-expanded > section,
   .task-recurrence-fields-expanded > fieldset {
     grid-column: 1 / -1;
+  }
+
+  .task-recurrence-fields-expanded > fieldset {
+    display: grid;
+    min-width: 0;
+    gap: 0.75rem;
+    border-color: var(--border);
+    background: var(--surface-muted);
+  }
+
+  .task-recurrence-fields-expanded > fieldset > legend {
+    max-width: 100%;
+    line-height: 1.4;
+  }
+
+  .task-recurrence-fields-expanded > section {
+    border-top: 1px solid var(--border);
+    padding-top: 0.75rem;
+  }
+
+  .task-recurrence-fields-expanded > section > ol {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+    gap: 0.25rem 1rem;
+    margin-block: 0.5rem;
+    padding-left: 1.25rem;
+  }
+
+  .task-recurrence-fields-expanded > p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.8125rem;
+    line-height: 1.5;
+  }
+
+  .task-recurrence-fields-expanded [role="alert"] {
+    color: var(--danger);
+    font-size: 0.8125rem;
   }
 
   .task-recurrence-fields:not(.task-recurrence-fields-expanded) > label {

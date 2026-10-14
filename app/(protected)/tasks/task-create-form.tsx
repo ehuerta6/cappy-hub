@@ -7,7 +7,11 @@ import {
   submittedValue,
   submittedValues,
 } from "@/lib/form-feedback";
-import { ActionFeedback, FieldError } from "@/components/ui";
+import {
+  ActionFeedback,
+  FieldError,
+  fieldLabelClassName,
+} from "@/components/ui";
 import {
   RecurrenceScope,
   changedFormFields,
@@ -126,7 +130,7 @@ export default function TaskCreateForm({
         name="recurrence_request_key"
         value={recurrenceRequestKey}
       />
-      <label className="task-form-title self-start">
+      <label className={`task-form-title self-start ${fieldLabelClassName}`}>
         Title
         <input
           name="title"
@@ -142,7 +146,9 @@ export default function TaskCreateForm({
         />
         <FieldError id="task-title-error">{fieldErrors.title}</FieldError>
       </label>
-      <label className="task-form-description self-start">
+      <label
+        className={`task-form-description self-start ${fieldLabelClassName}`}
+      >
         Description
         <textarea
           name="description"
@@ -161,7 +167,7 @@ export default function TaskCreateForm({
           {fieldErrors.description}
         </FieldError>
       </label>
-      <label>
+      <label className={fieldLabelClassName}>
         Type
         <select
           name="task_type"
@@ -185,7 +191,7 @@ export default function TaskCreateForm({
         </select>
         <FieldError id="task-type-error">{fieldErrors.task_type}</FieldError>
       </label>
-      <label>
+      <label className={fieldLabelClassName}>
         Branch
         <select
           name="branch_id"
@@ -211,7 +217,7 @@ export default function TaskCreateForm({
         </select>
         <FieldError id="task-branch-error">{fieldErrors.branch_id}</FieldError>
       </label>
-      <label>
+      <label className={fieldLabelClassName}>
         Due date
         <input
           name="due_date"
@@ -229,7 +235,7 @@ export default function TaskCreateForm({
         />
         <FieldError id="task-due-date-error">{fieldErrors.due_date}</FieldError>
       </label>
-      <label>
+      <label className={fieldLabelClassName}>
         Points
         <input
           name="points"

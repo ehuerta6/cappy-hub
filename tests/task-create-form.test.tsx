@@ -55,11 +55,25 @@ it("keeps the task title compact and describes recurrence as optional", () => {
   );
 
   expect(html).toContain('class="task-form grid max-w-6xl grid-cols-2');
-  expect(html).toContain('class="task-form-title self-start"');
+  expect(html).toContain('class="task-form-title self-start block text-sm');
   expect(html).toContain('class="h-10 text-base font-medium"');
   expect(html).toContain('class="task-recurrence-fields"');
   expect(html).toContain("Optional recurrence");
   expect(html).not.toContain("<legend>Repeat</legend>");
+  expect(html).toContain('name="recurrence_frequency"');
+  expect(html).toContain("Does not repeat");
+  expect(html).not.toContain('aria-label="Schedule preview"');
+  expect(html.match(/required=""/g)).toHaveLength(6);
+  for (const field of [
+    "title",
+    "description",
+    "task_type",
+    "branch_id",
+    "due_date",
+    "points",
+  ]) {
+    expect(html).toContain(`name="${field}"`);
+  }
 });
 
 it("submits an empty event_ids selection without adding a placeholder value", () => {
