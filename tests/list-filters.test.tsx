@@ -812,8 +812,8 @@ it("offers direct Event page selection and preserves every active filter", async
   expect(html).toContain('aria-label="Event pages"');
   expect(html).toContain('aria-label="Select event page"');
   expect(html).toContain('option value="2" selected=""');
-  expect(html).toContain(">First</a>");
-  expect(html).toContain(">Last</a>");
+  expect(html).toContain('aria-label="First page"');
+  expect(html).toContain('aria-label="Last page"');
   for (const [name, value] of [
     ["q", "Design"],
     ["status", "past"],
@@ -857,8 +857,8 @@ it("offers direct Task page selection and preserves all filters", async () => {
   expect(html).toContain('aria-label="Task pages"');
   expect(html).toContain('aria-label="Select task page"');
   expect(html).toContain('option value="2" selected=""');
-  expect(html).toContain(">First</a>");
-  expect(html).toContain(">Last</a>");
+  expect(html).toContain('aria-label="First page"');
+  expect(html).toContain('aria-label="Last page"');
   for (const [name, value] of [
     ["q", "Design"],
     ["view", "past"],
@@ -1304,7 +1304,7 @@ it("paginates eight Tasks across groups with due-date and ID tie ordering", asyn
   expect(second).toContain('option value="2" selected="">2</option>');
   expect(second).toContain("of 3");
   expect(second).toContain("19 tasks");
-  expect(second).toContain('href="/tasks">Previous</a>');
+  expect(second).toContain('aria-label="Previous page"');
   expect(second).toContain("page=3");
   const secondIds = [...second.matchAll(/href="\/tasks\/(\d+)\?/g)].map(
     (match) => Number(match[1]),
@@ -1490,7 +1490,7 @@ it("keeps all Points capabilities with one GET form and preserves pagination fil
   expect(html).toContain('method="get"');
   expect(html).toContain("Officer #-1013 (name unavailable)");
   expect(html).toContain("Event #-2001 (name unavailable)");
-  expect(html).not.toContain('name="page"');
+  expect(html).not.toContain('type="hidden" name="page"');
   expect(html).toContain(
     'data-return-to="/points?view=history&amp;q=Avery&amp;type=manual&amp;officer=-1013&amp;event=-2001&amp;status=removed&amp;from=2026-09-01&amp;to=2026-10-01&amp;page=2"',
   );
@@ -1502,7 +1502,9 @@ it("keeps all Points capabilities with one GET form and preserves pagination fil
       query.calls.some(([method]) => method === "range"),
     )?.calls,
   ).toContainEqual(["range", 8, 15]);
-  expect(html).toContain("Page 2 of 8 · 60 transactions");
+  expect(html).toContain('aria-label="Point history pages"');
+  expect(html).toContain("of 8");
+  expect(html).toContain("60 transactions");
 });
 
 it("forces active Points for non-admins with forged removed/all status", async () => {
@@ -1845,7 +1847,9 @@ it("shows exact filtered totals and requests six newest-first rows per System Lo
   has(entryQuery, "range", 6, 11);
   has(entryQuery, "order", "created_at", { ascending: false });
   has(entryQuery, "order", "id", { ascending: false });
-  expect(html).toContain("Page 2 · 13 entries");
+  expect(html).toContain('aria-label="System Log pages"');
+  expect(html).toContain('option value="2" selected=""');
+  expect(html).toContain("13 entries");
   expect(html).toContain(
     "q=change&amp;actor=1&amp;action=updated&amp;entity=officer",
   );

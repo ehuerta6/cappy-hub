@@ -226,8 +226,10 @@ it("shows a paginated eight-Officer ranking with a separate rankPage parameter",
   );
 
   expect(rangesByTable.get("officer_point_totals")).toEqual([[8, 15]]);
-  expect(html).toContain("Page 2 of 3 · Officer ranking");
-  expect(html).toContain('href="/points">Previous</a>');
+  expect(html).toContain('aria-label="Officer ranking pages"');
+  expect(html).toContain('option value="2" selected=""');
+  expect(html).toContain("of 3");
+  expect(html).toContain('aria-label="Previous page"');
   expect(html).toContain("rankPage=3");
   expect(html).not.toContain('name="page"');
 });
@@ -248,6 +250,6 @@ it("shows an empty ranking as its first and only page", async () => {
   );
 
   expect(html).toContain("Officer ranking");
-  expect(html).toContain("Page 1 of 1 · Officer ranking");
+  expect(html).toContain("0 officers");
   expect(html).toContain("<tbody></tbody>");
 });

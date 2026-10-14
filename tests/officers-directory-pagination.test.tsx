@@ -172,8 +172,9 @@ it("paginates eight fully filtered officers with exact count and return context"
   expect(html).toContain("Alex 11");
   expect(html).not.toContain("Alex 08");
   expect(html).toContain("very-long-personal-address-11@example.test");
-  expect(html).toContain('aria-label="Officer directory pages"');
-  expect(html).toContain("Page 2 of 2");
+  expect(html).toContain('aria-label="Officer pages"');
+  expect(html).toContain('option value="2" selected=""');
+  expect(html).toContain("of 2");
   expect(html).toContain(
     'href="/officers?q=alex&amp;status=all&amp;position=2&amp;branch=3"',
   );
@@ -195,7 +196,7 @@ it("paginates eight fully filtered officers with exact count and return context"
     "personal_email.imatch",
   );
   expect(html).toContain('action="/officers" method="get"');
-  expect(html).not.toContain('name="page"');
+  expect(html).not.toContain('type="hidden" name="page"');
 });
 
 it("redirects an out-of-range directory page to the last filtered page", async () => {
@@ -209,7 +210,7 @@ it("shows a clear zero-result state for a filtered directory", async () => {
   expect(html).toContain("0 officers");
   expect(html).toContain("No officers match these filters.");
   expect(html).toContain('href="/officers"');
-  expect(html).toContain("Page 1 of 1");
+  expect(html).toContain("0 officers");
 });
 
 it.each(["admin", "lead", "officer"] as const)(
@@ -237,7 +238,10 @@ it.each(["admin", "lead", "officer"] as const)(
 
     queries = [];
     const review = await render({ view: "warnings", reviewPage: "2" });
-    expect(review).toContain("Page 2 of 2 · 7 pending");
+    expect(review).toContain('aria-label="Warning decision pages"');
+    expect(review).toContain('option value="2" selected=""');
+    expect(review).toContain("of 2");
+    expect(review).toContain("7 pending");
     expect(review).toContain("Complete reason 6");
     expect(review).toContain("Complete reason 7");
     expect(review).not.toContain("Complete reason 5");

@@ -15,6 +15,7 @@ import {
   StatusBadge,
   TableFrame,
 } from "@/components/ui";
+import { ListPagination } from "@/components/list-pagination";
 import { formatDateTime, formatLabel } from "@/lib/presentation";
 import { searchOrFilter } from "@/lib/list-search";
 import { listPageUrl } from "@/lib/list-url";
@@ -122,6 +123,9 @@ export default async function OfficersPage({
     (page !== requestedPage || reviewPage !== requestedReviewPage)
   )
     redirect(reviewHref(reviewPage));
+  const warningFilterSearch = new URLSearchParams(filterSearch);
+  warningFilterSearch.set("view", "warnings");
+  if (page > 1) warningFilterSearch.set("page", String(page));
   const pendingWarnings =
     view === "warnings" && warningCount > 0
       ? await supabase
@@ -219,20 +223,16 @@ export default async function OfficersPage({
               </article>
             ))
           )}
-          <nav
-            aria-label="Warning decision pages"
-            className="flex flex-wrap items-center gap-4 text-sm"
-          >
-            {reviewPage > 1 && (
-              <Link href={reviewHref(reviewPage - 1)}>Previous</Link>
-            )}
-            <span>
-              Page {reviewPage} of {reviewTotalPages} · {warningCount} pending
-            </span>
-            {reviewPage < reviewTotalPages && (
-              <Link href={reviewHref(reviewPage + 1)}>Next</Link>
-            )}
-          </nav>
+          <ListPagination
+            pathname="/officers"
+            label="Warning decision"
+            filters={warningFilterSearch}
+            page={reviewPage}
+            totalPages={reviewTotalPages}
+            totalCount={warningCount}
+            countLabel="pending"
+            pageParam="reviewPage"
+          />
         </section>
       ) : (
         <>
@@ -380,24 +380,15 @@ export default async function OfficersPage({
               </table>
             </TableFrame>
           )}
-          <nav
-            aria-label="Officer directory pages"
-            className="flex flex-wrap items-center gap-4 text-sm"
-          >
-            {page > 1 && (
-              <Link href={listPageUrl("/officers", filterSearch, page - 1)}>
-                Previous
-              </Link>
-            )}
-            <span>
-              Page {page} of {totalPages}
-            </span>
-            {page < totalPages && (
-              <Link href={listPageUrl("/officers", filterSearch, page + 1)}>
-                Next
-              </Link>
-            )}
-          </nav>
+          <ListPagination
+            pathname="/officers"
+            label="Officer"
+            filters={filterSearch}
+            page={page}
+            totalPages={totalPages}
+            totalCount={officerCount}
+            countLabel="officers"
+          />
         </>
       )}
     </div>

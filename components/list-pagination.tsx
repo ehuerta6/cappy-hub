@@ -1,19 +1,17 @@
 import Link from "next/link";
+import { ListPageSelector } from "@/components/list-page-selector";
 import { listPageUrl } from "@/lib/list-url";
 import type { ListRoute } from "@/lib/return-context";
 
-const PAGE_SELECT_LIMIT = 100;
-
-type PaginatedListRoute = Extract<ListRoute, "/events" | "/tasks">;
-
 type ListPaginationProps = {
-  pathname: PaginatedListRoute;
-  label: "Event" | "Task";
+  pathname: ListRoute;
+  label: string;
   filters: URLSearchParams;
   page: number;
   totalPages: number;
-  totalCount: number;
-  countLabel: string;
+  totalCount?: number;
+  countLabel?: string;
+  pageParam?: "page" | "rankPage" | "reviewPage";
 };
 
 export function ListPagination({
@@ -24,93 +22,67 @@ export function ListPagination({
   totalPages,
   totalCount,
   countLabel,
+  pageParam = "page",
 }: ListPaginationProps) {
   const filterParams = new URLSearchParams(
-    [...filters.entries()].filter(([key]) => key !== "page"),
+    [...filters.entries()].filter(([key]) => key !== pageParam),
   );
   const filterEntries = [...filterParams.entries()];
   const linkClassName =
-    "inline-flex min-h-11 items-center justify-center rounded-md border border-border-strong bg-surface-muted px-3 py-2 text-foreground hover:bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted";
-  const renderLink = (title: string, targetPage: number) =>
-    targetPage < 1 || targetPage > totalPages ? (
+    "inline-flex size-8 items-center justify-center rounded border border-border bg-surface text-muted transition-colors hover:border-border-strong hover:bg-hover hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted";
+  const renderControl = (title: string, symbol: string, targetPage: number) =>
+    targetPage < 1 ||
+    targetPage > totalPages ||
+    (title === "First page" && page === 1) ||
+    (title === "Last page" && page === totalPages) ? (
       <button
         key={title}
         type="button"
-        className="button-secondary min-h-11 px-3 py-2"
+        className={`${linkClassName} cursor-not-allowed opacity-40`}
         disabled
+        aria-label={title}
+        title={title}
       >
-        {title}
+        {symbol}
       </button>
     ) : (
       <Link
         key={title}
-        href={listPageUrl(pathname, filterParams, targetPage)}
+        href={listPageUrl(pathname, filterParams, targetPage, pageParam)}
         className={linkClassName}
+        aria-label={title}
+        title={title}
       >
-        {title}
+        {symbol}
       </Link>
     );
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-      <span className="text-muted">
-        {totalCount} {countLabel}
-      </span>
+    <div className="flex min-w-0 flex-nowrap items-center justify-between gap-3 text-sm">
+      {totalCount !== undefined && countLabel ? (
+        <span className="shrink-0 text-xs tabular-nums text-muted">
+          {totalCount} {countLabel}
+        </span>
+      ) : (
+        <span />
+      )}
       {totalPages > 1 && (
         <nav
           aria-label={`${label} pages`}
-          className="flex flex-wrap items-center gap-2"
+          className="flex shrink-0 items-center gap-1 whitespace-nowrap"
         >
-          {renderLink("First", 1)}
-          {renderLink("Previous", page - 1)}
-          <form
-            action={pathname}
-            method="get"
-            className="flex flex-wrap items-center gap-2"
-          >
-            {filterEntries.map(([key, value]) => (
-              <input key={key} type="hidden" name={key} value={value} />
-            ))}
-            <label className="flex items-center gap-2 text-foreground">
-              <span>Page</span>
-              {totalPages <= PAGE_SELECT_LIMIT ? (
-                <select
-                  name="page"
-                  aria-label={`Select ${label.toLowerCase()} page`}
-                  defaultValue={String(page)}
-                >
-                  {Array.from(
-                    { length: totalPages },
-                    (_, index) => index + 1,
-                  ).map((pageNumber) => (
-                    <option key={pageNumber} value={pageNumber}>
-                      {pageNumber}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type="number"
-                  name="page"
-                  aria-label={`Select ${label.toLowerCase()} page`}
-                  defaultValue={page}
-                  min={1}
-                  max={totalPages}
-                  required
-                  className="w-20"
-                />
-              )}
-              <span>of {totalPages}</span>
-            </label>
-            <button
-              type="submit"
-              className="button-secondary min-h-11 px-3 py-2"
-            >
-              Go
-            </button>
-          </form>
-          {renderLink("Next", page + 1)}
-          {renderLink("Last", totalPages)}
+          {renderControl("First page", "«", 1)}
+          {renderControl("Previous page", "‹", page - 1)}
+          <ListPageSelector
+            pathname={pathname}
+            label={label}
+            filters={filterEntries}
+            page={page}
+            totalPages={totalPages}
+            pageParam={pageParam}
+          />
+          {renderControl("Next page", "›", page + 1)}
+          {renderControl("Last page", "»", totalPages)}
         </nav>
       )}
     </div>

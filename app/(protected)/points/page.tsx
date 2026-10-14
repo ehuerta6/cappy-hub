@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Route } from "next";
 import TransactionForm from "./transaction-form";
 import HistoryTable from "./history-table";
+import { ListPagination } from "@/components/list-pagination";
 import PointHistoryFilterControls from "./history-filters";
 import RateForm from "./rate-form";
 import { listPageUrl } from "@/lib/list-url";
@@ -249,23 +250,18 @@ export default async function PointsPage({
           </tbody>
         </table>
       </div>
-      <nav
-        aria-label="Officer ranking pages"
-        className="flex flex-wrap items-center gap-4 pt-3 text-sm"
-      >
-        {overviewData!.rankPage > 1 && (
-          <Link href={rankingPageUrl(overviewData!.rankPage - 1)}>
-            Previous
-          </Link>
-        )}
-        <span>
-          Page {overviewData!.rankPage} of {overviewData!.rankingTotalPages} ·
-          Officer ranking
-        </span>
-        {overviewData!.rankPage < overviewData!.rankingTotalPages && (
-          <Link href={rankingPageUrl(overviewData!.rankPage + 1)}>Next</Link>
-        )}
-      </nav>
+      <div className="pt-3">
+        <ListPagination
+          pathname="/points"
+          label="Officer ranking"
+          filters={new URLSearchParams()}
+          page={overviewData!.rankPage}
+          totalPages={overviewData!.rankingTotalPages}
+          totalCount={overviewData!.totals.count ?? 0}
+          countLabel="officers"
+          pageParam="rankPage"
+        />
+      </div>
     </section>
   ) : null;
 
@@ -365,37 +361,15 @@ export default async function PointsPage({
               emptyMessage={historyData!.emptyMessage}
             />
           </TableFrame>
-          <nav
-            aria-label="Point history pages"
-            className="flex flex-wrap items-center gap-4 text-sm"
-          >
-            {historyData!.page > 1 && (
-              <Link
-                href={listPageUrl(
-                  "/points",
-                  currentFilterSearch,
-                  historyData!.page - 1,
-                )}
-              >
-                Previous
-              </Link>
-            )}
-            <span>
-              Page {historyData!.page} of {historyData!.totalPages} ·{" "}
-              {historyData!.historyCount.count ?? 0} transactions
-            </span>
-            {historyData!.page < historyData!.totalPages && (
-              <Link
-                href={listPageUrl(
-                  "/points",
-                  currentFilterSearch,
-                  historyData!.page + 1,
-                )}
-              >
-                Next
-              </Link>
-            )}
-          </nav>
+          <ListPagination
+            pathname="/points"
+            label="Point history"
+            filters={currentFilterSearch}
+            page={historyData!.page}
+            totalPages={historyData!.totalPages}
+            totalCount={historyData!.historyCount.count ?? 0}
+            countLabel="transactions"
+          />
         </section>
       )}
     </div>

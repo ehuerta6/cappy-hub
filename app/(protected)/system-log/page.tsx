@@ -1,5 +1,6 @@
 import { canViewSystemLog, getAuthorizationContext } from "@/lib/authorization";
 import { PageHeader, ListFilterBar, TableFrame } from "@/components/ui";
+import { ListPagination } from "@/components/list-pagination";
 import { SearchableSelect } from "@/components/searchable-select";
 import { createClient } from "@/lib/supabase/server";
 import { searchOrFilter, literalSearchPattern } from "@/lib/list-search";
@@ -426,26 +427,15 @@ export default async function SystemLogPage({
           </table>
         </TableFrame>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
-        <span>
-          Page {page} · {filteredCount.count ?? 0} entries
-        </span>
-        <nav
-          aria-label="System Log pages"
-          className="flex flex-wrap items-center gap-4"
-        >
-          {page > 1 && (
-            <Link href={listPageUrl("/system-log", filterSearch, page - 1)}>
-              Previous
-            </Link>
-          )}
-          {page < totalPages && (
-            <Link href={listPageUrl("/system-log", filterSearch, page + 1)}>
-              Next
-            </Link>
-          )}
-        </nav>
-      </div>
+      <ListPagination
+        pathname="/system-log"
+        label="System Log"
+        filters={filterSearch}
+        page={page}
+        totalPages={totalPages}
+        totalCount={filteredCount.count ?? 0}
+        countLabel="entries"
+      />
     </div>
   );
 }
