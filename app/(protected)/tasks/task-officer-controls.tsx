@@ -1,7 +1,17 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { ActionFeedback, FieldError, FormMessage } from "@/components/ui";
+import {
+  ActionFeedback,
+  dialogContentClassName,
+  dialogDescriptionClassName,
+  dialogFooterClassName,
+  dialogHeaderClassName,
+  dialogSurfaceClassName,
+  dialogTitleClassName,
+  FieldError,
+  FormMessage,
+} from "@/components/ui";
 import { initialFormActionState, submittedValues } from "@/lib/form-feedback";
 import {
   bulkAssignTaskOfficers,
@@ -84,17 +94,17 @@ export function BulkTaskOfficersForm({
         onCancel={(event) => {
           if (pending) event.preventDefault();
         }}
-        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-lg border border-border bg-surface p-5 text-foreground backdrop:bg-black/60 sm:p-6"
+        className={dialogSurfaceClassName}
       >
-        <form action={action} className="space-y-4">
+        <form action={action} className={dialogContentClassName}>
           <input type="hidden" name="task_id" value={taskId} />
-          <header className="space-y-1.5">
-            <h2 id="task-officers-title" className="text-lg font-semibold">
+          <header className={dialogHeaderClassName}>
+            <h2 id="task-officers-title" className={dialogTitleClassName}>
               Add officers to this task
             </h2>
             <p
               id="task-officers-description"
-              className="text-sm text-secondary"
+              className={dialogDescriptionClassName}
             >
               Choose one or more active officers. Each officer keeps an
               individual completion state.
@@ -131,7 +141,7 @@ export function BulkTaskOfficersForm({
             </FieldError>
           </fieldset>
           {state.error && <ActionFeedback state={state} />}
-          <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
+          <div className={dialogFooterClassName}>
             <button
               type="button"
               className="button-secondary min-h-11"

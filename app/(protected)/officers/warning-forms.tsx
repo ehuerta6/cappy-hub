@@ -8,7 +8,17 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
-import { ActionFeedback, FieldError, FormMessage } from "@/components/ui";
+import {
+  ActionFeedback,
+  dialogContentClassName,
+  dialogDescriptionClassName,
+  dialogFooterClassName,
+  dialogHeaderClassName,
+  dialogSurfaceClassName,
+  dialogTitleClassName,
+  FieldError,
+  FormMessage,
+} from "@/components/ui";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { createWarning, decideWarning, voidWarning } from "./warning-actions";
@@ -74,19 +84,16 @@ export function CreateWarningForm({ officerId }: { officerId: number }) {
           )
             event.preventDefault();
         }}
-        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-lg border border-border bg-surface p-5 text-foreground backdrop:bg-black/60 sm:p-6"
+        className={dialogSurfaceClassName}
       >
-        <div className="space-y-5">
-          <header className="space-y-1.5">
-            <h2
-              id="create-warning-title"
-              className="text-lg font-semibold tracking-tight"
-            >
+        <div className={dialogContentClassName}>
+          <header className={dialogHeaderClassName}>
+            <h2 id="create-warning-title" className={dialogTitleClassName}>
               Create warning
             </h2>
             <p
               id="create-warning-description"
-              className="text-sm leading-5 text-secondary"
+              className={dialogDescriptionClassName}
             >
               The reason is permanent. A new warning starts pending and requires
               approval from the current President and Vice Presidents.
@@ -143,7 +150,7 @@ function CreateWarningFields({
         <FieldError id="warning-reason-error">{fieldErrors.reason}</FieldError>
       </label>
       {state.error && <ActionFeedback state={state} />}
-      <div className="flex justify-end gap-2 border-t border-border pt-4">
+      <div className={dialogFooterClassName}>
         <button
           type="button"
           className="button-secondary"

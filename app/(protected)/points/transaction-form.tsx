@@ -10,7 +10,17 @@ import {
 import { useRouter } from "next/navigation";
 import type { Tables } from "@/lib/database.types";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
-import { ActionFeedback, FieldError, FormMessage } from "@/components/ui";
+import {
+  ActionFeedback,
+  dialogContentClassName,
+  dialogDescriptionClassName,
+  dialogFooterClassName,
+  dialogHeaderClassName,
+  dialogSurfaceClassName,
+  dialogTitleClassName,
+  FieldError,
+  FormMessage,
+} from "@/components/ui";
 import { SearchableSelect } from "@/components/searchable-select";
 import { addTransaction } from "./actions";
 import { EventSearchSelect } from "./event-search-select";
@@ -82,19 +92,16 @@ export default function TransactionForm({
           )
             event.preventDefault();
         }}
-        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-lg border border-border bg-surface p-5 text-foreground backdrop:bg-black/60 sm:p-6"
+        className={dialogSurfaceClassName}
       >
-        <div className="space-y-5">
-          <header className="space-y-1.5">
-            <h2
-              id="add-transaction-title"
-              className="text-lg font-semibold tracking-tight"
-            >
+        <div className={dialogContentClassName}>
+          <header className={dialogHeaderClassName}>
+            <h2 id="add-transaction-title" className={dialogTitleClassName}>
               Add transaction
             </h2>
             <p
               id="add-transaction-description"
-              className="text-sm leading-5 text-secondary"
+              className={dialogDescriptionClassName}
             >
               Record a manual award or correct an existing Point total.
             </p>
@@ -220,7 +227,7 @@ function TransactionFields({
           <ActionFeedback state={state} />
         </div>
       )}
-      <div className="flex justify-end gap-2 border-t border-border pt-4 sm:col-span-2">
+      <div className={`${dialogFooterClassName} sm:col-span-2`}>
         <button
           type="button"
           className="button-secondary"

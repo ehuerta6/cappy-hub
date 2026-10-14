@@ -24,7 +24,15 @@ import {
   confirmationContextValue,
   focusTriggerWhenReady,
 } from "@/components/confirmation-dialog";
-import { ActionFeedback } from "@/components/ui";
+import {
+  ActionFeedback,
+  dialogContentClassName,
+  dialogDescriptionClassName,
+  dialogFooterClassName,
+  dialogHeaderClassName,
+  dialogSurfaceClassName,
+  dialogTitleClassName,
+} from "@/components/ui";
 import { recurrenceScopeLabels } from "@/components/recurrence-scope";
 import {
   CancelForm,
@@ -70,6 +78,32 @@ it("labels the native dialog and gives only Confirm submit behavior", () => {
   expect(html.match(/type="submit"/g)).toHaveLength(1);
   expect(html).toContain("Cancel");
   expect(html).toContain("Remove Task");
+});
+
+it("uses one presentation recipe across existing native dialogs", () => {
+  const html = renderToStaticMarkup(
+    createElement(ConfirmationDialog, {
+      title: "Remove?",
+      description: "This action is permanent.",
+      triggerLabel: "Remove",
+      confirmLabel: "Remove",
+      destructive: true,
+    }),
+  );
+
+  expect(html).toContain(`class="${dialogSurfaceClassName}"`);
+  expect(html).toContain(`class="${dialogContentClassName}"`);
+  expect(html).toContain(`class="${dialogHeaderClassName}"`);
+  expect(html).toContain(`class="${dialogTitleClassName}"`);
+  expect(html).toContain(`class="${dialogDescriptionClassName}"`);
+  expect(html).toContain(`class="${dialogFooterClassName}"`);
+  expect(dialogSurfaceClassName).toContain("overflow-y-auto");
+  expect(dialogContentClassName).toBe("space-y-4");
+  expect(dialogHeaderClassName).toBe("space-y-1.5");
+  expect(dialogTitleClassName).toContain("text-lg font-semibold");
+  expect(dialogDescriptionClassName).toBe("text-sm leading-5 text-secondary");
+  expect(dialogFooterClassName).toContain("border-t border-border");
+  expect(html).toContain("bg-danger-bg");
 });
 
 it("restores focus only to a connected enabled trigger when submission is idle", () => {

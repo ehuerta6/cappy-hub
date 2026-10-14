@@ -598,6 +598,7 @@ Every generated redesign must preserve the existing screen's access rules, actua
 
 ## 24. Design decisions and changelog
 
+- **2026-10-14 — Existing dialog cohesion.** Shared the title, description, width, surface, spacing, backdrop, and footer presentation across Add transaction, Create warning, Bulk Task Officers, and confirmation dialogs. Native dialog behavior, form contracts, authorization, and per-dialog dismissal/focus rules remain unchanged.
 - **2026-10-13 — Tasks list pagination and searchable Assignee.** Added stable eight-Task URL pages with filtered counts, retained task grouping and row actions, and replaced the Assignee selector with the shared searchable control. No Task behavior or authorization changed.
 
 - **2026-10-03 — Initial source-of-truth document.** Recorded the current application surfaces and workflows from the repository; established calm, clean, subtly capybara-inspired visual direction. No application behavior or code is changed by this document.

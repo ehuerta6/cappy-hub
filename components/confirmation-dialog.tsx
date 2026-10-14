@@ -8,6 +8,14 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react";
+import {
+  dialogContentClassName,
+  dialogDescriptionClassName,
+  dialogFooterClassName,
+  dialogHeaderClassName,
+  dialogSurfaceClassName,
+  dialogTitleClassName,
+} from "@/components/ui";
 
 export type ConfirmationContext = {
   label: string;
@@ -145,17 +153,14 @@ export function ConfirmationDialog({
           context ? `${descriptionId} ${contextId}` : descriptionId
         }
         onClose={handleClose}
-        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-lg border border-border bg-surface p-5 text-foreground backdrop:bg-black/60 sm:p-6"
+        className={dialogSurfaceClassName}
       >
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <h2
-              id={titleId}
-              className="text-base font-semibold tracking-tight text-foreground"
-            >
+        <div className={dialogContentClassName}>
+          <div className={dialogHeaderClassName}>
+            <h2 id={titleId} className={dialogTitleClassName}>
               {title}
             </h2>
-            <p id={descriptionId} className="text-sm leading-5 text-secondary">
+            <p id={descriptionId} className={dialogDescriptionClassName}>
               {description}
             </p>
           </div>
@@ -173,7 +178,7 @@ export function ConfirmationDialog({
             </dl>
           )}
           {children}
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className={dialogFooterClassName}>
             <button
               ref={cancelRef}
               type="button"

@@ -8,6 +8,15 @@ import { successNotice } from "@/lib/mutation-feedback";
 
 export const fieldLabelClassName = "block text-sm font-medium text-secondary";
 export const fieldDescriptionClassName = "text-sm text-muted";
+export const dialogSurfaceClassName =
+  "m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-lg border border-border bg-surface p-5 text-foreground backdrop:bg-black/60 sm:p-6";
+export const dialogContentClassName = "space-y-4";
+export const dialogHeaderClassName = "space-y-1.5";
+export const dialogTitleClassName =
+  "text-lg font-semibold tracking-tight text-foreground";
+export const dialogDescriptionClassName = "text-sm leading-5 text-secondary";
+export const dialogFooterClassName =
+  "flex flex-wrap justify-end gap-2 border-t border-border pt-4";
 export const popupSurfaceClassName =
   "overflow-hidden rounded-md border border-border-strong bg-surface text-foreground shadow-lg";
 export const popupListClassName = "max-h-72 overflow-y-auto";
