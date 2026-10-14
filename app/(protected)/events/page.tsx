@@ -27,10 +27,7 @@ import {
   SelfSignupForm,
   SignupForm,
 } from "./event-controls";
-import {
-  eventSignupCountLabel,
-  type EventListItem,
-} from "@/lib/event-list";
+import { eventSignupCountLabel, type EventListItem } from "@/lib/event-list";
 
 const EVENT_PAGE_SIZE = 8;
 type EventListSearchParams = Record<string, string | string[] | undefined>;
