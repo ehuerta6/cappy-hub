@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
+import { recoveryActionClassName } from "@/components/recovery-surface";
 
 const LOCAL_PASSWORD = "CappyLocal123!";
 const LOCAL_ACCOUNTS = [
@@ -51,7 +52,7 @@ export default function GoogleSignIn() {
     });
 
     if (error) {
-      setError(`Local sign-in failed: ${error.message}`);
+      setError("Local sign-in could not be completed. Please try again.");
       setBusy("");
       return;
     }
@@ -65,14 +66,14 @@ export default function GoogleSignIn() {
       {isLocal ? (
         <div className="space-y-3">
           <p className="text-sm text-muted">Local development accounts</p>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {LOCAL_ACCOUNTS.map((account) => (
               <button
                 key={account.email}
                 type="button"
                 disabled={Boolean(busy)}
                 onClick={() => signInLocally(account.email)}
-                className="rounded border border-border-strong px-3 py-2 text-sm disabled:opacity-50"
+                className="inline-flex min-h-11 items-center justify-center break-words rounded-md border border-border-strong bg-surface-muted px-3 py-2 text-center text-sm font-medium text-foreground hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {busy === account.email ? "Signing in..." : account.label}
               </button>
@@ -84,14 +85,14 @@ export default function GoogleSignIn() {
           type="button"
           disabled={Boolean(busy)}
           onClick={signInWithGoogle}
-          className="rounded border border-border-strong px-4 py-2 text-sm disabled:opacity-50"
+          className={`${recoveryActionClassName} disabled:cursor-not-allowed disabled:opacity-50`}
         >
           {busy === "google" ? "Signing in..." : "Continue with Google"}
         </button>
       )}
 
       {error && (
-        <p role="alert" className="mt-3 text-sm text-danger">
+        <p role="alert" className="mt-3 break-words text-sm text-danger">
           {error}
         </p>
       )}

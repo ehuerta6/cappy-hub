@@ -1,11 +1,18 @@
 import Link from "next/link";
+import {
+  RecoverySurface,
+  recoveryActionClassName,
+} from "@/components/recovery-surface";
 
 export default function NotFound() {
   return (
-    <main className="w-full flex-1">
-      <h1>Record not found</h1>
-      <p>The requested record or page could not be found.</p>
-      <Link href="/">Back to dashboard</Link>
-    </main>
+    <RecoverySurface
+      title="Record not found"
+      description="The requested record or page could not be found."
+    >
+      <Link href="/" className={`${recoveryActionClassName} mt-6`}>
+        Back to dashboard
+      </Link>
+    </RecoverySurface>
   );
 }
