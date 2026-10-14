@@ -15,6 +15,7 @@ import {
   BranchBadges,
   ListFilterBar,
   PageHeader,
+  SectionHeading,
   StatusBadge,
   TableFrame,
 } from "@/components/ui";
@@ -28,7 +29,6 @@ import {
 } from "./event-controls";
 import {
   eventSignupCountLabel,
-  groupEventPage,
   type EventListItem,
 } from "@/lib/event-list";
 
@@ -57,7 +57,7 @@ export default async function EventsPage({
   } = filters;
   const now = new Date();
   const nowIso = now.toISOString();
-  const { today } = currentDenverWeek(now);
+  const { today, sunday } = currentDenverWeek(now);
   const supabase = await createClient();
   const filtersInUrl = new URLSearchParams();
   if (search) filtersInUrl.set("q", search);
@@ -169,7 +169,35 @@ export default async function EventsPage({
     ),
     waitlist_count: Number(counts.get(event.id)?.waitlist_count ?? 0),
   }));
-  const groups = groupEventPage(events, status, actor.id, now);
+  // Presentation-only grouping: pagination remains schedule-ordered on the server.
+  // Splitting by time period does not reorder the eight records on a page.
+  const sections =
+    status === undefined
+      ? [
+          {
+            title: "This week's events",
+            events: events.filter((event) => event.event_date <= sunday),
+          },
+          {
+            title: "Upcoming events",
+            events: events.filter((event) => event.event_date > sunday),
+          },
+        ]
+      : [
+          {
+            title:
+              status === "past"
+                ? "Past events"
+                : status === "cancelled"
+                  ? "Cancelled events"
+                  : status === "archived"
+                    ? "Archived events"
+                    : status === "happening"
+                      ? "Happening events"
+                      : "Upcoming events",
+            events,
+          },
+        ];
   const returnTo = listReturnUrl("/events", {
     q: search,
     status,
@@ -265,93 +293,115 @@ export default async function EventsPage({
       {events.length === 0 ? (
         <p>{emptyMessage}</p>
       ) : (
-        <TableFrame compact label="Events results">
-          <table className="events-list-table">
-            <thead>
-              <tr>
-                <th scope="col">Event</th>
-                <th scope="col">Schedule (El Paso)</th>
-                <th scope="col">Type</th>
-                <th scope="col">Branches</th>
-                <th scope="col">Officers</th>
-                <th scope="col">Status</th>
-                <th scope="col">Action</th>
-              </tr>
-            </thead>
-            {groups.map((group, index) => (
-              <tbody key={`${index}-${group.label}`}>
-                <tr className="bg-surface-muted/50">
-                  <th scope="rowgroup" colSpan={7} className="text-foreground">
-                    {group.label}
-                  </th>
-                </tr>
-                {group.events.map((event) => {
-                  const signedUp = event.event_officers.some(
-                    ({ officer_id }) => officer_id === actor.id,
-                  );
-                  const waitlisted = (event.event_waitlist ?? []).some(
-                    ({ officer_id }) => officer_id === actor.id,
-                  );
-                  const canAct =
-                    signupActionsOpen && eventSignupOpen(event, now.getTime());
-                  return (
-                    <tr key={event.id}>
-                      <td className="min-w-0">
-                        <Link
-                          href={withReturnTo(`/events/${event.id}`, returnTo)}
-                          className="block break-words"
-                        >
-                          {event.name}
-                        </Link>
-                      </td>
-                      <td>
-                        {formatEventSchedule(event.starts_at, event.ends_at)}
-                      </td>
-                      <td>{event.event_types.name}</td>
-                      <td>
-                        <BranchBadges
-                          branches={event.event_branches.map(
-                            (eventBranch) => eventBranch.branches.name,
-                          )}
-                        />
-                      </td>
-                      <td className="tabular-nums">
-                        {eventSignupCountLabel(event)}
-                      </td>
-                      <td>
-                        <StatusBadge
-                          status={eventStatus(event, now.getTime())}
-                        />
-                      </td>
-                      <td className="min-w-0">
-                        {canAct &&
-                          (waitlisted ? (
-                            <LeaveWaitlistForm eventId={event.id} />
-                          ) : signedUp ? (
-                            <SignupForm
-                              eventId={event.id}
-                              officerId={actor.id}
-                              remove
-                            />
-                          ) : (
-                            <SelfSignupForm
-                              eventId={event.id}
-                              eventName={event.name}
-                              full={
-                                event.max_volunteers != null &&
-                                (event.confirmed_count ?? 0) >=
-                                  event.max_volunteers
-                              }
-                            />
-                          ))}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
+        <div className="space-y-5">
+          {sections
+            .filter((section) => section.events.length > 0)
+            .map((section) => (
+              <section
+                key={section.title}
+                aria-label={section.title}
+                className="space-y-3"
+              >
+                <SectionHeading title={section.title} />
+                <TableFrame
+                  compact
+                  label={`Events table: ${section.title}`}
+                >
+                  <table>
+                    <thead>
+                      <tr>
+                        <th scope="col">Event</th>
+                        <th scope="col">Schedule (El Paso)</th>
+                        <th scope="col">Type</th>
+                        <th scope="col">Branches</th>
+                        <th scope="col">Officers</th>
+                        <th scope="col">Status</th>
+                        {signupActionsOpen && <th scope="col">Action</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {section.events.map((event) => {
+                        const signedUp = event.event_officers.some(
+                          ({ officer_id }) => officer_id === actor.id,
+                        );
+                        const waitlisted = (event.event_waitlist ?? []).some(
+                          ({ officer_id }) => officer_id === actor.id,
+                        );
+                        const yourEvent = signedUp || waitlisted;
+                        const canAct =
+                          signupActionsOpen &&
+                          eventSignupOpen(event, now.getTime());
+                        return (
+                          <tr key={event.id}>
+                            <td className="min-w-0">
+                              <Link
+                                href={withReturnTo(`/events/${event.id}`, returnTo)}
+                                className="break-words"
+                              >
+                                {event.name}
+                              </Link>
+                              <span
+                                className={
+                                  yourEvent
+                                    ? "ml-2 text-xs text-muted"
+                                    : "sr-only"
+                                }
+                              >
+                                {yourEvent ? "Your event" : "Other event"}
+                              </span>
+                            </td>
+                            <td className="whitespace-nowrap">
+                              {formatEventSchedule(event.starts_at, event.ends_at)}
+                            </td>
+                            <td>{event.event_types.name}</td>
+                            <td>
+                              <BranchBadges
+                                branches={event.event_branches.map(
+                                  (eventBranch) => eventBranch.branches.name,
+                                )}
+                              />
+                            </td>
+                            <td className="tabular-nums">
+                              {eventSignupCountLabel(event)}
+                            </td>
+                            <td className="whitespace-nowrap">
+                              <StatusBadge
+                                status={eventStatus(event, now.getTime())}
+                              />
+                            </td>
+                            {signupActionsOpen && (
+                              <td className="min-w-0">
+                                {canAct &&
+                                  (waitlisted ? (
+                                    <LeaveWaitlistForm eventId={event.id} />
+                                  ) : signedUp ? (
+                                    <SignupForm
+                                      eventId={event.id}
+                                      officerId={actor.id}
+                                      remove
+                                    />
+                                  ) : (
+                                    <SelfSignupForm
+                                      eventId={event.id}
+                                      eventName={event.name}
+                                      full={
+                                        event.max_volunteers != null &&
+                                        (event.confirmed_count ?? 0) >=
+                                          event.max_volunteers
+                                      }
+                                    />
+                                  ))}
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </TableFrame>
+              </section>
             ))}
-          </table>
-        </TableFrame>
+        </div>
       )}
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
         <span>
