@@ -7,10 +7,11 @@ import {
 
 it("preserves all filters in pagination URLs and removes page at reset", () => {
   const filters = new URLSearchParams(
-    "q=Emi&type=participation&officer=-1013&event=-2001&status=all&from=2026-09-01&to=2026-10-01&page=3",
+    "view=history&q=Emi&type=participation&officer=-1013&event=-2001&status=all&from=2026-09-01&to=2026-10-01&page=3",
   );
   const next = new URL(listPageUrl("/points", filters, 4), "http://localhost");
   expect(next.searchParams.get("page")).toBe("4");
+  expect(next.searchParams.get("view")).toBe("history");
   for (const [key, value] of filters) {
     if (key !== "page") expect(next.searchParams.get(key)).toBe(value);
   }

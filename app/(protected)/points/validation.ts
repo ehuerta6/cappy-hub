@@ -86,6 +86,46 @@ export const pointHistoryFiltersSchema = zod
 
 export type PointHistoryFilters = zod.infer<typeof pointHistoryFiltersSchema>;
 
+const pointRankingPageSchema = pointHistorySearchParamValueSchema
+  .transform((value) => value.trim())
+  .transform((value) => {
+    const validation = safeIntegerStringSchema(
+      "Invalid ranking page",
+    ).safeParse(value);
+    return validation.success && validation.data > 0
+      ? Math.min(validation.data, 100000)
+      : 1;
+  });
+
+export function parsePointRankingPage(value: string | string[] | undefined) {
+  const result = pointRankingPageSchema.safeParse(value);
+  return result.success ? result.data : 1;
+}
+
+const historyParameterNames = [
+  "q",
+  "type",
+  "officer",
+  "event",
+  "status",
+  "from",
+  "to",
+  "page",
+] as const;
+
+export function resolvePointsView(
+  params: Record<string, string | string[] | undefined>,
+): "overview" | "history" {
+  if (params.view === "history") return "history";
+  if (params.view === "overview") return "overview";
+  return historyParameterNames.some((name) => {
+    const value = params[name];
+    return Array.isArray(value) ? value.some(Boolean) : Boolean(value);
+  })
+    ? "history"
+    : "overview";
+}
+
 export function resolvePointHistoryStatus(
   requestedStatus: PointHistoryFilters["status"],
   isAdmin: boolean,

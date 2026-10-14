@@ -1290,11 +1290,17 @@ it("keeps all Points capabilities with one GET form and preserves pagination fil
   expect(html).toContain("Event #-2001 (name unavailable)");
   expect(html).not.toContain('name="page"');
   expect(html).toContain(
-    'data-return-to="/points?q=Avery&amp;type=manual&amp;officer=-1013&amp;event=-2001&amp;status=removed&amp;from=2026-09-01&amp;to=2026-10-01&amp;page=2"',
+    'data-return-to="/points?view=history&amp;q=Avery&amp;type=manual&amp;officer=-1013&amp;event=-2001&amp;status=removed&amp;from=2026-09-01&amp;to=2026-10-01&amp;page=2"',
   );
   expect(html).toContain("page=3");
   expect(html).toContain("officer=-1013");
   expect(html).toContain("status=removed");
+  expect(
+    forTable("point_history").find((query) =>
+      query.calls.some(([method]) => method === "range"),
+    )?.calls,
+  ).toContainEqual(["range", 8, 15]);
+  expect(html).toContain("Page 2 of 8 · 60 transactions");
 });
 
 it("forces active Points for non-admins with forged removed/all status", async () => {
@@ -1364,14 +1370,20 @@ it.each([PointsPage, SystemLogPage])(
 it.each([OfficersPage, EventsPage, TasksPage, PointsPage, SystemLogPage])(
   "distinguishes empty datasets and filtered misses with URL-backed forms",
   async (Page) => {
-    const matching = await render(Page, { q: "missing" });
+    const matching = await render(Page, {
+      q: "missing",
+      ...(Page === PointsPage ? { view: "history" } : {}),
+    });
     expect(matching).toMatch(/match these filters/);
     expect(matching).toContain("Clear filters");
     expect(matching).toContain('method="get"');
     expect(matching).not.toContain('name="page"');
     queries = [];
     visibleCount = 0;
-    const empty = await render(Page);
+    const empty = await render(
+      Page,
+      Page === PointsPage ? { view: "history" } : {},
+    );
     if (Page === EventsPage) expect(empty).toContain("No current events.");
     else if (Page === TasksPage) expect(empty).toContain("No current tasks.");
     else expect(empty).toMatch(/No .*yet/);
@@ -1543,7 +1555,9 @@ it.each([PointsPage, SystemLogPage])(
   "clamps out-of-range pagination while preserving URL filters",
   async (Page) => {
     await expect(render(Page, { q: "search", page: "999" })).rejects.toThrow(
-      /redirect:.*q=search/,
+      Page === PointsPage
+        ? /redirect:.*view=history.*q=search/
+        : /redirect:.*q=search/,
     );
   },
 );

@@ -77,6 +77,7 @@ it("restores filter IDs and serializes the existing GET fields exactly once", as
   const data = new FormData(form);
 
   expect([...data.entries()]).toEqual([
+    ["view", "history"],
     ["q", "arrays"],
     ["type", "manual"],
     ["officer", "8"],
@@ -92,6 +93,11 @@ it("restores filter IDs and serializes the existing GET fields exactly once", as
   expect(
     host.querySelector('a[aria-label="Clear current point history filters"]'),
   ).not.toBeNull();
+  expect(
+    host
+      .querySelector('a[aria-label="Clear current point history filters"]')
+      ?.getAttribute("href"),
+  ).toBe("/points?view=history");
 });
 
 it("preserves a selected historical ID with an informative unavailable label", async () => {

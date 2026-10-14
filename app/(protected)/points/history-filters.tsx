@@ -79,8 +79,9 @@ export default function PointHistoryFilterControls({
       action="/points"
       label="Point history filters"
       active={active}
-      clearHref="/points"
+      clearHref="/points?view=history"
     >
+      <input type="hidden" name="view" value="history" />
       <label className="min-w-56 flex-1">
         Search point history
         <input

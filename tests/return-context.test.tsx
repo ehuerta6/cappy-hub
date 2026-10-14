@@ -122,6 +122,18 @@ it("preserves Officers directory and review pages through record navigation", ()
   );
 });
 
+it("preserves the Points History view and its page through record navigation", () => {
+  const destination = listReturnUrl("/points", {
+    view: "history",
+    q: "workshop",
+    officer: "12",
+    page: "3",
+  });
+
+  expect(destination).toBe("/points?view=history&q=workshop&officer=12&page=3");
+  expect(safeReturnTo(destination)).toBe(destination);
+});
+
 it("omits repeated query values just as list schemas do", () => {
   expect(
     listReturnUrl("/tasks", { q: ["a", "b"], status: "", branch: "2" }),

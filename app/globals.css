@@ -159,21 +159,6 @@
     padding-inline: 0.75rem;
   }
 
-  .officer-totals-scroll {
-    max-height: 18rem;
-    overflow: auto;
-    overscroll-behavior: contain;
-    border: 1px solid var(--border);
-    border-radius: 0.5rem;
-  }
-
-  .officer-totals-scroll th {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    background: var(--surface-muted);
-  }
-
   .point-actions {
     display: flex;
     flex-wrap: wrap;

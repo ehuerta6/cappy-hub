@@ -2,6 +2,7 @@ import { getAuthorizationContext, canManagePoints } from "@/lib/authorization";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import type { Route } from "next";
 import TransactionForm from "./transaction-form";
 import HistoryTable from "./history-table";
 import PointHistoryFilterControls from "./history-filters";
@@ -10,6 +11,8 @@ import { listPageUrl } from "@/lib/list-url";
 import { literalSearchPattern } from "@/lib/list-search";
 import {
   pointHistoryFiltersSchema,
+  parsePointRankingPage,
+  resolvePointsView,
   resolvePointHistoryStatus,
 } from "./validation";
 import {
@@ -19,7 +22,8 @@ import {
   TableFrame,
 } from "@/components/ui";
 
-const POINT_HISTORY_PAGE_SIZE = 25;
+const POINT_HISTORY_PAGE_SIZE = 8;
+const OFFICER_RANKING_PAGE_SIZE = 8;
 type PointHistorySearchParams = Record<string, string | string[] | undefined>;
 
 export default async function PointsPage({
@@ -30,6 +34,8 @@ export default async function PointsPage({
   const actor = await getAuthorizationContext();
   const admin = canManagePoints(actor);
   const params = await searchParams;
+  const view = resolvePointsView(params);
+  const requestedRankPage = parsePointRankingPage(params.rankPage);
   const parsedFilters = pointHistoryFiltersSchema.safeParse(params);
   const filters = parsedFilters.success
     ? parsedFilters.data
@@ -78,6 +84,7 @@ export default async function PointsPage({
   };
 
   const currentFilterSearch = new URLSearchParams();
+  currentFilterSearch.set("view", "history");
   if (search) currentFilterSearch.set("q", search);
   if (awardType) currentFilterSearch.set("type", awardType);
   if (officerId !== undefined)
@@ -133,21 +140,38 @@ export default async function PointsPage({
 
   const totals = await supabase
     .from("officer_point_totals")
-    .select("*")
+    .select("*", { count: "exact" })
     .in(
       "id",
       activeOfficers.data.map((officer) => officer.id),
     )
     .order("total_points", { ascending: false })
-    .order("name", { ascending: true });
+    .order("name", { ascending: true })
+    .order("id", { ascending: true })
+    .range(
+      (requestedRankPage - 1) * OFFICER_RANKING_PAGE_SIZE,
+      requestedRankPage * OFFICER_RANKING_PAGE_SIZE - 1,
+    );
   if (totals.error) throw new Error("Failed to load officer point totals");
+
+  const rankingTotalPages = Math.max(
+    1,
+    Math.ceil((totals.count ?? 0) / OFFICER_RANKING_PAGE_SIZE),
+  );
+  const rankPage = Math.min(requestedRankPage, rankingTotalPages);
+  if (view === "overview" && rankPage !== requestedRankPage) {
+    const search = new URLSearchParams();
+    if (rankPage > 1) search.set("rankPage", String(rankPage));
+    const query = search.toString();
+    redirect(query ? `/points?${query}` : "/points");
+  }
 
   const totalPages = Math.max(
     1,
     Math.ceil((historyCount.count ?? 0) / POINT_HISTORY_PAGE_SIZE),
   );
   const page = Math.min(requestedPage, totalPages);
-  if (page !== requestedPage)
+  if (view === "history" && page !== requestedPage)
     redirect(listPageUrl("/points", currentFilterSearch, page));
 
   const transactions = await buildPointHistoryQuery(true)
@@ -171,14 +195,9 @@ export default async function PointsPage({
 
   const officerTotals = (
     <section className="min-w-0">
-      <SectionHeading title="Officer totals" />
-      <div
-        className="officer-totals-scroll"
-        role="region"
-        aria-label="Officer totals. Scroll within this table to view all officers."
-        tabIndex={0}
-      >
-        <table className="min-w-0">
+      <SectionHeading title="Officer ranking" />
+      <div className="rounded-lg border border-border">
+        <table className="w-full min-w-0 table-fixed">
           <thead>
             <tr>
               <th scope="col">Rank</th>
@@ -191,7 +210,9 @@ export default async function PointsPage({
           <tbody>
             {totals.data.map((officer, index) => (
               <tr key={officer.id}>
-                <td className="w-20 tabular-nums text-muted">{index + 1}</td>
+                <td className="w-20 tabular-nums text-muted">
+                  {(rankPage - 1) * OFFICER_RANKING_PAGE_SIZE + index + 1}
+                </td>
                 <td>
                   <Link href={`/officers/${officer.id}`}>{officer.name}</Link>
                 </td>
@@ -203,97 +224,136 @@ export default async function PointsPage({
           </tbody>
         </table>
       </div>
+      <nav
+        aria-label="Officer ranking pages"
+        className="flex flex-wrap items-center gap-4 pt-3 text-sm"
+      >
+        {rankPage > 1 && (
+          <Link href={rankingPageUrl(rankPage - 1)}>Previous</Link>
+        )}
+        <span>
+          Page {rankPage} of {rankingTotalPages} · Officer ranking
+        </span>
+        {rankPage < rankingTotalPages && (
+          <Link href={rankingPageUrl(rankPage + 1)}>Next</Link>
+        )}
+      </nav>
     </section>
   );
+
+  function rankingPageUrl(targetPage: number): Route<"/points"> {
+    const search = new URLSearchParams();
+    if (targetPage > 1) search.set("rankPage", String(targetPage));
+    const query = search.toString();
+    return (query ? `/points?${query}` : "/points") as Route<"/points">;
+  }
 
   return (
     <div data-page-width="wide" className="space-y-6">
       <PageHeader
         title="Points"
         description="Finished events receive participation awards automatically from the scheduled database processor."
-        action={
-          admin ? (
-            <TransactionForm
-              officers={activeOfficers.data}
-              events={recentEvents.data}
+      />
+      <nav
+        aria-label="Points views"
+        className="flex gap-5 border-b border-border"
+      >
+        <Link
+          href={rankingPageUrl(1)}
+          aria-current={view === "overview" ? "page" : undefined}
+          className={`border-b-2 px-1 pb-2 text-sm font-medium ${view === "overview" ? "border-foreground text-foreground" : "border-transparent text-secondary hover:text-foreground"}`}
+        >
+          Overview
+        </Link>
+        <Link
+          href="/points?view=history"
+          aria-current={view === "history" ? "page" : undefined}
+          className={`border-b-2 px-1 pb-2 text-sm font-medium ${view === "history" ? "border-foreground text-foreground" : "border-transparent text-secondary hover:text-foreground"}`}
+        >
+          History
+        </Link>
+      </nav>
+      {view === "overview" ? (
+        <div className="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.42fr)]">
+          {officerTotals}
+          <section className="min-w-0 space-y-3">
+            <SectionHeading
+              title={admin ? "Point configuration" : "Participation rate"}
             />
-          ) : (
-            <p className="text-sm text-secondary">
-              Participation rate:{" "}
+            <p>
+              Current participation rate:{" "}
               {configuration.data.participation_points_per_hour} points/hour
             </p>
-          )
-        }
-      />
-      {admin ? (
-        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(17rem,0.38fr)_minmax(0,0.62fr)]">
-          {officerTotals}
-          <div className="min-w-0 space-y-6">
-            <section className="space-y-2">
-              <SectionHeading title="Point configuration" />
-              <p>
-                Current participation rate:{" "}
-                {configuration.data.participation_points_per_hour} points/hour
-              </p>
-              <RateForm
-                rate={configuration.data.participation_points_per_hour}
-              />
-            </section>
-          </div>
+            {admin && (
+              <>
+                <RateForm
+                  rate={configuration.data.participation_points_per_hour}
+                />
+                <TransactionForm
+                  officers={activeOfficers.data}
+                  events={recentEvents.data}
+                />
+              </>
+            )}
+          </section>
         </div>
       ) : (
-        <div className="mx-auto w-full max-w-4xl">{officerTotals}</div>
-      )}
-      <section className="space-y-4">
-        <SectionHeading
-          title="Point history"
-          description="Search and filter all transactions, 25 per page."
-        />
-        <PointHistoryFilterControls
-          officers={officers.data}
-          events={events.data}
-          isAdmin={admin}
-          status={status}
-          fromDate={fromDate ?? ""}
-          toDate={toDate ?? ""}
-          searchQuery={search}
-          awardType={awardType}
-          officerId={officerId}
-          eventId={eventId}
-          dateRangeIsReversed={dateRangeIsReversed}
-        />
-        {dateRangeIsReversed && (
-          <p id="point-history-date-error" role="alert">
-            Choose a From date on or before the To date.
-          </p>
-        )}
-        <TableFrame compact label="Point history">
-          <HistoryTable
-            returnTo={listPageUrl("/points", currentFilterSearch, page)}
-            transactions={transactions.data}
-            isAdmin={admin}
-            emptyMessage={historyEmptyMessage}
+        <section className="min-w-0 space-y-4">
+          <SectionHeading
+            title="Point history"
+            description="Search and filter all transactions, 8 per page."
           />
-        </TableFrame>
-        <nav
-          aria-label="Point history pages"
-          className="flex flex-wrap items-center gap-4 text-sm"
-        >
-          {page > 1 && (
-            <Link href={listPageUrl("/points", currentFilterSearch, page - 1)}>
-              Previous
-            </Link>
+          <PointHistoryFilterControls
+            officers={officers.data}
+            events={events.data}
+            isAdmin={admin}
+            status={status}
+            fromDate={fromDate ?? ""}
+            toDate={toDate ?? ""}
+            searchQuery={search}
+            awardType={awardType}
+            officerId={officerId}
+            eventId={eventId}
+            dateRangeIsReversed={dateRangeIsReversed}
+          />
+          {dateRangeIsReversed && (
+            <p id="point-history-date-error" role="alert">
+              Choose a From date on or before the To date.
+            </p>
           )}
-          <span>
-            Page {page} of {totalPages}
-          </span>
-          {page < totalPages && (
-            <Link href={listPageUrl("/points", currentFilterSearch, page + 1)}>
-              Next
-            </Link>
-          )}
-        </nav>
-      </section>
+          <TableFrame compact label="Point history">
+            <HistoryTable
+              returnTo={listPageUrl("/points", currentFilterSearch, page)}
+              transactions={transactions.data}
+              isAdmin={admin}
+              emptyMessage={historyEmptyMessage}
+            />
+          </TableFrame>
+          <nav
+            aria-label="Point history pages"
+            className="flex flex-wrap items-center gap-4 text-sm"
+          >
+            {page > 1 && (
+              <Link
+                href={listPageUrl("/points", currentFilterSearch, page - 1)}
+              >
+                Previous
+              </Link>
+            )}
+            <span>
+              Page {page} of {totalPages} · {historyCount.count ?? 0}{" "}
+              transactions
+            </span>
+            {page < totalPages && (
+              <Link
+                href={listPageUrl("/points", currentFilterSearch, page + 1)}
+              >
+                Next
+              </Link>
+            )}
+          </nav>
+        </section>
+      )}
     </div>
   );
 }
