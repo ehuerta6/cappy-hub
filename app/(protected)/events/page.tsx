@@ -6,6 +6,7 @@ import {
 } from "@/lib/authorization";
 import { listReturnUrl, withReturnTo } from "@/lib/return-context";
 import { listPageUrl } from "@/lib/list-url";
+import { ListPagination } from "@/components/list-pagination";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -166,8 +167,13 @@ export default async function EventsPage({
     ),
     waitlist_count: Number(counts.get(event.id)?.waitlist_count ?? 0),
   }));
-  // Presentation-only grouping: pagination remains schedule-ordered on the server.
-  // Splitting by time period does not reorder the eight records on a page.
+  const participates = (event: EventListItem) =>
+    event.event_officers.some(({ officer_id }) => officer_id === actor.id) ||
+    (event.event_waitlist ?? []).some(
+      ({ officer_id }) => officer_id === actor.id,
+    );
+  // Pagination selects and orders the page first; presentation groups only
+  // those eight Events and keeps their order within each group.
   const sections =
     status === undefined
       ? [
@@ -293,137 +299,149 @@ export default async function EventsPage({
         <div className="space-y-5">
           {sections
             .filter((section) => section.events.length > 0)
-            .map((section) => (
-              <section
-                key={section.title}
-                aria-label={section.title}
-                className="space-y-3"
-              >
-                <SectionHeading title={section.title} />
-                <TableFrame compact label={`Events table: ${section.title}`}>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th scope="col">Event</th>
-                        <th scope="col">Schedule (El Paso)</th>
-                        <th scope="col">Type</th>
-                        <th scope="col">Branches</th>
-                        <th scope="col">Officers</th>
-                        <th scope="col">Status</th>
-                        {signupActionsOpen && <th scope="col">Action</th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {section.events.map((event) => {
-                        const signedUp = event.event_officers.some(
-                          ({ officer_id }) => officer_id === actor.id,
-                        );
-                        const waitlisted = (event.event_waitlist ?? []).some(
-                          ({ officer_id }) => officer_id === actor.id,
-                        );
-                        const yourEvent = signedUp || waitlisted;
-                        const canAct =
-                          signupActionsOpen &&
-                          eventSignupOpen(event, now.getTime());
-                        return (
-                          <tr key={event.id}>
-                            <td className="min-w-0">
-                              <Link
-                                href={withReturnTo(
-                                  `/events/${event.id}`,
-                                  returnTo,
-                                )}
-                                className="break-words"
-                              >
-                                {event.name}
-                              </Link>
-                              <span
-                                className={
-                                  yourEvent
-                                    ? "ml-2 text-xs text-muted"
-                                    : "sr-only"
-                                }
-                              >
-                                {yourEvent ? "Your event" : "Other event"}
-                              </span>
-                            </td>
-                            <td className="whitespace-nowrap">
-                              {formatEventSchedule(
-                                event.starts_at,
-                                event.ends_at,
-                              )}
-                            </td>
-                            <td>{event.event_types.name}</td>
-                            <td>
-                              <BranchBadges
-                                branches={event.event_branches.map(
-                                  (eventBranch) => eventBranch.branches.name,
-                                )}
-                              />
-                            </td>
-                            <td className="tabular-nums">
-                              {eventSignupCountLabel(event)}
-                            </td>
-                            <td className="whitespace-nowrap">
-                              <StatusBadge
-                                status={eventStatus(event, now.getTime())}
-                              />
-                            </td>
-                            {signupActionsOpen && (
-                              <td className="min-w-0">
-                                {canAct &&
-                                  (waitlisted ? (
-                                    <LeaveWaitlistForm eventId={event.id} />
-                                  ) : signedUp ? (
-                                    <SignupForm
-                                      eventId={event.id}
-                                      officerId={actor.id}
-                                      remove
+            .map((section) => {
+              const groups = [
+                {
+                  title: "Your events",
+                  events: section.events.filter(participates),
+                },
+                {
+                  title: "Other events",
+                  events: section.events.filter(
+                    (event) => !participates(event),
+                  ),
+                },
+              ].filter((group) => group.events.length > 0);
+
+              return (
+                <section
+                  key={section.title}
+                  aria-label={section.title}
+                  className="space-y-4"
+                >
+                  <SectionHeading title={section.title} />
+                  {groups.map((group) => (
+                    <section
+                      key={group.title}
+                      aria-label={`${section.title}: ${group.title}`}
+                      className="space-y-3"
+                    >
+                      <h3 className="font-semibold text-foreground">
+                        {group.title}
+                      </h3>
+                      <TableFrame
+                        compact
+                        label={`Events table: ${section.title}: ${group.title}`}
+                      >
+                        <table>
+                          <thead>
+                            <tr>
+                              <th scope="col">Event</th>
+                              <th scope="col">Schedule (El Paso)</th>
+                              <th scope="col">Type</th>
+                              <th scope="col">Branches</th>
+                              <th scope="col">Officers</th>
+                              <th scope="col">Status</th>
+                              {signupActionsOpen && <th scope="col">Action</th>}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {group.events.map((event) => {
+                              const signedUp = event.event_officers.some(
+                                ({ officer_id }) => officer_id === actor.id,
+                              );
+                              const waitlisted = (
+                                event.event_waitlist ?? []
+                              ).some(
+                                ({ officer_id }) => officer_id === actor.id,
+                              );
+                              const canAct =
+                                signupActionsOpen &&
+                                eventSignupOpen(event, now.getTime());
+                              return (
+                                <tr key={event.id}>
+                                  <td className="min-w-0">
+                                    <Link
+                                      href={withReturnTo(
+                                        `/events/${event.id}`,
+                                        returnTo,
+                                      )}
+                                      className="break-words"
+                                    >
+                                      {event.name}
+                                    </Link>
+                                  </td>
+                                  <td className="whitespace-nowrap">
+                                    {formatEventSchedule(
+                                      event.starts_at,
+                                      event.ends_at,
+                                    )}
+                                  </td>
+                                  <td>{event.event_types.name}</td>
+                                  <td>
+                                    <BranchBadges
+                                      branches={event.event_branches.map(
+                                        (eventBranch) =>
+                                          eventBranch.branches.name,
+                                      )}
                                     />
-                                  ) : (
-                                    <SelfSignupForm
-                                      eventId={event.id}
-                                      eventName={event.name}
-                                      full={
-                                        event.max_volunteers != null &&
-                                        (event.confirmed_count ?? 0) >=
-                                          event.max_volunteers
-                                      }
+                                  </td>
+                                  <td className="tabular-nums">
+                                    {eventSignupCountLabel(event)}
+                                  </td>
+                                  <td className="whitespace-nowrap">
+                                    <StatusBadge
+                                      status={eventStatus(event, now.getTime())}
                                     />
-                                  ))}
-                              </td>
-                            )}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </TableFrame>
-              </section>
-            ))}
+                                  </td>
+                                  {signupActionsOpen && (
+                                    <td className="min-w-0">
+                                      {canAct &&
+                                        (waitlisted ? (
+                                          <LeaveWaitlistForm
+                                            eventId={event.id}
+                                          />
+                                        ) : signedUp ? (
+                                          <SignupForm
+                                            eventId={event.id}
+                                            officerId={actor.id}
+                                            remove
+                                          />
+                                        ) : (
+                                          <SelfSignupForm
+                                            eventId={event.id}
+                                            eventName={event.name}
+                                            full={
+                                              event.max_volunteers != null &&
+                                              (event.confirmed_count ?? 0) >=
+                                                event.max_volunteers
+                                            }
+                                          />
+                                        ))}
+                                    </td>
+                                  )}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </TableFrame>
+                    </section>
+                  ))}
+                </section>
+              );
+            })}
         </div>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
-        <span>
-          Page {page} of {totalPages} · {totalCount}{" "}
-          {totalCount === 1 ? "event" : "events"}
-        </span>
-        <nav
-          aria-label="Event pages"
-          className="flex flex-wrap items-center gap-4"
-        >
-          {page > 1 && (
-            <Link href={listPageUrl("/events", filtersInUrl, page - 1)}>
-              Previous
-            </Link>
-          )}
-          {page < totalPages && (
-            <Link href={listPageUrl("/events", filtersInUrl, page + 1)}>
-              Next
-            </Link>
-          )}
-        </nav>
-      </div>
+      <ListPagination
+        pathname="/events"
+        label="Event"
+        filters={filtersInUrl}
+        page={page}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        countLabel={totalCount === 1 ? "event" : "events"}
+      />
     </div>
   );
 }

@@ -14,6 +14,7 @@ import {
   SuccessNotice,
   TableFrame,
 } from "@/components/ui";
+import { ListPagination } from "@/components/list-pagination";
 import { formatLabel, formatTaskDueDate } from "@/lib/presentation";
 import { currentDenverWeek } from "@/lib/current-denver-week";
 import { organizeTaskList } from "@/lib/task-list";
@@ -363,39 +364,15 @@ export default async function TasksPage({
           )}
         </>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
-        <span>
-          Page {page} of {totalPages} · {totalCount}{" "}
-          {totalCount === 1 ? "task" : "tasks"}
-        </span>
-        <nav
-          aria-label="Task pages"
-          className="flex flex-wrap items-center gap-4"
-        >
-          {page > 1 && (
-            <Link
-              href={listPageUrl(
-                "/tasks",
-                new URLSearchParams(returnTo.split("?")[1]),
-                page - 1,
-              )}
-            >
-              Previous
-            </Link>
-          )}
-          {page < totalPages && (
-            <Link
-              href={listPageUrl(
-                "/tasks",
-                new URLSearchParams(returnTo.split("?")[1]),
-                page + 1,
-              )}
-            >
-              Next
-            </Link>
-          )}
-        </nav>
-      </div>
+      <ListPagination
+        pathname="/tasks"
+        label="Task"
+        filters={new URLSearchParams(returnTo.split("?")[1])}
+        page={page}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        countLabel={totalCount === 1 ? "task" : "tasks"}
+      />
     </div>
   );
 }

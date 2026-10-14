@@ -229,15 +229,17 @@ beforeEach(() => {
 const renderEvents = async () =>
   renderToStaticMarkup(await EventsPage({ searchParams: Promise.resolve({}) }));
 
-it("renders bounded Events in a period table with inline participation cues", async () => {
+it("renders bounded Events in period tables grouped by participation", async () => {
   const html = await renderEvents();
+  expect(html).toContain(">Your events</h3>");
+  expect(html).toContain(">Other events</h3>");
+  expect(html).toContain(
+    'aria-label="Events table: Upcoming events: Your events"',
+  );
   const your = html.split("Participating event</a>")[1].split("</tr>")[0];
   const other = html.split("Available event</a>")[1].split("</tr>")[0];
-  expect(html).toContain('aria-label="Events table: Upcoming events"');
   expect(html).not.toContain('scope="rowgroup"');
-  expect(your).toContain("Your event");
   expect(your).not.toContain("Sign up for");
-  expect(other).toContain("Other event");
   expect(other).toContain('aria-label="Sign up for Available event"');
   expect(other).toContain("Upcoming");
   expect(html).toContain('<th scope="col">Action</th>');

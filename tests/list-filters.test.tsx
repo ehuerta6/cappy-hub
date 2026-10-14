@@ -430,9 +430,9 @@ it("omits empty Event and Task groups on bounded pages", async () => {
       },
     ];
     const eventsHtml = await render(EventsPage);
-    expect(eventsHtml).not.toContain("Your events:");
+    expect(eventsHtml).not.toContain(">Your events</h3>");
     expect(eventsHtml).not.toContain("No events in this group.");
-    expect(eventsHtml).toContain("Other event");
+    expect(eventsHtml).toContain(">Other events</h3>");
     expect(eventsHtml).toContain("Upcoming workshop");
 
     queries = [];
@@ -494,10 +494,10 @@ it("shows chronological Events in accessible period tables without repeated row 
 
     const html = await render(EventsPage);
     expect(html).toContain(
-      'role="region" aria-label="Events table: This week&#x27;s events" tabindex="0"',
+      'role="region" aria-label="Events table: This week&#x27;s events: Your events" tabindex="0"',
     );
     expect(html).toContain(
-      'role="region" aria-label="Events table: Upcoming events" tabindex="0"',
+      'role="region" aria-label="Events table: Upcoming events: Other events" tabindex="0"',
     );
     expect(html).not.toContain('scope="rowgroup"');
     expect(html.indexOf("This week event</a>")).toBeLessThan(
@@ -613,7 +613,7 @@ it("scopes Lead Archived Tasks to assigned branches and keeps Admin access globa
   for (const query of forTable("tasks")) has(query, "in", "branch_id", [2]);
   expect(leadHtml).toContain("Assigned branch archive");
   expect(leadHtml).not.toContain("Other branch archive");
-  expect(leadHtml).toContain("Page 1 of 1 · 1 task");
+  expect(leadHtml).toContain("1 task");
 
   admin = true;
   lead = false;
@@ -628,7 +628,7 @@ it("scopes Lead Archived Tasks to assigned branches and keeps Admin access globa
   ).toBe(false);
   expect(adminHtml).toContain("Assigned branch archive");
   expect(adminHtml).toContain("Other branch archive");
-  expect(adminHtml).toContain("Page 1 of 1 · 2 tasks");
+  expect(adminHtml).toContain("2 tasks");
 });
 
 it("limits every Events page to eight scheduled rows and keeps page context", async () => {
@@ -655,7 +655,9 @@ it("limits every Events page to eight scheduled rows and keeps page context", as
   has(rowQuery, "range", 8, 15);
   has(rowQuery, "order", "starts_at", { ascending: true });
   has(rowQuery, "order", "id", { ascending: true });
-  expect(html).toContain("Page 2 of 3 · 19 events");
+  expect(html).toContain('option value="2" selected="">2</option>');
+  expect(html).toContain("of 3");
+  expect(html).toContain("19 events");
   expect(html).toContain("Event 9");
   expect(html).toContain("Event 16");
   expect(html).not.toContain("Event 8</a>");
@@ -663,6 +665,102 @@ it("limits every Events page to eight scheduled rows and keeps page context", as
   expect(html).toContain('href="/events?page=3"');
   expect(html).toContain('href="/events/9?returnTo=%2Fevents%3Fpage%3D2"');
 });
+
+it("groups only the eight Events on this page by confirmed or waitlisted participation", async () => {
+  visibleCount = 10;
+  rows.events = Array.from({ length: 10 }, (_, index) => {
+    const id = index + 1;
+    return {
+      id,
+      name: `Grouped event ${id}`,
+      event_date: "2099-10-08",
+      starts_at: `2099-10-08T${String(id + 10).padStart(2, "0")}:00:00Z`,
+      ends_at: `2099-10-08T${String(id + 11).padStart(2, "0")}:00:00Z`,
+      status: "scheduled",
+      deleted_at: null,
+      max_volunteers: null,
+      participation_points_per_hour_at_end: null,
+      event_types: { name: "Workshop" },
+      event_branches: [],
+      event_officers: id === 1 || id === 5 ? [{ officer_id: 1 }] : [],
+      event_waitlist: id === 3 ? [{ officer_id: 1 }] : [],
+    };
+  });
+
+  const html = await render(EventsPage);
+  const yourHeading = html.indexOf(
+    '<h3 class="font-semibold text-foreground">Your events</h3>',
+  );
+  const otherHeading = html.indexOf(
+    '<h3 class="font-semibold text-foreground">Other events</h3>',
+  );
+  expect(yourHeading).toBeGreaterThan(-1);
+  expect(otherHeading).toBeGreaterThan(yourHeading);
+  expect(html.indexOf("Grouped event 1")).toBeGreaterThan(yourHeading);
+  expect(html.indexOf("Grouped event 3")).toBeGreaterThan(
+    html.indexOf("Grouped event 1"),
+  );
+  expect(html.indexOf("Grouped event 5")).toBeGreaterThan(
+    html.indexOf("Grouped event 3"),
+  );
+  expect(html.indexOf("Grouped event 2")).toBeGreaterThan(otherHeading);
+  expect(html).not.toContain("Your event</span>");
+  expect(html).not.toContain("Other event</span>");
+  expect(html.match(/href="\/events\/\d+\?/g)).toHaveLength(8);
+  expect(html).not.toContain("Grouped event 9");
+  has(
+    forTable("events").find(({ calls }) =>
+      calls.some(([method]) => method === "range"),
+    )!,
+    "range",
+    0,
+    7,
+  );
+});
+
+it.each(["past", "cancelled", "archived"])(
+  "groups %s Events with the same Your/Other hierarchy",
+  async (status) => {
+    rows.events = [
+      {
+        id: 1,
+        name: "Participating historical event",
+        event_date: "2020-10-08",
+        starts_at: "2020-10-08T18:00:00Z",
+        ends_at: "2020-10-08T20:00:00Z",
+        status: status === "cancelled" ? "cancelled" : "scheduled",
+        deleted_at: status === "archived" ? "2020-10-09T00:00:00Z" : null,
+        max_volunteers: null,
+        participation_points_per_hour_at_end: null,
+        event_types: { name: "Workshop" },
+        event_branches: [],
+        event_officers: [{ officer_id: 1 }],
+        event_waitlist: [],
+      },
+      {
+        id: 2,
+        name: "Other historical event",
+        event_date: "2020-10-09",
+        starts_at: "2020-10-09T18:00:00Z",
+        ends_at: "2020-10-09T20:00:00Z",
+        status: status === "cancelled" ? "cancelled" : "scheduled",
+        deleted_at: status === "archived" ? "2020-10-10T00:00:00Z" : null,
+        max_volunteers: null,
+        participation_points_per_hour_at_end: null,
+        event_types: { name: "Workshop" },
+        event_branches: [],
+        event_officers: [],
+        event_waitlist: [],
+      },
+    ];
+
+    const html = await render(EventsPage, { status });
+    expect(html).toContain(">Your events</h3>");
+    expect(html).toContain(">Other events</h3>");
+    expect(html).toContain("Participating historical event");
+    expect(html).toContain("Other historical event");
+  },
+);
 
 it("counts after Event filters and retains them in the pager", async () => {
   visibleCount = 25;
@@ -676,9 +774,104 @@ it("counts after Event filters and retains them in the pager", async () => {
   has(countQuery, "eq", "event_type_id", 2);
   has(countQuery, "eq", "filter_branch.branch_id", 3);
   expect(countQuery.calls.some(([method]) => method === "or")).toBe(true);
-  expect(html).toContain("Page 1 of 2 · 9 events");
+  expect(html).toContain('option value="1" selected="">1</option>');
+  expect(html).toContain("of 2");
+  expect(html).toContain("9 events");
   expect(html).toContain(
     'href="/events?q=Workshop&amp;type=2&amp;branch=3&amp;page=2"',
+  );
+});
+
+it("offers direct Event page selection and preserves every active filter", async () => {
+  visibleCount = 97;
+  filteredCount = 97;
+  rows.events = Array.from({ length: 24 }, (_, index) => ({
+    id: index + 1,
+    name: `Filtered event ${index + 1}`,
+    event_date: "2020-10-08",
+    starts_at: "2020-10-08T18:00:00Z",
+    ends_at: "2020-10-08T20:00:00Z",
+    status: "scheduled",
+    deleted_at: null,
+    max_volunteers: null,
+    participation_points_per_hour_at_end: null,
+    event_types: { name: "Workshop" },
+    event_branches: [],
+    event_officers: [],
+    event_waitlist: [],
+  }));
+
+  const html = await render(EventsPage, {
+    page: "2",
+    q: "Design",
+    status: "past",
+    type: "2",
+    branch: "3",
+  });
+
+  expect(html).toContain('aria-label="Event pages"');
+  expect(html).toContain('aria-label="Select event page"');
+  expect(html).toContain('option value="2" selected=""');
+  expect(html).toContain(">First</a>");
+  expect(html).toContain(">Last</a>");
+  for (const [name, value] of [
+    ["q", "Design"],
+    ["status", "past"],
+    ["type", "2"],
+    ["branch", "3"],
+  ])
+    expect(html).toContain(`name="${name}" value="${value}"`);
+  expect(html).toContain(
+    'href="/events?q=Design&amp;status=past&amp;type=2&amp;branch=3&amp;page=13"',
+  );
+  expect(html).toContain(
+    'href="/events/9?returnTo=%2Fevents%3Fq%3DDesign%26status%3Dpast%26type%3D2%26branch%3D3%26page%3D2"',
+  );
+});
+
+it("offers direct Task page selection and preserves all filters", async () => {
+  rows.tasks = Array.from({ length: 19 }, (_, index) => ({
+    id: index + 1,
+    title: `Filtered task ${index + 1}`,
+    description: "Design work",
+    task_type: "Post",
+    due_date: "2020-10-08",
+    points: 1,
+    removed_at: null,
+    branch_id: 2,
+    branches: { name: "intro" },
+    task_officer_assignments: [
+      { officer_id: 4, completed_at: "2020-10-01T00:00:00Z" },
+    ],
+  }));
+
+  const html = await render(TasksPage, {
+    page: "2",
+    q: "Design",
+    view: "past",
+    status: "complete",
+    branch: "2",
+    assignee: "4",
+  });
+
+  expect(html).toContain('aria-label="Task pages"');
+  expect(html).toContain('aria-label="Select task page"');
+  expect(html).toContain('option value="2" selected=""');
+  expect(html).toContain(">First</a>");
+  expect(html).toContain(">Last</a>");
+  for (const [name, value] of [
+    ["q", "Design"],
+    ["view", "past"],
+    ["status", "complete"],
+    ["branch", "2"],
+    ["assignee", "4"],
+  ])
+    expect(html).toContain(`name="${name}" value="${value}"`);
+  expect(html).toContain(
+    'href="/tasks?q=Design&amp;view=past&amp;status=complete&amp;branch=2&amp;assignee=4&amp;page=3"',
+  );
+  expect(html).toContain(
+    "returnTo=%2Ftasks%3Fq%3DDesign%26view%3Dpast%26status%3Dcomplete%26branch%3D2%26assignee%3D4%26page%3D2",
   );
 });
 
@@ -728,8 +921,8 @@ it("keeps signup, leave, and waitlist actions on eligible Event rows", async () 
   expect(html.split("Waiting</a>")[1].split("</tr>")[0]).toContain(
     "Leave waitlist",
   );
-  expect(html).toContain("Your event");
-  expect(html).toContain("Other event");
+  expect(html).toContain(">Your events</h3>");
+  expect(html).toContain(">Other events</h3>");
 });
 
 it.each(["open", "in_progress", "complete"])(
@@ -1096,7 +1289,9 @@ it("paginates eight Tasks across groups with due-date and ID tie ordering", asyn
   }));
 
   const first = await render(TasksPage);
-  expect(first).toContain("Page 1 of 3 · 19 tasks");
+  expect(first).toContain('option value="1" selected="">1</option>');
+  expect(first).toContain("of 3");
+  expect(first).toContain("19 tasks");
   expect(first).toContain("page=2");
   const firstIds = [...first.matchAll(/href="\/tasks\/(\d+)\?/g)].map((match) =>
     Number(match[1]),
@@ -1106,7 +1301,9 @@ it("paginates eight Tasks across groups with due-date and ID tie ordering", asyn
 
   queries = [];
   const second = await render(TasksPage, { page: "2" });
-  expect(second).toContain("Page 2 of 3 · 19 tasks");
+  expect(second).toContain('option value="2" selected="">2</option>');
+  expect(second).toContain("of 3");
+  expect(second).toContain("19 tasks");
   expect(second).toContain('href="/tasks">Previous</a>');
   expect(second).toContain("page=3");
   const secondIds = [...second.matchAll(/href="\/tasks\/(\d+)\?/g)].map(
@@ -1118,7 +1315,9 @@ it("paginates eight Tasks across groups with due-date and ID tie ordering", asyn
 
   queries = [];
   const third = await render(TasksPage, { page: "3" });
-  expect(third).toContain("Page 3 of 3 · 19 tasks");
+  expect(third).toContain('option value="3" selected="">3</option>');
+  expect(third).toContain("of 3");
+  expect(third).toContain("19 tasks");
   const thirdIds = [...third.matchAll(/href="\/tasks\/(\d+)\?/g)].map((match) =>
     Number(match[1]),
   );
@@ -1174,7 +1373,9 @@ it("filters assignee, status, branch, search and view before the eight-row page"
   has(query, "is", "incomplete_assignment.completed_at", null);
   has(query, "eq", "branch_id", 2);
   has(query, "range", 0, 7);
-  expect(html).toContain("Page 1 of 2 · 9 tasks");
+  expect(html).toContain('option value="1" selected="">1</option>');
+  expect(html).toContain("of 2");
+  expect(html).toContain("9 tasks");
   expect(html).toContain("Design task 1");
   expect(html).toContain("Design task 8");
   expect(html).not.toContain("Design task 9");
@@ -1204,7 +1405,7 @@ it("combines Open and Assignee filters on the server with no false matches", asy
   has(query, "eq", "assignee_filter.officer_id", 2);
   has(query, "is", "no_assignments", null);
   expect(html).toContain("No tasks match these filters.");
-  expect(html).toContain("Page 1 of 1 · 0 tasks");
+  expect(html).toContain("0 tasks");
 });
 
 it("restores the stable Assignee ID, inactive label, and empty GET value", async () => {
@@ -1240,7 +1441,8 @@ it("keeps the filtered Task page in returnTo and resets it on filter submission"
   expect(html).toContain(
     'href="/tasks/15?returnTo=%2Ftasks%3Fq%3Ddesign%26branch%3D2%26assignee%3D9%26page%3D2"',
   );
-  expect(html).not.toContain('name="page"');
+  expect(html).toContain('name="page"');
+  expect(html).toContain('option value="2" selected="">2</option>');
   expect(html).toContain('href="/tasks">Clear filters</a>');
 });
 
@@ -1551,7 +1753,7 @@ it("keeps removed Task titles in System Log without linking removed Task rows", 
   has(forTable("tasks")[0], "is", "removed_at", null);
 });
 
-it.each([PointsPage, SystemLogPage])(
+it.each([EventsPage, TasksPage, PointsPage, SystemLogPage])(
   "clamps out-of-range pagination while preserving URL filters",
   async (Page) => {
     await expect(render(Page, { q: "search", page: "999" })).rejects.toThrow(
