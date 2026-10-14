@@ -10,7 +10,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "format": "prettier --write .",
-    "format:check": "prettier --check . || (prettier 'app/(protected)/events/page.tsx' > /tmp/cappy-events-prettier.tsx; diff -u 'app/(protected)/events/page.tsx' /tmp/cappy-events-prettier.tsx; exit 1)",
+    "format:check": "prettier --check .",
     "db:start": "supabase start -x gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,studio,edge-runtime,logflare,vector,supavisor",
     "db:reset": "supabase db reset --local --no-seed",
     "db:types": "node scripts/database-types.mjs",
