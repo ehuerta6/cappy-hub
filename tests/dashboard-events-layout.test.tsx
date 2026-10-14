@@ -209,24 +209,19 @@ beforeEach(() => {
 const renderEvents = async () =>
   renderToStaticMarkup(await EventsPage({ searchParams: Promise.resolve({}) }));
 
-it("labels relationships in one table from the bounded event query", async () => {
+it("renders bounded Events in a period table with inline participation cues", async () => {
   const html = await renderEvents();
-  const your = html
-    .split("Upcoming events · Your events")[1]
-    .split("</tbody>")[0];
-  const other = html
-    .split("Upcoming events · Other events")[1]
-    .split("</tbody>")[0];
-  expect(your).toContain("Participating event");
-  expect(your).not.toContain("Available event");
-  expect(other).toContain("Available event");
-  expect(other).toContain("Meeting");
+  const your = html.split("Participating event</a>")[1].split("</tr>")[0];
+  const other = html.split("Available event</a>")[1].split("</tr>")[0];
+  expect(html).toContain('aria-label="Events table: Upcoming events"');
+  expect(html).not.toContain('scope="rowgroup"');
+  expect(your).toContain("Your event");
+  expect(your).not.toContain("Sign up for");
+  expect(other).toContain("Other event");
+  expect(other).toContain('aria-label="Sign up for Available event"');
   expect(other).toContain("Upcoming");
-  expect(other).not.toContain("Participating event");
   expect(html).toContain('<th scope="col">Action</th>');
   expect(html).not.toMatch(/Your participation|Your signup/i);
-  expect(other).toContain('aria-label="Sign up for Available event"');
-  expect(your).not.toContain("Sign up for");
   expect(from.mock.calls.filter(([table]) => table === "events")).toHaveLength(
     3,
   );
