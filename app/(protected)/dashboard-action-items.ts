@@ -3,8 +3,8 @@ import type { AuthorizationContext } from "@/lib/authorization";
 import type { Tables } from "@/lib/database.types";
 import type { createClient } from "@/lib/supabase/server";
 
-// Five rows keep this a summary. One extra per query detects overflow.
-export const ACTION_ITEM_LIMIT = 5;
+// Three rows keep this a summary. One extra per source detects overflow.
+export const ACTION_ITEM_LIMIT = 3;
 const queryLimit = ACTION_ITEM_LIMIT + 1;
 const taskSelection =
   "id,title,due_date,task_officer_assignments!inner(officer_id,completed_at)";

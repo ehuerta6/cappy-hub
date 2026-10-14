@@ -85,6 +85,7 @@ let transactions: {
   tasks: { id: number; title: string } | null;
 }[];
 let dashboardQueries: { table: string; operations: [string, unknown[]][] }[];
+let countedEventIds: number[];
 const from = vi.fn((table: string) => {
   const operations: [string, unknown[]][] = [];
   const result = {
@@ -165,7 +166,22 @@ const from = vi.fn((table: string) => {
         data:
           table === "events" && range
             ? events.slice(Number(range[0]), Number(range[1]) + 1)
-            : result.data,
+            : table === "events" &&
+                operations.some(([method]) => method === "limit")
+              ? events.slice(
+                  0,
+                  Number(
+                    operations.find(([method]) => method === "limit")?.[1][0],
+                  ),
+                )
+              : table === "point_transactions"
+                ? transactions.slice(
+                    0,
+                    Number(
+                      operations.find(([method]) => method === "limit")?.[1][0],
+                    ),
+                  )
+                : result.data,
         count: table === "events" && head ? events.length : undefined,
       }).then(resolve);
     },
@@ -183,6 +199,7 @@ beforeEach(() => {
   ] as never);
   transactions = [];
   dashboardQueries = [];
+  countedEventIds = [];
   events = [
     upcoming,
     { ...upcoming, id: 2, name: "Available event", event_officers: [] },
@@ -198,10 +215,13 @@ beforeEach(() => {
         waitlist_count: event.event_waitlist?.length ?? 0,
       }));
       return Object.assign(Promise.resolve({ data: counts, error: null }), {
-        in: async (_column: string, ids: number[]) => ({
-          data: counts.filter(({ event_id }) => ids.includes(event_id)),
-          error: null,
-        }),
+        in: async (_column: string, ids: number[]) => {
+          countedEventIds = ids;
+          return {
+            data: counts.filter(({ event_id }) => ids.includes(event_id)),
+            error: null,
+          };
+        },
       });
     },
   } as never);
@@ -318,7 +338,9 @@ it("preserves all three summary metric values and the existing summary/activity 
     ["neq", ["status", "cancelled"]],
     ["is", ["deleted_at", null]],
     ["gt", ["starts_at", expect.any(String)]],
-    ["order", ["event_date"]],
+    ["order", ["starts_at"]],
+    ["order", ["id"]],
+    ["limit", [4]],
   ]);
   expect(operations("point_transactions")).toEqual([
     [
@@ -330,7 +352,7 @@ it("preserves all three summary metric values and the existing summary/activity 
     ["is", ["removed_at", null]],
     ["order", ["created_at", { ascending: false }]],
     ["order", ["id", { ascending: false }]],
-    ["limit", [10]],
+    ["limit", [4]],
   ]);
 });
 
@@ -420,7 +442,7 @@ it("keeps main pages free of contextual navigation and shows the compact upcomin
   expect(html).toContain("Jan 1 · 5:00–6:00 AM");
 });
 
-it("summarizes all upcoming events in a named list with signup context and full-page links", async () => {
+it("shows a bounded upcoming-event preview with signup context and full-page links", async () => {
   events = Array.from({ length: 12 }, (_, index) => ({
     ...upcoming,
     id: index + 1,
@@ -432,14 +454,16 @@ it("summarizes all upcoming events in a named list with signup context and full-
     .split('aria-label="Upcoming events"')[1]
     .split("</section>")[0];
   expect(list).toContain("<ul");
-  expect(list.match(/<li /g)).toHaveLength(12);
-  expect(list).toContain('href="/events/12"');
+  expect(list.match(/<li /g)).toHaveLength(4);
+  expect(list).not.toContain('href="/events/12"');
   expect(list).toContain("Signed up");
   expect(list).toContain("Not signed up");
   expect(list).toMatch(/class="text-info">Signed up/);
   expect(list).toMatch(/class="text-muted">Not signed up/);
   expect(list).toContain("1 officer");
   expect(list).toContain('href="/events"');
+  expect(list).toContain("Next events · El Paso time");
+  expect(countedEventIds).toEqual([1, 2, 3, 4]);
   expect(html).toContain('href="/points"');
   expect(html).not.toContain("<table");
   expect(html).toContain('data-page-width="wide"');
@@ -484,6 +508,35 @@ it("summarizes signed point values with officer and event/task links or a manual
     expect(list).toContain(text);
   expect(list).toContain('dateTime="2026-10-03T12:00:00Z"');
   expect(list).not.toContain("<table");
+});
+
+it("shows only the four newest Point transactions and keeps full Points navigation", async () => {
+  const transaction = {
+    id: 1,
+    points: 2.5,
+    reason: "Participation",
+    created_at: "2026-10-03T12:00:00Z",
+    officers: { id: 8, name: "Local Officer" },
+    events: null,
+    tasks: null,
+  };
+  transactions = Array.from({ length: 8 }, (_, index) => ({
+    ...transaction,
+    id: index + 1,
+    reason: `Transaction ${index + 1}`,
+    created_at: `2026-10-${String(13 - index).padStart(2, "0")}T12:00:00Z`,
+  }));
+
+  const html = renderToStaticMarkup(await DashboardPage());
+  const list = html
+    .split('aria-label="Recent point activity"')[1]
+    .split("</section>")[0];
+  expect(list.match(/<li /g)).toHaveLength(4);
+  expect(list).toContain("Transaction 1");
+  expect(list).toContain("Transaction 4");
+  expect(list).not.toContain("Transaction 5");
+  expect(list).toContain("Latest 4 transactions");
+  expect(list).toContain('href="/points"');
 });
 
 it("keeps dashboard empty states and destination links without empty lists or tables", async () => {

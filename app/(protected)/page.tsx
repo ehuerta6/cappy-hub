@@ -18,8 +18,8 @@ import {
 export default async function DashboardPage() {
   const officer = await requireCurrentOfficer();
   const supabase = await createClient();
-  const [summary, events, transactions, total, actionItems, countsResult] =
-    await Promise.all([
+  const [summary, events, transactions, total, actionItems] = await Promise.all(
+    [
       supabase.from("dashboard_summary").select("*").single(),
       supabase
         .from("events")
@@ -27,7 +27,9 @@ export default async function DashboardPage() {
         .neq("status", "cancelled")
         .is("deleted_at", null)
         .gt("starts_at", new Date().toISOString())
-        .order("event_date"),
+        .order("starts_at")
+        .order("id")
+        .limit(4),
       supabase
         .from("point_transactions")
         .select(
@@ -36,15 +38,21 @@ export default async function DashboardPage() {
         .is("removed_at", null)
         .order("created_at", { ascending: false })
         .order("id", { ascending: false })
-        .limit(10),
+        .limit(4),
       supabase
         .from("officer_point_totals")
         .select("total_points")
         .eq("id", officer.id)
         .single(),
       loadDashboardActionItems(supabase, officer),
-      supabase.rpc("event_signup_counts"),
-    ]);
+    ],
+  );
+  const countsResult = events.data?.length
+    ? await supabase.rpc("event_signup_counts").in(
+        "event_id",
+        events.data.map((event) => event.id),
+      )
+    : { data: [], error: null };
   const signupCounts = new Map(
     (countsResult.data ?? []).map((row) => [row.event_id, row]),
   );
@@ -226,7 +234,7 @@ export default async function DashboardPage() {
         <section aria-label="Upcoming events" className="min-w-0 lg:pr-6">
           <SectionHeading
             title="Upcoming events"
-            description="All upcoming events · El Paso time"
+            description="Next events · El Paso time"
             action={
               <Link
                 href="/events"
@@ -307,7 +315,7 @@ export default async function DashboardPage() {
         >
           <SectionHeading
             title="Recent point activity"
-            description="Latest 10 transactions"
+            description="Latest 4 transactions"
             action={
               <Link
                 href="/points"
