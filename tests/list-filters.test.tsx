@@ -432,7 +432,7 @@ it("omits empty Event and Task groups on bounded pages", async () => {
     const eventsHtml = await render(EventsPage);
     expect(eventsHtml).not.toContain("Your events:");
     expect(eventsHtml).not.toContain("No events in this group.");
-    expect(eventsHtml).toContain("Other events");
+    expect(eventsHtml).toContain("Other event");
     expect(eventsHtml).toContain("Upcoming workshop");
 
     queries = [];
@@ -459,7 +459,7 @@ it("omits empty Event and Task groups on bounded pages", async () => {
   }
 });
 
-it("keeps Event group labels within one accessible table", async () => {
+it("shows chronological Events in accessible period tables without repeated row headings", async () => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-05T06:00:00.000Z"));
   try {
@@ -494,13 +494,18 @@ it("keeps Event group labels within one accessible table", async () => {
 
     const html = await render(EventsPage);
     expect(html).toContain(
-      'role="region" aria-label="Events results" tabindex="0"',
+      'role="region" aria-label="Events table: This week&#x27;s events" tabindex="0"',
     );
-    expect(html).toContain("This week&#x27;s events · Your events");
-    expect(html).toContain("Upcoming events · Other events");
+    expect(html).toContain(
+      'role="region" aria-label="Events table: Upcoming events" tabindex="0"',
+    );
+    expect(html).not.toContain('scope="rowgroup"');
+    expect(html.indexOf("This week event</a>")).toBeLessThan(
+      html.indexOf("Upcoming event</a>"),
+    );
     expect(
       html.match(/role="region" aria-label="[^"]+" tabindex="0"/g),
-    ).toHaveLength(1);
+    ).toHaveLength(2);
   } finally {
     vi.useRealTimers();
   }
@@ -723,8 +728,8 @@ it("keeps signup, leave, and waitlist actions on eligible Event rows", async () 
   expect(html.split("Waiting</a>")[1].split("</tr>")[0]).toContain(
     "Leave waitlist",
   );
-  expect(html).toContain("Your events");
-  expect(html).toContain("Other events");
+  expect(html).toContain("Your event");
+  expect(html).toContain("Other event");
 });
 
 it.each(["open", "in_progress", "complete"])(
