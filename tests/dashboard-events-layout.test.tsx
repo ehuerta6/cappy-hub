@@ -464,7 +464,7 @@ it("shows a bounded upcoming-event preview with signup context and full-page lin
   expect(list).toContain('href="/events"');
   expect(list).toContain("Next events · El Paso time");
   expect(countedEventIds).toEqual([1, 2, 3, 4]);
-  expect(html).toContain('href="/points"');
+  expect(html).toContain('href="/points?view=history"');
   expect(html).not.toContain("<table");
   expect(html).toContain('data-page-width="wide"');
 });
@@ -536,7 +536,7 @@ it("shows only the four newest Point transactions and keeps full Points navigati
   expect(list).toContain("Transaction 4");
   expect(list).not.toContain("Transaction 5");
   expect(list).toContain("Latest 4 transactions");
-  expect(list).toContain('href="/points"');
+  expect(list).toContain('href="/points?view=history"');
 });
 
 it("keeps dashboard empty states and destination links without empty lists or tables", async () => {
@@ -546,6 +546,7 @@ it("keeps dashboard empty states and destination links without empty lists or ta
   expect(html).toContain("No point transactions yet.");
   expect(html).toContain("View all Events");
   expect(html).toContain("View all Points");
+  expect(html).toContain('href="/points?view=history"');
   expect(html).not.toContain("<ul");
   expect(html).not.toContain("<table");
 });

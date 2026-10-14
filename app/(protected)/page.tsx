@@ -318,7 +318,7 @@ export default async function DashboardPage() {
             description="Latest 4 transactions"
             action={
               <Link
-                href="/points"
+                href="/points?view=history"
                 className="inline-flex min-h-9 items-center text-sm underline underline-offset-4"
               >
                 View all Points
