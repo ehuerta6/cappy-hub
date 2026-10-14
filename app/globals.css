@@ -826,7 +826,7 @@
 }
 
 .calendar-shell .calendar-day {
-  min-height: 7rem;
+  min-height: max(4.5rem, calc((100vh - 22rem) / 6));
 }
 
 .calendar-shell .calendar-date {
@@ -867,15 +867,20 @@
 }
 
 .calendar-shell .calendar-entry-title {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
+  overflow-wrap: anywhere;
   font-weight: 500;
 }
 
 .calendar-shell .calendar-entry:hover {
   outline: 1px solid var(--muted);
+}
+
+.calendar-shell .calendar-entry:focus-visible,
+.calendar-shell .calendar-more:focus-visible,
+.calendar-shell .fc-button:focus-visible,
+.calendar-shell .calendar-filters input:focus-visible {
+  outline: 2px solid var(--info);
+  outline-offset: 2px;
 }
 
 .calendar-shell .calendar-more {

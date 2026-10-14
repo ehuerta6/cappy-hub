@@ -67,7 +67,6 @@ export default function CalendarView({
         initialView="dayGridMonth"
         timeZone="America/Denver"
         colorScheme={theme}
-        height="auto"
         editable={false}
         selectable={false}
         eventDisplay="block"

@@ -67,6 +67,7 @@ it("uses the desktop month view, Denver time, and a read-only calendar", () => {
     { name: "daygrid" },
   ]);
   expect(harness.options.timeZone).toBe("America/Denver");
+  expect(harness.options.height).toBeUndefined();
   expect(harness.options.editable).toBe(false);
   expect(harness.options.selectable).toBe(false);
   expect(harness.options.initialView).toBe("dayGridMonth");
