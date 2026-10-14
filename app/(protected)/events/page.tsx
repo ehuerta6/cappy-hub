@@ -303,10 +303,7 @@ export default async function EventsPage({
                 className="space-y-3"
               >
                 <SectionHeading title={section.title} />
-                <TableFrame
-                  compact
-                  label={`Events table: ${section.title}`}
-                >
+                <TableFrame compact label={`Events table: ${section.title}`}>
                   <table>
                     <thead>
                       <tr>
@@ -335,7 +332,10 @@ export default async function EventsPage({
                           <tr key={event.id}>
                             <td className="min-w-0">
                               <Link
-                                href={withReturnTo(`/events/${event.id}`, returnTo)}
+                                href={withReturnTo(
+                                  `/events/${event.id}`,
+                                  returnTo,
+                                )}
                                 className="break-words"
                               >
                                 {event.name}
@@ -351,7 +351,10 @@ export default async function EventsPage({
                               </span>
                             </td>
                             <td className="whitespace-nowrap">
-                              {formatEventSchedule(event.starts_at, event.ends_at)}
+                              {formatEventSchedule(
+                                event.starts_at,
+                                event.ends_at,
+                              )}
                             </td>
                             <td>{event.event_types.name}</td>
                             <td>
