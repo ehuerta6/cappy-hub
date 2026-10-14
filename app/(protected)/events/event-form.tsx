@@ -115,12 +115,17 @@ export default function EventForm({
     overrides: Record<string, string> = {},
   ) => {
     if (!series) return;
-    const changed = new Set(changedFormFields(form, original));
+    const changedFields = changedFormFields(form, original);
+    const changed = new Set(changedFields);
     for (const [name, value] of Object.entries(overrides)) {
       if (value === String(original[name] ?? "")) changed.delete(name);
       else changed.add(name);
     }
-    setEditedFields(Object.keys(original).filter((name) => changed.has(name)));
+    setEditedFields(
+      [...new Set([...changedFields, ...Object.keys(overrides)])].filter(
+        (name) => changed.has(name),
+      ),
+    );
   };
 
   return (

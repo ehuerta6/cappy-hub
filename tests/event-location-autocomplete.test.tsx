@@ -264,3 +264,138 @@ it("tracks a catalog Location selected directly in the recurring Event form with
   expect(submitted.get("location")).toBe("Engineering Building");
   expect(submitted.getAll("edited_fields")).toContain("location");
 });
+
+it.each([
+  ["selecting an individual Branch", [], 1, [1]],
+  ["removing a Branch", [1, 2], 1, [2]],
+  ["select all", [1], null, [1, 2]],
+  ["clear all", [1, 2], null, []],
+])(
+  "tracks Branch changes in recurring EventForm (%s)",
+  async (_label, initial, clickedBranch, expected) => {
+    const host = await mount(
+      <EventForm
+        branches={[
+          { id: 1, name: "North" },
+          { id: 2, name: "South" },
+        ]}
+        eventTypes={[{ id: 9, name: "Session" }]}
+        locations={[]}
+        event={
+          {
+            id: 12,
+            name: "CIC meeting",
+            description: "Agenda",
+            location: "Engineering Building",
+            event_type_id: 9,
+            slides_url: null,
+            meeting_notes_url: null,
+            signup_sheet_url: null,
+            max_volunteers: null,
+            event_date: "2026-10-12",
+            starts_at: "2026-10-12T16:00:00.000Z",
+            ends_at: "2026-10-12T17:00:00.000Z",
+            recurrence_key: "2026-10-12",
+          } as never
+        }
+        branchIds={initial}
+        series={{
+          id: 19,
+          revision: 2,
+          recurrence_rule: "FREQ=WEEKLY;INTERVAL=1;BYDAY=MO;COUNT=4",
+          starts_on: "2026-10-12",
+        }}
+        mutationRequestKey="test-request-key"
+      />,
+    );
+    const form = host.querySelector<HTMLFormElement>("form")!;
+    if (clickedBranch === null) {
+      const button = [...form.querySelectorAll("button")].find((item) =>
+        item.textContent?.includes(
+          _label === "select all" ? "Select all" : "Clear all",
+        ),
+      )!;
+      await act(async () => button.click());
+    } else {
+      const checkbox = form.querySelector<HTMLInputElement>(
+        `input[name="branches"][value="${clickedBranch}"]`,
+      )!;
+      await act(async () => checkbox.click());
+    }
+    const data = new FormData(form);
+    expect(data.getAll("branches").map(Number)).toEqual(expected);
+    expect(data.getAll("edited_fields")).toEqual(
+      expected.join() === initial.join() ? [] : ["branch_ids"],
+    );
+  },
+);
+
+it("tracks Branch and Location together and removes reverted fields", async () => {
+  const host = await mount(
+    <EventForm
+      branches={[
+        { id: 1, name: "North" },
+        { id: 2, name: "South" },
+      ]}
+      eventTypes={[{ id: 9, name: "Session" }]}
+      locations={[{ id: 1, name: "Engineering Building" }]}
+      event={
+        {
+          id: 12,
+          name: "CIC meeting",
+          description: "Agenda",
+          location: "Engineering Building",
+          event_type_id: 9,
+          slides_url: null,
+          meeting_notes_url: null,
+          signup_sheet_url: null,
+          max_volunteers: null,
+          event_date: "2026-10-12",
+          starts_at: "2026-10-12T16:00:00.000Z",
+          ends_at: "2026-10-12T17:00:00.000Z",
+          recurrence_key: "2026-10-12",
+        } as never
+      }
+      branchIds={[1]}
+      series={{
+        id: 19,
+        revision: 2,
+        recurrence_rule: "FREQ=WEEKLY;INTERVAL=1;BYDAY=MO;COUNT=4",
+        starts_on: "2026-10-12",
+      }}
+      mutationRequestKey="test-request-key"
+    />,
+  );
+  const form = host.querySelector<HTMLFormElement>("form")!;
+  const branch = form.querySelector<HTMLInputElement>(
+    'input[name="branches"][value="2"]',
+  )!;
+  await act(async () => branch.click());
+  const location = form.querySelector<HTMLInputElement>(
+    'input[name="location"]',
+  )!;
+  await act(async () => {
+    location.focus();
+    setInputValue(location, "New campus room");
+    location.dispatchEvent(
+      new InputEvent("input", { bubbles: true, inputType: "insertText" }),
+    );
+    location.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  expect(new FormData(form).getAll("edited_fields")).toEqual([
+    "location",
+    "branch_ids",
+  ]);
+
+  await act(async () => branch.click());
+  expect(new FormData(form).getAll("edited_fields")).toEqual(["location"]);
+
+  await act(async () => {
+    setInputValue(location, "Engineering Building");
+    location.dispatchEvent(
+      new InputEvent("input", { bubbles: true, inputType: "insertText" }),
+    );
+    location.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  expect(new FormData(form).getAll("edited_fields")).toEqual([]);
+});

@@ -285,29 +285,33 @@ it("self signup reports closed-event RPC errors without claiming success or reva
   expect(revalidatePath).not.toHaveBeenCalled();
 });
 
-it("edits a recurring Event through the scoped RPC with only changed fields", async () => {
-  const data = eventForm();
-  data.set("id", "12");
-  data.set("scope", "following");
-  data.set("recurrence_series_id", "3");
-  data.set("recurrence_revision", "2");
-  data.set("mutation_request_key", "00000000-0000-4000-8000-000000000068");
-  data.append("edited_fields", "location");
-  await saveEvent({ error: "", success: "" }, data);
-  expect(rpc).toHaveBeenCalledWith("mutate_recurring_event_with_capacity", {
-    p_selected_id: 12,
-    p_scope: "following",
-    p_operation: "edit",
-    p_series_id: 3,
-    p_revision: 2,
-    p_request_key: "00000000-0000-4000-8000-000000000068",
-    p_patch: { location: "Campus" },
-  });
-  expect(rpc).not.toHaveBeenCalledWith(
-    "save_event_with_links",
-    expect.anything(),
-  );
-});
+it.each(["occurrence", "following", "series"] as const)(
+  "edits only the changed Location and Branches through the %s recurring Event scope",
+  async (scope) => {
+    const data = eventForm();
+    data.set("id", "12");
+    data.set("scope", scope);
+    data.set("recurrence_series_id", "3");
+    data.set("recurrence_revision", "2");
+    data.set("mutation_request_key", "00000000-0000-4000-8000-000000000068");
+    data.append("edited_fields", "location");
+    data.append("edited_fields", "branch_ids");
+    await saveEvent({ error: "", success: "" }, data);
+    expect(rpc).toHaveBeenCalledWith("mutate_recurring_event_with_capacity", {
+      p_selected_id: 12,
+      p_scope: scope,
+      p_operation: "edit",
+      p_series_id: 3,
+      p_revision: 2,
+      p_request_key: "00000000-0000-4000-8000-000000000068",
+      p_patch: { location: "Campus", branch_ids: [-4] },
+    });
+    expect(rpc).not.toHaveBeenCalledWith(
+      "save_event_with_links",
+      expect.anything(),
+    );
+  },
+);
 
 it.each([false, true])(
   "Event edit retains list context after save (recurring=%s)",
