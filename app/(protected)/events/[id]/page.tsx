@@ -8,7 +8,7 @@ import { getAuthorizationContext, canManageEvent } from "@/lib/authorization";
 import PointTransactionTable from "@/components/point-transaction-table";
 import Link from "next/link";
 import type { Route } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import EventResourceLinks from "../event-resource-links";
 import { eventStatus, eventSignupOpen } from "@/lib/event-status";
@@ -210,59 +210,14 @@ export default async function EventDetailPage({
   const { id: eventIdParam } = await params;
   if (!/^-?[1-9]\d*$/.test(eventIdParam)) notFound();
   const eventId = Number(eventIdParam);
-  const [result, officers] = await Promise.all([
-    supabase
-      .from("events")
-      .select(
-        "*,event_types(name),event_branches(branch_id,branches(name)),event_officers(officers(id,name)),event_waitlist(id,joined_at,officer_id,officers(id,name,status)),task_events(tasks(id,title,removed_at))",
-      )
-      .eq("id", eventId)
-      .maybeSingle(),
-    supabase
-      .from("officers")
-      .select("id,name")
-      .eq("status", "active")
-      .order("name"),
-  ]);
-  const countsResult = await supabase.rpc("event_signup_counts");
-  if (result.error || officers.error || countsResult.error)
-    throw new Error("Failed to load event");
+  const result = await supabase
+    .from("events")
+    .select("*,event_types(name),event_branches(branch_id,branches(name))")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (result.error) throw new Error("Failed to load event");
   if (!result.data) notFound();
   const event = result.data;
-  const signupCounts = countsResult.data.find(
-    (row) => row.event_id === event.id,
-  );
-  const confirmedCount = Number(
-    signupCounts?.confirmed_count ?? event.event_officers.length,
-  );
-  const waitlistCount = Number(
-    signupCounts?.waitlist_count ?? event.event_waitlist.length,
-  );
-  const waitlisted = event.event_waitlist.some(
-    ({ officer_id }) => officer_id === actor.id,
-  );
-  const confirmed = event.event_officers.some(
-    ({ officers: officer }) => officer.id === actor.id,
-  );
-  const sortedWaitlist = [...event.event_waitlist].sort(
-    (left, right) =>
-      left.joined_at.localeCompare(right.joined_at) || left.id - right.id,
-  );
-  const sortedEventOfficers = [...event.event_officers].sort(
-    (left, right) =>
-      left.officers.name.localeCompare(right.officers.name, "en", {
-        sensitivity: "base",
-      }) ||
-      left.officers.name.localeCompare(right.officers.name, "en") ||
-      left.officers.id - right.officers.id,
-  );
-  const linkedTasks = event.task_events
-    .map(({ tasks }) => tasks)
-    .sort(
-      (left, right) =>
-        left.title.localeCompare(right.title, "en", { sensitivity: "base" }) ||
-        left.id - right.id,
-    );
   const status = eventStatus(event);
   const signupOpen = !event.deleted_at && eventSignupOpen(event);
   const past = status === "past";
@@ -270,13 +225,81 @@ export default async function EventDetailPage({
     actor,
     event.event_branches.map((eventBranch) => eventBranch.branch_id),
   );
+  if (event.deleted_at && !canManage) notFound();
   const section =
     requestedSectionName === "waitlist" && !canManage
       ? "overview"
       : requestedSectionName;
-  const eligibleForSelfSignup = officers.data.some(
-    (officer) => officer.id === actor.id,
-  );
+
+  const [
+    rosterCountResult,
+    waitlistCountResult,
+    taskCountResult,
+    pointCountResult,
+    personalRosterResult,
+    personalWaitlistResult,
+    activeOfficerResult,
+    series,
+  ] = await Promise.all([
+    supabase
+      .from("event_officers")
+      .select("officer_id", { count: "exact", head: true })
+      .eq("event_id", event.id),
+    supabase
+      .from("event_waitlist")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", event.id),
+    supabase
+      .from("task_events")
+      .select("task_id", { count: "exact", head: true })
+      .eq("event_id", event.id),
+    supabase
+      .from("point_transactions")
+      .select("id", { count: "exact", head: true })
+      .is("removed_at", null)
+      .eq("event_id", event.id),
+    supabase
+      .from("event_officers")
+      .select("officer_id", { count: "exact", head: true })
+      .eq("event_id", event.id)
+      .eq("officer_id", actor.id),
+    supabase
+      .from("event_waitlist")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", event.id)
+      .eq("officer_id", actor.id),
+    supabase
+      .from("officers")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "active")
+      .eq("id", actor.id),
+    event.recurrence_series_id === null
+      ? Promise.resolve(undefined)
+      : supabase
+          .from("event_series")
+          .select("id,revision,recurrence_rule,starts_on")
+          .eq("id", event.recurrence_series_id)
+          .single(),
+  ]);
+  if (
+    rosterCountResult.error ||
+    waitlistCountResult.error ||
+    taskCountResult.error ||
+    pointCountResult.error ||
+    personalRosterResult.error ||
+    personalWaitlistResult.error ||
+    activeOfficerResult.error
+  )
+    throw new Error("Failed to load event participation counts");
+  if (series?.error) throw new Error("Failed to load recurring series");
+
+  const confirmedCount = rosterCountResult.count ?? 0;
+  const waitlistCount = waitlistCountResult.count ?? 0;
+  const taskCount = taskCountResult.count ?? 0;
+  const pointCount = pointCountResult.count ?? 0;
+  const confirmed = (personalRosterResult.count ?? 0) > 0;
+  const waitlisted = (personalWaitlistResult.count ?? 0) > 0;
+  const eligibleForSelfSignup = (activeOfficerResult.count ?? 0) > 0;
   const full =
     event.max_volunteers !== null && confirmedCount >= event.max_volunteers;
   const personalSignup = personalSignupState({
@@ -286,48 +309,84 @@ export default async function EventDetailPage({
     eligible: eligibleForSelfSignup,
     full,
   });
-  const officersAvailableToAdd = officers.data.filter(
-    (officer) =>
-      !event.event_officers.some(
-        (eventSignup) => eventSignup.officers.id === officer.id,
-      ) &&
-      !event.event_waitlist.some((entry) => entry.officer_id === officer.id),
-  );
-  if (event.deleted_at && !canManage) notFound();
-
-  const [pointCountResult, series] = await Promise.all([
-    supabase
-      .from("point_transactions")
-      .select("id", { count: "exact", head: true })
-      .is("removed_at", null)
-      .eq("event_id", event.id),
-    event.recurrence_series_id === null
-      ? Promise.resolve(undefined)
-      : supabase
-          .from("event_series")
-          .select("id,revision,recurrence_rule,starts_on")
-          .eq("id", event.recurrence_series_id)
-          .single(),
-  ]);
-  if (pointCountResult.error)
-    throw new Error("Failed to load event point count");
-  if (series?.error) throw new Error("Failed to load recurring series");
-
-  const pointCount = pointCountResult.count ?? 0;
   const sectionCount =
     section === "roster"
-      ? sortedEventOfficers.length
+      ? confirmedCount
       : section === "waitlist"
-        ? sortedWaitlist.length
+        ? waitlistCount
         : section === "tasks"
-          ? linkedTasks.length
+          ? taskCount
           : pointCount;
   const totalPages = Math.max(1, Math.ceil(sectionCount / RELATED_PAGE_SIZE));
   const page = Math.min(requested, totalPages);
+  const canonicalPage = page > 1 ? String(page) : undefined;
+  if (query.page !== canonicalPage) {
+    redirect(sectionHref(eventIdParam, section, page, returnTo));
+  }
   const start = (page - 1) * RELATED_PAGE_SIZE;
-  const transactionsResult =
+
+  const canAddOfficers = canManage && !event.deleted_at && (signupOpen || past);
+  const [
+    candidateOfficersResult,
+    rosterResult,
+    waitlistResult,
+    tasksResult,
+    transactionsResult,
+  ] = await Promise.all([
+    canAddOfficers
+      ? supabase
+          .from("officers")
+          .select(
+            "id,name,event_officers!event_officers_officer_id_fkey(event_id),event_waitlist!event_waitlist_officer_id_fkey(event_id)",
+          )
+          .eq("status", "active")
+          .eq("event_officers.event_id", event.id)
+          .is("event_officers", null)
+          .eq("event_waitlist.event_id", event.id)
+          .is("event_waitlist", null)
+          .order("name")
+      : Promise.resolve(undefined),
+    section === "overview"
+      ? supabase
+          .from("event_officers")
+          .select("officer_id,officers!event_officers_officer_id_fkey(id,name)")
+          .eq("event_id", event.id)
+          .order("name", { referencedTable: "officers" })
+          .order("officer_id")
+          .range(0, 2)
+      : section === "roster"
+        ? supabase
+            .from("event_officers")
+            .select(
+              "officer_id,officers!event_officers_officer_id_fkey(id,name)",
+            )
+            .eq("event_id", event.id)
+            .order("name", { referencedTable: "officers" })
+            .order("officer_id")
+            .range(start, start + RELATED_PAGE_SIZE - 1)
+        : Promise.resolve(undefined),
+    section === "waitlist"
+      ? supabase
+          .from("event_waitlist")
+          .select(
+            "id,joined_at,officer_id,officers!event_waitlist_officer_id_fkey(id,name,status)",
+          )
+          .eq("event_id", event.id)
+          .order("joined_at")
+          .order("id")
+          .range(start, start + RELATED_PAGE_SIZE - 1)
+      : Promise.resolve(undefined),
+    section === "tasks"
+      ? supabase
+          .from("task_events")
+          .select("task_id,tasks!task_events_task_id_fkey(id,title,removed_at)")
+          .eq("event_id", event.id)
+          .order("title", { referencedTable: "tasks" })
+          .order("task_id")
+          .range(start, start + RELATED_PAGE_SIZE - 1)
+      : Promise.resolve(undefined),
     section === "points"
-      ? await supabase
+      ? supabase
           .from("point_transactions")
           .select(
             "*,officers!point_transactions_officer_id_fkey(id,name),events(id,name),tasks(id,title)",
@@ -337,8 +396,20 @@ export default async function EventDetailPage({
           .order("created_at", { ascending: false })
           .order("id", { ascending: false })
           .range(start, start + RELATED_PAGE_SIZE - 1)
-      : undefined;
-  if (transactionsResult?.error) throw new Error("Failed to load event points");
+      : Promise.resolve(undefined),
+  ]);
+  if (
+    candidateOfficersResult?.error ||
+    rosterResult?.error ||
+    waitlistResult?.error ||
+    tasksResult?.error ||
+    transactionsResult?.error
+  )
+    throw new Error("Failed to load Event related records");
+  const officersAvailableToAdd = candidateOfficersResult?.data ?? [];
+  const rosterRows = rosterResult?.data ?? [];
+  const waitlistRows = waitlistResult?.data ?? [];
+  const linkedTasks = (tasksResult?.data ?? []).map(({ tasks }) => tasks);
   const transactions = transactionsResult?.data ?? [];
   const seriesData = series?.data;
 
@@ -365,11 +436,11 @@ export default async function EventDetailPage({
         section={section}
         returnTo={returnTo}
         counts={{
-          roster: event.event_officers.length,
+          roster: confirmedCount,
           ...(canManage && waitlistCount > 0
             ? { waitlist: waitlistCount }
             : {}),
-          tasks: linkedTasks.length,
+          tasks: taskCount,
           points: pointCount,
         }}
       />
@@ -496,24 +567,22 @@ export default async function EventDetailPage({
                     full={personalSignup === "full"}
                   />
                 )}
-              {event.event_officers.length > 0 ? (
+              {confirmedCount > 0 ? (
                 <div>
                   <h3 className="mb-1 text-sm font-medium">
-                    Confirmed roster ({event.event_officers.length})
+                    Confirmed roster ({confirmedCount})
                   </h3>
                   <ul className="list-disc space-y-0.5 pl-5 text-sm">
-                    {sortedEventOfficers
-                      .slice(0, 3)
-                      .map(({ officers: officer }) => (
-                        <li key={officer.id}>
-                          <Link
-                            href={`/officers/${officer.id}`}
-                            className="underline underline-offset-4"
-                          >
-                            {officer.name}
-                          </Link>
-                        </li>
-                      ))}
+                    {rosterRows.map(({ officers: officer }) => (
+                      <li key={officer.id}>
+                        <Link
+                          href={`/officers/${officer.id}`}
+                          className="underline underline-offset-4"
+                        >
+                          {officer.name}
+                        </Link>
+                      </li>
+                    ))}
                   </ul>
                   <Link
                     href={sectionHref(eventIdParam, "roster", 1, returnTo)}
@@ -577,13 +646,13 @@ export default async function EventDetailPage({
                 ))}
             </section>
           </div>
-          {linkedTasks.length > 0 && (
+          {taskCount > 0 && (
             <p className="text-sm">
               <Link
                 href={sectionHref(eventIdParam, "tasks", 1, returnTo)}
                 className="underline underline-offset-4"
               >
-                Linked Tasks ({linkedTasks.length})
+                Linked Tasks ({taskCount})
               </Link>
             </p>
           )}
@@ -601,7 +670,7 @@ export default async function EventDetailPage({
       {section === "roster" && (
         <section aria-label="Confirmed roster" className="space-y-3">
           <SectionHeading
-            title={`Confirmed roster (${event.event_officers.length})`}
+            title={`Confirmed roster (${confirmedCount})`}
             description="Officers are listed alphabetically."
           />
           <EventSectionPagination
@@ -611,7 +680,7 @@ export default async function EventDetailPage({
             totalPages={totalPages}
             returnTo={returnTo}
           />
-          {sortedEventOfficers.length ? (
+          {rosterRows.length ? (
             <TableFrame compact label="Event signups">
               <table className="min-w-full">
                 <thead>
@@ -621,32 +690,30 @@ export default async function EventDetailPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedEventOfficers
-                    .slice(start, start + RELATED_PAGE_SIZE)
-                    .map(({ officers: officer }) => (
-                      <tr key={officer.id}>
-                        <td>
-                          <Link
-                            href={`/officers/${officer.id}`}
-                            className="underline underline-offset-4"
-                          >
-                            {officer.name}
-                          </Link>
-                        </td>
-                        <td>
-                          {signupOpen &&
-                          (canManage || officer.id === actor.id) ? (
-                            <SignupForm
-                              eventId={event.id}
-                              officerId={officer.id}
-                              remove
-                            />
-                          ) : (
-                            "Closed"
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                  {rosterRows.map(({ officers: officer }) => (
+                    <tr key={officer.id}>
+                      <td>
+                        <Link
+                          href={`/officers/${officer.id}`}
+                          className="underline underline-offset-4"
+                        >
+                          {officer.name}
+                        </Link>
+                      </td>
+                      <td>
+                        {signupOpen &&
+                        (canManage || officer.id === actor.id) ? (
+                          <SignupForm
+                            eventId={event.id}
+                            officerId={officer.id}
+                            remove
+                          />
+                        ) : (
+                          "Closed"
+                        )}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </TableFrame>
@@ -666,7 +733,7 @@ export default async function EventDetailPage({
       {section === "waitlist" && canManage && (
         <section aria-label="Waitlist" className="space-y-3">
           <SectionHeading
-            title={`Waitlist (${sortedWaitlist.length})`}
+            title={`Waitlist (${waitlistCount})`}
             description="Order is based on when each Officer joined."
           />
           <EventSectionPagination
@@ -676,25 +743,23 @@ export default async function EventDetailPage({
             totalPages={totalPages}
             returnTo={returnTo}
           />
-          {sortedWaitlist.length ? (
+          {waitlistRows.length ? (
             <ol start={start + 1} className="list-decimal space-y-2 pl-5">
-              {sortedWaitlist
-                .slice(start, start + RELATED_PAGE_SIZE)
-                .map((entry) => (
-                  <li key={entry.id}>
-                    <Link
-                      href={`/officers/${entry.officers.id}`}
-                      className="underline underline-offset-4"
-                    >
-                      {entry.officers.name}
-                    </Link>
-                    {entry.officers.status !== "active" && (
-                      <span className="ml-2 text-sm text-muted">
-                        Inactive; skipped for promotion
-                      </span>
-                    )}
-                  </li>
-                ))}
+              {waitlistRows.map((entry) => (
+                <li key={entry.id}>
+                  <Link
+                    href={`/officers/${entry.officers.id}`}
+                    className="underline underline-offset-4"
+                  >
+                    {entry.officers.name}
+                  </Link>
+                  {entry.officers.status !== "active" && (
+                    <span className="ml-2 text-sm text-muted">
+                      Inactive; skipped for promotion
+                    </span>
+                  )}
+                </li>
+              ))}
             </ol>
           ) : (
             <p>No officers are waitlisted.</p>
@@ -711,24 +776,22 @@ export default async function EventDetailPage({
 
       {section === "tasks" && (
         <section aria-label="Linked Tasks" className="space-y-3">
-          <SectionHeading title={`Linked Tasks (${linkedTasks.length})`} />
+          <SectionHeading title={`Linked Tasks (${taskCount})`} />
           {linkedTasks.length ? (
             <ul className="list-disc space-y-2 pl-5">
-              {linkedTasks
-                .slice(start, start + RELATED_PAGE_SIZE)
-                .map((linkedTask) => (
-                  <li key={linkedTask.id}>
-                    <Link
-                      href={`/tasks/${linkedTask.id}`}
-                      className="underline underline-offset-4"
-                    >
-                      {linkedTask.title}
-                    </Link>
-                    {linkedTask.removed_at && (
-                      <span className="ml-2 text-sm text-muted">Archived</span>
-                    )}
-                  </li>
-                ))}
+              {linkedTasks.map((linkedTask) => (
+                <li key={linkedTask.id}>
+                  <Link
+                    href={`/tasks/${linkedTask.id}`}
+                    className="underline underline-offset-4"
+                  >
+                    {linkedTask.title}
+                  </Link>
+                  {linkedTask.removed_at && (
+                    <span className="ml-2 text-sm text-muted">Archived</span>
+                  )}
+                </li>
+              ))}
             </ul>
           ) : (
             <p>No linked Tasks.</p>
