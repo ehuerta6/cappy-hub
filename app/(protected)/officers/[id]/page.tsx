@@ -53,6 +53,12 @@ function parsePage(value: string | string[] | undefined) {
   return Number.isSafeInteger(page) ? page : 1;
 }
 
+function isValidPageParam(value: string | string[] | undefined) {
+  if (typeof value !== "string" || !/^[1-9]\d*$/.test(value)) return false;
+  const page = Number(value);
+  return Number.isSafeInteger(page) && String(page) === value;
+}
+
 function sectionHref(
   officerId: string,
   section: OfficerSection,
@@ -195,7 +201,12 @@ export default async function OfficerDetailPage({
         ),
       ),
     );
+  const urlParams = new URLSearchParams();
+  if (safeReturnDestination) urlParams.set("returnTo", safeReturnDestination);
+  if (warningStatus) urlParams.set("warningStatus", warningStatus);
   const requestedPage = parsePage(context.page);
+  if (context.page !== undefined && !isValidPageParam(context.page))
+    redirect(sectionHref(officerIdParam, visibleSection, urlParams));
   if (visibleSection === "overview" && requestedPage > 1)
     redirect(
       sectionHref(
@@ -361,9 +372,6 @@ export default async function OfficerDetailPage({
       : visibleSection === "events"
         ? eventPages
         : transactionPages;
-  const urlParams = new URLSearchParams();
-  if (safeReturnDestination) urlParams.set("returnTo", safeReturnDestination);
-  if (warningStatus) urlParams.set("warningStatus", warningStatus);
   if (!overview && requestedPage > selectedPages)
     redirect(
       sectionHref(officerIdParam, visibleSection, urlParams, selectedPages),

@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   targetOfficerId: 7,
   pointCount: 11,
   ranges: [] as Array<{ table: string; from: number; to: number }>,
+  redirects: [] as string[],
 }));
 
 vi.mock("@/lib/authorization", () => ({
@@ -135,7 +136,9 @@ vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("Not found");
   },
-  redirect: vi.fn(),
+  redirect: (url: string) => {
+    state.redirects.push(url);
+  },
 }));
 
 import OfficerDetail from "@/app/(protected)/officers/[id]/page";
@@ -250,4 +253,46 @@ it("uses server-side five-row paging for the full Point section", async () => {
     from: 5,
     to: 9,
   });
+});
+
+it.each(["0", "abc", "9007199254740992"])(
+  "canonicalizes invalid page %s to page one in the active section",
+  async (page) => {
+    state.actor = { id: 7, applicationRole: "officer" };
+    state.targetOfficerId = 7;
+    state.redirects = [];
+
+    await OfficerDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({
+        section: "events",
+        page,
+        returnTo: "/officers?q=club",
+      }),
+    });
+
+    expect(state.redirects).toContain(
+      "/officers/7?returnTo=%2Fofficers%3Fq%3Dclub&section=events",
+    );
+  },
+);
+
+it("preserves the Warning filter when canonicalizing an invalid Warning page", async () => {
+  state.actor = { id: 99, applicationRole: "admin" };
+  state.targetOfficerId = 7;
+  state.redirects = [];
+
+  await OfficerDetail({
+    params: Promise.resolve({ id: "7" }),
+    searchParams: Promise.resolve({
+      section: "warnings",
+      page: "0",
+      warningStatus: "approved",
+      returnTo: "/officers?q=club",
+    }),
+  });
+
+  expect(state.redirects).toContain(
+    "/officers/7?returnTo=%2Fofficers%3Fq%3Dclub&warningStatus=approved&section=warnings",
+  );
 });
