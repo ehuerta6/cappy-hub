@@ -1,14 +1,15 @@
 "use client";
 
 import type { ListRoute } from "@/lib/return-context";
+import type { Route } from "next";
 
 type ListPageSelectorProps = {
-  pathname: ListRoute;
+  pathname: ListRoute | Route;
   label: string;
   filters: [string, string][];
   page: number;
   totalPages: number;
-  pageParam: "page" | "rankPage" | "reviewPage";
+  pageParam: string;
 };
 
 export function ListPageSelector({

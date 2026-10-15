@@ -513,7 +513,8 @@ it("paginates the complete roster in stable alphabetical order with signup remov
   });
   const htmlOne = renderToStaticMarkup(pageOne);
   const rosterOne = htmlOne.split('aria-label="Confirmed roster"')[1];
-  expect(rosterOne).toContain("Page 1 of 2");
+  expect(rosterOne).toContain('aria-label="Select roster list page"');
+  expect(rosterOne).toContain("of 2");
   expect(rosterOne).toContain(
     'href="/events/7?section=roster&amp;page=2&amp;returnTo=%2Fevents%3Fstatus%3Dpast"',
   );
@@ -560,7 +561,8 @@ it("paginates the FIFO waitlist with a bounded database query", async () => {
     }),
   );
 
-  expect(html).toContain("Page 2 of 2");
+  expect(html).toContain('aria-label="Select waitlist list page"');
+  expect(html).toContain("of 2");
   expect(html).toContain("Officer 7");
   expect(eventRelatedRanges).toContainEqual(["event_waitlist", 6, 11]);
   expect(
@@ -589,7 +591,8 @@ it("paginates linked Tasks with a bounded database query", async () => {
     }),
   );
 
-  expect(html).toContain("Page 2 of 2");
+  expect(html).toContain('aria-label="Select tasks list page"');
+  expect(html).toContain("of 2");
   expect(html).toContain("Task 7");
   expect(eventRelatedRanges).toContainEqual(["task_events", 6, 11]);
   expect(
@@ -609,7 +612,8 @@ it("loads Event point history by URL page beyond the previous 100-row preview", 
     }),
   );
 
-  expect(html).toContain("Page 21 of 21");
+  expect(html).toContain('aria-label="Select points list page"');
+  expect(html).toContain("of 21");
   expect(eventPointRanges).toEqual([[120, 125]]);
   expect(
     eventRelatedOrderCalls.filter(([table]) => table === "point_transactions"),

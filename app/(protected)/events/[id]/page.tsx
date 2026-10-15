@@ -4,6 +4,7 @@ import {
   type NavigationSearchParams,
 } from "@/lib/return-context";
 import ContextualBackLink from "@/components/contextual-back-link";
+import { ListPagination } from "@/components/list-pagination";
 import { getAuthorizationContext, canManageEvent } from "@/lib/authorization";
 import PointTransactionTable from "@/components/point-transaction-table";
 import Link from "next/link";
@@ -162,35 +163,19 @@ function EventSectionPagination({
   returnTo: unknown;
 }) {
   if (totalPages <= 1) return null;
+  const filters = new URLSearchParams();
+  filters.set("section", section);
+  const safeDestination = safeReturnTo(returnTo);
+  if (safeDestination) filters.set("returnTo", safeDestination);
   return (
-    <nav
-      aria-label={`${section} pages`}
-      className="flex items-center justify-between gap-4 text-sm"
-    >
-      {page > 1 ? (
-        <Link
-          href={sectionHref(eventId, section, page - 1, returnTo)}
-          className="min-h-9 underline underline-offset-4"
-        >
-          Previous
-        </Link>
-      ) : (
-        <span />
-      )}
-      <span aria-live="polite">
-        Page {page} of {totalPages}
-      </span>
-      {page < totalPages ? (
-        <Link
-          href={sectionHref(eventId, section, page + 1, returnTo)}
-          className="min-h-9 underline underline-offset-4"
-        >
-          Next
-        </Link>
-      ) : (
-        <span />
-      )}
-    </nav>
+    <ListPagination
+      pathname={`/events/${eventId}` as Route}
+      label={`${section} list`}
+      filters={filters}
+      page={page}
+      totalPages={totalPages}
+      getPageHref={(target) => sectionHref(eventId, section, target, returnTo)}
+    />
   );
 }
 
