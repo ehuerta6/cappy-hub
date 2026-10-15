@@ -18,7 +18,7 @@ insert into officers(id,name,utep_email,position_id,status,application_role,auth
  (-1792,'Count viewer','capacity-viewer@example.test',(select id from positions where name='Officer'),'active','officer','00000000-0000-4000-8000-000000001781'),
  (-1793,'Waitlist member','capacity-waitlisted@example.test',(select id from positions where name='Officer'),'active','officer','00000000-0000-4000-8000-000000001782'),
  (-1794,'Waitlist member B','capacity-waitlisted-b@example.test',(select id from positions where name='Officer'),'active','officer','00000000-0000-4000-8000-000000001783'),
- (-1795,'Count manager','capacity-manager@example.test',(select id from positions where name='Officer'),'active','admin','00000000-0000-4000-8000-000000001784');
+ (-1795,'Count manager','capacity-manager@example.test',(select id from positions where name='Lead'),'active','officer','00000000-0000-4000-8000-000000001784');
 
 insert into events(id,name,description,location,event_type_id,event_date,starts_at,ends_at,status,max_volunteers)
 values
@@ -34,6 +34,8 @@ values
 update events set deleted_at=pg_catalog.now(),deleted_by='00000000-0000-4000-8000-000000001780' where id=-1790;
 insert into event_officers(event_id,officer_id) values
  (-1780,-1781),(-1785,-1781),(-1786,-1781),(-1786,-1783),(-1787,-1781),(-1788,-1781),(-1791,-1781),(-1792,-1792);
+insert into event_branches(event_id,branch_id) values(-1792,(select min(id) from branches));
+insert into officer_branches(officer_id,branch_id) values(-1795,(select min(id) from branches));
 insert into event_waitlist(event_id,officer_id) values(-1792,-1793),(-1792,-1794),(-1792,-1795);
 
 select ok((select max_volunteers is null from events where id=-1789)=false,'limited Event stores its optional positive capacity');
@@ -74,10 +76,12 @@ reset role;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001784',true);
 set local role authenticated;
 select is((select count(*) from event_waitlist where event_id=-1792),3::bigint,
-  'authorized Event manager can read all queue rows');
+  'authorized branch Lead can read all Event queue rows');
 select is((select waitlist_count from event_signup_counts() where event_id=-1792),3::bigint,
-  'authorized Event manager receives the same global total');
+  'authorized branch Lead receives the same global total');
 reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001780',true);
+set local role authenticated;
 select throws_ok($$select bulk_add_event_officers(-1780,array[-1784]::bigint[])$$,'P0001','The selected Officers exceed the Event capacity',
   'manager bulk addition cannot bypass a full Event capacity');
 reset role;
