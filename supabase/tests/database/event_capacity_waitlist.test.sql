@@ -4,13 +4,21 @@ set local search_path = public, extensions;
 select no_plan();
 
 insert into auth.users(id,email) values
- ('00000000-0000-4000-8000-000000001780','capacity-admin@example.test');
+ ('00000000-0000-4000-8000-000000001780','capacity-admin@example.test'),
+ ('00000000-0000-4000-8000-000000001781','capacity-viewer@example.test'),
+ ('00000000-0000-4000-8000-000000001782','capacity-waitlisted@example.test'),
+ ('00000000-0000-4000-8000-000000001783','capacity-waitlisted-b@example.test'),
+ ('00000000-0000-4000-8000-000000001784','capacity-manager@example.test');
 insert into officers(id,name,utep_email,position_id,status,application_role,auth_user_id) values
  (-1780,'Capacity Admin','capacity-admin@example.test',(select id from positions where name='Officer'),'active','admin','00000000-0000-4000-8000-000000001780'),
  (-1781,'Confirmed A','capacity-a@example.test',(select id from positions where name='Officer'),'active','officer',null),
  (-1782,'Waitlisted inactive','capacity-b@example.test',(select id from positions where name='Officer'),'active','officer',null),
  (-1783,'Waitlisted B','capacity-c@example.test',(select id from positions where name='Officer'),'active','officer',null),
- (-1784,'Waitlisted C','capacity-d@example.test',(select id from positions where name='Officer'),'active','officer',null);
+ (-1784,'Waitlisted C','capacity-d@example.test',(select id from positions where name='Officer'),'active','officer',null),
+ (-1792,'Count viewer','capacity-viewer@example.test',(select id from positions where name='Officer'),'active','officer','00000000-0000-4000-8000-000000001781'),
+ (-1793,'Waitlist member','capacity-waitlisted@example.test',(select id from positions where name='Officer'),'active','officer','00000000-0000-4000-8000-000000001782'),
+ (-1794,'Waitlist member B','capacity-waitlisted-b@example.test',(select id from positions where name='Officer'),'active','officer','00000000-0000-4000-8000-000000001783'),
+ (-1795,'Count manager','capacity-manager@example.test',(select id from positions where name='Officer'),'active','admin','00000000-0000-4000-8000-000000001784');
 
 insert into events(id,name,description,location,event_type_id,event_date,starts_at,ends_at,status,max_volunteers)
 values
@@ -21,10 +29,12 @@ values
  (-1788,'Capacity closed','Test Event','TBA',(select id from event_types where name='Meeting'),date '2000-02-02',timestamptz '2000-02-02 16:00Z',timestamptz '2000-02-02 17:00Z','past',1),
  (-1789,'Capacity cancelled','Test Event','TBA',(select id from event_types where name='Meeting'),date '2099-02-04',timestamptz '2099-02-04 16:00Z',timestamptz '2099-02-04 17:00Z','cancelled',1),
  (-1790,'Capacity archived','Test Event','TBA',(select id from event_types where name='Meeting'),date '2099-02-05',timestamptz '2099-02-05 16:00Z',timestamptz '2099-02-05 17:00Z','upcoming',1),
- (-1791,'Capacity leave waitlist','Test Event','TBA',(select id from event_types where name='Meeting'),date '2099-02-06',timestamptz '2099-02-06 16:00Z',timestamptz '2099-02-06 17:00Z','upcoming',1);
+ (-1791,'Capacity leave waitlist','Test Event','TBA',(select id from event_types where name='Meeting'),date '2099-02-06',timestamptz '2099-02-06 16:00Z',timestamptz '2099-02-06 17:00Z','upcoming',1),
+ (-1792,'Private waitlist count','Test Event','TBA',(select id from event_types where name='Meeting'),date '2099-02-07',timestamptz '2099-02-07 16:00Z',timestamptz '2099-02-07 17:00Z','upcoming',1);
 update events set deleted_at=pg_catalog.now(),deleted_by='00000000-0000-4000-8000-000000001780' where id=-1790;
 insert into event_officers(event_id,officer_id) values
- (-1780,-1781),(-1785,-1781),(-1786,-1781),(-1786,-1783),(-1787,-1781),(-1788,-1781),(-1791,-1781);
+ (-1780,-1781),(-1785,-1781),(-1786,-1781),(-1786,-1783),(-1787,-1781),(-1788,-1781),(-1791,-1781),(-1792,-1792);
+insert into event_waitlist(event_id,officer_id) values(-1792,-1793),(-1792,-1794),(-1792,-1795);
 
 select ok((select max_volunteers is null from events where id=-1789)=false,'limited Event stores its optional positive capacity');
 select throws_ok($$update events set max_volunteers=0 where id=-1780$$,'23514',null,
@@ -44,6 +54,30 @@ select is((select count(*) from event_waitlist where event_id=-1791),0::bigint,'
 select is((select count(*) from event_officers where event_id=-1780),1::bigint,'full Event remains at capacity');
 select is((select officer_id from event_waitlist where event_id=-1780 order by joined_at,id limit 1),-1782::bigint,'waitlist uses FIFO order');
 select is((select count(*) from event_waitlist where event_id=-1780 and officer_id=-1782),1::bigint,'waitlist prevents duplicate entries');
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001781',true);
+set local role authenticated;
+select is((select count(*) from event_waitlist where event_id=-1792),0::bigint,
+  'ordinary Officer who is not waitlisted cannot read queue identities');
+select is((select waitlist_count from event_signup_counts() where event_id=-1792),3::bigint,
+  'ordinary Officer still receives the trusted total waitlist count');
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001782',true);
+set local role authenticated;
+select is((select count(*) from event_waitlist where event_id=-1792),1::bigint,
+  'waitlisted Officer can read only their own queue row');
+select is((select array_agg(officer_id order by officer_id) from event_waitlist where event_id=-1792),
+  array[-1793]::bigint[],'waitlisted Officer cannot read other queue identities');
+select is((select waitlist_count from event_signup_counts() where event_id=-1792),3::bigint,
+  'waitlisted Officer receives global total without peer identities');
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001784',true);
+set local role authenticated;
+select is((select count(*) from event_waitlist where event_id=-1792),3::bigint,
+  'authorized Event manager can read all queue rows');
+select is((select waitlist_count from event_signup_counts() where event_id=-1792),3::bigint,
+  'authorized Event manager receives the same global total');
+reset role;
 select throws_ok($$select bulk_add_event_officers(-1780,array[-1784]::bigint[])$$,'P0001','The selected Officers exceed the Event capacity',
   'manager bulk addition cannot bypass a full Event capacity');
 reset role;

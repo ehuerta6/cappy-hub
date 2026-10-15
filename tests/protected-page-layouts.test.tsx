@@ -97,6 +97,9 @@ let eventRosterRows: Record<string, unknown>[];
 let eventRosterCount = 0;
 let eventWaitlistRows: Record<string, unknown>[];
 let eventWaitlistCount = 0;
+let eventGlobalWaitlistCount = 0;
+let personalRosterCount = 0;
+let personalWaitlistCount = 0;
 let eventTaskRows: Record<string, unknown>[];
 let eventTaskCount = 0;
 let eventPointCount = 0;
@@ -110,6 +113,9 @@ beforeEach(() => {
   eventRosterCount = 0;
   eventWaitlistRows = [];
   eventWaitlistCount = 0;
+  eventGlobalWaitlistCount = 0;
+  personalRosterCount = 0;
+  personalWaitlistCount = 0;
   eventTaskRows = [];
   eventTaskCount = 0;
   eventPointCount = 0;
@@ -125,13 +131,37 @@ beforeEach(() => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({ id: 1 } as never);
   vi.mocked(canManageEvent).mockReturnValue(true);
   vi.mocked(createClient).mockResolvedValue({
-    rpc: async () => ({ data: [], error: null }),
+    rpc: () => {
+      const query = {
+        eventId: 0,
+        eq: (_column: string, value: number) => {
+          query.eventId = value;
+          return query;
+        },
+        then: (resolve: (value: unknown) => unknown) =>
+          Promise.resolve({
+            data: [
+              {
+                event_id: query.eventId,
+                confirmed_count: eventRosterCount,
+                waitlist_count: eventGlobalWaitlistCount,
+              },
+            ],
+            error: null,
+          }).then(resolve),
+      };
+      return query;
+    },
     from: (table: string) => {
+      const filters = new Map<string, unknown>();
       const query = {
         rangeStart: 0,
         rangeEnd: Number.POSITIVE_INFINITY,
         select: () => query,
-        eq: () => query,
+        eq: (column: string, value: unknown) => {
+          filters.set(column, value);
+          return query;
+        },
         gt: () => query,
         gte: () => query,
         in: () => query,
@@ -205,9 +235,13 @@ beforeEach(() => {
               table === "officers"
                 ? officersForList.length
                 : table === "event_officers"
-                  ? eventRosterCount
+                  ? filters.has("officer_id")
+                    ? personalRosterCount
+                    : eventRosterCount
                   : table === "event_waitlist"
-                    ? eventWaitlistCount
+                    ? filters.has("officer_id")
+                      ? personalWaitlistCount
+                      : eventWaitlistCount
                     : table === "task_events"
                       ? eventTaskCount
                       : table === "point_transactions"
@@ -487,21 +521,22 @@ it("renders a bounded populated Event roster preview with a full-roster link", a
   expect(eventRelatedRanges).toContainEqual(["event_officers", 0, 2]);
 });
 
-it("paginates the complete roster in stable alphabetical order with signup removal available", async () => {
+it("paginates the complete roster in database name order with signup removal available", async () => {
   const names = [
+    "Alpha",
     "Alpha",
     "Bravo",
     "Charlie",
     "Delta",
     "Echo",
     "Foxtrot",
-    "Golf",
     "Hotel",
   ];
   eventRosterCount = names.length;
+  const officerIds = [7, 8, 6, 5, 4, 3, 2, 1];
   eventRosterRows = names.map((name, index) => ({
-    officer_id: index + 1,
-    officers: { id: index + 1, name },
+    officer_id: officerIds[index],
+    officers: { id: officerIds[index], name },
   }));
 
   const pageOne = await EventDetail({
@@ -518,7 +553,7 @@ it("paginates the complete roster in stable alphabetical order with signup remov
   expect(rosterOne).toContain(
     'href="/events/7?section=roster&amp;page=2&amp;returnTo=%2Fevents%3Fstatus%3Dpast"',
   );
-  expect(rosterOne.indexOf("Alpha")).toBeLessThan(rosterOne.indexOf("Foxtrot"));
+  expect(rosterOne.indexOf("Alpha")).toBeLessThan(rosterOne.indexOf("Echo"));
   expect(rosterOne).toContain("Remove signup");
   expect(rosterOne).not.toContain("Hotel");
 
@@ -534,15 +569,34 @@ it("paginates the complete roster in stable alphabetical order with signup remov
   expect(eventRelatedRanges).toContainEqual(["event_officers", 0, 5]);
   expect(eventRelatedRanges).toContainEqual(["event_officers", 6, 11]);
   expect(eventRosterOrderCalls).toEqual([
-    "name:officers",
+    "officers(name)",
     "officer_id",
-    "name:officers",
+    "officers(name)",
     "officer_id",
   ]);
 });
 
+it("shows the current Officer's signup removal in Overview outside the roster preview", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({ id: 99 } as never);
+  eventRosterCount = 8;
+  personalRosterCount = 1;
+  eventRosterRows = Array.from({ length: 3 }, (_, index) => ({
+    officer_id: index + 1,
+    officers: { id: index + 1, name: `Officer ${index + 1}` },
+  }));
+
+  const html = renderToStaticMarkup(
+    await EventDetail({ params: Promise.resolve({ id: "7" }) }),
+  );
+  const participation = html.split('aria-label="Participation"')[1];
+  expect(participation).toContain("Remove signup");
+  expect(participation).toContain('name="officer_id" value="99"');
+  expect(participation).not.toContain("Officer 99");
+});
+
 it("paginates the FIFO waitlist with a bounded database query", async () => {
   eventWaitlistCount = 8;
+  eventGlobalWaitlistCount = 8;
   eventWaitlistRows = Array.from({ length: 8 }, (_, index) => ({
     id: index + 1,
     joined_at: `2026-10-${String(index + 1).padStart(2, "0")}T12:00:00Z`,
@@ -576,9 +630,9 @@ it("paginates the FIFO waitlist with a bounded database query", async () => {
 it("paginates linked Tasks with a bounded database query", async () => {
   eventTaskCount = 7;
   eventTaskRows = Array.from({ length: 7 }, (_, index) => ({
-    task_id: index + 11,
+    task_id: 17 - index,
     tasks: {
-      id: index + 11,
+      id: 17 - index,
       title: `Task ${index + 1}`,
       removed_at: null,
     },
@@ -598,7 +652,7 @@ it("paginates linked Tasks with a bounded database query", async () => {
   expect(
     eventRelatedOrderCalls.filter(([table]) => table === "task_events"),
   ).toEqual([
-    ["task_events", "title:tasks"],
+    ["task_events", "tasks(title)"],
     ["task_events", "task_id"],
   ]);
 });

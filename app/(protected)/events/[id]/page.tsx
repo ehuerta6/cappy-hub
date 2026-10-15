@@ -218,7 +218,7 @@ export default async function EventDetailPage({
 
   const [
     rosterCountResult,
-    waitlistCountResult,
+    signupCountsResult,
     taskCountResult,
     pointCountResult,
     personalRosterResult,
@@ -230,10 +230,7 @@ export default async function EventDetailPage({
       .from("event_officers")
       .select("officer_id", { count: "exact", head: true })
       .eq("event_id", event.id),
-    supabase
-      .from("event_waitlist")
-      .select("id", { count: "exact", head: true })
-      .eq("event_id", event.id),
+    supabase.rpc("event_signup_counts").eq("event_id", event.id),
     supabase
       .from("task_events")
       .select("task_id", { count: "exact", head: true })
@@ -268,7 +265,7 @@ export default async function EventDetailPage({
   ]);
   if (
     rosterCountResult.error ||
-    waitlistCountResult.error ||
+    signupCountsResult.error ||
     taskCountResult.error ||
     pointCountResult.error ||
     personalRosterResult.error ||
@@ -279,7 +276,9 @@ export default async function EventDetailPage({
   if (series?.error) throw new Error("Failed to load recurring series");
 
   const confirmedCount = rosterCountResult.count ?? 0;
-  const waitlistCount = waitlistCountResult.count ?? 0;
+  const signupCounts = signupCountsResult.data?.[0];
+  if (!signupCounts) throw new Error("Failed to load event signup counts");
+  const waitlistCount = Number(signupCounts.waitlist_count);
   const taskCount = taskCountResult.count ?? 0;
   const pointCount = pointCountResult.count ?? 0;
   const confirmed = (personalRosterResult.count ?? 0) > 0;
@@ -336,7 +335,7 @@ export default async function EventDetailPage({
           .from("event_officers")
           .select("officer_id,officers!event_officers_officer_id_fkey(id,name)")
           .eq("event_id", event.id)
-          .order("name", { referencedTable: "officers" })
+          .order("officers(name)")
           .order("officer_id")
           .range(0, 2)
       : section === "roster"
@@ -346,7 +345,7 @@ export default async function EventDetailPage({
               "officer_id,officers!event_officers_officer_id_fkey(id,name)",
             )
             .eq("event_id", event.id)
-            .order("name", { referencedTable: "officers" })
+            .order("officers(name)")
             .order("officer_id")
             .range(start, start + RELATED_PAGE_SIZE - 1)
         : Promise.resolve(undefined),
@@ -366,7 +365,7 @@ export default async function EventDetailPage({
           .from("task_events")
           .select("task_id,tasks!task_events_task_id_fkey(id,title,removed_at)")
           .eq("event_id", event.id)
-          .order("title", { referencedTable: "tasks" })
+          .order("tasks(title)")
           .order("task_id")
           .range(start, start + RELATED_PAGE_SIZE - 1)
       : Promise.resolve(undefined),
@@ -542,6 +541,9 @@ export default async function EventDetailPage({
               </p>
               {personalSignup === "waitlisted" && (
                 <LeaveWaitlistForm eventId={event.id} />
+              )}
+              {personalSignup === "confirmed" && signupOpen && (
+                <SignupForm eventId={event.id} officerId={actor.id} remove />
               )}
               {!canManage &&
                 (personalSignup === "available" ||
