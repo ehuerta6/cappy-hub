@@ -167,7 +167,7 @@ export default async function TaskDetailPage({
         { count: "exact" },
       )
       .eq("task_id", taskId)
-      .order("name", { referencedTable: "officers", ascending: true })
+      .order("officers(name)", { ascending: true })
       .order("officer_id", { ascending: true })
       .range(
         (requestedAssignmentPage - 1) * assignmentPageSize,
@@ -179,8 +179,8 @@ export default async function TaskDetailPage({
         count: "exact",
       })
       .eq("task_id", taskId)
-      .order("event_date", { referencedTable: "events", ascending: true })
-      .order("name", { referencedTable: "events", ascending: true })
+      .order("events(event_date)", { ascending: true })
+      .order("events(name)", { ascending: true })
       .order("event_id", { ascending: true })
       .range(
         (requestedEventPage - 1) * eventPageSize,
