@@ -367,7 +367,7 @@ it("allows an authorized manager to edit a standalone Task", async () => {
 it("shows per-Officer completion controls to managers and read-only state to Officers", async () => {
   const props = {
     params: Promise.resolve({ id: "7" }),
-    searchParams: Promise.resolve({}),
+    searchParams: Promise.resolve({ section: "assignments" }),
   };
   const managerHtml = renderToStaticMarkup(await TaskDetail(props));
   expect(managerHtml).toContain('aria-label="Officers"');
@@ -401,7 +401,6 @@ it("shows per-Officer completion controls to managers and read-only state to Off
 
   vi.mocked(canManageEvent).mockReturnValue(false);
   const officerHtml = renderToStaticMarkup(await TaskDetail(props));
-  expect(officerHtml).toContain("Your assignment: Not completed");
   expect(officerHtml).toContain("Not completed");
   expect(officerHtml).toContain("Completed");
   expect(officerHtml).not.toContain(
@@ -409,6 +408,110 @@ it("shows per-Officer completion controls to managers and read-only state to Off
   );
   expect(officerHtml).not.toContain('aria-label="Completed for Other Officer"');
   expect(officerHtml).not.toContain("Remove assignment");
+});
+
+it("lets an unassigned Officer self-assign without exposing completion controls", async () => {
+  const previousAssignments = task.task_officer_assignments;
+  Object.assign(task, {
+    task_officer_assignments: [previousAssignments[1]],
+  });
+  vi.mocked(canManageEvent).mockReturnValue(false);
+  const html = renderToStaticMarkup(
+    await TaskDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({ section: "assignments" }),
+    }),
+  );
+  expect(html).toContain('aria-label="Assign this task to me"');
+  expect(html).not.toContain('aria-label="Completed for Other Officer"');
+  expect(html).not.toContain("Remove assignment");
+  Object.assign(task, { task_officer_assignments: previousAssignments });
+});
+
+it("keeps Task detail previews to four and pages full related sections by six", async () => {
+  const assignments = Array.from({ length: 8 }, (_, index) => ({
+    officer_id: index + 1,
+    assigned_at: `2026-10-${String(index + 1).padStart(2, "0")}T12:00:00Z`,
+    completed_at: null,
+    officers: { id: index + 1, name: `Officer ${index + 1}` },
+  }));
+  const events = Array.from({ length: 7 }, (_, index) => ({
+    events: {
+      id: index + 1,
+      name: `Event ${index + 1}`,
+      event_date: `2026-11-${String(index + 1).padStart(2, "0")}`,
+      status: "upcoming",
+      deleted_at: null,
+    },
+  }));
+  Object.assign(task, {
+    task_officer_assignments: assignments,
+    task_events: events,
+  });
+  const returnTo = "/tasks?status=open&page=2";
+  const overview = renderToStaticMarkup(
+    await TaskDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({ returnTo }),
+    }),
+  );
+  expect(overview).toContain("Officer 4");
+  expect(overview).not.toContain("Officer 5");
+  expect(overview).toContain("Event 4");
+  expect(overview).not.toContain("Event 5");
+  expect(overview).toContain("returnTo=%2Ftasks%3Fstatus%3Dopen%26page%3D2");
+
+  const assignmentPage = renderToStaticMarkup(
+    await TaskDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({
+        section: "assignments",
+        assignmentPage: "2",
+        returnTo,
+      }),
+    }),
+  );
+  expect(assignmentPage).toContain("Officer 7");
+  expect(assignmentPage).toContain("Officer 8");
+  expect(assignmentPage).toContain('aria-label="Completed for Officer 7"');
+  expect(assignmentPage).toContain("Add officers");
+  expect(assignmentPage).toContain("Remove assignment");
+  expect(assignmentPage).not.toContain("Officer 6</a>");
+  expect(assignmentPage).toContain("Page 2 of 2");
+  expect(assignmentPage).toContain(
+    "returnTo=%2Ftasks%3Fstatus%3Dopen%26page%3D2",
+  );
+
+  const eventPage = renderToStaticMarkup(
+    await TaskDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({
+        section: "events",
+        eventPage: "2",
+        returnTo,
+      }),
+    }),
+  );
+  expect(eventPage).toContain("Event 7");
+  expect(eventPage).not.toContain("Event 6</a>");
+  expect(eventPage).toContain("Page 2 of 2");
+  Object.assign(task, {
+    task_officer_assignments: [
+      {
+        officer_id: 1,
+        assigned_at: "2026-10-01T12:00:00Z",
+        completed_at: null,
+        officers: { id: 1, name: "Synthetic Officer" },
+      },
+      {
+        officer_id: 2,
+        assigned_at: "2026-10-02T12:00:00Z",
+        completed_at: "2026-10-03T12:00:00Z",
+        officers: { id: 2, name: "Other Officer" },
+      },
+    ],
+    task_events: [],
+  });
 });
 
 it("does not add contextual Back links to Officer or Task main pages", async () => {
