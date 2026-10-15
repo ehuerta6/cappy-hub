@@ -160,7 +160,11 @@ beforeEach(() => {
         rangeStart: 0,
         rangeEnd: Number.POSITIVE_INFINITY,
         select: (selection: string, options?: Record<string, unknown>) => {
-          queryLog.push({ table, method: "select", args: [selection, options] });
+          queryLog.push({
+            table,
+            method: "select",
+            args: [selection, options],
+          });
           return query;
         },
         eq: (column: string, value: unknown) => {
@@ -224,10 +228,10 @@ beforeEach(() => {
               : table === "events"
                 ? event
                 : table === "task_officer_assignments"
-                  ? task.task_officer_assignments.find(
+                  ? (task.task_officer_assignments.find(
                       ({ officer_id }) =>
                         officer_id === filters.get("officer_id"),
-                    ) ?? null
+                    ) ?? null)
                   : task,
           error: null,
         }),
@@ -641,7 +645,6 @@ it("keeps Task detail previews to four and pages full related sections by six", 
     task_events: [],
   });
 });
-
 
 it("does not add contextual Back links to Officer or Task main pages", async () => {
   expect(
