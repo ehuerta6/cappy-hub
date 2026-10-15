@@ -1,5 +1,6 @@
 import ContextualBackLink from "@/components/contextual-back-link";
 import PointTransactionTable from "@/components/point-transaction-table";
+import { ListPagination } from "@/components/list-pagination";
 import {
   ActionLink,
   BranchBadges,
@@ -113,37 +114,17 @@ function SectionPager({
   totalPages: number;
 }) {
   if (totalPages <= 1) return null;
+  const filters = new URLSearchParams(params);
+  filters.set("section", section);
   return (
-    <nav
-      aria-label={`${section} pages`}
-      className="flex items-center justify-between gap-3 text-sm"
-    >
-      <span className="text-muted">
-        Page {page} of {totalPages}
-      </span>
-      <div className="flex gap-3">
-        {page > 1 ? (
-          <Link
-            className="underline"
-            href={sectionHref(officerId, section, params, page - 1)}
-          >
-            Previous
-          </Link>
-        ) : (
-          <span className="text-muted">Previous</span>
-        )}
-        {page < totalPages ? (
-          <Link
-            className="underline"
-            href={sectionHref(officerId, section, params, page + 1)}
-          >
-            Next
-          </Link>
-        ) : (
-          <span className="text-muted">Next</span>
-        )}
-      </div>
-    </nav>
+    <ListPagination
+      pathname={`/officers/${officerId}` as Route}
+      label={`${section} list`}
+      filters={filters}
+      page={page}
+      totalPages={totalPages}
+      getPageHref={(target) => sectionHref(officerId, section, params, target)}
+    />
   );
 }
 

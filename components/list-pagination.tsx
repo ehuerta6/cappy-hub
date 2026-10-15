@@ -2,16 +2,18 @@ import Link from "next/link";
 import { ListPageSelector } from "@/components/list-page-selector";
 import { listPageUrl } from "@/lib/list-url";
 import type { ListRoute } from "@/lib/return-context";
+import type { Route } from "next";
 
 type ListPaginationProps = {
-  pathname: ListRoute;
+  pathname: ListRoute | Route;
   label: string;
   filters: URLSearchParams;
   page: number;
   totalPages: number;
   totalCount?: number;
   countLabel?: string;
-  pageParam?: "page" | "rankPage" | "reviewPage";
+  pageParam?: string;
+  getPageHref?: (page: number) => Route;
 };
 
 export function ListPagination({
@@ -23,11 +25,20 @@ export function ListPagination({
   totalCount,
   countLabel,
   pageParam = "page",
+  getPageHref,
 }: ListPaginationProps) {
   const filterParams = new URLSearchParams(
     [...filters.entries()].filter(([key]) => key !== pageParam),
   );
   const filterEntries = [...filterParams.entries()];
+  const pageHref = (targetPage: number) =>
+    getPageHref?.(targetPage) ??
+    listPageUrl(
+      pathname as ListRoute,
+      filterParams,
+      targetPage,
+      pageParam as "page" | "rankPage" | "reviewPage",
+    );
   const linkClassName =
     "inline-flex size-8 items-center justify-center rounded border border-border bg-surface text-muted transition-colors hover:border-border-strong hover:bg-hover hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted";
   const renderControl = (title: string, symbol: string, targetPage: number) =>
@@ -48,7 +59,7 @@ export function ListPagination({
     ) : (
       <Link
         key={title}
-        href={listPageUrl(pathname, filterParams, targetPage, pageParam)}
+        href={pageHref(targetPage)}
         className={linkClassName}
         aria-label={title}
         title={title}
