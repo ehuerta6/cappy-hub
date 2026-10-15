@@ -92,8 +92,12 @@ const task = {
   due_date: "2099-10-08",
 };
 let officersForList: Record<string, unknown>[];
+let eventPointCount = 0;
+let eventPointRanges: [number, number][];
 beforeEach(() => {
   officersForList = [];
+  eventPointCount = 0;
+  eventPointRanges = [];
   vi.mocked(useActionState).mockReturnValue([
     { error: "", success: "" },
     vi.fn(),
@@ -115,7 +119,10 @@ beforeEach(() => {
         lt: () => query,
         lte: () => query,
         order: () => query,
-        range: () => query,
+        range: (from: number, to: number) => {
+          if (table === "point_transactions") eventPointRanges.push([from, to]);
+          return query;
+        },
         limit: () => query,
         or: () => query,
         single: async () => ({
@@ -140,7 +147,12 @@ beforeEach(() => {
         then: (resolve: (value: unknown) => unknown) =>
           Promise.resolve({
             data: table === "officers" ? officersForList : [],
-            count: table === "officers" ? officersForList.length : 0,
+            count:
+              table === "officers"
+                ? officersForList.length
+                : table === "point_transactions"
+                  ? eventPointCount
+                  : 0,
             error: null,
           }).then(resolve),
       };
@@ -371,7 +383,7 @@ it("groups Event details, files and participation while retaining management con
   expect(details).toContain('rel="noopener noreferrer"');
   const participation = html.split('aria-label="Participation"')[1];
   expect(participation).toContain("Your participation:");
-  expect(participation).toContain("Signed-up officers");
+  expect(participation).toContain("Participation");
   expect(participation).toContain("No officers signed up.");
   expect(participation).not.toContain("<table");
   expect(participation).toContain("No active officers are available to add.");
@@ -391,7 +403,7 @@ it("keeps manager bulk signup available when eligible Officers exist", async () 
   expect(html).toContain('name="officer_ids" value="4"');
 });
 
-it("renders populated Event participation as a compact semantic table", async () => {
+it("renders a bounded populated Event roster preview with a full-roster link", async () => {
   Object.assign(event, {
     event_officers: [
       { officers: { id: 3, name: "Zulu Officer" } },
@@ -405,30 +417,70 @@ it("renders populated Event participation as a compact semantic table", async ()
   );
   const participation = html.split('aria-label="Participation"')[1];
 
-  expect(participation).toContain(
-    'class="overflow-x-auto rounded-lg border border-border table-frame--compact table-frame--keyboard-scroll" role="region" aria-label="Event signups" tabindex="0"',
-  );
-  expect(participation).toContain('<table class="min-w-full">');
-  expect(participation).toContain(">Officer</th>");
-  expect(participation).toContain(">Signup</th>");
-  const signupRows = participation
-    .split('<table class="min-w-full">')[1]
-    .split("</table>")[0]
-    .match(/<tr>[\s\S]*?<\/tr>/g);
-  expect(signupRows).toHaveLength(4);
-  expect(signupRows?.[1]).toContain("Alpha Officer");
-  expect(signupRows?.[1]).toContain('name="officer_id" value="2"');
-  expect(signupRows?.[1]).toContain("Remove signup");
-  expect(signupRows?.[2]).toContain("Bravo Officer");
-  expect(signupRows?.[2]).toContain('name="officer_id" value="1"');
-  expect(signupRows?.[2]).toContain("Remove signup");
-  expect(signupRows?.[3]).toContain("Zulu Officer");
-  expect(signupRows?.[3]).toContain('name="officer_id" value="3"');
-  expect(signupRows?.[3]).toContain("Remove signup");
-  expect(participation).toContain("Remove signup");
+  expect(participation).toContain("Alpha Officer");
+  expect(participation).toContain("Bravo Officer");
+  expect(participation).toContain("Zulu Officer");
+  expect(participation).toContain("View full roster");
+  expect(participation).not.toContain("Remove signup");
   expect(participation).not.toContain("No officers signed up.");
 
   Object.assign(event, { event_officers: [] });
+});
+
+it("paginates the complete roster in stable alphabetical order with signup removal available", async () => {
+  const originalOfficers = event.event_officers;
+  Object.assign(event, {
+    event_officers: [
+      "Hotel",
+      "Golf",
+      "Foxtrot",
+      "Echo",
+      "Delta",
+      "Charlie",
+      "Bravo",
+      "Alpha",
+    ].map((name, index) => ({ officers: { id: index + 1, name } })),
+  });
+
+  const pageOne = await EventDetail({
+    params: Promise.resolve({ id: "7" }),
+    searchParams: Promise.resolve({
+      section: "roster",
+      returnTo: "/events?status=past",
+    }),
+  });
+  const htmlOne = renderToStaticMarkup(pageOne);
+  const rosterOne = htmlOne.split('aria-label="Confirmed roster"')[1];
+  expect(rosterOne).toContain("Page 1 of 2");
+  expect(rosterOne).toContain(
+    'href="/events/7?section=roster&amp;page=2&amp;returnTo=%2Fevents%3Fstatus%3Dpast"',
+  );
+  expect(rosterOne.indexOf("Alpha")).toBeLessThan(rosterOne.indexOf("Foxtrot"));
+  expect(rosterOne).toContain("Remove signup");
+  expect(rosterOne).not.toContain("Hotel");
+
+  const pageTwo = await EventDetail({
+    params: Promise.resolve({ id: "7" }),
+    searchParams: Promise.resolve({ section: "roster", page: "2" }),
+  });
+  const htmlTwo = renderToStaticMarkup(pageTwo);
+  const rosterTwo = htmlTwo.split('aria-label="Confirmed roster"')[1];
+  expect(rosterTwo).toContain("Hotel");
+  expect(rosterTwo).not.toContain("Alpha</a>");
+  Object.assign(event, { event_officers: originalOfficers });
+});
+
+it("loads Event point history by URL page beyond the previous 100-row preview", async () => {
+  eventPointCount = 125;
+  const html = renderToStaticMarkup(
+    await EventDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({ section: "points", page: "21" }),
+    }),
+  );
+
+  expect(html).toContain("Page 21 of 21");
+  expect(eventPointRanges).toEqual([[120, 125]]);
 });
 
 it("retains Officer operational sections and full point history", async () => {
