@@ -7,6 +7,8 @@ import { getAuthorizationContext, canManageEvent } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import ContextualBackLink from "@/components/contextual-back-link";
+import { ListPagination } from "@/components/list-pagination";
+import type { Route } from "next";
 import {
   ActionLink,
   BranchBadges,
@@ -76,49 +78,35 @@ function TaskDetailPagination({
   page,
   totalPages,
   returnTo,
+  feedback,
 }: {
   taskId: string;
   section: Exclude<TaskSection, "overview">;
   page: number;
   totalPages: number;
   returnTo: unknown;
+  feedback: unknown;
 }) {
   if (totalPages < 2) return null;
-  const controls = [
-    { label: "Previous page", target: page - 1, text: "Previous" },
-    { label: "Next page", target: page + 1, text: "Next" },
-  ];
+  const pageParam = section === "assignments" ? "assignmentPage" : "eventPage";
+  const filters = new URLSearchParams();
+  filters.set("section", section);
+  const destination = safeReturnTo(returnTo);
+  if (destination) filters.set("returnTo", destination);
+  if (feedback === "task-created" || feedback === "task-updated")
+    filters.set("feedback", feedback);
   return (
-    <nav
-      aria-label={`${section === "assignments" ? "Assignment" : "Linked Event"} pages`}
-      className="flex items-center justify-between gap-3 text-sm"
-    >
-      <span className="text-muted">
-        Page {page} of {totalPages}
-      </span>
-      <div className="flex gap-2">
-        {controls.map(({ label, target, text }) =>
-          target < 1 || target > totalPages ? (
-            <span
-              key={label}
-              aria-disabled="true"
-              className="rounded border border-border px-3 py-1.5 text-muted"
-            >
-              {text}
-            </span>
-          ) : (
-            <Link
-              key={label}
-              href={taskSectionUrl(taskId, section, returnTo, target)}
-              aria-label={label}
-              className="rounded border border-border px-3 py-1.5 hover:bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted"
-            >
-              {text}
-            </Link>
-          ),
-        )}
-      </div>
-    </nav>
+    <ListPagination
+      pathname={`/tasks/${taskId}` as Route}
+      label={`${section === "assignments" ? "Assignment" : "Linked Event"} list`}
+      filters={filters}
+      page={page}
+      totalPages={totalPages}
+      pageParam={pageParam}
+      getPageHref={(target) =>
+        taskSectionUrl(taskId, section, returnTo, target, feedback) as Route
+      }
+    />
   );
 }
 
@@ -555,6 +543,7 @@ export default async function TaskDetailPage({
             page={currentEventPage}
             totalPages={eventPages}
             returnTo={returnTo}
+            feedback={feedback}
           />
         </section>
       ) : (
@@ -640,6 +629,7 @@ export default async function TaskDetailPage({
             page={currentAssignmentPage}
             totalPages={assignmentPages}
             returnTo={returnTo}
+            feedback={feedback}
           />
         </section>
       )}
