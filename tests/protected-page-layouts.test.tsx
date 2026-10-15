@@ -107,6 +107,7 @@ let eventPointRanges: [number, number][];
 let eventRelatedRanges: [string, number, number][];
 let eventRosterOrderCalls: string[];
 let eventRelatedOrderCalls: [string, string][];
+const queryLog: { table: string; method: string; args: unknown[] }[] = [];
 beforeEach(() => {
   officersForList = [];
   eventRosterRows = [];
@@ -123,6 +124,7 @@ beforeEach(() => {
   eventRelatedRanges = [];
   eventRosterOrderCalls = [];
   eventRelatedOrderCalls = [];
+  queryLog.length = 0;
   vi.mocked(useActionState).mockReturnValue([
     { error: "", success: "" },
     vi.fn(),
@@ -157,8 +159,12 @@ beforeEach(() => {
       const query = {
         rangeStart: 0,
         rangeEnd: Number.POSITIVE_INFINITY,
-        select: () => query,
+        select: (selection: string, options?: Record<string, unknown>) => {
+          queryLog.push({ table, method: "select", args: [selection, options] });
+          return query;
+        },
         eq: (column: string, value: unknown) => {
+          queryLog.push({ table, method: "eq", args: [column, value] });
           filters.set(column, value);
           return query;
         },
@@ -171,6 +177,7 @@ beforeEach(() => {
         lt: () => query,
         lte: () => query,
         order: (column: string, options?: { referencedTable?: string }) => {
+          queryLog.push({ table, method: "order", args: [column, options] });
           eventRelatedOrderCalls.push([
             table,
             options?.referencedTable
@@ -187,6 +194,7 @@ beforeEach(() => {
           return query;
         },
         range: (from: number, to: number) => {
+          queryLog.push({ table, method: "range", args: [from, to] });
           query.rangeStart = from;
           query.rangeEnd = to;
           eventRelatedRanges.push([table, from, to]);
@@ -211,7 +219,16 @@ beforeEach(() => {
         }),
         maybeSingle: async () => ({
           data:
-            table === "officers" ? officer : table === "events" ? event : task,
+            table === "officers"
+              ? officer
+              : table === "events"
+                ? event
+                : table === "task_officer_assignments"
+                  ? task.task_officer_assignments.find(
+                      ({ officer_id }) =>
+                        officer_id === filters.get("officer_id"),
+                    ) ?? null
+                  : task,
           error: null,
         }),
         then: (resolve: (value: unknown) => unknown) =>
@@ -219,6 +236,11 @@ beforeEach(() => {
             data:
               table === "officers"
                 ? officersForList
+                : table === "task_officer_assignments"
+                  ? task.task_officer_assignments.slice(
+                      query.rangeStart,
+                      query.rangeEnd + 1,
+                    )
                 : table === "event_officers"
                   ? eventRosterRows.slice(query.rangeStart, query.rangeEnd + 1)
                   : table === "event_waitlist"
@@ -226,7 +248,12 @@ beforeEach(() => {
                         query.rangeStart,
                         query.rangeEnd + 1,
                       )
-                    : table === "task_events"
+                      : table === "task_events" && filters.has("task_id")
+                        ? task.task_events.slice(
+                            query.rangeStart,
+                            query.rangeEnd + 1,
+                          )
+                        : table === "task_events"
                       ? eventTaskRows.slice(
                           query.rangeStart,
                           query.rangeEnd + 1,
@@ -235,6 +262,8 @@ beforeEach(() => {
             count:
               table === "officers"
                 ? officersForList.length
+                : table === "task_officer_assignments"
+                  ? task.task_officer_assignments.length
                 : table === "event_officers"
                   ? filters.has("officer_id")
                     ? personalRosterCount
@@ -243,6 +272,10 @@ beforeEach(() => {
                     ? filters.has("officer_id")
                       ? personalWaitlistCount
                       : eventWaitlistCount
+                    : table === "task_officer_assignments"
+                      ? task.task_officer_assignments.length
+                    : table === "task_events" && filters.has("task_id")
+                      ? task.task_events.length
                     : table === "task_events"
                       ? eventTaskCount
                       : table === "point_transactions"
@@ -513,6 +546,205 @@ it("keeps Task detail previews to four and pages full related sections by six", 
     task_events: [],
   });
 });
+
+it("lets an unassigned Officer self-assign without exposing completion controls", async () => {
+  const previousAssignments = task.task_officer_assignments;
+  Object.assign(task, {
+    task_officer_assignments: [previousAssignments[0]],
+  });
+  vi.mocked(canManageEvent).mockReturnValue(false);
+  const html = renderToStaticMarkup(
+    await TaskDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({ section: "assignments" }),
+    }),
+  );
+  expect(html).toContain('aria-label="Assign this task to me"');
+  expect(html).not.toContain('aria-label="Completed for Other Officer"');
+  expect(html).not.toContain("Remove assignment");
+  Object.assign(task, { task_officer_assignments: previousAssignments });
+});
+
+it("keeps Task detail previews to four and pages full related sections by six", async () => {
+  const assignments = Array.from({ length: 8 }, (_, index) => ({
+    officer_id: 8 - index,
+    assigned_at: `2026-10-${String(index + 1).padStart(2, "0")}T12:00:00Z`,
+    completed_at: null,
+    officers: { id: 8 - index, name: `Officer ${index + 1}` },
+  }));
+  const events = Array.from({ length: 7 }, (_, index) => ({
+    event_id: 7 - index,
+    events: {
+      id: 8 - index,
+      name: `Event ${index + 1}`,
+      event_date: `2026-11-${String(index + 1).padStart(2, "0")}`,
+      status: "upcoming",
+      deleted_at: null,
+    },
+  }));
+  Object.assign(task, {
+    task_officer_assignments: assignments,
+    task_events: events,
+  });
+  const returnTo = "/tasks?status=open&page=2";
+  queryLog.length = 0;
+  const overview = renderToStaticMarkup(
+    await TaskDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({ returnTo }),
+    }),
+  );
+  expect(overview).toContain("Officer 4");
+  expect(overview).not.toContain("Officer 5");
+  expect(overview).toContain("Event 4");
+  expect(overview).not.toContain("Event 5");
+  expect(overview).toContain("Assignments (8)");
+  expect(overview).toContain("Linked Events (7)");
+  expect(overview).toContain("returnTo=%2Ftasks%3Fstatus%3Dopen%26page%3D2");
+  expect(queryLog).toContainEqual({
+    table: "task_officer_assignments",
+    method: "range",
+    args: [0, 3],
+  });
+  expect(queryLog).toContainEqual({
+    table: "task_events",
+    method: "range",
+    args: [0, 3],
+  });
+
+  queryLog.length = 0;
+  const assignmentPage = renderToStaticMarkup(
+    await TaskDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({
+        section: "assignments",
+        assignmentPage: "2",
+        returnTo,
+      }),
+    }),
+  );
+  const assignmentPageQuery = queryLog.find(
+    (call) =>
+      call.table === "task_officer_assignments" &&
+      call.method === "range" &&
+      call.args[0] === 6,
+  );
+  expect(assignmentPageQuery?.args).toEqual([6, 11]);
+  expect(queryLog).toContainEqual({
+    table: "task_officer_assignments",
+    method: "select",
+    args: [
+      "officer_id,assigned_at,completed_at,officers!task_officer_assignments_officer_id_fkey(id,name)",
+      { count: "exact" },
+    ],
+  });
+  expect(queryLog).toContainEqual({
+    table: "task_officer_assignments",
+    method: "eq",
+    args: ["officer_id", 1],
+  });
+  expect(queryLog).toContainEqual({
+    table: "task_officer_assignments",
+    method: "order",
+    args: ["officers(name)", { ascending: true }],
+  });
+  expect(queryLog).toContainEqual({
+    table: "task_officer_assignments",
+    method: "order",
+    args: ["officer_id", { ascending: true }],
+  });
+  expect(assignmentPage).toContain("Officer 7");
+  expect(assignmentPage).toContain("Officer 8");
+  expect(assignmentPage).toContain('aria-label="Completed for Officer 7"');
+  expect(assignmentPage).toContain("Add officers");
+  expect(assignmentPage).toContain("Remove assignment");
+  expect(assignmentPage).not.toContain("Officer 6</a>");
+  expect(assignmentPage).toContain('aria-label="Select assignment list page"');
+  expect(assignmentPage).toContain("of 2");
+  expect(assignmentPage).toContain(
+    "returnTo=%2Ftasks%3Fstatus%3Dopen%26page%3D2",
+  );
+
+  queryLog.length = 0;
+  const eventPage = renderToStaticMarkup(
+    await TaskDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({
+        section: "events",
+        eventPage: "2",
+        returnTo,
+      }),
+    }),
+  );
+  const eventPageQuery = queryLog.find(
+    (call) =>
+      call.table === "task_events" &&
+      call.method === "range" &&
+      call.args[0] === 6,
+  );
+  expect(eventPageQuery?.args).toEqual([6, 11]);
+  expect(queryLog).toContainEqual({
+    table: "task_events",
+    method: "select",
+    args: [
+      "event_id,events!inner(id,name,event_date,status,deleted_at)",
+      { count: "exact" },
+    ],
+  });
+  expect(queryLog).toContainEqual({
+    table: "task_events",
+    method: "order",
+    args: ["events(event_date)", { ascending: true }],
+  });
+  expect(queryLog).toContainEqual({
+    table: "task_events",
+    method: "order",
+    args: ["events(name)", { ascending: true }],
+  });
+  expect(queryLog).toContainEqual({
+    table: "task_events",
+    method: "order",
+    args: ["event_id", { ascending: true }],
+  });
+  const assignmentOrderIndex = queryLog.findIndex(
+    (call) =>
+      call.table === "task_officer_assignments" && call.method === "order",
+  );
+  const assignmentRangeIndex = queryLog.findIndex(
+    (call) =>
+      call.table === "task_officer_assignments" && call.method === "range",
+  );
+  expect(assignmentOrderIndex).toBeLessThan(assignmentRangeIndex);
+  const eventOrderIndex = queryLog.findIndex(
+    (call) => call.table === "task_events" && call.method === "order",
+  );
+  const eventRangeIndex = queryLog.findIndex(
+    (call) => call.table === "task_events" && call.method === "range",
+  );
+  expect(eventOrderIndex).toBeLessThan(eventRangeIndex);
+  expect(eventPage).toContain("Event 7");
+  expect(eventPage).not.toContain("Event 6</a>");
+  expect(eventPage).toContain('aria-label="Select linked event list page"');
+  expect(eventPage).toContain("of 2");
+  Object.assign(task, {
+    task_officer_assignments: [
+      {
+        officer_id: 1,
+        assigned_at: "2026-10-01T12:00:00Z",
+        completed_at: null,
+        officers: { id: 1, name: "Synthetic Officer" },
+      },
+      {
+        officer_id: 2,
+        assigned_at: "2026-10-02T12:00:00Z",
+        completed_at: "2026-10-03T12:00:00Z",
+        officers: { id: 2, name: "Other Officer" },
+      },
+    ],
+    task_events: [],
+  });
+});
+
 
 it("does not add contextual Back links to Officer or Task main pages", async () => {
   expect(

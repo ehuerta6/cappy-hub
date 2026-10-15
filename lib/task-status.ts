@@ -16,6 +16,14 @@ export function taskStatus(assignments: readonly TaskAssignmentSummary[]) {
     : "In progress";
 }
 
+export function taskStatusFromCounts(
+  assignmentCount: number,
+  incompleteCount: number,
+) {
+  if (assignmentCount === 0) return "Open";
+  return incompleteCount === 0 ? "Complete" : "In progress";
+}
+
 export function taskProgressLabel(
   assignments: readonly TaskAssignmentSummary[],
 ) {

@@ -3,9 +3,16 @@ import {
   splitTasksByOfficer,
   taskProgressLabel,
   taskStatus,
+  taskStatusFromCounts,
 } from "@/lib/task-status";
 
 describe("Task assignment summaries", () => {
+  it("derives Task status from server counts", () => {
+    expect(taskStatusFromCounts(0, 0)).toBe("Open");
+    expect(taskStatusFromCounts(3, 2)).toBe("In progress");
+    expect(taskStatusFromCounts(3, 0)).toBe("Complete");
+  });
+
   it("defines open, in-progress, and complete from all assignments", () => {
     expect(taskStatus([])).toBe("Open");
     expect(taskStatus([{ officer_id: 1, completed_at: null }])).toBe(

@@ -23,8 +23,9 @@ import {
   formatLabel,
   formatTaskDueDate,
 } from "@/lib/presentation";
-import { taskStatus } from "@/lib/task-status";
+import { taskStatusFromCounts } from "@/lib/task-status";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { TaskRemoveForm, TaskRestoreForm } from "../task-remove-form";
 import TaskSelfAssignForm from "../task-action-form";
 import {
@@ -34,11 +35,17 @@ import {
 } from "../task-officer-controls";
 
 type TaskSection = "overview" | "assignments" | "events";
+const TASK_DETAIL_PREVIEW_SIZE = 4;
 const TASK_DETAIL_PAGE_SIZE = 6;
 
-function parsePage(value: string | string[] | undefined, totalPages: number) {
+function parseRequestedPage(value: string | string[] | undefined) {
   if (typeof value !== "string" || !/^[1-9]\d*$/.test(value)) return 1;
-  return Math.min(Number(value), Math.max(totalPages, 1));
+  const page = Number(value);
+  return Number.isSafeInteger(page) ? Math.min(page, 100_000) : 1;
+}
+
+function isCanonicalPage(value: string | string[] | undefined, page: number) {
+  return value === (page > 1 ? String(page) : undefined);
 }
 
 function taskSectionUrl(
@@ -46,6 +53,7 @@ function taskSectionUrl(
   section: TaskSection,
   returnTo: unknown,
   page?: number,
+  feedback?: unknown,
 ) {
   const query = new URLSearchParams();
   if (section !== "overview") query.set("section", section);
@@ -56,6 +64,8 @@ function taskSectionUrl(
     );
   const safeDestination = safeReturnTo(returnTo);
   if (safeDestination) query.set("returnTo", safeDestination);
+  if (feedback === "task-created" || feedback === "task-updated")
+    query.set("feedback", feedback);
   const search = query.toString();
   return `/tasks/${taskId}${search ? `?${search}` : ""}` as `/tasks/${string}`;
 }
@@ -126,52 +136,144 @@ export default async function TaskDetailPage({
   if (!/^-?[1-9]\d*$/.test(taskIdParam)) notFound();
   const taskId = Number(taskIdParam);
   const supabase = await createClient();
-  const [result, officerResult, awardsResult] = await Promise.all([
-    supabase
-      .from("tasks")
-      .select(
-        "*,branches(name),task_officer_assignments(officer_id,assigned_at,completed_at,officers!task_officer_assignments_officer_id_fkey(id,name)),task_events(events(id,name,event_date,status,deleted_at))",
-      )
-      .eq("id", taskId)
-      .maybeSingle(),
-    supabase
-      .from("officers")
-      .select("id,name")
-      .eq("status", "active")
-      .order("name"),
-    supabase
-      .from("point_transactions")
-      .select("id,officer_id,removed_at")
-      .eq("task_id", taskId)
-      .eq("award_type", "task"),
-  ]);
-  if (result.error || officerResult.error || awardsResult.error)
-    throw new Error("Failed to load task");
-  if (!result.data) notFound();
+  const taskResult = await supabase
+    .from("tasks")
+    .select("*,branches(name)")
+    .eq("id", taskId)
+    .maybeSingle();
+  if (taskResult.error) throw new Error("Failed to load task");
+  if (!taskResult.data) notFound();
 
-  const task = result.data;
-  const assignments = task.task_officer_assignments;
-  const sortedAssignments = [...assignments].sort(
-    (left, right) =>
-      left.officers.name.localeCompare(right.officers.name, "en", {
-        sensitivity: "base",
-      }) ||
-      left.officers.name.localeCompare(right.officers.name, "en") ||
-      left.officer_id - right.officer_id,
-  );
+  const task = taskResult.data;
   const canManageTask = canManageEvent(actor, [task.branch_id]);
   if (task.removed_at && !canManageTask) notFound();
-  const alreadyAssigned = new Set(
-    assignments.map(({ officer_id }) => officer_id),
+  const activeSection: TaskSection =
+    section === "assignments" || section === "events" ? section : "overview";
+  const requestedAssignmentPage = parseRequestedPage(
+    activeSection === "assignments" ? assignmentPage : undefined,
   );
-  const hasProtectedCompletion = assignments.some(
-    (assignment) => assignment.completed_at !== null,
+  const requestedEventPage = parseRequestedPage(
+    activeSection === "events" ? eventPage : undefined,
   );
-  const canArchiveTask =
-    !hasProtectedCompletion && awardsResult.data.length === 0;
-  const availableOfficers = officerResult.data
-    .filter((officer) => !alreadyAssigned.has(officer.id))
+  const assignmentPageSize =
+    activeSection === "assignments"
+      ? TASK_DETAIL_PAGE_SIZE
+      : TASK_DETAIL_PREVIEW_SIZE;
+  const eventPageSize =
+    activeSection === "events"
+      ? TASK_DETAIL_PAGE_SIZE
+      : TASK_DETAIL_PREVIEW_SIZE;
+  const [
+    assignmentsResult,
+    eventsResult,
+    incompleteAssignmentsResult,
+    actorAssignmentResult,
+    awardsResult,
+    assignedOfficerIdsResult,
+    officersResult,
+  ] = await Promise.all([
+    supabase
+      .from("task_officer_assignments")
+      .select(
+        "officer_id,assigned_at,completed_at,officers!task_officer_assignments_officer_id_fkey(id,name)",
+        { count: "exact" },
+      )
+      .eq("task_id", taskId)
+      .order("name", { referencedTable: "officers", ascending: true })
+      .order("officer_id", { ascending: true })
+      .range(
+        (requestedAssignmentPage - 1) * assignmentPageSize,
+        requestedAssignmentPage * assignmentPageSize - 1,
+      ),
+    supabase
+      .from("task_events")
+      .select("event_id,events!inner(id,name,event_date,status,deleted_at)", {
+        count: "exact",
+      })
+      .eq("task_id", taskId)
+      .order("event_date", { referencedTable: "events", ascending: true })
+      .order("name", { referencedTable: "events", ascending: true })
+      .order("event_id", { ascending: true })
+      .range(
+        (requestedEventPage - 1) * eventPageSize,
+        requestedEventPage * eventPageSize - 1,
+      ),
+    supabase
+      .from("task_officer_assignments")
+      .select("officer_id", { count: "exact", head: true })
+      .eq("task_id", taskId)
+      .is("completed_at", null),
+    supabase
+      .from("task_officer_assignments")
+      .select("officer_id,completed_at")
+      .eq("task_id", taskId)
+      .eq("officer_id", actor.id)
+      .maybeSingle(),
+    supabase
+      .from("point_transactions")
+      .select("id", { count: "exact", head: true })
+      .eq("task_id", taskId)
+      .eq("award_type", "task"),
+    canManageTask && !task.removed_at
+      ? supabase
+          .from("task_officer_assignments")
+          .select("officer_id")
+          .eq("task_id", taskId)
+      : Promise.resolve({ data: [], error: null }),
+    canManageTask && !task.removed_at
+      ? supabase
+          .from("officers")
+          .select("id,name")
+          .eq("status", "active")
+          .order("name")
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (
+    assignmentsResult.error ||
+    eventsResult.error ||
+    incompleteAssignmentsResult.error ||
+    actorAssignmentResult.error ||
+    awardsResult.error ||
+    assignedOfficerIdsResult.error ||
+    officersResult.error ||
+    assignmentsResult.count === null ||
+    eventsResult.count === null ||
+    incompleteAssignmentsResult.count === null ||
+    awardsResult.count === null
+  )
+    throw new Error("Failed to load task details");
+  const assignmentCount = assignmentsResult.count;
+  const eventCount = eventsResult.count;
+  const incompleteAssignmentCount = incompleteAssignmentsResult.count;
+  const hasProtectedCompletion = incompleteAssignmentCount < assignmentCount;
+  const canArchiveTask = !hasProtectedCompletion && awardsResult.count === 0;
+  const assignedOfficerIds = new Set(
+    (assignedOfficerIdsResult.data ?? []).map(({ officer_id }) => officer_id),
+  );
+  const availableOfficers = (officersResult.data ?? [])
+    .filter((officer) => !assignedOfficerIds.has(officer.id))
     .map(({ id, name }) => ({ id, name }));
+  const assignments = assignmentsResult.data ?? [];
+  const linkedEvents = eventsResult.data ?? [];
+  const assignmentPageAwardsResult =
+    canManageTask &&
+    !task.removed_at &&
+    activeSection === "assignments" &&
+    assignments.length > 0
+      ? await supabase
+          .from("point_transactions")
+          .select("officer_id")
+          .eq("task_id", taskId)
+          .eq("award_type", "task")
+          .in(
+            "officer_id",
+            assignments.map(({ officer_id }) => officer_id),
+          )
+      : { data: [], error: null };
+  if (assignmentPageAwardsResult.error)
+    throw new Error("Failed to load Task assignment history");
+  const visibleAssignments = assignments;
+  const visibleEvents = linkedEvents;
   const series =
     task.recurrence_series_id === null
       ? undefined
@@ -181,39 +283,60 @@ export default async function TaskDetailPage({
           .eq("id", task.recurrence_series_id)
           .single();
   if (series?.error) throw new Error("Failed to load recurring series");
-  const myAssignment = assignments.find(
-    ({ officer_id }) => officer_id === actor.id,
+  const myAssignment = actorAssignmentResult.data;
+  const currentStatus = taskStatusFromCounts(
+    assignmentCount,
+    incompleteAssignmentCount,
   );
-  const currentStatus = taskStatus(assignments);
-  const activeSection: TaskSection =
-    section === "assignments" || section === "events" ? section : "overview";
-  const sortedEvents = [...task.task_events].sort(
-    (left, right) =>
-      left.events.event_date.localeCompare(right.events.event_date) ||
-      left.events.name.localeCompare(right.events.name, "en", {
-        sensitivity: "base",
-      }) ||
-      left.events.name.localeCompare(right.events.name, "en") ||
-      left.events.id - right.events.id,
+  const assignmentPages = Math.max(
+    1,
+    Math.ceil(assignmentCount / TASK_DETAIL_PAGE_SIZE),
   );
-  const assignmentPages = Math.ceil(assignments.length / TASK_DETAIL_PAGE_SIZE);
-  const eventPages = Math.ceil(sortedEvents.length / TASK_DETAIL_PAGE_SIZE);
-  const currentAssignmentPage = parsePage(assignmentPage, assignmentPages);
-  const currentEventPage = parsePage(eventPage, eventPages);
-  const visibleAssignments =
+  const eventPages = Math.max(1, Math.ceil(eventCount / TASK_DETAIL_PAGE_SIZE));
+  const currentAssignmentPage = Math.min(
+    requestedAssignmentPage,
+    assignmentPages,
+  );
+  const currentEventPage = Math.min(requestedEventPage, eventPages);
+  const activePage =
     activeSection === "assignments"
-      ? sortedAssignments.slice(
-          (currentAssignmentPage - 1) * TASK_DETAIL_PAGE_SIZE,
-          currentAssignmentPage * TASK_DETAIL_PAGE_SIZE,
-        )
-      : sortedAssignments.slice(0, 4);
-  const visibleEvents =
-    activeSection === "events"
-      ? sortedEvents.slice(
-          (currentEventPage - 1) * TASK_DETAIL_PAGE_SIZE,
-          currentEventPage * TASK_DETAIL_PAGE_SIZE,
-        )
-      : sortedEvents.slice(0, 4);
+      ? currentAssignmentPage
+      : activeSection === "events"
+        ? currentEventPage
+        : 1;
+  const activePageValue =
+    activeSection === "assignments"
+      ? assignmentPage
+      : activeSection === "events"
+        ? eventPage
+        : undefined;
+  const sectionIsCanonical =
+    activeSection === "overview"
+      ? section === undefined
+      : section === activeSection;
+  const pageParamsAreCanonical =
+    (activeSection === "assignments" || eventPage === undefined) &&
+    (activeSection === "events" || assignmentPage === undefined) &&
+    isCanonicalPage(activePageValue, activePage);
+  const safeFeedback =
+    feedback === "task-created" || feedback === "task-updated"
+      ? feedback
+      : undefined;
+  if (
+    !sectionIsCanonical ||
+    !pageParamsAreCanonical ||
+    safeReturnTo(returnTo) !== returnTo ||
+    safeFeedback !== feedback
+  )
+    redirect(
+      taskSectionUrl(
+        taskIdParam,
+        activeSection,
+        returnTo,
+        activePage,
+        safeFeedback,
+      ),
+    );
 
   return (
     <div className="space-y-4">
@@ -240,8 +363,8 @@ export default async function TaskDetailPage({
         {(
           [
             ["overview", "Overview"],
-            ["assignments", `Assignments (${assignments.length})`],
-            ["events", `Linked Events (${sortedEvents.length})`],
+            ["assignments", `Assignments (${assignmentCount})`],
+            ["events", `Linked Events (${eventCount})`],
           ] as const
         ).map(([target, label]) => (
           <Link
@@ -322,36 +445,35 @@ export default async function TaskDetailPage({
                   View all
                 </Link>
               </div>
-              {assignments.length ? (
+              {visibleAssignments.length ? (
                 <ul className="space-y-1">
-                  {sortedAssignments
-                    .slice(0, 4)
-                    .map(
-                      ({
-                        officer_id,
-                        completed_at,
-                        officers: assignedOfficer,
-                      }) => (
-                        <li
-                          key={officer_id}
-                          className="flex flex-wrap justify-between gap-x-3"
-                        >
-                          <Link href={`/officers/${assignedOfficer.id}`}>
-                            {assignedOfficer.name}
-                          </Link>
-                          <span className="text-sm text-muted">
-                            {completed_at ? "Completed" : "Not completed"}
-                          </span>
-                        </li>
-                      ),
-                    )}
+                  {visibleAssignments.map(
+                    ({
+                      officer_id,
+                      completed_at,
+                      officers: assignedOfficer,
+                    }) => (
+                      <li
+                        key={officer_id}
+                        className="flex flex-wrap justify-between gap-x-3"
+                      >
+                        <Link href={`/officers/${assignedOfficer.id}`}>
+                          {assignedOfficer.name}
+                        </Link>
+                        <span className="text-sm text-muted">
+                          {completed_at ? "Completed" : "Not completed"}
+                        </span>
+                      </li>
+                    ),
+                  )}
                 </ul>
               ) : (
                 <p>No Officers are assigned to this task.</p>
               )}
-              {assignments.length > 4 && (
+              {assignmentCount > TASK_DETAIL_PREVIEW_SIZE && (
                 <p className="text-sm text-muted">
-                  Showing 4 of {assignments.length} assignments.
+                  Showing {visibleAssignments.length} of {assignmentCount}{" "}
+                  assignments.
                 </p>
               )}
             </section>
@@ -388,9 +510,9 @@ export default async function TaskDetailPage({
               ) : (
                 <p>No linked Events.</p>
               )}
-              {sortedEvents.length > 4 && (
+              {eventCount > TASK_DETAIL_PREVIEW_SIZE && (
                 <p className="text-sm text-muted">
-                  Showing 4 of {sortedEvents.length} linked Events.
+                  Showing {visibleEvents.length} of {eventCount} linked Events.
                 </p>
               )}
             </section>
@@ -422,10 +544,9 @@ export default async function TaskDetailPage({
           ) : (
             <p>No linked Events.</p>
           )}
-          {sortedEvents.length > 4 && (
+          {eventCount > TASK_DETAIL_PREVIEW_SIZE && (
             <p className="text-sm text-muted">
-              Showing {visibleEvents.length} of {sortedEvents.length} linked
-              Events.
+              Showing {visibleEvents.length} of {eventCount} linked Events.
             </p>
           )}
           <TaskDetailPagination
@@ -442,7 +563,7 @@ export default async function TaskDetailPage({
           {!task.removed_at && !myAssignment && (
             <TaskSelfAssignForm taskId={task.id} />
           )}
-          {assignments.length === 0 ? (
+          {assignmentCount === 0 ? (
             <p>No Officers are assigned to this task.</p>
           ) : (
             <TableFrame compact label="Task assignment progress">
@@ -460,7 +581,7 @@ export default async function TaskDetailPage({
                   {visibleAssignments.map((assignment) => {
                     const assignedOfficer = assignment.officers;
                     const completed = assignment.completed_at !== null;
-                    const hasAward = awardsResult.data.some(
+                    const hasAward = assignmentPageAwardsResult.data.some(
                       (award) => award.officer_id === assignment.officer_id,
                     );
                     const canRemoveAssignment = !completed && !hasAward;
