@@ -233,11 +233,8 @@ export default async function OfficerDetailPage({
       .neq("events.status", "cancelled");
     if (!countOnly)
       query = query
-        .order("event_date", {
-          referencedTable: "events",
-          ascending: false,
-        })
-        .order("id", { referencedTable: "events", ascending: false });
+        .order("events(event_date)", { ascending: false })
+        .order("events(id)", { ascending: false });
     return query;
   };
   const makeTransactionsQuery = (countOnly = false) => {

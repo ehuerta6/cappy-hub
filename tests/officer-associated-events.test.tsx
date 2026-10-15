@@ -10,6 +10,9 @@ const state = vi.hoisted(() => ({
   targetOfficerId: 7,
   pointCount: 11,
   ranges: [] as Array<{ table: string; from: number; to: number }>,
+  orders: [] as Array<{ table: string; column: string; options?: unknown }>,
+  operations: [] as string[],
+  eventRows: [] as Array<{ events: Record<string, unknown> }>,
   redirects: [] as string[],
 }));
 
@@ -33,11 +36,16 @@ vi.mock("@/lib/supabase/server", () => ({
         is: () => query,
         neq: () => query,
         not: () => query,
-        order: () => query,
+        order: (column: string, options?: unknown) => {
+          state.orders.push({ table, column, options });
+          state.operations.push(`${table}:order:${column}`);
+          return query;
+        },
         range: (from: number, to: number) => {
           start = from;
           end = to;
           state.ranges.push({ table, from, to });
+          state.operations.push(`${table}:range`);
           return query;
         },
         limit: () => query,
@@ -57,41 +65,43 @@ vi.mock("@/lib/supabase/server", () => ({
           Promise.resolve({
             data:
               table === "event_officers"
-                ? [
-                    {
-                      events: {
-                        id: 10,
-                        name: "Active event",
-                        event_date: "2099-10-08",
-                        starts_at: "2099-10-08T23:00:00Z",
-                        ends_at: "2099-10-09T01:00:00Z",
-                        status: "active",
-                        deleted_at: null,
+                ? state.eventRows.length
+                  ? state.eventRows
+                  : [
+                      {
+                        events: {
+                          id: 10,
+                          name: "Active event",
+                          event_date: "2099-10-08",
+                          starts_at: "2099-10-08T23:00:00Z",
+                          ends_at: "2099-10-09T01:00:00Z",
+                          status: "active",
+                          deleted_at: null,
+                        },
                       },
-                    },
-                    {
-                      events: {
-                        id: 11,
-                        name: "Cancelled event",
-                        event_date: "2099-10-08",
-                        starts_at: "2099-10-08T23:00:00Z",
-                        ends_at: "2099-10-09T01:00:00Z",
-                        status: "cancelled",
-                        deleted_at: null,
+                      {
+                        events: {
+                          id: 11,
+                          name: "Cancelled event",
+                          event_date: "2099-10-08",
+                          starts_at: "2099-10-08T23:00:00Z",
+                          ends_at: "2099-10-09T01:00:00Z",
+                          status: "cancelled",
+                          deleted_at: null,
+                        },
                       },
-                    },
-                    {
-                      events: {
-                        id: 12,
-                        name: "Removed event",
-                        event_date: "2099-10-08",
-                        starts_at: "2099-10-08T23:00:00Z",
-                        ends_at: "2099-10-09T01:00:00Z",
-                        status: "active",
-                        deleted_at: "2099-10-01T00:00:00Z",
+                      {
+                        events: {
+                          id: 12,
+                          name: "Removed event",
+                          event_date: "2099-10-08",
+                          starts_at: "2099-10-08T23:00:00Z",
+                          ends_at: "2099-10-09T01:00:00Z",
+                          status: "active",
+                          deleted_at: "2099-10-01T00:00:00Z",
+                        },
                       },
-                    },
-                  ]
+                    ]
                 : table === "officer_warnings"
                   ? [1, 2, 3].map((id) => ({
                       id,
@@ -147,6 +157,8 @@ it("shows only active Events in Officer detail associations", async () => {
   state.actor = { id: 7, applicationRole: "officer" };
   state.targetOfficerId = 7;
   state.ranges = [];
+  state.orders = [];
+  state.operations = [];
   const html = renderToStaticMarkup(
     await OfficerDetail({
       params: Promise.resolve({ id: "7" }),
@@ -166,6 +178,24 @@ it("shows only active Events in Officer detail associations", async () => {
     from: 0,
     to: 1,
   });
+  expect(state.orders).toContainEqual({
+    table: "event_officers",
+    column: "events(event_date)",
+    options: { ascending: false },
+  });
+  expect(state.orders).toContainEqual({
+    table: "event_officers",
+    column: "events(id)",
+    options: { ascending: false },
+  });
+  const eventOrderIndex = state.orders.findIndex(
+    ({ table, column }) =>
+      table === "event_officers" && column === "events(event_date)",
+  );
+  expect(eventOrderIndex).toBeGreaterThanOrEqual(0);
+  expect(
+    state.operations.indexOf("event_officers:order:events(event_date)"),
+  ).toBeLessThan(state.operations.indexOf("event_officers:range"));
   expect(state.ranges).toContainEqual({
     table: "event_officers",
     from: 0,
@@ -295,4 +325,50 @@ it("preserves the Warning filter when canonicalizing an invalid Warning page", a
   expect(state.redirects).toContain(
     "/officers/7?returnTo=%2Fofficers%3Fq%3Dclub&warningStatus=approved&section=warnings",
   );
+});
+
+it("orders paginated associated Events by date before range despite reversed IDs", async () => {
+  state.actor = { id: 7, applicationRole: "officer" };
+  state.targetOfficerId = 7;
+  state.eventRows = Array.from({ length: 7 }, (_, index) => ({
+    events: {
+      id: index + 1,
+      name: `Event ${7 - index}`,
+      event_date: `2099-10-${String(8 - index).padStart(2, "0")}`,
+      starts_at: `2099-10-${String(8 - index).padStart(2, "0")}T23:00:00Z`,
+      ends_at: `2099-10-${String(9 - index).padStart(2, "0")}T01:00:00Z`,
+      status: "upcoming",
+      deleted_at: null,
+    },
+  }));
+  state.orders = [];
+  state.operations = [];
+  state.ranges = [];
+
+  const html = renderToStaticMarkup(
+    await OfficerDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({ section: "events", page: "2" }),
+    }),
+  );
+
+  expect(state.ranges).toContainEqual({
+    table: "event_officers",
+    from: 5,
+    to: 9,
+  });
+  expect(state.orders).toContainEqual({
+    table: "event_officers",
+    column: "events(event_date)",
+    options: { ascending: false },
+  });
+  expect(state.orders).toContainEqual({
+    table: "event_officers",
+    column: "events(id)",
+    options: { ascending: false },
+  });
+  expect(
+    state.operations.indexOf("event_officers:order:events(event_date)"),
+  ).toBeLessThan(state.operations.indexOf("event_officers:range"));
+  expect(html.indexOf("Event 2")).toBeLessThan(html.indexOf("Event 1"));
 });
