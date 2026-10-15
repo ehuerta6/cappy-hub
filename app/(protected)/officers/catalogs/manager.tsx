@@ -7,7 +7,7 @@ import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { changeCatalog } from "./actions";
 
 type Catalog = "position" | "branch" | "event_location";
-type CatalogRecord = {
+export type CatalogRecord = {
   id: number;
   name: string;
   code?: string | null;
@@ -159,7 +159,7 @@ function CatalogRename({
   if (!editing) {
     return (
       <div className="catalog-record-name">
-        <p>{record.name}</p>
+        <p className="min-w-0 break-words">{record.name}</p>
         <button
           ref={renameButtonRef}
           type="button"
@@ -222,7 +222,9 @@ export default function CatalogManager({
 }) {
   return (
     <section className="catalog-manager space-y-3">
-      <h2 className="text-lg font-semibold">{title}</h2>
+      <h2 id="catalog-category-heading" className="text-lg font-semibold">
+        {title}
+      </h2>
       <CatalogForm catalog={catalog} operation="create" />
       <ul
         className={
