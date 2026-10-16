@@ -2,6 +2,8 @@ import { expect, it } from "vitest";
 import { currentDenverWeek } from "@/lib/current-denver-week";
 import {
   groupEventPage,
+  openPresenterSlotCount,
+  openPresenterSlotLabel,
   organizeEventList,
   type EventListItem,
 } from "@/lib/event-list";
@@ -349,4 +351,58 @@ it("uses event IDs to break schedule ties in every selected view", () => {
   ).toMatchObject({
     events: [{ id: 2 }, { id: 1 }],
   });
+});
+
+it("counts open presenter slots only on upcoming open Sessions", () => {
+  const now = Date.parse("2026-10-20T12:00:00Z");
+  const session = {
+    status: "upcoming",
+    deleted_at: null,
+    starts_at: "2026-10-21T23:00:00Z",
+    participation_points_per_hour_at_end: null,
+    event_types: { name: " Session " },
+    presentation_slots: [
+      { officer_id: 5 },
+      { officer_id: null },
+      { officer_id: 5 },
+      { officer_id: null },
+      { officer_id: null },
+    ],
+  };
+  expect(openPresenterSlotCount(session, now)).toBe(3);
+  expect(
+    openPresenterSlotCount(
+      { ...session, presentation_slots: [{ officer_id: 5 }] },
+      now,
+    ),
+  ).toBe(0);
+  expect(
+    openPresenterSlotCount({ ...session, presentation_slots: [] }, now),
+  ).toBe(0);
+  expect(
+    openPresenterSlotCount(
+      { ...session, event_types: { name: "Workshop" } },
+      now,
+    ),
+  ).toBe(0);
+  expect(openPresenterSlotCount({ ...session, status: "cancelled" }, now)).toBe(
+    0,
+  );
+  expect(
+    openPresenterSlotCount(
+      { ...session, deleted_at: "2026-10-19T00:00:00Z" },
+      now,
+    ),
+  ).toBe(0);
+  expect(
+    openPresenterSlotCount(
+      { ...session, participation_points_per_hour_at_end: 5 },
+      now,
+    ),
+  ).toBe(0);
+  expect(
+    openPresenterSlotCount(session, Date.parse("2026-10-21T23:30:00Z")),
+  ).toBe(0);
+  expect(openPresenterSlotLabel(1)).toBe("1 presenter slot open");
+  expect(openPresenterSlotLabel(3)).toBe("3 presenter slots open");
 });

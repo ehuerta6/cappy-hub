@@ -59,6 +59,7 @@ const upcoming: Pick<
   event_branches: { branches: { name: string } }[];
   event_officers: { officer_id: number }[];
   event_waitlist?: { officer_id: number }[];
+  presentation_slots?: { officer_id: number | null }[];
 } = {
   id: 1,
   name: "Participating event",
@@ -336,7 +337,12 @@ it("preserves all three summary metric values and the existing summary/activity 
     ["single", []],
   ]);
   expect(operations("events")).toEqual([
-    ["select", ["*,event_officers(officer_id),event_waitlist(officer_id)"]],
+    [
+      "select",
+      [
+        "*,event_types(name),event_officers(officer_id),event_waitlist(officer_id),presentation_slots(officer_id)",
+      ],
+    ],
     ["neq", ["status", "cancelled"]],
     ["is", ["deleted_at", null]],
     ["gt", ["starts_at", expect.any(String)]],
@@ -356,6 +362,52 @@ it("preserves all three summary metric values and the existing summary/activity 
     ["order", ["id", { ascending: false }]],
     ["limit", [4]],
   ]);
+});
+
+it("links upcoming Sessions with open presenter slots from the Dashboard", async () => {
+  const slots = (...holders: (number | null)[]) =>
+    holders.map((officer_id) => ({ officer_id }));
+  events = [
+    {
+      ...upcoming,
+      id: 1,
+      name: "Session with four slots",
+      event_types: { name: "Session" },
+      presentation_slots: slots(5, null, 6, null),
+    },
+    {
+      ...upcoming,
+      id: 2,
+      name: "Full Session",
+      event_types: { name: "Session" },
+      presentation_slots: slots(5, 6),
+    },
+    {
+      ...upcoming,
+      id: 3,
+      name: "Session without slots",
+      event_types: { name: "Session" },
+      presentation_slots: [],
+    },
+    {
+      ...upcoming,
+      id: 4,
+      name: "Workshop",
+      event_types: { name: "Workshop" },
+      presentation_slots: slots(null),
+    },
+  ];
+  const html = renderToStaticMarkup(await DashboardPage());
+  const upcomingEvents = html
+    .split('aria-label="Upcoming events"')[1]
+    .split('aria-label="Recent point activity"')[0];
+  expect(upcomingEvents).toContain(
+    'aria-label="2 presenter slots open for Session with four slots"',
+  );
+  expect(upcomingEvents).toContain(
+    'href="/events/1">2 presenter slots open</a>',
+  );
+  expect(upcomingEvents.match(/presenter slot/g)).toHaveLength(2);
 });
 
 it("places the single sign out form and officer context inside the protected header", async () => {
