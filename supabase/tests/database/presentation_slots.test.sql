@@ -119,22 +119,42 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001404'
 select lives_ok($$select change_presenter_slot((select id from presentation_slots where event_id=-1401 and position=1),-1404)$$,'Officer claims a slot');
 select lives_ok($$select change_presenter_slot((select id from presentation_slots where event_id=-1401 and position=2),-1404)$$,'one Officer may claim multiple slots');
 select is((select count(*) from event_officers where event_id=-1401 and officer_id=-1404),1::bigint,'claim creates one confirmed signup');
+select lives_ok($$select update_presenter_slot_details((select id from presentation_slots where event_id=-1401 and position=1),'Officer A talk','https://example.org/a','Nightmare','My notes')$$,
+ 'assigned Officer can edit their own slot details without manager rights');
+select lives_ok($$select update_presenter_slot_details((select id from presentation_slots where event_id=-1401 and position=2),'Second talk',null,null,null)$$,
+ 'an Officer can edit a second slot they hold');
+select throws_ok($$select update_presenter_slot_details((select id from presentation_slots where event_id=-1401 and position=3),'Not mine',null,null,null)$$,
+ 'P0001','Cannot manage another officer presenter slot for this event','Officer cannot edit another presenter slot');
+select throws_ok($$select update_presenter_slot_details((select id from presentation_slots where event_id=-1401 and position=4),'Unclaimed',null,null,null)$$,
+ 'P0001','Cannot manage another officer presenter slot for this event','Officer cannot edit an empty slot');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001405',true);
 select lives_ok($$select change_event_signup(-1401,-1405,false)$$,'existing signup can be made before a claim');
 select lives_ok($$select change_presenter_slot((select id from presentation_slots where event_id=-1401 and position=3),-1405)$$,'existing signup is reused for a claim');
 select is((select count(*) from event_officers where event_id=-1401 and officer_id=-1405),1::bigint,'signup is not duplicated');
+select lives_ok($$select update_presenter_slot_details((select id from presentation_slots where event_id=-1401 and position=3),'Officer B talk',null,'Medium',null)$$,
+ 'second assigned Officer can edit their own slot');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001403',true);
+select throws_ok($$select update_presenter_slot_details((select id from presentation_slots where event_id=-1401 and position=3),'Outside scope',null,null,null)$$,
+ 'P0001','Cannot manage another officer presenter slot for this event','Lead outside the Event Branch cannot edit presentation details');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001405',true);
 select throws_ok($$select change_presenter_slot((select id from presentation_slots where event_id=-1401 and position=1),-1405)$$,
  'P0001','Presenter slot is already taken','a slot cannot have two presenters');
 select throws_ok($$select change_presenter_slot((select id from presentation_slots where event_id=-1401 and position=4),-1404)$$,
  'P0001','Cannot manage another officer presenter slot for this event','ordinary Officers cannot assign others');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001402',true);
 select lives_ok($$select change_presenter_slot((select id from presentation_slots where event_id=-1401 and position=4),-1405)$$,'same-Branch Lead can assign a presenter');
+select lives_ok($$select update_presenter_slot_details((select id from presentation_slots where event_id=-1401 and position=3),'Manager edit',null,null,null)$$,
+ 'same-Branch manager can edit another presenter''s slot');
+select lives_ok($$select update_presenter_slot_details((select id from presentation_slots where event_id=-1401 and position=5),null,null,null,null)$$,
+ 'manager can edit an empty slot and save optional fields blank');
 select throws_ok($$select remove_presenter_slot((select id from presentation_slots where event_id=-1401 and position=4))$$,
  'P0001','Remove the presenter before removing their slot','populated slot deletion is rejected');
 select lives_ok($$select change_presenter_slot((select id from presentation_slots where event_id=-1401 and position=4),-1405,true)$$,'manager can unassign a presenter');
 select lives_ok($$select remove_presenter_slot((select id from presentation_slots where event_id=-1401 and position=4))$$,'empty slot can be removed');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001404',true);
 select lives_ok($$select change_presenter_slot((select id from presentation_slots where event_id=-1401 and position=1),-1404,true)$$,'presenter can release one slot');
+select throws_ok($$select update_presenter_slot_details((select id from presentation_slots where event_id=-1401 and position=1),'Former presentation',null,null,null)$$,
+ 'P0001','Cannot manage another officer presenter slot for this event','former presenter loses edit access after stepping down');
 select is((select count(*) from presentation_slots where event_id=-1401 and officer_id=-1404),1::bigint,'releasing one slot leaves the other assigned');
 select is((select count(*) from event_officers where event_id=-1401 and officer_id=-1404),1::bigint,'releasing a slot preserves Event signup');
 select lives_ok($$select change_presenter_slot((select id from presentation_slots where event_id=-1401 and position=1),-1404)$$,'Officer can reclaim a released slot');
@@ -144,6 +164,8 @@ select is((select count(*) from presentation_slots where event_id=-1401 and offi
 select is((select count(*) from event_waitlist where event_id=-1401 and officer_id=-1404),0::bigint,'failed presenter claims do not leave waitlist records');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001401',true);
 select lives_ok($$select change_presenter_slot((select id from presentation_slots where event_id=-1401 and position=1),-1405)$$,'manager can claim on behalf of an active Officer');
+select lives_ok($$select update_presenter_slot_details((select id from presentation_slots where event_id=-1401 and position=1),'Admin edit',null,null,null)$$,
+ 'Admin retains edit access to an assigned presenter slot');
 select lives_ok($$select save_officer('Slots Officer B',(select id from positions where name='Officer'),'inactive',null,-1405,'slots-officer-b@example.org')$$,'deactivation releases future slots');
 select is((select count(*) from presentation_slots where event_id=-1401 and officer_id=-1405),0::bigint,'deactivation releases all future assignments');
 select ok(exists(select 1 from event_officers where event_id=-1401 and officer_id=-1405),'deactivation preserves existing Event signup');
@@ -151,7 +173,24 @@ select throws_ok($$select change_presenter_slot((select id from presentation_slo
  'P0001','Target officer is not active','inactive Officers cannot be assigned');
 select throws_ok($$select change_presenter_slot((select id from presentation_slots where event_id=-1403 and position=1),-1404)$$,
  'P0001','Presenter slots are closed for this event','cancelled Sessions reject mutations');
+select throws_ok($$select update_presenter_slot_details((select id from presentation_slots where event_id=-1403 and position=1),'Closed',null,null,null)$$,
+ 'P0001','Presenter slots are closed for this event','cancelled Sessions reject detail edits');
+select throws_ok($$select update_presenter_slot_details((select id from presentation_slots where event_id=-1404 and position=1),'Started',null,null,null)$$,
+ 'P0001','Presenter slots are closed for this event','started Sessions reject detail edits');
+select throws_ok($$select update_presenter_slot_details((select id from presentation_slots where event_id=-1405 and position=1),'Removed',null,null,null)$$,
+ 'P0001','Presenter slots are closed for this event','removed Sessions reject detail edits');
 reset role;
+-- Model a stale assignment and confirm inactive Auth identities still cannot use self-edit.
+insert into event_officers(event_id,officer_id) values(-1401,-1406);
+update presentation_slots set officer_id=-1406 where event_id=-1401 and position=4;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001406',true);
+select throws_ok($$select update_presenter_slot_details((select id from presentation_slots where event_id=-1401 and position=4),'Inactive',null,null,null)$$,
+ 'P0001','Unauthorized','inactive Officer cannot edit even a currently assigned slot');
+reset role;
+update presentation_slots set officer_id=null where event_id=-1401 and position=4 and officer_id=-1406;
+delete from event_officers where event_id=-1401 and officer_id=-1406;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001401',true);
 select ok(exists(select 1 from audit_logs where action='presentation.details_updated' and entity_id='-1401'),'detail edits are audited');
 select ok(exists(select 1 from audit_logs where action='presentation.slot_added' and entity_id='-1401'),'slot creation is audited');
 select ok(exists(select 1 from audit_logs where action='presentation.slot_removed' and entity_id='-1401'),'slot removal is audited');

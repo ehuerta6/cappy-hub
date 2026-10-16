@@ -733,6 +733,35 @@ it("keeps manager bulk signup available when eligible Officers exist", async () 
   expect(html).toContain('name="officer_ids" value="4"');
 });
 
+it("shows presenter slots only on Session Events", async () => {
+  const meetingHtml = renderToStaticMarkup(
+    await EventDetail({ params: Promise.resolve({ id: "7" }) }),
+  );
+  expect(meetingHtml).not.toContain('aria-label="Presenters"');
+  expect(queryLog.some(({ table }) => table === "presentation_slots")).toBe(
+    false,
+  );
+
+  const originalType = event.event_types;
+  event.event_types = { name: "Session" };
+  try {
+    officersForList = [{ id: 4, name: "Available Officer", status: "active" }];
+    const sessionHtml = renderToStaticMarkup(
+      await EventDetail({ params: Promise.resolve({ id: "7" }) }),
+    );
+    expect(sessionHtml).toContain('aria-label="Presenters"');
+    expect(sessionHtml).toContain("No presenter slots yet.");
+    expect(sessionHtml).toContain("Add presenter slot");
+    expect(queryLog).toContainEqual({
+      table: "presentation_slots",
+      method: "order",
+      args: ["position", undefined],
+    });
+  } finally {
+    event.event_types = originalType;
+  }
+});
+
 it("renders a bounded populated Event roster preview with a full-roster link", async () => {
   eventRosterCount = 7;
   eventRosterRows = ["Alpha Officer", "Bravo Officer", "Charlie Officer"].map(

@@ -16,6 +16,26 @@ export function eventStatus(
   return "upcoming";
 }
 
+// Mirrors private.presenter_slots_open: slots close when the Event starts,
+// even though signups stay open until it ends.
+export function presenterSlotsClosedReason(
+  event: Parameters<typeof eventStatus>[0] &
+    Pick<Tables<"events">, "participation_points_per_hour_at_end">,
+  now = Date.now(),
+) {
+  if (event.deleted_at) return "This Event is archived.";
+  if (event.status === "cancelled") return "This Event is cancelled.";
+  if (event.participation_points_per_hour_at_end !== null)
+    return "This Event has been processed.";
+  if (now >= new Date(event.starts_at).getTime())
+    return "This Event has started.";
+  return null;
+}
+
+export function isSessionEventType(name: string) {
+  return name.trim().toLowerCase() === "session";
+}
+
 export function eventSignupOpen(
   event: Parameters<typeof eventStatus>[0] &
     Pick<Tables<"events">, "participation_points_per_hour_at_end">,

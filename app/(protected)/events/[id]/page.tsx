@@ -12,8 +12,14 @@ import type { Route } from "next";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import EventResourceLinks from "../event-resource-links";
-import { eventStatus, eventSignupOpen } from "@/lib/event-status";
+import {
+  eventStatus,
+  eventSignupOpen,
+  isSessionEventType,
+  presenterSlotsClosedReason,
+} from "@/lib/event-status";
 import { personalSignupState } from "../personal-signup-state";
+import PresenterSlotsSection from "../presenter-slots-section";
 import {
   formatCalendarDate,
   formatDateTime,
@@ -310,8 +316,15 @@ export default async function EventDetailPage({
   const start = (page - 1) * RELATED_PAGE_SIZE;
 
   const canAddOfficers = canManage && !event.deleted_at && (signupOpen || past);
+  const showPresenters =
+    section === "overview" && isSessionEventType(event.event_types.name);
+  const presenterClosedReason = presenterSlotsClosedReason(event);
+  const canAssignPresenters =
+    showPresenters && canManage && presenterClosedReason === null;
   const [
     candidateOfficersResult,
+    presenterSlotsResult,
+    presenterCandidatesResult,
     rosterResult,
     waitlistResult,
     tasksResult,
@@ -328,6 +341,22 @@ export default async function EventDetailPage({
           .is("event_officers", null)
           .eq("event_waitlist.event_id", event.id)
           .is("event_waitlist", null)
+          .order("name")
+      : Promise.resolve(undefined),
+    showPresenters
+      ? supabase
+          .from("presentation_slots")
+          .select(
+            "id,position,officer_id,presentation_title,difficulty,resource_url,prep_notes,officers!presentation_slots_officer_id_fkey(id,name)",
+          )
+          .eq("event_id", event.id)
+          .order("position")
+      : Promise.resolve(undefined),
+    canAssignPresenters
+      ? supabase
+          .from("officers")
+          .select("id,name")
+          .eq("status", "active")
           .order("name")
       : Promise.resolve(undefined),
     section === "overview"
@@ -384,6 +413,8 @@ export default async function EventDetailPage({
   ]);
   if (
     candidateOfficersResult?.error ||
+    presenterSlotsResult?.error ||
+    presenterCandidatesResult?.error ||
     rosterResult?.error ||
     waitlistResult?.error ||
     tasksResult?.error ||
@@ -633,6 +664,22 @@ export default async function EventDetailPage({
                 ))}
             </section>
           </div>
+          {showPresenters && (
+            <PresenterSlotsSection
+              eventId={event.id}
+              slots={presenterSlotsResult?.data ?? []}
+              actorId={actor.id}
+              canManage={canManage}
+              canVolunteer={eligibleForSelfSignup}
+              volunteerBlockedReason={
+                full && !confirmed
+                  ? "This Session is full, so only confirmed officers can volunteer."
+                  : null
+              }
+              closedReason={presenterClosedReason}
+              officers={presenterCandidatesResult?.data ?? []}
+            />
+          )}
           {taskCount > 0 && (
             <p className="text-sm">
               <Link
