@@ -31,6 +31,8 @@ Do not treat nearby errors as proof of the root cause.
 
 Create the smallest reliable signal that demonstrates the exact bug.
 
+Prefer a specific, fast, repeatable signal. For intermittent failures, measure the reproduction rate across useful attempts or establish another reliable diagnostic signal when feasible. State the sample or signal used; if measurement is impractical, explain why and use the best available reproduction.
+
 Prefer, in roughly this order:
 
 - existing failing test;
@@ -42,6 +44,8 @@ Prefer, in roughly this order:
 - captured logs or traces.
 
 The reproduction should fail because of the reported bug and become successful when the bug is fixed.
+
+Cappy Hub does not use automated browser checks. Do not install, launch, or configure browsers for automated checks. Manual visual inspection follows `docs/local-development.md` and `docs/ui-reference/README.md`.
 
 ### 3. Gather evidence
 
@@ -57,6 +61,8 @@ Inspect the relevant:
 - recent changes.
 
 Redact secrets and credentials from captured output.
+
+For production incidents, use synthetic, anonymized, or otherwise authorized fixtures. Do not copy raw production records or credentials to local or cloud agent environments by default.
 
 ### 4. Form hypotheses
 
@@ -89,11 +95,11 @@ Once evidence supports a cause:
 
 ### 7. Verify
 
-Run the reproduction again.
+Run the original reproduction again in a controlled environment. When meaningful, verify the changed user journey with the project's configured tests, HTTP checks, or manual review. Check relevant state and external effects against expectations.
 
 It should now pass.
 
-Then use `verify-change` for the relevant repository checks.
+Then use `verify-change` for relevant repository checks when available. Otherwise discover and run the applicable project checks directly, distinguishing passed, failed, and unavailable verification.
 
 ## Rules
 
