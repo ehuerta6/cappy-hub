@@ -78,6 +78,7 @@ describePostgrest(
         const recordCount = 1_001;
         const eventRows = Array.from({ length: recordCount }, (_, index) => ({
           name: `${marker} event ${index.toString().padStart(4, "0")}`,
+          description: "Synthetic Calendar pagination fixture",
           event_type_id: eventType.data!.id,
           event_date: "2099-10-08",
           starts_at: "2099-10-08T17:00:00-06:00",
