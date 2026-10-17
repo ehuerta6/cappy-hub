@@ -48,6 +48,7 @@ When a workflow applies, read its `SKILL.md` before performing that workflow.
 - resolved decisions needing a durable feature specification → `.agents/skills/to-spec/SKILL.md`
 - approved work needing GitHub Issues → `.agents/skills/to-issues/SKILL.md`
 - implementing one approved Issue → `.agents/skills/implement-issue/SKILL.md`
+- GitHub issue, branch, commit, Pull Request, or merge workflow → `.agents/skills/github-flow/SKILL.md`; follow the repository workflow documents for Cappy Hub conventions
 - substantial debugging → `.agents/skills/debug-with-evidence/SKILL.md`
 - schema, migrations, constraints, RLS, database functions, authorization, or generated database types → `.agents/skills/database-change/SKILL.md`
 - local Supabase or database-test state → `.agents/skills/local-database-workflow/SKILL.md`
@@ -55,6 +56,7 @@ When a workflow applies, read its `SKILL.md` before performing that workflow.
 - independent implementation or Pull Request review → `.agents/skills/review-pr/SKILL.md`
 - UI/UX shaping, critique, audit, hardening, or polish → `.agents/skills/impeccable/SKILL.md`
 - continuing unfinished work in another chat, agent, or session → `.agents/skills/handoff/SKILL.md`
+- writing or maintaining `AGENTS.md`, skills, or other agent instructions → `.agents/skills/writing-for-agents/SKILL.md`
 
 Do not force a workflow onto a simple task.
 

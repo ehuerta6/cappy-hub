@@ -68,7 +68,7 @@ Determine:
 - what tests need to change or be added;
 - what explicitly remains outside scope.
 
-Prefer the smallest correct implementation.
+Prefer the smallest complete and readable implementation. Reuse existing domain and platform patterns before adding dependencies or new abstractions. When an approach depends on an unfamiliar or version-sensitive API or external integration, inspect the installed version and authoritative documentation; skip external research for routine internal changes.
 
 Do not bundle unrelated cleanup, redesigns, dependency changes, or refactors.
 
@@ -127,10 +127,12 @@ Schema changes must be reproducible through migrations.
 Before considering implementation complete:
 
 - check every acceptance criterion individually;
-- verify the requested user-visible or system behavior;
+- verify the requested user-visible or system behavior through the strongest applicable configured test or interface signal;
 - confirm no requirement was silently skipped;
 - confirm no unrequested behavior was added;
 - confirm the implementation remains within Issue scope.
+
+Cappy Hub does not use automated browser testing. Do not install, launch, or configure browsers for automated checks or generate screenshots automatically. Use the project's configured tests and HTTP checks; manual visual review follows `docs/local-development.md` and `docs/ui-reference/README.md`. If an interactive path cannot be exercised, report that gap and the available evidence.
 
 Then use `verify-change`.
 
@@ -164,7 +166,7 @@ If additional work is discovered that is useful but outside the Issue, report it
 
 ### 8. Prepare delivery
 
-Follow the repository's current development, Git, Pull Request, validation, and database documentation.
+Use `github-flow` for Git and GitHub delivery tasks. Follow the repository's current development, Pull Request, validation, and database documentation for Cappy Hub conventions.
 
 Do not duplicate or override those procedures inside this skill.
 
