@@ -1,0 +1,1 @@
+export const DASHBOARD_PREVIEW_LIMIT = 5;

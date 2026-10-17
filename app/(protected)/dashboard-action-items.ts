@@ -2,10 +2,10 @@ import "server-only";
 import type { AuthorizationContext } from "@/lib/authorization";
 import type { Tables } from "@/lib/database.types";
 import type { createClient } from "@/lib/supabase/server";
+import { DASHBOARD_PREVIEW_LIMIT } from "./dashboard-limits";
 
-// Three rows keep this a summary. One extra per source detects overflow.
-export const ACTION_ITEM_LIMIT = 3;
-const queryLimit = ACTION_ITEM_LIMIT + 1;
+// One extra row per source detects overflow without loading the full list.
+const queryLimit = DASHBOARD_PREVIEW_LIMIT + 1;
 const taskSelection =
   "id,title,due_date,task_officer_assignments!inner(officer_id,completed_at)";
 
@@ -77,8 +77,8 @@ export function dashboardActionItems(
   // Leadership decisions need attention before ordinary future Tasks.
   const items = [...pendingWarnings, ...pendingTasks];
   return {
-    items: items.slice(0, ACTION_ITEM_LIMIT),
-    hasMore: items.length > ACTION_ITEM_LIMIT,
+    items: items.slice(0, DASHBOARD_PREVIEW_LIMIT),
+    hasMore: items.length > DASHBOARD_PREVIEW_LIMIT,
     hasPendingWarnings: pendingWarnings.length > 0,
   };
 }
