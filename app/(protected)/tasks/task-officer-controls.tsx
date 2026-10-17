@@ -1,6 +1,13 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import {
+  startTransition,
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import {
   ActionFeedback,
   dialogContentClassName,
@@ -181,8 +188,15 @@ export function TaskCompletionControl({
   );
   const [checked, setChecked] = useState(completed);
   const changed = checked !== completed;
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    startTransition(() => action(formData));
+  }
+
   return (
-    <form action={action} className="flex flex-wrap items-center gap-2">
+    <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="task_id" value={taskId} />
       <input type="hidden" name="officer_id" value={officerId} />
       <input type="hidden" name="completed" value={String(checked)} />
