@@ -17,7 +17,10 @@ import {
   BulkTaskOfficersForm,
   TaskCompletionControl,
 } from "@/app/(protected)/tasks/task-officer-controls";
-import { bulkAssignTaskOfficers } from "@/app/(protected)/tasks/actions";
+import {
+  bulkAssignTaskOfficers,
+  setTaskAssignmentCompletion,
+} from "@/app/(protected)/tasks/actions";
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean | undefined;
@@ -88,6 +91,88 @@ it("does not show a completion Save action until the state is changed", () => {
   expect(html).toContain('aria-label="Completed for Avery Chen"');
   expect(html).toContain('name="completed" value="false"');
   expect(html).not.toContain(">Save</button>");
+});
+
+it("keeps completion state synchronized through successful saves and failures", async () => {
+  let persisted = false;
+  let submissions = 0;
+  vi.mocked(setTaskAssignmentCompletion).mockImplementation(
+    async (_previous, formData) => {
+      submissions += 1;
+      const requested = formData.get("completed") === "true";
+      if (submissions === 4) {
+        return {
+          error: "Could not update task completion",
+          success: "",
+          values: { task_id: "17", officer_id: "3", completed: "false" },
+        };
+      }
+      persisted = requested;
+      return {
+        error: "",
+        success: requested ? "Marked completed" : "Marked not completed",
+      };
+    },
+  );
+
+  const render = (completed: boolean) =>
+    root.render(
+      createElement(TaskCompletionControl, {
+        taskId: 17,
+        officerId: 3,
+        officerName: "Avery Chen",
+        completed,
+      }),
+    );
+  await act(async () => render(false));
+  const checkbox = host.querySelector<HTMLInputElement>(
+    'input[type="checkbox"]',
+  );
+  const form = host.querySelector<HTMLFormElement>("form");
+  if (!checkbox || !form) throw new Error("Task completion form not found");
+  const submit = async () => {
+    await act(async () => {
+      form.requestSubmit();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  };
+
+  expect(checkbox.checked).toBe(false);
+  expect(host.textContent).toContain("Not completed");
+
+  await act(async () => checkbox.click());
+  expect(checkbox.checked).toBe(true);
+  await submit();
+  expect(persisted).toBe(true);
+  expect(checkbox.checked).toBe(true);
+  await act(async () => render(persisted));
+  expect(host.textContent).toContain("Completed");
+  expect(host.textContent).toContain("Marked completed");
+
+  await act(async () => checkbox.click());
+  expect(checkbox.checked).toBe(false);
+  await submit();
+  expect(persisted).toBe(false);
+  expect(checkbox.checked).toBe(false);
+  await act(async () => render(persisted));
+  expect(host.textContent).toContain("Not completed");
+  expect(host.textContent).toContain("Marked not completed");
+
+  await act(async () => checkbox.click());
+  await submit();
+  expect(persisted).toBe(true);
+  expect(checkbox.checked).toBe(true);
+  await act(async () => render(persisted));
+  expect(host.textContent).toContain("Marked completed");
+
+  await act(async () => checkbox.click());
+  expect(checkbox.checked).toBe(false);
+  await submit();
+  expect(persisted).toBe(true);
+  expect(checkbox.checked).toBe(false);
+  expect(new FormData(form).get("completed")).toBe("false");
+  expect(host.textContent).toContain("Could not update task completion");
+  expect(host.textContent).not.toContain("Marked not completed");
 });
 
 it("reports when there are no active Officers left to add", () => {
