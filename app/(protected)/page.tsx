@@ -14,10 +14,8 @@ import {
   openPresenterSlotLabel,
 } from "@/lib/event-list";
 import { SectionHeading, PointValue } from "@/components/ui";
-import {
-  ACTION_ITEM_LIMIT,
-  loadDashboardActionItems,
-} from "./dashboard-action-items";
+import { loadDashboardActionItems } from "./dashboard-action-items";
+import { DASHBOARD_PREVIEW_LIMIT } from "./dashboard-limits";
 
 export default async function DashboardPage() {
   const officer = await requireCurrentOfficer();
@@ -35,7 +33,7 @@ export default async function DashboardPage() {
         .gt("starts_at", new Date().toISOString())
         .order("starts_at")
         .order("id")
-        .limit(4),
+        .limit(DASHBOARD_PREVIEW_LIMIT),
       supabase
         .from("point_transactions")
         .select(
@@ -44,7 +42,7 @@ export default async function DashboardPage() {
         .is("removed_at", null)
         .order("created_at", { ascending: false })
         .order("id", { ascending: false })
-        .limit(4),
+        .limit(DASHBOARD_PREVIEW_LIMIT),
       supabase
         .from("officer_point_totals")
         .select("total_points")
@@ -232,8 +230,10 @@ export default async function DashboardPage() {
           <p className="mt-2 text-xs">
             {actionItems.unavailableSources.tasks ||
             actionItems.unavailableSources.warnings
-              ? "Showing the first " + ACTION_ITEM_LIMIT + " available items. "
-              : "Showing the first " + ACTION_ITEM_LIMIT + " items. "}
+              ? "Showing the first " +
+                DASHBOARD_PREVIEW_LIMIT +
+                " available items. "
+              : "Showing the first " + DASHBOARD_PREVIEW_LIMIT + " items. "}
             View Tasks
             {(actionItems.hasPendingWarnings ||
               actionItems.unavailableSources.warnings) &&
@@ -338,7 +338,7 @@ export default async function DashboardPage() {
         >
           <SectionHeading
             title="Recent point activity"
-            description="Latest 4 transactions"
+            description={`Latest ${DASHBOARD_PREVIEW_LIMIT} transactions`}
             action={
               <Link
                 href="/points?view=history"

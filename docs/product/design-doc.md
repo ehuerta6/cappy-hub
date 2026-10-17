@@ -46,7 +46,7 @@ Officers may manage their own Event signup and Task self-assignment where those 
 | Officer           | Durable identity, status, one Position, optional Branch memberships, and optional unique authentication link.                                                       |
 | Position          | Club title with a stable database ID. The six required system Positions have stable machine codes for authorization; custom Positions keep a null code.             |
 | Branch            | Organizational scope used for Officer membership and branch-scoped Events and Tasks.                                                                                |
-| Event             | Scheduled occurrence with one catalog Event Type, optional Branches, native Officer signups, resource links, and participation Point transactions.                  |
+| Event             | Scheduled occurrence with one catalog Event Type, optional Branches, native Officer signups, ordered Presenter Slots for Session Events, resource links, and participation Point transactions. |
 | Task              | Dated unit of Officer work with one Branch, zero or more Officer assignments, completion state per assignment, and optional Task Points.                            |
 | Point transaction | Attributed signed transaction for Event participation, Task work, manual award, or correction. Removed transactions remain in history but are excluded from totals. |
 | Warning           | Immutable-reason Officer record with a required leadership decision history.                                                                                        |
@@ -83,6 +83,16 @@ The Events page defaults to current non-cancelled Events and can show Upcoming, 
 
 When a non-cancelled, active timed Event ends, trusted scheduled processing snapshots the current participation rate and awards scheduled duration multiplied by that rate to each current signup. Editing a past Event does not recalculate existing awards. Corrections are explicit Point transactions.
 
+### Presenter Slots — current / shipped
+
+Session-type Events can have any number of stable Presenter Slots, each with its own order. Three slots reflect a historical convention, not a limit; difficulty does not define or constrain slots, and one Officer may present in more than one slot. Active Officers can read Presenter Slots and can be newly assigned to or volunteer for an open slot. Authorized Event managers within their existing scope can add, reorder, assign, and unassign slots. A slot must be empty before a manager can remove it.
+
+An active Officer can volunteer for an open slot or step down from their own slot. Claiming a slot also signs the Officer up for that Event as a confirmed participant. If the Event is full, an Officer who is not already confirmed cannot claim a slot; this does not add them to the waitlist. An Officer who is already confirmed may claim another open slot even when the Event has no remaining capacity. Stepping down releases the Presenter Slot but keeps the Event signup. Removing an Officer's Event signup releases all of that Officer's Presenter Slots for the Event in the same transaction.
+
+Topic/title, resource link, difficulty, and preparation notes are optional. Difficulty is free text; Easy, Medium, and Hard are suggestions, not a fixed set of values. An assigned active Officer may edit their own slot's details without Event-management permission and may leave fields blank or return to edit them later. Event managers retain scoped control over slot details and slot administration. Direct table writes are not available to authenticated clients; trusted mutations enforce these permissions.
+
+Presenter Slot changes and detail edits close when the Session starts, is cancelled, is archived, or has been processed. The slots and assignments remain available to read on the Event detail page. Deactivating an Officer releases that Officer's assignments on future Sessions but preserves their Event signups. An Event cannot be changed away from Session type, and the Session Event Type cannot be renamed, while it has Presenter Slots. Slot creation, removal, reordering, claims, releases, assignments, and detail edits are recorded in the System Log. Presenter Slot notifications are not shipped; notification channels, recipients, and hosting remain unresolved in Issue [#268](https://github.com/ehuerta6/cappy-hub/issues/268), with related future work tracked in Issues #271–#276.
+
 ## 7. Tasks
 
 ### Current / shipped
@@ -107,7 +117,7 @@ Point transactions are signed amounts, and an Officer's total is the sum of acti
 
 Logical removal excludes a transaction from totals while preserving its row and history. Removing an automatic award does not cause its processor to recreate it. A correction is a separate signed transaction and does not erase the original. Event edits do not rewrite existing awards. Point History is searchable by Officer, reason, Event, or Task and filterable by award type, Officer, Event, and activity-date range. Admins can select Active, Removed, or All history and see actor/removal information; other Officers see active history. History is paginated 25 rows at a time.
 
-The Points page shows the participation rate, ranked Officer totals, authorized transaction controls, and Point History. The Dashboard shows the signed-in Officer's total, net signed transactions created in the current half-year (January–June or July–December, America/Denver), and the latest 10 active transactions.
+The Points page shows the participation rate, ranked Officer totals, authorized transaction controls, and Point History. The Dashboard shows the signed-in Officer's total, net signed transactions created in the current half-year (January–June or July–December, America/Denver), and the latest five active transactions.
 
 ## 9. Warnings
 
@@ -121,7 +131,7 @@ Pending and rejected Warnings are visible to Admins; an assigned approver can se
 
 ### Dashboard — current / shipped
 
-The Dashboard is a current summary and personal action surface. It shows the signed-in Officer's name and Position, personal Point total/profile link, active Officer count, upcoming Event count, half-year signed Point total, up to five personal action items (pending Warning decisions are prioritized ahead of incomplete assigned Tasks), upcoming non-cancelled/non-removed Events with signup state, and the latest 10 active Point transactions. Its summaries derive from domain records; they are not separately maintained data or new workflows.
+The Dashboard is a current summary and personal action surface. It shows the signed-in Officer's name and Position, personal Point total/profile link, active Officer count, upcoming Event count, half-year signed Point total, up to five eligible personal action items, up to five eligible upcoming Events, and the latest five active Point transactions. Pending Warning decisions are prioritized ahead of incomplete assigned Tasks; Warning decisions are ordered oldest first, and Tasks are ordered by due date and ID. Upcoming Events are ordered by start time and ID and show signup state, signup counts, and an open Presenter Slot indicator when applicable. Recent Point transactions are ordered newest first by creation time and ID. Each preview may contain fewer than five items when fewer eligible records exist. The summaries derive from domain records; they are not separately maintained data or new workflows.
 
 ### Calendar — current / shipped
 

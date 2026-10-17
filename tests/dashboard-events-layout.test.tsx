@@ -348,7 +348,7 @@ it("preserves all three summary metric values and the existing summary/activity 
     ["gt", ["starts_at", expect.any(String)]],
     ["order", ["starts_at"]],
     ["order", ["id"]],
-    ["limit", [4]],
+    ["limit", [5]],
   ]);
   expect(operations("point_transactions")).toEqual([
     [
@@ -360,7 +360,7 @@ it("preserves all three summary metric values and the existing summary/activity 
     ["is", ["removed_at", null]],
     ["order", ["created_at", { ascending: false }]],
     ["order", ["id", { ascending: false }]],
-    ["limit", [4]],
+    ["limit", [5]],
   ]);
 });
 
@@ -508,8 +508,9 @@ it("shows a bounded upcoming-event preview with signup context and full-page lin
     .split('aria-label="Upcoming events"')[1]
     .split("</section>")[0];
   expect(list).toContain("<ul");
-  expect(list.match(/<li /g)).toHaveLength(4);
-  expect(list).not.toContain('href="/events/12"');
+  expect(list.match(/<li /g)).toHaveLength(5);
+  expect(list).toContain('href="/events/5"');
+  expect(list).not.toContain('href="/events/6"');
   expect(list).toContain("Signed up");
   expect(list).toContain("Not signed up");
   expect(list).toMatch(/class="text-info">Signed up/);
@@ -517,7 +518,7 @@ it("shows a bounded upcoming-event preview with signup context and full-page lin
   expect(list).toContain("1 officer");
   expect(list).toContain('href="/events"');
   expect(list).toContain("Next events · El Paso time");
-  expect(countedEventIds).toEqual([1, 2, 3, 4]);
+  expect(countedEventIds).toEqual([1, 2, 3, 4, 5]);
   expect(html).toContain('href="/points?view=history"');
   expect(html).not.toContain("<table");
   expect(html).toContain('data-page-width="wide"');
@@ -564,7 +565,7 @@ it("summarizes signed point values with officer and event/task links or a manual
   expect(list).not.toContain("<table");
 });
 
-it("shows only the four newest Point transactions and keeps full Points navigation", async () => {
+it("shows only the five newest Point transactions and keeps full Points navigation", async () => {
   const transaction = {
     id: 1,
     points: 2.5,
@@ -585,11 +586,11 @@ it("shows only the four newest Point transactions and keeps full Points navigati
   const list = html
     .split('aria-label="Recent point activity"')[1]
     .split("</section>")[0];
-  expect(list.match(/<li /g)).toHaveLength(4);
+  expect(list.match(/<li /g)).toHaveLength(5);
   expect(list).toContain("Transaction 1");
-  expect(list).toContain("Transaction 4");
-  expect(list).not.toContain("Transaction 5");
-  expect(list).toContain("Latest 4 transactions");
+  expect(list).toContain("Transaction 5");
+  expect(list).not.toContain("Transaction 6");
+  expect(list).toContain("Latest 5 transactions");
   expect(list).toContain('href="/points?view=history"');
 });
 
