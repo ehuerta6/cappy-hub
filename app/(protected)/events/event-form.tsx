@@ -17,6 +17,7 @@ import {
 } from "@/components/recurrence-scope";
 import { RecurrenceFields } from "@/components/recurrence-fields";
 import { EventLocationAutocomplete } from "@/components/event-location-autocomplete";
+import TimeSlotsEditor, { type TimeSlotDraft } from "./time-slots-editor";
 
 export default function EventForm({
   returnTo,
@@ -29,6 +30,8 @@ export default function EventForm({
   recurrenceRequestKey,
   series,
   mutationRequestKey,
+  timeSlots = [],
+  canEnableTimeSlots = true,
 }: {
   returnTo?: string;
   branches: Pick<Tables<"branches">, "id" | "name">[];
@@ -42,6 +45,8 @@ export default function EventForm({
   recurrenceRequestKey?: string;
   series?: RecurrenceSeries;
   mutationRequestKey?: string;
+  timeSlots?: TimeSlotDraft[];
+  canEnableTimeSlots?: boolean;
 }) {
   const [state, action, pending] = useActionState(
     saveEvent,
@@ -67,6 +72,25 @@ export default function EventForm({
   }
   const [resourcesChanged, setResourcesChanged] = useState(false);
   const [recurrenceChanged, setRecurrenceChanged] = useState(false);
+  const initialStartTime = submittedValue(
+    state.values,
+    "start_time",
+    event?.starts_at ? denverParts(event.starts_at).time : "",
+  );
+  const initialEndTime = submittedValue(
+    state.values,
+    "end_time",
+    event?.ends_at ? denverParts(event.ends_at).time : "",
+  );
+  const [startTime, setStartTime] = useState(initialStartTime);
+  const [endTime, setEndTime] = useState(initialEndTime);
+  const [selectedEventTypeId, setSelectedEventTypeId] = useState(
+    submittedValue(
+      state.values,
+      "event_type_id",
+      String(event?.event_type_id ?? ""),
+    ),
+  );
 
   const resourceFields = [
     ["slides_url", event?.slides_url],
@@ -94,6 +118,9 @@ export default function EventForm({
 
   const [editedFields, setEditedFields] = useState<string[]>([]);
   const formRef = useRef<HTMLFormElement>(null);
+  const originalTimeSlots = timeSlots.length
+    ? JSON.stringify(timeSlots)
+    : "null";
   const original: Record<string, string | string[]> = event
     ? {
         name: event.name,
@@ -108,6 +135,7 @@ export default function EventForm({
         start_time: denverParts(event.starts_at).time,
         end_time: denverParts(event.ends_at).time,
         branches: branchIds.map(String),
+        time_slots: originalTimeSlots,
       }
     : {};
   const updateEditedFields = (
@@ -216,6 +244,9 @@ export default function EventForm({
                 "event_type_id",
                 String(event?.event_type_id ?? ""),
               )}
+              onChange={(changeEvent) =>
+                setSelectedEventTypeId(changeEvent.currentTarget.value)
+              }
             >
               <option value="" disabled>
                 Select an event type
@@ -298,6 +329,9 @@ export default function EventForm({
                 "start_time",
                 event?.starts_at ? denverParts(event.starts_at).time : "",
               )}
+              onChange={(changeEvent) =>
+                setStartTime(changeEvent.currentTarget.value)
+              }
             />
             <FieldError id="event-start-time-error">
               {fieldErrors.start_time}
@@ -321,6 +355,9 @@ export default function EventForm({
                 "end_time",
                 event?.ends_at ? denverParts(event.ends_at).time : "",
               )}
+              onChange={(changeEvent) =>
+                setEndTime(changeEvent.currentTarget.value)
+              }
             />
             <FieldError id="event-end-time-error">
               {fieldErrors.end_time}
@@ -328,6 +365,34 @@ export default function EventForm({
           </label>
         </div>
       </fieldset>
+
+      <TimeSlotsEditor
+        eventStart={startTime}
+        eventEnd={endTime}
+        eventTypeName={
+          eventTypes.find((type) => String(type.id) === selectedEventTypeId)
+            ?.name ?? ""
+        }
+        initialSlots={timeSlots}
+        enabledInitially={timeSlots.length > 0}
+        activationUnavailableReason={
+          canEnableTimeSlots
+            ? undefined
+            : "Time Slots can only be enabled before any Officers have signed up for this Event. Existing signups and Points are preserved."
+        }
+        onSlotsChange={(serialized) => {
+          if (!series) return;
+          setEditedFields((fields) => {
+            const next = new Set(fields);
+            if (serialized === originalTimeSlots) next.delete("time_slots");
+            else next.add("time_slots");
+            return [...next];
+          });
+        }}
+      />
+      <FieldError id="event-time-slots-error">
+        {fieldErrors.time_slots}
+      </FieldError>
 
       <details
         className="event-form-resources col-span-2"

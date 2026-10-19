@@ -142,7 +142,7 @@ it("sends validated Event fields to the existing RPC", async () => {
   data.set("returnTo", "/events?q=meeting&branch=2");
   rpc.mockResolvedValueOnce({ data: 12, error: null });
   await saveEvent({ error: "", success: "" }, data);
-  expect(rpc).toHaveBeenCalledWith("save_event_with_capacity", {
+  expect(rpc).toHaveBeenCalledWith("save_event_with_capacity_and_time_slots", {
     p_event_id: undefined,
     p_name: " CIC meeting ",
     p_description: " Agenda ",
@@ -156,6 +156,7 @@ it("sends validated Event fields to the existing RPC", async () => {
     p_meeting_notes_url: "",
     p_signup_sheet_url: "https://example.com/signup",
     p_max_volunteers: 0,
+    p_time_slots: null,
   });
   expect(redirect).toHaveBeenCalledWith(
     "/events/12?returnTo=%2Fevents%3Fq%3Dmeeting%26branch%3D2&feedback=event-saved",
@@ -172,7 +173,7 @@ it("trims a free-entry location before the trusted Event RPC", async () => {
   data.set("location", "  CCSB   1.032  ");
   await saveEvent({ error: "", success: "" }, data);
   expect(rpc).toHaveBeenCalledWith(
-    "save_event_with_capacity",
+    "save_event_with_capacity_and_time_slots",
     expect.objectContaining({ p_location: "CCSB   1.032" }),
   );
   expect(rpc).toHaveBeenCalledTimes(1);
@@ -208,7 +209,7 @@ it("materializes recurring Events with independent Denver schedules", async () =
   recurring.set("recurrence_count", "3");
   await saveEvent({ error: "", success: "" }, recurring);
   expect(rpc).toHaveBeenCalledWith(
-    "create_recurring_event_with_capacity",
+    "create_recurring_event_with_capacity_and_time_slots",
     expect.objectContaining({
       p_recurrence_rule: "RRULE:FREQ=DAILY;INTERVAL=1;COUNT=3",
       p_request_key: "00000000-0000-4000-8000-000000000001",
@@ -334,7 +335,7 @@ it.each([false, true])(
     expect(rpc).toHaveBeenCalledWith(
       recurring
         ? "mutate_recurring_event_with_capacity"
-        : "save_event_with_capacity",
+        : "save_event_with_capacity_and_time_slots",
       expect.not.objectContaining({ returnTo: expect.anything() }),
     );
   },
@@ -367,7 +368,7 @@ it("a contextual edit still surfaces the Event RPC authorization denial without 
     (await saveEvent({ error: "", success: "" }, data)).error,
   ).toBeTruthy();
   expect(rpc).toHaveBeenCalledWith(
-    "save_event_with_capacity",
+    "save_event_with_capacity_and_time_slots",
     expect.objectContaining({ p_event_id: 12 }),
   );
   expect(redirect).not.toHaveBeenCalled();

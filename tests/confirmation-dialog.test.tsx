@@ -6,6 +6,10 @@ vi.mock("@/app/(protected)/events/actions", () => ({
   cancelEvent: vi.fn(),
   removeEvent: vi.fn(),
 }));
+vi.mock("@/app/(protected)/events/time-slot-actions", () => ({
+  changeTimeSlotSignup: vi.fn(),
+  assignBulkOfficersToTimeSlots: vi.fn(),
+}));
 vi.mock("@/app/(protected)/tasks/actions", () => ({
   removeTask: vi.fn(),
 }));

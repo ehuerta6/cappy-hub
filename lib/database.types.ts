@@ -248,6 +248,97 @@ export type Database = {
           },
         ];
       };
+      event_time_slot_officers: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          event_id: number;
+          officer_id: number;
+          slot_id: number;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          event_id: number;
+          officer_id: number;
+          slot_id: number;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          event_id?: number;
+          officer_id?: number;
+          slot_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_time_slot_officers_officer_id_fkey";
+            columns: ["officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_time_slot_officers_officer_id_fkey";
+            columns: ["officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_time_slot_officers_signup_fkey";
+            columns: ["event_id", "officer_id"];
+            isOneToOne: false;
+            referencedRelation: "event_officers";
+            referencedColumns: ["event_id", "officer_id"];
+          },
+          {
+            foreignKeyName: "event_time_slot_officers_slot_fkey";
+            columns: ["slot_id", "event_id"];
+            isOneToOne: false;
+            referencedRelation: "event_time_slots";
+            referencedColumns: ["id", "event_id"];
+          },
+        ];
+      };
+      event_time_slots: {
+        Row: {
+          capacity: number | null;
+          created_at: string;
+          created_by: string | null;
+          ends_at: string;
+          event_id: number;
+          id: number;
+          starts_at: string;
+        };
+        Insert: {
+          capacity?: number | null;
+          created_at?: string;
+          created_by?: string | null;
+          ends_at: string;
+          event_id: number;
+          id?: number;
+          starts_at: string;
+        };
+        Update: {
+          capacity?: number | null;
+          created_at?: string;
+          created_by?: string | null;
+          ends_at?: string;
+          event_id?: number;
+          id?: number;
+          starts_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_time_slots_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       event_types: {
         Row: {
           available_for_new_events: boolean;
@@ -527,6 +618,7 @@ export type Database = {
           created_by: string | null;
           created_by_officer_id: number | null;
           event_id: number | null;
+          event_time_slot_id: number | null;
           id: number;
           officer_id: number;
           points: number;
@@ -534,6 +626,7 @@ export type Database = {
           removed_at: string | null;
           removed_by: string | null;
           removed_by_officer_id: number | null;
+          slot_selection_removed: boolean;
           task_id: number | null;
           updated_at: string | null;
           updated_by: string | null;
@@ -545,6 +638,7 @@ export type Database = {
           created_by?: string | null;
           created_by_officer_id?: number | null;
           event_id?: number | null;
+          event_time_slot_id?: number | null;
           id?: number;
           officer_id: number;
           points: number;
@@ -552,6 +646,7 @@ export type Database = {
           removed_at?: string | null;
           removed_by?: string | null;
           removed_by_officer_id?: number | null;
+          slot_selection_removed?: boolean;
           task_id?: number | null;
           updated_at?: string | null;
           updated_by?: string | null;
@@ -563,6 +658,7 @@ export type Database = {
           created_by?: string | null;
           created_by_officer_id?: number | null;
           event_id?: number | null;
+          event_time_slot_id?: number | null;
           id?: number;
           officer_id?: number;
           points?: number;
@@ -570,6 +666,7 @@ export type Database = {
           removed_at?: string | null;
           removed_by?: string | null;
           removed_by_officer_id?: number | null;
+          slot_selection_removed?: boolean;
           task_id?: number | null;
           updated_at?: string | null;
           updated_by?: string | null;
@@ -596,6 +693,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "events";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "point_transactions_event_slot_fkey";
+            columns: ["event_time_slot_id", "event_id"];
+            isOneToOne: false;
+            referencedRelation: "event_time_slots";
+            referencedColumns: ["id", "event_id"];
           },
           {
             foreignKeyName: "point_transactions_officer_id_fkey";
@@ -1190,6 +1294,14 @@ export type Database = {
         Args: { p_event_id: number; p_officer_ids: number[] };
         Returns: Json;
       };
+      bulk_add_event_officers_to_slots: {
+        Args: {
+          p_event_id: number;
+          p_officer_ids: number[];
+          p_slot_ids: number[];
+        };
+        Returns: Json;
+      };
       bulk_assign_task_officers: {
         Args: { p_officer_ids: number[]; p_task_id: number };
         Returns: Json;
@@ -1198,6 +1310,15 @@ export type Database = {
       change_event_signup: {
         Args: { p_event_id: number; p_officer_id: number; p_remove?: boolean };
         Returns: undefined;
+      };
+      change_event_time_slot_signup: {
+        Args: {
+          p_event_id: number;
+          p_mode: string;
+          p_officer_id: number;
+          p_slot_ids: number[];
+        };
+        Returns: Json;
       };
       change_presenter_slot: {
         Args: { p_officer_id: number; p_release?: boolean; p_slot_id: number };
@@ -1263,6 +1384,26 @@ export type Database = {
           p_signup_sheet_url: string;
           p_slides_url: string;
           p_starts_at: string[];
+        };
+        Returns: number;
+      };
+      create_recurring_event_with_capacity_and_time_slots: {
+        Args: {
+          p_branch_ids: number[];
+          p_description: string;
+          p_ends_at: string[];
+          p_event_dates: string[];
+          p_event_type_id: number;
+          p_location: string;
+          p_max_volunteers: number;
+          p_meeting_notes_url: string;
+          p_name: string;
+          p_recurrence_rule: string;
+          p_request_key: string;
+          p_signup_sheet_url: string;
+          p_slides_url: string;
+          p_starts_at: string[];
+          p_time_slots: Json;
         };
         Returns: number;
       };
@@ -1433,6 +1574,25 @@ export type Database = {
           p_signup_sheet_url: string;
           p_slides_url?: string;
           p_starts_at: string;
+        };
+        Returns: number;
+      };
+      save_event_with_capacity_and_time_slots: {
+        Args: {
+          p_branch_ids: number[];
+          p_description: string;
+          p_ends_at: string;
+          p_event_date: string;
+          p_event_id?: number;
+          p_event_type_id: number;
+          p_location: string;
+          p_max_volunteers?: number;
+          p_meeting_notes_url?: string;
+          p_name: string;
+          p_signup_sheet_url: string;
+          p_slides_url?: string;
+          p_starts_at: string;
+          p_time_slots?: Json;
         };
         Returns: number;
       };
