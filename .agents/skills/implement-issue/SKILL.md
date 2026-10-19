@@ -132,7 +132,7 @@ Before considering implementation complete:
 - confirm no unrequested behavior was added;
 - confirm the implementation remains within Issue scope.
 
-Cappy Hub does not use automated browser testing. Do not install, launch, or configure browsers for automated checks or generate screenshots automatically. Use the project's configured tests and HTTP checks; manual visual review follows `docs/local-development.md` and `docs/ui-reference/README.md`. If an interactive path cannot be exercised, report that gap and the available evidence.
+Cappy Hub does not use automated browser testing. Do not install, launch, or configure browsers for automated checks or generate screenshots automatically. Use the project's configured tests and HTTP checks; manual visual review follows `docs/local-development.md`. If an interactive path cannot be exercised, report that gap and the available evidence.
 
 Then use `verify-change`.
 

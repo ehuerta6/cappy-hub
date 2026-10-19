@@ -28,13 +28,6 @@ If yes, briefly explain the migration:
 
 <!-- Describe the schema, RLS, RPC, or database behavior change here. -->
 
-## UI Visual Catalog
-
-- [ ] Updated `docs/ui-reference` for rendered UI changes, including affected roles and both themes.
-- [ ] No rendered UI changes; a catalog update is not applicable.
-
-<!-- Link the updated catalog entries or briefly describe the changed UI coverage. -->
-
 ## Screenshots
 
 <!-- Add screenshots for UI changes when useful. Delete this section if not applicable. -->

@@ -54,6 +54,7 @@ When a workflow applies, read its `SKILL.md` before performing that workflow.
 - local Supabase or database-test state → `.agents/skills/local-database-workflow/SKILL.md`
 - final implementation validation → `.agents/skills/verify-change/SKILL.md`
 - independent implementation or Pull Request review → `.agents/skills/review-pr/SKILL.md`
+- retrieving, recording, reconciling, or reviewing durable project context → `.agents/skills/project-knowledge/SKILL.md`; preserve the source-of-truth order above and follow `knowledge/README.md`
 - UI/UX shaping, critique, audit, hardening, or polish → `.agents/skills/impeccable/SKILL.md`
 - continuing unfinished work in another chat, agent, or session → `.agents/skills/handoff/SKILL.md`
 - writing or maintaining `AGENTS.md`, skills, or other agent instructions → `.agents/skills/writing-for-agents/SKILL.md`
@@ -78,7 +79,7 @@ Project-specific requirements, repository documentation, and explicit user decis
 
 - Cappy Hub does not use automated browser testing in local development, GitHub Actions, CI/CD, or deployment validation. Do not install, launch, or configure browsers for automated checks, and do not generate screenshots automatically.
 - Use Vitest, PostgreSQL/pgTAP, migration and upgrade checks, authorization/RLS and integration tests, ESLint, Prettier, TypeScript, and production builds where applicable.
-- Keep Preview and Production smoke checks HTTP-only. Manual visual review and the maintained UI screenshot catalog are supported.
+- Keep Preview and Production smoke checks HTTP-only. Manual visual review is supported.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

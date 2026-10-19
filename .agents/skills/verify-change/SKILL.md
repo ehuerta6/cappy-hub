@@ -61,7 +61,7 @@ For a change to a user-facing workflow, use the project's existing tests, HTTP c
 
 Check the user action, observed result, and relevant persisted or external side effect—not merely a screenshot or direct internal state setter. Verify error paths, authorization, and data integrity where they are affected. For bug fixes, compare before/after reproduction when feasible. Keep test instances, accounts, ports, and data isolated; do not pull production data or invoke destructive external actions without authorization.
 
-Cappy Hub does not use automated browser testing. Do not install, launch, or configure browsers for automated checks or generate screenshots automatically. Preview and Production smoke checks are HTTP-only. Manual visual review follows `docs/local-development.md` and the maintained `docs/ui-reference/` catalog. When interactive verification is unavailable, report that gap and use the best reliable configured test or HTTP signal.
+Cappy Hub does not use automated browser testing. Do not install, launch, or configure browsers for automated checks or generate screenshots automatically. Preview and Production smoke checks are HTTP-only. Manual visual review follows `docs/local-development.md`. When interactive verification is unavailable, report that gap and use the best reliable configured test or HTTP signal.
 
 ### 5. Run required completion checks
 
