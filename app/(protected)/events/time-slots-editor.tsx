@@ -67,14 +67,21 @@ export default function TimeSlotsEditor({
   const [enabled, setEnabled] = useState(enabledInitially);
   const [method, setMethod] = useState<AuthoringMethod>("custom");
   const [slotCount, setSlotCount] = useState(2);
+  const [equalCapacities, setEqualCapacities] = useState<(number | null)[]>([]);
   const [customSlots, setCustomSlots] = useState<TimeSlotDraft[]>(
     initialSlots.length
       ? initialSlots
       : [{ start_time: eventStart, end_time: eventEnd, capacity: null }],
   );
   const equalDrafts = useMemo(
-    () => calculateEqualSlots(eventStart, eventEnd, slotCount),
-    [eventStart, eventEnd, slotCount],
+    () =>
+      calculateEqualSlots(eventStart, eventEnd, slotCount).map(
+        (slot, index) => ({
+          ...slot,
+          capacity: equalCapacities[index] ?? null,
+        }),
+      ),
+    [eventStart, eventEnd, equalCapacities, slotCount],
   );
   const slots = method === "equal" ? equalDrafts : customSlots;
   const serialized = enabled ? JSON.stringify(serializeSlots(slots)) : "null";
@@ -161,31 +168,70 @@ export default function TimeSlotsEditor({
                 </label>
               </fieldset>
               {method === "equal" ? (
-                <label>
-                  Number of equal slots
-                  <input
-                    type="number"
-                    min="1"
-                    max="24"
-                    step="1"
-                    value={slotCount}
-                    onChange={(event) => {
-                      const next = Number(event.currentTarget.value);
-                      setSlotCount(Number.isInteger(next) ? next : 1);
-                      onSlotsChange?.(
-                        JSON.stringify(
-                          serializeSlots(
-                            calculateEqualSlots(eventStart, eventEnd, next),
+                <div className="space-y-3">
+                  <label>
+                    Number of equal slots
+                    <input
+                      type="number"
+                      min="1"
+                      max="24"
+                      step="1"
+                      value={slotCount}
+                      onChange={(event) => {
+                        const next = Number(event.currentTarget.value);
+                        const nextCount = Number.isInteger(next) ? next : 1;
+                        setSlotCount(nextCount);
+                        onSlotsChange?.(
+                          JSON.stringify(
+                            serializeSlots(
+                              calculateEqualSlots(
+                                eventStart,
+                                eventEnd,
+                                nextCount,
+                              ).map((slot, index) => ({
+                                ...slot,
+                                capacity: equalCapacities[index] ?? null,
+                              })),
+                            ),
                           ),
-                        ),
-                      );
-                    }}
-                  />
-                  <span className="text-sm text-muted">
-                    The Event duration in minutes must divide evenly by this
-                    number.
-                  </span>
-                </label>
+                        );
+                      }}
+                    />
+                    <span className="text-sm text-muted">
+                      The Event duration in minutes must divide evenly by this
+                      number.
+                    </span>
+                  </label>
+                  <div className="event-form-fields">
+                    {equalDrafts.map((slot, index) => (
+                      <label key={index}>
+                        Slot {index + 1} capacity (optional)
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={slot.capacity ?? ""}
+                          onChange={(event) => {
+                            const value = event.currentTarget.value;
+                            const capacity = value ? Number(value) : null;
+                            const nextSlots = equalDrafts.map(
+                              (equalSlot, slotIndex) =>
+                                slotIndex === index
+                                  ? { ...equalSlot, capacity }
+                                  : equalSlot,
+                            );
+                            setEqualCapacities(
+                              nextSlots.map(({ capacity }) => capacity),
+                            );
+                            onSlotsChange?.(
+                              JSON.stringify(serializeSlots(nextSlots)),
+                            );
+                          }}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
               ) : (
                 <div className="space-y-3">
                   {customSlots.map((slot, index) => (

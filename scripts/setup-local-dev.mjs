@@ -118,8 +118,9 @@ async function seedWarningApprovals(admin, userIds) {
     [userIds.get("VP Academics"), "Vice President"],
   ];
 
-  for (const warningId of [-3001, -3002, -3004, -3005, -3006]) {
-    const decision = warningId === -3001 ? "pending" : "approved";
+  for (const warningId of [-3001, -3002, -3004, -3005, -3006, -3007, -3008]) {
+    const decision =
+      warningId === -3001 || warningId === -3007 ? "pending" : "approved";
     const decidedAt = decision === "approved" ? new Date().toISOString() : null;
 
     for (const [approverId, approverRole] of approvers) {
@@ -150,6 +151,27 @@ async function seedWarningApprovals(admin, userIds) {
     },
     {
       warning_id: -3003,
+      approver_id: userIds.get("VP Academics"),
+      approver_role: "Vice President",
+      decision: "pending",
+      decided_at: null,
+    },
+    {
+      warning_id: -3009,
+      approver_id: userIds.get("President"),
+      approver_role: "President",
+      decision: "approved",
+      decided_at: new Date().toISOString(),
+    },
+    {
+      warning_id: -3009,
+      approver_id: userIds.get("VP Operations"),
+      approver_role: "Vice President",
+      decision: "pending",
+      decided_at: null,
+    },
+    {
+      warning_id: -3009,
       approver_id: userIds.get("VP Academics"),
       approver_role: "Vice President",
       decision: "pending",
@@ -202,11 +224,13 @@ async function verifyLocalLogins(apiUrl, publishableKey) {
 
 async function verifySeed(admin) {
   const minimums = [
-    ["officers", 20],
-    ["events", 10],
-    ["point_transactions", 250],
-    ["officer_warnings", 6],
-    ["tasks", 6],
+    ["officers", 30],
+    ["events", 20],
+    ["point_transactions", 320],
+    ["officer_warnings", 10],
+    ["tasks", 12],
+    ["event_time_slots", 14],
+    ["event_time_slot_officers", 18],
   ];
 
   for (const [table, minimum] of minimums) {

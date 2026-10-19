@@ -38,7 +38,15 @@ values
   (-1021, 'Sam Wilson', 'sam.wilson@cappy.test', null, (select id from public.positions where name = 'Officer'), 'senior', 'active', 'officer'),
   (-1022, 'Cameron Smith', 'cameron.smith@cappy.test', null, (select id from public.positions where name = 'Officer'), 'sophomore', 'active', 'officer'),
   (-1023, 'Drew Martinez', 'drew.martinez@cappy.test', null, (select id from public.positions where name = 'Officer'), 'junior', 'active', 'officer'),
-  (-1024, 'Quinn Brown', 'quinn.brown@cappy.test', null, (select id from public.positions where name = 'Officer'), null, 'active', 'officer');
+  (-1024, 'Quinn Brown', 'quinn.brown@cappy.test', null, (select id from public.positions where name = 'Officer'), null, 'active', 'officer'),
+  (-1025, 'Skylar Brooks', 'skylar.brooks@cappy.test', null, (select id from public.positions where name = 'Officer'), 'freshman', 'active', 'officer'),
+  (-1026, 'Reese Carter', 'reese.carter@cappy.test', null, (select id from public.positions where name = 'Officer'), 'junior', 'active', 'officer'),
+  (-1027, 'Finley Park', 'finley.park@cappy.test', null, (select id from public.positions where name = 'Officer'), 'graduate', 'active', 'officer'),
+  (-1028, 'Rowan Ellis', 'rowan.ellis@cappy.test', null, (select id from public.positions where name = 'Officer'), 'sophomore', 'inactive', 'officer'),
+  (-1029, 'Devon Bailey', 'devon.bailey@cappy.test', null, (select id from public.positions where name = 'Officer'), 'senior', 'active', 'officer'),
+  (-1030, 'Blair Thompson', 'blair.thompson@cappy.test', null, (select id from public.positions where name = 'Officer'), 'senior', 'active', 'officer'),
+  (-1031, 'Kai Bennett', 'kai.bennett@cappy.test', null, (select id from public.positions where name = 'Officer'), 'sophomore', 'active', 'officer'),
+  (-1032, 'Emery Diaz', 'emery.diaz@cappy.test', null, (select id from public.positions where name = 'Officer'), null, 'active', 'officer');
 
 insert into public.officer_branches (officer_id, branch_id)
 values
@@ -63,7 +71,25 @@ values
   (-1021, (select id from public.branches where name = 'general')),
   (-1022, (select id from public.branches where name = 'icpc')),
   (-1023, (select id from public.branches where name = 'intro')),
-  (-1023, (select id from public.branches where name = 'icpc'));
+  (-1023, (select id from public.branches where name = 'icpc')),
+  (-1025, (select id from public.branches where name = 'general')),
+  (-1025, (select id from public.branches where name = 'outreach')),
+  (-1026, (select id from public.branches where name = 'general')),
+  (-1026, (select id from public.branches where name = 'icpc')),
+  (-1027, (select id from public.branches where name = 'outreach')),
+  (-1028, (select id from public.branches where name = 'social')),
+  (-1029, (select id from public.branches where name = 'general')),
+  (-1030, (select id from public.branches where name = 'outreach')),
+  (-1031, (select id from public.branches where name = 'icpc')),
+  (-1032, (select id from public.branches where name = 'social'));
+
+insert into public.event_series
+  (id,request_key,recurrence_rule,created_by,starts_on,ends_on)
+values
+  (-2201,'00000000-0000-4000-8000-000000002201',
+   'RRULE:FREQ=WEEKLY;INTERVAL=1;COUNT=2',-1002,
+   (now() at time zone 'America/Denver')::date+15,
+   (now() at time zone 'America/Denver')::date+22);
 
 insert into public.events
   (id,name,description,event_type_id,location,event_date,starts_at,ends_at,status,participation_points_per_hour_at_end,deleted_at,deleted_by)
@@ -84,6 +110,24 @@ values
   (-2017,'Mock: Curriculum Meeting','Future global meeting.',(select id from public.event_types where name='Meeting'),'CCSB G.0208',(now() at time zone 'America/Denver')::date + 14,(((now() at time zone 'America/Denver')::date + 14 + time '16:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date + 14 + time '17:00') at time zone 'America/Denver'),'upcoming',null,null,null),
   (-2018,'Mock: Social Mixer','Upcoming social event.',(select id from public.event_types where name='Social'),'Union East',(now() at time zone 'America/Denver')::date + 9,(((now() at time zone 'America/Denver')::date + 9 + time '18:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date + 9 + time '20:00') at time zone 'America/Denver'),'upcoming',null,null,null),
   (-2019,'Mock: Cancelled Future Workshop','Future cancelled event.',(select id from public.event_types where name='Session'),'CCSB G.0208',(now() at time zone 'America/Denver')::date + 8,(((now() at time zone 'America/Denver')::date + 8 + time '17:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date + 8 + time '18:00') at time zone 'America/Denver'),'cancelled',null,null,null);
+insert into public.events
+  (id,name,description,event_type_id,location,event_date,starts_at,ends_at,status,participation_points_per_hour_at_end)
+values
+  (-2020,'Mock: Equal Slots Volunteer Fair','Three equal volunteer shifts with mixed capacities.',(select id from public.event_types where name='Workshop'),'Union Building',(now() at time zone 'America/Denver')::date+10,(((now() at time zone 'America/Denver')::date+10+time '09:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+10+time '12:00') at time zone 'America/Denver'),'upcoming',null),
+  (-2021,'Mock: Custom Slots Outreach Booth','Custom shifts have a gap, a full slot, and remaining capacity.',(select id from public.event_types where name='Social'),'Centennial Plaza',(now() at time zone 'America/Denver')::date+11,(((now() at time zone 'America/Denver')::date+11+time '13:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+11+time '17:00') at time zone 'America/Denver'),'upcoming',null),
+  (-2022,'Mock: Processed Slots Career Day','Historical slotted Event with separate awards per selected shift.',(select id from public.event_types where name='Meeting'),'Union Building',(now() at time zone 'America/Denver')::date-2,(((now() at time zone 'America/Denver')::date-2+time '10:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date-2+time '14:00') at time zone 'America/Denver'),'past',2.5),
+  (-2023,'Mock: Happening Officer Meeting','Currently in progress for Dashboard and Event status examples.',(select id from public.event_types where name='Meeting'),'CCSB 1.0202',(now() at time zone 'America/Denver')::date,now()-interval '1 hour',now()+interval '1 hour','happening',null),
+  (-2024,'Mock: Full Capacity Workshop','Event and per-slot capacity are both full.',(select id from public.event_types where name='Workshop'),'CCSB G.0208',(now() at time zone 'America/Denver')::date+12,(((now() at time zone 'America/Denver')::date+12+time '10:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+12+time '12:00') at time zone 'America/Denver'),'upcoming',null),
+  (-2030,'Mock: Weekly Coding Workshop','First occurrence of an independently slotted weekly Event.',(select id from public.event_types where name='Workshop'),'CCSB 1.0410',(now() at time zone 'America/Denver')::date+15,(((now() at time zone 'America/Denver')::date+15+time '16:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+15+time '18:00') at time zone 'America/Denver'),'upcoming',null),
+  (-2031,'Mock: Weekly Coding Workshop','Following occurrence owns its own slots and selections.',(select id from public.event_types where name='Workshop'),'CCSB 1.0410',(now() at time zone 'America/Denver')::date+22,(((now() at time zone 'America/Denver')::date+22+time '16:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+22+time '18:00') at time zone 'America/Denver'),'upcoming',null);
+update public.events set recurrence_series_id=-2201,
+  recurrence_key=(now() at time zone 'America/Denver')::date+15 where id=-2030;
+update public.events set recurrence_series_id=-2201,
+  recurrence_key=(now() at time zone 'America/Denver')::date+22 where id=-2031;
+update public.events set max_volunteers=8 where id=-2020;
+update public.events set max_volunteers=5 where id=-2021;
+update public.events set max_volunteers=2 where id=-2024;
+update public.events set max_volunteers=6 where id in (-2030,-2031);
 insert into public.event_branches (event_id, branch_id)
 values
   (-2001, (select id from public.branches where name = 'intro')),
@@ -100,7 +144,13 @@ values
   (-2016, (select id from public.branches where name = 'intro')),
   (-2016, (select id from public.branches where name = 'general')),
   (-2018, (select id from public.branches where name = 'social')),
-  (-2019, (select id from public.branches where name = 'intro'));
+  (-2019, (select id from public.branches where name = 'intro')),
+  (-2020, (select id from public.branches where name = 'general')),
+  (-2021, (select id from public.branches where name = 'outreach')),
+  (-2022, (select id from public.branches where name = 'general')),
+  (-2024, (select id from public.branches where name = 'intro')),
+  (-2030, (select id from public.branches where name = 'icpc')),
+  (-2031, (select id from public.branches where name = 'icpc'));
 
 insert into public.event_officers (event_id, officer_id)
 values
@@ -118,7 +168,42 @@ values
   (-2015, -1008), (-2015, -1019), (-2015, -1020),
   (-2016, -1005), (-2016, -1009), (-2016, -1010), (-2016, -1013), (-2016, -1015), (-2016, -1021),
   (-2017, -1001), (-2017, -1002), (-2017, -1003), (-2017, -1004),
-  (-2018, -1007), (-2018, -1017), (-2018, -1018), (-2018, -1024);
+  (-2018, -1007), (-2018, -1017), (-2018, -1018), (-2018, -1024),
+  (-2020, -1010), (-2020, -1025), (-2020, -1026), (-2020, -1030),
+  (-2021, -1008), (-2021, -1027), (-2021, -1031),
+  (-2022, -1025), (-2022, -1026),
+  (-2023, -1002), (-2023, -1003), (-2023, -1012),
+  (-2024, -1025), (-2024, -1026),
+  (-2030, -1006), (-2030, -1025),
+  (-2031, -1026);
+
+insert into public.event_time_slots (id,event_id,starts_at,ends_at,capacity)
+values
+  (-9201,-2020,(((now() at time zone 'America/Denver')::date+10+time '09:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+10+time '10:00') at time zone 'America/Denver'),3),
+  (-9202,-2020,(((now() at time zone 'America/Denver')::date+10+time '10:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+10+time '11:00') at time zone 'America/Denver'),2),
+  (-9203,-2020,(((now() at time zone 'America/Denver')::date+10+time '11:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+10+time '12:00') at time zone 'America/Denver'),null),
+  (-9211,-2021,(((now() at time zone 'America/Denver')::date+11+time '13:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+11+time '14:30') at time zone 'America/Denver'),1),
+  (-9212,-2021,(((now() at time zone 'America/Denver')::date+11+time '15:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+11+time '17:00') at time zone 'America/Denver'),3),
+  (-9221,-2022,(((now() at time zone 'America/Denver')::date-2+time '10:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date-2+time '11:00') at time zone 'America/Denver'),null),
+  (-9222,-2022,(((now() at time zone 'America/Denver')::date-2+time '11:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date-2+time '13:00') at time zone 'America/Denver'),null),
+  (-9223,-2022,(((now() at time zone 'America/Denver')::date-2+time '13:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date-2+time '14:00') at time zone 'America/Denver'),null),
+  (-9241,-2024,(((now() at time zone 'America/Denver')::date+12+time '10:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+12+time '11:00') at time zone 'America/Denver'),1),
+  (-9242,-2024,(((now() at time zone 'America/Denver')::date+12+time '11:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+12+time '12:00') at time zone 'America/Denver'),1),
+  (-9301,-2030,(((now() at time zone 'America/Denver')::date+15+time '16:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+15+time '17:00') at time zone 'America/Denver'),3),
+  (-9302,-2030,(((now() at time zone 'America/Denver')::date+15+time '17:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+15+time '18:00') at time zone 'America/Denver'),null),
+  (-9311,-2031,(((now() at time zone 'America/Denver')::date+22+time '16:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+22+time '17:00') at time zone 'America/Denver'),3),
+  (-9312,-2031,(((now() at time zone 'America/Denver')::date+22+time '17:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+22+time '18:00') at time zone 'America/Denver'),null);
+
+insert into public.event_time_slot_officers(event_id,slot_id,officer_id)
+values
+  (-2020,-9201,-1010),(-2020,-9201,-1025),(-2020,-9201,-1026),
+  (-2020,-9202,-1010),(-2020,-9202,-1026),(-2020,-9203,-1030),
+  (-2021,-9211,-1008),(-2021,-9212,-1027),(-2021,-9212,-1031),
+  (-2022,-9221,-1025),
+  (-2022,-9222,-1025),(-2022,-9222,-1026),(-2022,-9223,-1025),
+  (-2024,-9241,-1025),(-2024,-9242,-1026),
+  (-2030,-9301,-1006),(-2030,-9301,-1025),(-2030,-9302,-1025),
+  (-2031,-9311,-1026);
 
 -- Synthetic Session slots demonstrate repeated difficulty and one Officer
 -- holding multiple presentations, including an optional non-problem topic.
@@ -160,6 +245,15 @@ values
   (-4014, -1001, -2006, 3.75, 'Mock historical participation', 'participation', now() - interval '59 days', null,null),
   (-4015, -1010, -2006, 3.75, 'Mock historical participation', 'participation', now() - interval '59 days', now() - interval '40 days','00000000-0000-4000-8000-000000000999');
 insert into public.point_transactions
+  (id,officer_id,event_id,event_time_slot_id,points,reason,award_type,created_at,
+   removed_at,removed_by,slot_selection_removed)
+values
+  (-4101,-1025,-2022,-9221,2.5,'Mock participation: one-hour slot','participation',now()-interval '2 days',null,null,false),
+  (-4102,-1025,-2022,-9222,5,'Mock participation: two-hour slot','participation',now()-interval '2 days',null,null,false),
+  (-4103,-1025,-2022,-9223,2.5,'Mock participation: final one-hour slot','participation',now()-interval '2 days',null,null,false),
+  (-4104,-1026,-2022,-9221,2.5,'Mock removed slot selection','participation',now()-interval '2 days',now()-interval '1 day','00000000-0000-4000-8000-000000000999',true),
+  (-4105,-1026,-2022,-9222,5,'Mock participation: selected two-hour slot','participation',now()-interval '2 days',null,null,false);
+insert into public.point_transactions
   (id, officer_id, event_id, points, reason, award_type, created_at, removed_at, removed_by)
 select
   -5000 - gs,
@@ -198,7 +292,12 @@ values
   (-3003, -1014, 'Mock rejected warning.', 'rejected', now() - interval '15 days'),
   (-3004, -1015, 'Mock approved warning one of three.', 'approved', now() - interval '90 days'),
   (-3005, -1015, 'Mock approved warning two of three.', 'approved', now() - interval '60 days'),
-  (-3006, -1015, 'Mock approved warning three of three.', 'approved', now() - interval '30 days');
+  (-3006, -1015, 'Mock approved warning three of three.', 'approved', now() - interval '30 days'),
+  (-3007, -1025, 'Mock pending warning with all approvals open.', 'pending', now() - interval '1 day'),
+  (-3008, -1026, 'Mock approved warning for a second Officer.', 'approved', now() - interval '12 days'),
+  (-3009, -1032, 'Mock warning awaiting the remaining approvals.', 'pending', now() - interval '3 days'),
+  (-3010, -1027, 'Mock voided warning retained for history.', 'approved', now() - interval '40 days');
+update public.officer_warnings set voided_at=now()-interval '20 days',voided_by=-1001 where id=-3010;
 
 insert into public.audit_logs (id, actor_id, action, entity_type, entity_id, details, created_at)
 values
@@ -232,5 +331,24 @@ insert into public.point_transactions(officer_id,task_id,points,reason,award_typ
 values
   (-1013,-8005,6,'Task completion: Publish workshop post','task',-1005),
   (-1023,-8007,4,'Task completion: Past outreach checklist','task',-1008);
+
+insert into public.tasks (id,title,description,task_type,branch_id,due_date,points,approval_required,created_by)
+values
+  (-8010,'Prepare volunteer sign-in sheet','Create a sign-in sheet for the volunteer fair.','Airtable',(select id from public.branches where name='general'),(now() at time zone 'America/Denver')::date+3,3,false,-1002),
+  (-8011,'Draft outreach recap','Write a recap for the outreach booth.','Post',(select id from public.branches where name='outreach'),(now() at time zone 'America/Denver')::date+1,4,true,-1008),
+  (-8012,'Refresh ICPC practice guide','Update the practice guide with new links.','Airtable',(select id from public.branches where name='icpc'),(now() at time zone 'America/Denver')::date-3,5,false,-1006),
+  (-8013,'Promote coding workshop','Prepare social posts for the weekly workshop.','Story',(select id from public.branches where name='icpc'),(now() at time zone 'America/Denver')::date+10,2.5,false,-1006),
+  (-8014,'Design career fair poster','Make a poster for the upcoming career fair.','Flyer',(select id from public.branches where name='general'),(now() at time zone 'America/Denver')::date-1,6,true,-1002);
+insert into public.task_officer_assignments
+  (task_id,officer_id,assigned_by,completed_at)
+values
+  (-8011,-1027,-1008,null),
+  (-8012,-1031,-1006,now()-interval '1 day'),
+  (-8013,-1025,-1006,null),
+  (-8013,-1026,-1006,null),
+  (-8013,-1032,-1006,null),
+  (-8014,-1029,-1002,now()-interval '2 hours');
+insert into public.point_transactions(officer_id,task_id,points,reason,award_type,created_by_officer_id)
+values (-1031,-8012,5,'Task completion: Refresh ICPC practice guide','task',-1006);
 
 commit;

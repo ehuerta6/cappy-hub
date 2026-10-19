@@ -34,6 +34,18 @@ Use these emails on the local login page. Every account uses the same local-only
 
 These synthetic accounts are created only by the local setup/reset workflow. Never use this password or these accounts in production.
 
+## Seeded demo scenarios
+
+`supabase/seed.sql` adds synthetic records across Officers, Events, Points, warnings, and Tasks. Names beginning with `Mock:` identify demo Events. The Time Slot examples are:
+
+- `Mock: Equal Slots Volunteer Fair`: three equal shifts with capacities of 3, 2, and unlimited; existing selections demonstrate available and full shifts.
+- `Mock: Custom Slots Outreach Booth`: custom shifts with a gap, a full first shift, and an available second shift.
+- `Mock: Processed Slots Career Day`: a past Event with separate Point transactions for selected slots and one removed selection whose award remains in history.
+- `Mock: Full Capacity Workshop`: Event and slot capacity examples.
+- `Mock: Weekly Coding Workshop`: two recurring occurrences with independent slots and Officer selections.
+
+The remaining seeded records cover past, upcoming, happening, cancelled, removed, and Session Events; Point awards, corrections, and removals; warning approval states; and Tasks with no assignee, one or several assignees, completed assignments, and due-date awards. Run `npm run local:reset` to restore these examples after changing local data.
+
 ## Visual review and automated testing
 
 Cappy Hub does not use automated browser testing in local development, GitHub Actions, CI/CD, or deployment validation. Do not install, launch, or configure browsers for automated checks, and do not generate screenshots automatically. This includes Playwright and browser-based accessibility checks.
