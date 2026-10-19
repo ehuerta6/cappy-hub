@@ -404,8 +404,8 @@ export default function EventForm({
                 )}
               />
               <span className="text-sm text-muted">
-                External Google Sheet resource. Cappy Hub signups, capacity,
-                waitlist, and participation are managed separately.
+                External Google Sheet resource. Cappy Hub signups, capacity, and
+                participation are managed separately.
               </span>
               <FieldError id="event-signup-sheet-url-error">
                 {fieldErrors.signup_sheet_url}

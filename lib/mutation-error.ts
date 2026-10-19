@@ -23,6 +23,7 @@ const safeMessages = new Set([
   "This event cannot be cancelled",
   "Cannot manage another officer signup for this event",
   "Signups are closed for this event",
+  "Event capacity has been reached",
   "Target officer is not active",
   "All target officers must be active",
   "This Officer already has an active award for this Event.",

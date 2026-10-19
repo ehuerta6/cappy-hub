@@ -73,7 +73,7 @@ it("clarifies the external sheet in create/edit forms and displays the saved URL
   for (const formHtml of [createHtml, html]) {
     expect(formHtml).toContain("External roster / signup sheet URL (optional)");
     expect(formHtml).toContain(
-      "External Google Sheet resource. Cappy Hub signups, capacity, waitlist, and participation are managed separately.",
+      "External Google Sheet resource. Cappy Hub signups, capacity, and participation are managed separately.",
     );
   }
   expect(html).toContain('<option value="9">Session</option>');

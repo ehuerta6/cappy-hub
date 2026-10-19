@@ -203,7 +203,8 @@ it("serializes concurrent signup requests so capacity cannot be overfilled", asy
       secondSignup.closed,
     ]);
     expect(firstResult.code).toBe(0);
-    expect(secondResult.code).toBe(0);
+    expect(secondResult.code).not.toBe(0);
+    expect(secondResult.errors).toContain("Event capacity has been reached");
     expect(Date.now() - competingSignupStartedAt).toBeGreaterThan(500);
     expect(
       runSql(
@@ -214,7 +215,7 @@ it("serializes concurrent signup requests so capacity cannot be overfilled", asy
       runSql(
         `select count(*) from public.event_waitlist where event_id=${eventId};`,
       ).trim(),
-    ).toBe("1");
+    ).toBe("0");
   } finally {
     runSql(`
       delete from public.audit_logs where actor_officer_id in (${firstOfficerId},${secondOfficerId},-981783);

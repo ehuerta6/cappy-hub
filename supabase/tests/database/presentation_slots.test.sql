@@ -161,7 +161,7 @@ select lives_ok($$select change_presenter_slot((select id from presentation_slot
 select is((select count(*) from presentation_slots where event_id=-1401 and officer_id=-1404),2::bigint,'one Officer can hold two slots before signup removal');
 select lives_ok($$select change_event_signup(-1401,-1404,true)$$,'signup removal is still supported');
 select is((select count(*) from presentation_slots where event_id=-1401 and officer_id=-1404),0::bigint,'signup removal frees every slot held by that Officer');
-select is((select count(*) from event_waitlist where event_id=-1401 and officer_id=-1404),0::bigint,'failed presenter claims do not leave waitlist records');
+select is((select count(*) from event_waitlist where event_id=-1401 and officer_id=-1404),0::bigint,'signup removal does not create or promote a Waitlist entry');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001401',true);
 select lives_ok($$select change_presenter_slot((select id from presentation_slots where event_id=-1401 and position=1),-1405)$$,'manager can claim on behalf of an active Officer');
 select lives_ok($$select update_presenter_slot_details((select id from presentation_slots where event_id=-1401 and position=1),'Admin edit',null,null,null)$$,
@@ -204,8 +204,8 @@ update events set max_volunteers=(select count(*) from event_officers where even
 set local role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001404',true);
 select throws_ok($$select change_presenter_slot((select id from presentation_slots where event_id=-1401 and position=4),-1404)$$,
- 'P0001','Event is full, so this officer cannot take a presenter slot','full Session rejects new attendee presenter');
-select is((select count(*) from event_waitlist where event_id=-1401 and officer_id=-1404),0::bigint,'full claim failure rolls back waitlist entry');
+ 'P0001','Event capacity has been reached','full Session rejects new attendee presenter');
+select is((select count(*) from event_waitlist where event_id=-1401 and officer_id=-1404),0::bigint,'full presenter claim does not add a Waitlist entry');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001405',true);
 select lives_ok($$select change_presenter_slot((select id from presentation_slots where event_id=-1401 and position=4),-1405)$$,'full Session allows already-confirmed Officer another slot');
 reset role;

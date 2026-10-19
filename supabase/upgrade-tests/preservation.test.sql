@@ -3,6 +3,33 @@ create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 select no_plan();
 
+select ok(to_regclass('public.event_waitlist') is not null,
+  'Waitlist table remains available to the currently deployed application');
+select results_eq(
+  $$select id,event_id,officer_id,joined_at from event_waitlist where event_id=92201 order by id$$,
+  $$select id,event_id,officer_id,joined_at from upgrade_fixture.pre_event_waitlist order by id$$,
+  'pending Waitlist entries and join times remain unchanged through the compatible upgrade');
+select is((select count(*) from audit_logs where action='event.waitlist_retired'
+  and entity_id='92201'),0::bigint,
+  'the compatibility migration leaves pending entries for the later contract migration to archive');
+select results_eq(
+  $$select to_jsonb(a) from audit_logs a where entity_id='92201'
+      and action in ('event.waitlist_joined','event.waitlist_left','event.waitlist_promoted')
+    order by action,id$$,
+  $$select original from upgrade_fixture.pre_event_waitlist_audit
+    order by original->>'action',(original->>'id')::bigint$$,
+  'historical Waitlist join, leave and promotion audit records remain unchanged');
+select results_eq(
+  $$select event_id,officer_id from event_officers where event_id=92201 order by event_id,officer_id$$,
+  $$select event_id,officer_id from upgrade_fixture.pre_event_officers order by event_id,officer_id$$,
+  'confirmed Event signups remain unchanged');
+select results_eq(
+  $$select to_jsonb(p) from point_transactions p where event_id=92201$$,
+  $$select original from upgrade_fixture.pre_event_points$$,
+  'existing Event Point transactions remain unchanged');
+select is((select max_volunteers from events where id=92201),2,
+  'Event capacity remains unchanged by Waitlist deactivation');
+
 select is((select count(*)::integer from cron.job
   where jobname='cappy-process-finished-events'),0,
   'historical upgrade replay leaves the Event processor unscheduled');

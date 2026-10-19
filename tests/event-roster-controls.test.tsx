@@ -9,7 +9,6 @@ vi.mock("@/app/(protected)/events/actions", () => ({
   restoreEvent: vi.fn(),
   restoreEventArchive: vi.fn(),
   removeEvent: vi.fn(),
-  leaveEventWaitlist: vi.fn(),
 }));
 
 import { BulkAddOfficersForm } from "@/app/(protected)/events/event-controls";

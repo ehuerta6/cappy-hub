@@ -4,7 +4,6 @@ import { personalSignupState } from "@/app/(protected)/events/personal-signup-st
 const openAndEligible = {
   open: true,
   confirmed: false,
-  waitlisted: false,
   eligible: true,
   full: false,
 };
@@ -16,13 +15,7 @@ it("allows an eligible Officer to sign up only once", () => {
   );
 });
 
-it("keeps a waitlisted Officer on the leave-waitlist state", () => {
-  expect(personalSignupState({ ...openAndEligible, waitlisted: true })).toBe(
-    "waitlisted",
-  );
-});
-
-it("offers the waitlist for a full event and no action when closed", () => {
+it("marks a full event unavailable and hides actions when closed", () => {
   expect(personalSignupState({ ...openAndEligible, full: true })).toBe("full");
   expect(personalSignupState({ ...openAndEligible, open: false })).toBe(
     "closed",

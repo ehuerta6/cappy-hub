@@ -311,21 +311,11 @@ export async function changeSignup(
       undefined,
     );
   revalidatePath("/", "layout");
-  const { data: waiting } = validatedSignupInput.remove
-    ? { data: null }
-    : await supabase
-        .from("event_waitlist")
-        .select("id")
-        .eq("event_id", validatedSignupInput.event_id)
-        .eq("officer_id", validatedSignupInput.officer_id)
-        .maybeSingle();
   return {
     error: "",
     success: validatedSignupInput.remove
       ? "Signup removed"
-      : waiting
-        ? "Joined the waitlist"
-        : "Confirmed signup saved",
+      : "Confirmed signup saved",
   };
 }
 export async function selfSignup(
@@ -340,25 +330,6 @@ export async function selfSignup(
   return result;
 }
 
-export async function leaveEventWaitlist(
-  _previous: FormActionState,
-  formData: FormData,
-) {
-  const actor = await getAuthorizationContext();
-  const validation = eventRecordInputSchema.safeParse({
-    event_id: formData.get("event_id") ?? "",
-  });
-  if (!validation.success)
-    return { error: validation.error.issues[0].message, success: "" };
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("leave_event_waitlist", {
-    p_event_id: validation.data.event_id,
-    p_officer_id: actor.id,
-  });
-  if (error) return { error: mutationError(error.message), success: "" };
-  revalidatePath("/", "layout");
-  return { error: "", success: "Left the waitlist" };
-}
 export async function bulkAddEventOfficers(
   _previous: FormActionState,
   formData: FormData,

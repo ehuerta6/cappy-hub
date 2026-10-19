@@ -26,7 +26,7 @@ it("renders signup sheet only when present and preserves existing resource links
   expect(signupOnly).toContain("Open external roster / signup sheet");
   expect(signupOnly).toContain('href="https://example.org/signup"');
   expect(signupOnly).toContain(
-    "External Google Sheet resource. Cappy Hub signups, capacity, waitlist, and participation are managed separately.",
+    "External Google Sheet resource. Cappy Hub signups, capacity, and participation are managed separately.",
   );
   expect(signupOnly).not.toContain("Open slides");
   expect(signupOnly).not.toContain("Open notes");

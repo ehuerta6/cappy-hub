@@ -58,7 +58,6 @@ const event = {
   event_types: { name: "Meeting" },
   event_branches: [],
   event_officers: [],
-  event_waitlist: [],
   max_volunteers: null,
   task_events: [],
   event_date: "2099-10-08",
@@ -95,11 +94,7 @@ const task = {
 let officersForList: Record<string, unknown>[];
 let eventRosterRows: Record<string, unknown>[];
 let eventRosterCount = 0;
-let eventWaitlistRows: Record<string, unknown>[];
-let eventWaitlistCount = 0;
-let eventGlobalWaitlistCount = 0;
 let personalRosterCount = 0;
-let personalWaitlistCount = 0;
 let eventTaskRows: Record<string, unknown>[];
 let eventTaskCount = 0;
 let eventPointCount = 0;
@@ -112,11 +107,7 @@ beforeEach(() => {
   officersForList = [];
   eventRosterRows = [];
   eventRosterCount = 0;
-  eventWaitlistRows = [];
-  eventWaitlistCount = 0;
-  eventGlobalWaitlistCount = 0;
   personalRosterCount = 0;
-  personalWaitlistCount = 0;
   eventTaskRows = [];
   eventTaskCount = 0;
   eventPointCount = 0;
@@ -146,7 +137,6 @@ beforeEach(() => {
               {
                 event_id: query.eventId,
                 confirmed_count: eventRosterCount,
-                waitlist_count: eventGlobalWaitlistCount,
               },
             ],
             error: null,
@@ -250,22 +240,17 @@ beforeEach(() => {
                         query.rangeStart,
                         query.rangeEnd + 1,
                       )
-                    : table === "event_waitlist"
-                      ? eventWaitlistRows.slice(
+                    : table === "task_events" && filters.has("task_id")
+                      ? task.task_events.slice(
                           query.rangeStart,
                           query.rangeEnd + 1,
                         )
-                      : table === "task_events" && filters.has("task_id")
-                        ? task.task_events.slice(
+                      : table === "task_events"
+                        ? eventTaskRows.slice(
                             query.rangeStart,
                             query.rangeEnd + 1,
                           )
-                        : table === "task_events"
-                          ? eventTaskRows.slice(
-                              query.rangeStart,
-                              query.rangeEnd + 1,
-                            )
-                          : [],
+                        : [],
             count:
               table === "officers"
                 ? officersForList.length
@@ -275,17 +260,13 @@ beforeEach(() => {
                     ? filters.has("officer_id")
                       ? personalRosterCount
                       : eventRosterCount
-                    : table === "event_waitlist"
-                      ? filters.has("officer_id")
-                        ? personalWaitlistCount
-                        : eventWaitlistCount
-                      : table === "task_events" && filters.has("task_id")
-                        ? task.task_events.length
-                        : table === "task_events"
-                          ? eventTaskCount
-                          : table === "point_transactions"
-                            ? eventPointCount
-                            : 0,
+                    : table === "task_events" && filters.has("task_id")
+                      ? task.task_events.length
+                      : table === "task_events"
+                        ? eventTaskCount
+                        : table === "point_transactions"
+                          ? eventPointCount
+                          : 0,
             error: null,
           }).then(resolve),
       };
@@ -859,20 +840,7 @@ it("shows the current Officer's signup removal in Overview outside the roster pr
   expect(participation).not.toContain("Officer 99");
 });
 
-it("paginates the FIFO waitlist with a bounded database query", async () => {
-  eventWaitlistCount = 8;
-  eventGlobalWaitlistCount = 8;
-  eventWaitlistRows = Array.from({ length: 8 }, (_, index) => ({
-    id: index + 1,
-    joined_at: `2026-10-${String(index + 1).padStart(2, "0")}T12:00:00Z`,
-    officer_id: index + 1,
-    officers: {
-      id: index + 1,
-      name: `Officer ${index + 1}`,
-      status: "active",
-    },
-  }));
-
+it("does not render the retired waitlist section or query its former table", async () => {
   const html = renderToStaticMarkup(
     await EventDetail({
       params: Promise.resolve({ id: "7" }),
@@ -880,16 +848,9 @@ it("paginates the FIFO waitlist with a bounded database query", async () => {
     }),
   );
 
-  expect(html).toContain('aria-label="Select waitlist list page"');
-  expect(html).toContain("of 2");
-  expect(html).toContain("Officer 7");
-  expect(eventRelatedRanges).toContainEqual(["event_waitlist", 6, 11]);
-  expect(
-    eventRelatedOrderCalls.filter(([table]) => table === "event_waitlist"),
-  ).toEqual([
-    ["event_waitlist", "joined_at"],
-    ["event_waitlist", "id"],
-  ]);
+  expect(html).toContain('aria-label="Participation"');
+  expect(html).not.toContain("Waitlist");
+  expect(queryLog.some(({ table }) => table === "event_waitlist")).toBe(false);
 });
 
 it("paginates linked Tasks with a bounded database query", async () => {

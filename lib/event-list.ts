@@ -19,25 +19,17 @@ export type EventListItem = Pick<
   event_types: { name: string };
   event_branches: { branches: { name: string } }[];
   event_officers: { officer_id: number }[];
-  event_waitlist?: { officer_id: number }[];
   confirmed_count?: number;
-  waitlist_count?: number;
 };
 
 export function eventSignupCountLabel(event: {
   max_volunteers: number | null;
   confirmed_count?: number;
-  waitlist_count?: number;
 }) {
   const confirmedCount = event.confirmed_count ?? 0;
-  const waitlistCount = event.waitlist_count ?? 0;
-  const confirmed =
-    event.max_volunteers == null
-      ? `${confirmedCount} ${confirmedCount === 1 ? "officer" : "officers"}`
-      : `${confirmedCount} / ${event.max_volunteers} confirmed`;
-  return waitlistCount > 0
-    ? `${confirmed} · ${waitlistCount} waitlisted`
-    : confirmed;
+  return event.max_volunteers == null
+    ? `${confirmedCount} ${confirmedCount === 1 ? "officer" : "officers"}`
+    : `${confirmedCount} / ${event.max_volunteers} confirmed`;
 }
 
 // Counts real slots, so a fourth or later slot counts and repeated difficulty
@@ -128,11 +120,9 @@ export function groupEventPage(
   const { sunday } = currentDenverWeek(now);
   const groups: { label: string; events: EventListItem[] }[] = [];
   for (const event of events) {
-    const yourEvent =
-      event.event_officers.some(({ officer_id }) => officer_id === officerId) ||
-      (event.event_waitlist ?? []).some(
-        ({ officer_id }) => officer_id === officerId,
-      );
+    const yourEvent = event.event_officers.some(
+      ({ officer_id }) => officer_id === officerId,
+    );
     const period =
       status === undefined
         ? event.event_date <= sunday

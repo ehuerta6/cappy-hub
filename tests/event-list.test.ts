@@ -303,12 +303,12 @@ it("keeps schedule order when own and other Events cross a page group boundary",
     ),
     event(
       4,
-      "Waitlisted next week",
+      "Confirmed next week",
       "2026-10-12",
       "2026-10-12T18:00:00Z",
       "2026-10-12T19:00:00Z",
       {
-        event_waitlist: [{ officer_id: 7 }],
+        event_officers: [{ officer_id: 7 }],
       },
     ),
   ];

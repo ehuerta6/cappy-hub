@@ -34,7 +34,6 @@ import {
   RestoreCancelledEventForm,
   RestoreArchivedEventForm,
   RemoveEventForm,
-  LeaveWaitlistForm,
 } from "../event-controls";
 import {
   ActionLink,
@@ -47,13 +46,10 @@ import {
 } from "@/components/ui";
 
 const RELATED_PAGE_SIZE = 6;
-type EventSection = "overview" | "roster" | "waitlist" | "tasks" | "points";
+type EventSection = "overview" | "roster" | "tasks" | "points";
 
 function requestedSection(value: string | string[] | undefined): EventSection {
-  return value === "roster" ||
-    value === "waitlist" ||
-    value === "tasks" ||
-    value === "points"
+  return value === "roster" || value === "tasks" || value === "points"
     ? value
     : "overview";
 }
@@ -115,20 +111,11 @@ function EventSectionNavigation({
   eventId: string;
   section: EventSection;
   returnTo: unknown;
-  counts: { roster: number; waitlist?: number; tasks: number; points: number };
+  counts: { roster: number; tasks: number; points: number };
 }) {
   const sections: { id: EventSection; label: string; count?: number }[] = [
     { id: "overview", label: "Overview" },
     { id: "roster", label: "Roster", count: counts.roster },
-    ...(counts.waitlist === undefined
-      ? []
-      : [
-          {
-            id: "waitlist" as const,
-            label: "Waitlist",
-            count: counts.waitlist,
-          },
-        ]),
     ...(counts.tasks > 0
       ? [{ id: "tasks" as const, label: "Linked Tasks", count: counts.tasks }]
       : []),
@@ -194,7 +181,7 @@ export default async function EventDetailPage({
 }) {
   const query = (await searchParams) ?? {};
   const { returnTo, feedback } = query;
-  const requestedSectionName = requestedSection(query.section);
+  const section = requestedSection(query.section);
   const requested = requestedPage(query.page);
   const actor = await getAuthorizationContext();
   const supabase = await createClient();
@@ -217,18 +204,11 @@ export default async function EventDetailPage({
     event.event_branches.map((eventBranch) => eventBranch.branch_id),
   );
   if (event.deleted_at && !canManage) notFound();
-  const section =
-    requestedSectionName === "waitlist" && !canManage
-      ? "overview"
-      : requestedSectionName;
-
   const [
     rosterCountResult,
-    signupCountsResult,
     taskCountResult,
     pointCountResult,
     personalRosterResult,
-    personalWaitlistResult,
     activeOfficerResult,
     series,
   ] = await Promise.all([
@@ -236,7 +216,6 @@ export default async function EventDetailPage({
       .from("event_officers")
       .select("officer_id", { count: "exact", head: true })
       .eq("event_id", event.id),
-    supabase.rpc("event_signup_counts").eq("event_id", event.id),
     supabase
       .from("task_events")
       .select("task_id", { count: "exact", head: true })
@@ -249,11 +228,6 @@ export default async function EventDetailPage({
     supabase
       .from("event_officers")
       .select("officer_id", { count: "exact", head: true })
-      .eq("event_id", event.id)
-      .eq("officer_id", actor.id),
-    supabase
-      .from("event_waitlist")
-      .select("id", { count: "exact", head: true })
       .eq("event_id", event.id)
       .eq("officer_id", actor.id),
     supabase
@@ -271,42 +245,33 @@ export default async function EventDetailPage({
   ]);
   if (
     rosterCountResult.error ||
-    signupCountsResult.error ||
     taskCountResult.error ||
     pointCountResult.error ||
     personalRosterResult.error ||
-    personalWaitlistResult.error ||
     activeOfficerResult.error
   )
     throw new Error("Failed to load event participation counts");
   if (series?.error) throw new Error("Failed to load recurring series");
 
   const confirmedCount = rosterCountResult.count ?? 0;
-  const signupCounts = signupCountsResult.data?.[0];
-  if (!signupCounts) throw new Error("Failed to load event signup counts");
-  const waitlistCount = Number(signupCounts.waitlist_count);
   const taskCount = taskCountResult.count ?? 0;
   const pointCount = pointCountResult.count ?? 0;
   const confirmed = (personalRosterResult.count ?? 0) > 0;
-  const waitlisted = (personalWaitlistResult.count ?? 0) > 0;
   const eligibleForSelfSignup = (activeOfficerResult.count ?? 0) > 0;
   const full =
     event.max_volunteers !== null && confirmedCount >= event.max_volunteers;
   const personalSignup = personalSignupState({
     open: signupOpen,
     confirmed,
-    waitlisted,
     eligible: eligibleForSelfSignup,
     full,
   });
   const sectionCount =
     section === "roster"
       ? confirmedCount
-      : section === "waitlist"
-        ? waitlistCount
-        : section === "tasks"
-          ? taskCount
-          : pointCount;
+      : section === "tasks"
+        ? taskCount
+        : pointCount;
   const totalPages = Math.max(1, Math.ceil(sectionCount / RELATED_PAGE_SIZE));
   const page = Math.min(requested, totalPages);
   const canonicalPage = page > 1 ? String(page) : undefined;
@@ -326,7 +291,6 @@ export default async function EventDetailPage({
     presenterSlotsResult,
     presenterCandidatesResult,
     rosterResult,
-    waitlistResult,
     tasksResult,
     transactionsResult,
   ] = await Promise.all([
@@ -334,13 +298,11 @@ export default async function EventDetailPage({
       ? supabase
           .from("officers")
           .select(
-            "id,name,event_officers!event_officers_officer_id_fkey(event_id),event_waitlist!event_waitlist_officer_id_fkey(event_id)",
+            "id,name,event_officers!event_officers_officer_id_fkey(event_id)",
           )
           .eq("status", "active")
           .eq("event_officers.event_id", event.id)
           .is("event_officers", null)
-          .eq("event_waitlist.event_id", event.id)
-          .is("event_waitlist", null)
           .order("name")
       : Promise.resolve(undefined),
     showPresenters
@@ -378,17 +340,6 @@ export default async function EventDetailPage({
             .order("officer_id")
             .range(start, start + RELATED_PAGE_SIZE - 1)
         : Promise.resolve(undefined),
-    section === "waitlist"
-      ? supabase
-          .from("event_waitlist")
-          .select(
-            "id,joined_at,officer_id,officers!event_waitlist_officer_id_fkey(id,name,status)",
-          )
-          .eq("event_id", event.id)
-          .order("joined_at")
-          .order("id")
-          .range(start, start + RELATED_PAGE_SIZE - 1)
-      : Promise.resolve(undefined),
     section === "tasks"
       ? supabase
           .from("task_events")
@@ -416,14 +367,12 @@ export default async function EventDetailPage({
     presenterSlotsResult?.error ||
     presenterCandidatesResult?.error ||
     rosterResult?.error ||
-    waitlistResult?.error ||
     tasksResult?.error ||
     transactionsResult?.error
   )
     throw new Error("Failed to load Event related records");
   const officersAvailableToAdd = candidateOfficersResult?.data ?? [];
   const rosterRows = rosterResult?.data ?? [];
-  const waitlistRows = waitlistResult?.data ?? [];
   const linkedTasks = (tasksResult?.data ?? []).map(({ tasks }) => tasks);
   const transactions = transactionsResult?.data ?? [];
   const seriesData = series?.data;
@@ -452,9 +401,6 @@ export default async function EventDetailPage({
         returnTo={returnTo}
         counts={{
           roster: confirmedCount,
-          ...(canManage && waitlistCount > 0
-            ? { waitlist: waitlistCount }
-            : {}),
           tasks: taskCount,
           points: pointCount,
         }}
@@ -557,21 +503,17 @@ export default async function EventDetailPage({
             <section aria-label="Participation" className="min-w-0 space-y-3">
               <SectionHeading title="Participation" />
               <p className="text-sm">
-                Your participation:{" "}
-                {confirmed
-                  ? "Confirmed"
-                  : waitlisted
-                    ? "Waitlisted"
-                    : "Not signed up"}
+                Your participation: {confirmed ? "Confirmed" : "Not signed up"}
               </p>
               <p className="text-sm text-muted">
                 {event.max_volunteers === null
                   ? `${confirmedCount} confirmed`
                   : `${confirmedCount} / ${event.max_volunteers} confirmed`}
-                {waitlistCount > 0 ? ` · ${waitlistCount} waitlisted` : ""}
               </p>
-              {personalSignup === "waitlisted" && (
-                <LeaveWaitlistForm eventId={event.id} />
+              {full && !confirmed && signupOpen && (
+                <p className="text-sm text-muted">
+                  This Event is full. Signup is unavailable.
+                </p>
               )}
               {personalSignup === "confirmed" && signupOpen && (
                 <SignupForm eventId={event.id} officerId={actor.id} remove />
@@ -611,14 +553,6 @@ export default async function EventDetailPage({
                 </div>
               ) : (
                 <p className="text-sm text-muted">No officers signed up.</p>
-              )}
-              {canManage && waitlistCount > 0 && (
-                <Link
-                  href={sectionHref(eventIdParam, "waitlist", 1, returnTo)}
-                  className="inline-block text-sm underline underline-offset-4"
-                >
-                  View waitlist ({waitlistCount})
-                </Link>
               )}
               {canManage &&
                 signupOpen &&
@@ -757,50 +691,6 @@ export default async function EventDetailPage({
           <EventSectionPagination
             eventId={eventIdParam}
             section="roster"
-            page={page}
-            totalPages={totalPages}
-            returnTo={returnTo}
-          />
-        </section>
-      )}
-
-      {section === "waitlist" && canManage && (
-        <section aria-label="Waitlist" className="space-y-3">
-          <SectionHeading
-            title={`Waitlist (${waitlistCount})`}
-            description="Order is based on when each Officer joined."
-          />
-          <EventSectionPagination
-            eventId={eventIdParam}
-            section="waitlist"
-            page={page}
-            totalPages={totalPages}
-            returnTo={returnTo}
-          />
-          {waitlistRows.length ? (
-            <ol start={start + 1} className="list-decimal space-y-2 pl-5">
-              {waitlistRows.map((entry) => (
-                <li key={entry.id}>
-                  <Link
-                    href={`/officers/${entry.officers.id}`}
-                    className="underline underline-offset-4"
-                  >
-                    {entry.officers.name}
-                  </Link>
-                  {entry.officers.status !== "active" && (
-                    <span className="ml-2 text-sm text-muted">
-                      Inactive; skipped for promotion
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p>No officers are waitlisted.</p>
-          )}
-          <EventSectionPagination
-            eventId={eventIdParam}
-            section="waitlist"
             page={page}
             totalPages={totalPages}
             returnTo={returnTo}

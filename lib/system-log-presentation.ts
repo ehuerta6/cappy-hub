@@ -95,6 +95,9 @@ const actionPresentations: Record<string, ActionPresentation> = {
   "event.waitlist_promoted": {
     label: "Promoted an Officer from the Event waitlist",
   },
+  "event.waitlist_retired": {
+    label: "Retired a pending Event waitlist entry",
+  },
   "event.updated": { label: "Updated an event" },
   "event.series_created": { label: "Created an event series" },
   "event.series_cancel": { label: "Cancelled events in a series" },
