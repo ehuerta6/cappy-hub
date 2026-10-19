@@ -163,6 +163,30 @@ it("sends validated Event fields to the existing RPC", async () => {
   );
 });
 
+it("uses per-slot capacity instead of Event capacity for a slotted Event", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 8,
+    positionName: "President",
+    positionCode: "president",
+  } as never);
+  const data = eventForm();
+  data.set("max_volunteers", "2");
+  data.set(
+    "time_slots",
+    JSON.stringify([{ start_time: "10:00", end_time: "11:00", capacity: 5 }]),
+  );
+
+  await saveEvent({ error: "", success: "" }, data);
+
+  expect(rpc).toHaveBeenCalledWith(
+    "save_event_with_capacity_and_time_slots",
+    expect.objectContaining({
+      p_max_volunteers: 0,
+      p_time_slots: [{ start_time: "10:00", end_time: "11:00", capacity: 5 }],
+    }),
+  );
+});
+
 it("trims a free-entry location before the trusted Event RPC", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 8,

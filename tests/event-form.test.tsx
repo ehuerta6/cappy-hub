@@ -84,6 +84,26 @@ it("clarifies the external sheet in create/edit forms and displays the saved URL
   expect(html).toContain('value="5"');
 });
 
+it("uses per-slot capacity on slotted Events and keeps the Branch selector", () => {
+  const html = renderToStaticMarkup(
+    <EventForm
+      branches={[{ id: 1, name: "General" }]}
+      branchIds={[1]}
+      eventTypes={[{ id: 2, name: "Meeting" }]}
+      locations={[{ id: 1, name: "Campus" }]}
+      timeSlots={[{ start_time: "10:00", end_time: "11:00", capacity: 5 }]}
+    />,
+  );
+
+  expect(html).toContain(
+    "Set an optional capacity for each Time Slot in the section above.",
+  );
+  expect(html).not.toContain("Max volunteers (optional)");
+  expect(html).not.toContain('name="max_volunteers"');
+  expect(html).toContain("Branches (select at least one)");
+  expect(html).toContain('name="branches"');
+});
+
 it("groups optional resources and recurrence after event details and capacity", () => {
   const html = renderEventForm();
   expect(html).toContain("Resources (optional)");

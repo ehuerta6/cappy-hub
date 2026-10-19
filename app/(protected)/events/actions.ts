@@ -119,6 +119,7 @@ export async function saveEvent(
       ["branches", "recurrence_weekdays"],
     );
   const timeSlots = timeSlotsValidation.data;
+  const usesTimeSlots = (timeSlots?.length ?? 0) > 0;
   const slotBoundsError = timeSlotBoundsError(
     timeSlots,
     validatedEventInput.start_time,
@@ -166,7 +167,9 @@ export async function saveEvent(
           slides_url: validatedEventInput.slides_url,
           meeting_notes_url: validatedEventInput.meeting_notes_url,
           signup_sheet_url: validatedEventInput.signup_sheet_url,
-          max_volunteers: validatedEventInput.max_volunteers ?? null,
+          max_volunteers: usesTimeSlots
+            ? null
+            : (validatedEventInput.max_volunteers ?? null),
           time_slots: timeSlots,
         },
       );
@@ -250,7 +253,9 @@ export async function saveEvent(
         p_slides_url: validatedEventInput.slides_url,
         p_meeting_notes_url: validatedEventInput.meeting_notes_url,
         p_signup_sheet_url: validatedEventInput.signup_sheet_url,
-        p_max_volunteers: validatedEventInput.max_volunteers ?? 0,
+        p_max_volunteers: usesTimeSlots
+          ? 0
+          : (validatedEventInput.max_volunteers ?? 0),
         p_request_key: validatedEventInput.recurrence_request_key,
         p_recurrence_rule: canonicalRecurrenceRule(recurrence),
         p_event_dates: dates,
@@ -290,7 +295,9 @@ export async function saveEvent(
       p_slides_url: validatedEventInput.slides_url,
       p_meeting_notes_url: validatedEventInput.meeting_notes_url,
       p_signup_sheet_url: validatedEventInput.signup_sheet_url,
-      p_max_volunteers: validatedEventInput.max_volunteers ?? 0,
+      p_max_volunteers: usesTimeSlots
+        ? 0
+        : (validatedEventInput.max_volunteers ?? 0),
       p_time_slots: timeSlots,
     },
   );

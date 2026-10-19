@@ -121,6 +121,11 @@ export default function EventForm({
   const originalTimeSlots = timeSlots.length
     ? JSON.stringify(timeSlots)
     : "null";
+  const timeSlotsEnabledInitially =
+    submittedValue(state.values, "time_slots", originalTimeSlots) !== "null";
+  const [timeSlotsEnabled, setTimeSlotsEnabled] = useState(
+    timeSlotsEnabledInitially,
+  );
   const original: Record<string, string | string[]> = event
     ? {
         name: event.name,
@@ -374,7 +379,8 @@ export default function EventForm({
             ?.name ?? ""
         }
         initialSlots={timeSlots}
-        enabledInitially={timeSlots.length > 0}
+        enabledInitially={timeSlotsEnabledInitially}
+        onEnabledChange={setTimeSlotsEnabled}
         activationUnavailableReason={
           canEnableTimeSlots
             ? undefined
@@ -482,31 +488,37 @@ export default function EventForm({
 
       <fieldset className="event-form-section">
         <legend>Participation and capacity</legend>
-        <label>
-          Max volunteers (optional)
-          <input
-            name="max_volunteers"
-            type="number"
-            min="1"
-            step="1"
-            inputMode="numeric"
-            aria-invalid={Boolean(fieldErrors.max_volunteers)}
-            aria-describedby={
-              fieldErrors.max_volunteers ? "event-capacity-error" : undefined
-            }
-            defaultValue={submittedValue(
-              state.values,
-              "max_volunteers",
-              event?.max_volunteers?.toString() ?? "",
-            )}
-          />
-          <span className="text-sm text-muted">
-            Leave blank for unlimited confirmed signups.
-          </span>
-          <FieldError id="event-capacity-error">
-            {fieldErrors.max_volunteers}
-          </FieldError>
-        </label>
+        {timeSlotsEnabled ? (
+          <p className="text-sm text-muted">
+            Set an optional capacity for each Time Slot in the section above.
+          </p>
+        ) : (
+          <label>
+            Max volunteers (optional)
+            <input
+              name="max_volunteers"
+              type="number"
+              min="1"
+              step="1"
+              inputMode="numeric"
+              aria-invalid={Boolean(fieldErrors.max_volunteers)}
+              aria-describedby={
+                fieldErrors.max_volunteers ? "event-capacity-error" : undefined
+              }
+              defaultValue={submittedValue(
+                state.values,
+                "max_volunteers",
+                event?.max_volunteers?.toString() ?? "",
+              )}
+            />
+            <span className="text-sm text-muted">
+              Leave blank for unlimited confirmed signups.
+            </span>
+            <FieldError id="event-capacity-error">
+              {fieldErrors.max_volunteers}
+            </FieldError>
+          </label>
+        )}
 
         <fieldset
           className="event-form-branches"

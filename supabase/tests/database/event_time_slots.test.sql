@@ -34,6 +34,17 @@ insert into event_time_slots(id,event_id,starts_at,ends_at,capacity) values
  (-295202,-2952,timestamptz '2020-09-02 11:00-06',timestamptz '2020-09-02 13:30-06',2),
  (-295301,-2953,timestamptz '2099-09-03 09:00-06',timestamptz '2099-09-03 11:00-06',1),
  (-295302,-2953,timestamptz '2099-09-03 11:00-06',timestamptz '2099-09-03 13:30-06',2);
+select is((select max_volunteers from events where id=-2953),null::integer,
+  'configuring Time Slots clears the Event-wide Max volunteers limit');
+select is((select details->>'previous_max_volunteers' from audit_logs
+  where action='event.capacity_cleared_for_time_slots' and entity_id='-2953'
+  order by id desc limit 1),'2',
+  'clearing an Event-wide limit records its previous value in the audit history');
+update events set max_volunteers=9 where id=-2953;
+select is((select max_volunteers from events where id=-2953),null::integer,
+  'a slotted Event cannot regain an Event-wide Max volunteers limit');
+select is((select max_volunteers from events where id=-2954),4,
+  'an Event without Time Slots retains its Event-wide capacity');
 insert into event_time_slot_officers(event_id,slot_id,officer_id) values
  (-2951,-295101,-2952),(-2951,-295102,-2952),
  (-2951,-295101,-2953),(-2951,-295102,-2953);
@@ -92,9 +103,15 @@ select is((select count(*) from event_officers where event_id=-2952 and officer_
   'failed capacity check leaves no canonical partial signup');
 select lives_ok($$select public.change_event_time_slot_signup(-2953,-2952,array[-295301]::bigint[],'join_selected')$$,
   'manager can assign one slot on a future Event');
-select throws_ok($$select public.change_event_time_slot_signup(-2953,-2953,array[-295301,-295302]::bigint[],'join_all')$$,
+select lives_ok($$select public.change_event_time_slot_signup(-2953,-2953,array[-295302]::bigint[],'join_selected')$$,
+  'a second Officer can join the available slot');
+select lives_ok($$select public.change_event_time_slot_signup(-2953,-2954,array[-295302]::bigint[],'join_selected')$$,
+  'a third Officer can join another available place on the same slot');
+select is((select count(*) from event_officers where event_id=-2953),3::bigint,
+  'per-slot capacities allow more confirmed Officers than the former Event-wide limit');
+select throws_ok($$select public.change_event_time_slot_signup(-2953,-2951,array[-295301,-295302]::bigint[],'join_all')$$,
   'P0001','A selected Time Slot is full; no Time Slot selections were added','join all fails atomically when one required slot is full');
-select is((select count(*) from event_time_slot_officers where event_id=-2953 and officer_id=-2953),0::bigint,
+select is((select count(*) from event_time_slot_officers where event_id=-2953 and officer_id=-2951),0::bigint,
   'failed join all adds no partial slot selection');
 select lives_ok($$select public.change_event_time_slot_signup(-2953,-2952,array[-295301]::bigint[],'leave_selected')$$,
   'manager can remove one selected slot');

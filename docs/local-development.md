@@ -41,7 +41,8 @@ These synthetic accounts are created only by the local setup/reset workflow. Nev
 - `Mock: Equal Slots Volunteer Fair`: three equal shifts with capacities of 3, 2, and unlimited; existing selections demonstrate available and full shifts.
 - `Mock: Custom Slots Outreach Booth`: custom shifts with a gap, a full first shift, and an available second shift.
 - `Mock: Processed Slots Career Day`: a past Event with separate Point transactions for selected slots and one removed selection whose award remains in history.
-- `Mock: Full Capacity Workshop`: Event and slot capacity examples.
+- `Mock: Full Capacity Workshop`: both Time Slots are full; no Event-wide capacity is applied.
+- `Mock: Event Capacity Workshop`: an unslotted Event that retains Event-wide Max volunteers.
 - `Mock: Weekly Coding Workshop`: two recurring occurrences with independent slots and Officer selections.
 
 The remaining seeded records cover past, upcoming, happening, cancelled, removed, and Session Events; Point awards, corrections, and removals; warning approval states; and Tasks with no assignee, one or several assignees, completed assignments, and due-date awards. Run `npm run local:reset` to restore these examples after changing local data.

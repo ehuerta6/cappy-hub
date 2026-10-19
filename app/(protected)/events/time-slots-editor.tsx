@@ -54,6 +54,7 @@ export default function TimeSlotsEditor({
   initialSlots,
   enabledInitially,
   activationUnavailableReason,
+  onEnabledChange,
   onSlotsChange,
 }: {
   eventStart: string;
@@ -62,6 +63,7 @@ export default function TimeSlotsEditor({
   initialSlots: TimeSlotDraft[];
   enabledInitially: boolean;
   activationUnavailableReason?: string;
+  onEnabledChange?: (enabled: boolean) => void;
   onSlotsChange?: (serialized: string) => void;
 }) {
   const [enabled, setEnabled] = useState(enabledInitially);
@@ -113,9 +115,11 @@ export default function TimeSlotsEditor({
                 type="checkbox"
                 checked={enabled}
                 onChange={(event) => {
-                  setEnabled(event.currentTarget.checked);
+                  const nextEnabled = event.currentTarget.checked;
+                  setEnabled(nextEnabled);
+                  onEnabledChange?.(nextEnabled);
                   onSlotsChange?.(
-                    event.currentTarget.checked
+                    nextEnabled
                       ? JSON.stringify(serializeSlots(slots))
                       : "null",
                   );

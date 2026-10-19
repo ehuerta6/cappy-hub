@@ -117,17 +117,15 @@ values
   (-2021,'Mock: Custom Slots Outreach Booth','Custom shifts have a gap, a full slot, and remaining capacity.',(select id from public.event_types where name='Social'),'Centennial Plaza',(now() at time zone 'America/Denver')::date+11,(((now() at time zone 'America/Denver')::date+11+time '13:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+11+time '17:00') at time zone 'America/Denver'),'upcoming',null),
   (-2022,'Mock: Processed Slots Career Day','Historical slotted Event with separate awards per selected shift.',(select id from public.event_types where name='Meeting'),'Union Building',(now() at time zone 'America/Denver')::date-2,(((now() at time zone 'America/Denver')::date-2+time '10:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date-2+time '14:00') at time zone 'America/Denver'),'past',2.5),
   (-2023,'Mock: Happening Officer Meeting','Happening status example for Dashboard and Event views.',(select id from public.event_types where name='Meeting'),'CCSB 1.0202',(now() at time zone 'America/Denver')::date,(((now() at time zone 'America/Denver')::date+time '10:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+time '11:00') at time zone 'America/Denver'),'happening',null),
-  (-2024,'Mock: Full Capacity Workshop','Event and per-slot capacity are both full.',(select id from public.event_types where name='Workshop'),'CCSB G.0208',(now() at time zone 'America/Denver')::date+12,(((now() at time zone 'America/Denver')::date+12+time '10:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+12+time '12:00') at time zone 'America/Denver'),'upcoming',null),
+  (-2024,'Mock: Full Capacity Workshop','Each Time Slot is full; there is no Event-wide Max volunteers limit.',(select id from public.event_types where name='Workshop'),'CCSB G.0208',(now() at time zone 'America/Denver')::date+12,(((now() at time zone 'America/Denver')::date+12+time '10:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+12+time '12:00') at time zone 'America/Denver'),'upcoming',null),
+  (-2025,'Mock: Event Capacity Workshop','Unslotted Event with an Event-wide Max volunteers limit.',(select id from public.event_types where name='Workshop'),'CCSB G.0208',(now() at time zone 'America/Denver')::date+13,(((now() at time zone 'America/Denver')::date+13+time '10:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+13+time '12:00') at time zone 'America/Denver'),'upcoming',null),
   (-2030,'Mock: Weekly Coding Workshop','First occurrence of an independently slotted weekly Event.',(select id from public.event_types where name='Workshop'),'CCSB 1.0410',(now() at time zone 'America/Denver')::date+15,(((now() at time zone 'America/Denver')::date+15+time '16:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+15+time '18:00') at time zone 'America/Denver'),'upcoming',null),
   (-2031,'Mock: Weekly Coding Workshop','Following occurrence owns its own slots and selections.',(select id from public.event_types where name='Workshop'),'CCSB 1.0410',(now() at time zone 'America/Denver')::date+22,(((now() at time zone 'America/Denver')::date+22+time '16:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+22+time '18:00') at time zone 'America/Denver'),'upcoming',null);
 update public.events set recurrence_series_id=-2201,
   recurrence_key=(now() at time zone 'America/Denver')::date+15 where id=-2030;
 update public.events set recurrence_series_id=-2201,
   recurrence_key=(now() at time zone 'America/Denver')::date+22 where id=-2031;
-update public.events set max_volunteers=8 where id=-2020;
-update public.events set max_volunteers=5 where id=-2021;
-update public.events set max_volunteers=2 where id=-2024;
-update public.events set max_volunteers=6 where id in (-2030,-2031);
+update public.events set max_volunteers=3 where id=-2025;
 insert into public.event_branches (event_id, branch_id)
 values
   (-2001, (select id from public.branches where name = 'intro')),
@@ -149,6 +147,7 @@ values
   (-2021, (select id from public.branches where name = 'outreach')),
   (-2022, (select id from public.branches where name = 'general')),
   (-2024, (select id from public.branches where name = 'intro')),
+  (-2025, (select id from public.branches where name = 'general')),
   (-2030, (select id from public.branches where name = 'icpc')),
   (-2031, (select id from public.branches where name = 'icpc'));
 
@@ -174,6 +173,7 @@ values
   (-2022, -1025), (-2022, -1026),
   (-2023, -1002), (-2023, -1003), (-2023, -1012),
   (-2024, -1025), (-2024, -1026),
+  (-2025, -1010),
   (-2030, -1006), (-2030, -1025),
   (-2031, -1026);
 

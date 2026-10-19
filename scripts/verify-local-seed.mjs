@@ -72,6 +72,8 @@ const output = run(
       "(select count(*) from public.event_time_slots where event_id=-2020 and capacity is not null),",
       "(select count(*) from public.event_time_slots where event_id in (-2030,-2031)),",
       "(select count(distinct event_id) from public.event_time_slots where event_id in (-2030,-2031)),",
+      "(select count(*) from public.events e where e.max_volunteers is not null and exists(select 1 from public.event_time_slots s where s.event_id=e.id)),",
+      "(select max_volunteers from public.events where id=-2025),",
       "(select count(*) from public.event_time_slots s where s.event_id=-2021 and s.starts_at > (select max(previous_slot.ends_at) from public.event_time_slots previous_slot where previous_slot.event_id=s.event_id and previous_slot.ends_at<s.starts_at)),",
       "(select count(*) from public.tasks t where t.id=-8001 and not exists",
       "  (select 1 from public.task_officer_assignments a where a.task_id=t.id)),",
@@ -98,6 +100,8 @@ const [
   equalSlotCapacities,
   recurringSlots,
   recurringSlotEvents,
+  slottedEventCapacities,
+  ordinaryEventCapacity,
   customSlotGaps,
   unassignedTask,
   singleOfficerTask,
@@ -119,10 +123,12 @@ if (
   equalSlotCapacities !== 2 ||
   recurringSlots !== 4 ||
   recurringSlotEvents !== 2 ||
+  slottedEventCapacities !== 0 ||
+  ordinaryEventCapacity !== 3 ||
   customSlotGaps < 1
 ) {
   throw new Error(
-    `Seed verification failed: officers=${officers}, events=${events}, points=${points}, warnings=${warnings}, slots=${timeSlots}, selections=${slotSelections}, activeSlotAwards=${activeSlotAwards}, removedSlotAwards=${removedSlotAwards}, equalSlotCapacities=${equalSlotCapacities}, recurringSlots=${recurringSlots}, recurringSlotEvents=${recurringSlotEvents}, customSlotGaps=${customSlotGaps}`,
+    `Seed verification failed: officers=${officers}, events=${events}, points=${points}, warnings=${warnings}, slots=${timeSlots}, selections=${slotSelections}, activeSlotAwards=${activeSlotAwards}, removedSlotAwards=${removedSlotAwards}, equalSlotCapacities=${equalSlotCapacities}, recurringSlots=${recurringSlots}, recurringSlotEvents=${recurringSlotEvents}, slottedEventCapacities=${slottedEventCapacities}, ordinaryEventCapacity=${ordinaryEventCapacity}, customSlotGaps=${customSlotGaps}`,
   );
 }
 if (
