@@ -171,7 +171,7 @@ export async function saveEvent(
         },
       );
       const { error } = await supabase.rpc(
-        "mutate_recurring_event_with_capacity",
+        "mutate_recurring_event_with_capacity_and_time_slots",
         args,
       );
       if (error)

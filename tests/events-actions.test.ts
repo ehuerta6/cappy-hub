@@ -298,15 +298,18 @@ it.each(["occurrence", "following", "series"] as const)(
     data.append("edited_fields", "location");
     data.append("edited_fields", "branch_ids");
     await saveEvent({ error: "", success: "" }, data);
-    expect(rpc).toHaveBeenCalledWith("mutate_recurring_event_with_capacity", {
-      p_selected_id: 12,
-      p_scope: scope,
-      p_operation: "edit",
-      p_series_id: 3,
-      p_revision: 2,
-      p_request_key: "00000000-0000-4000-8000-000000000068",
-      p_patch: { location: "Campus", branch_ids: [-4] },
-    });
+    expect(rpc).toHaveBeenCalledWith(
+      "mutate_recurring_event_with_capacity_and_time_slots",
+      {
+        p_selected_id: 12,
+        p_scope: scope,
+        p_operation: "edit",
+        p_series_id: 3,
+        p_revision: 2,
+        p_request_key: "00000000-0000-4000-8000-000000000068",
+        p_patch: { location: "Campus", branch_ids: [-4] },
+      },
+    );
     expect(rpc).not.toHaveBeenCalledWith(
       "save_event_with_links",
       expect.anything(),
@@ -334,7 +337,7 @@ it.each([false, true])(
     );
     expect(rpc).toHaveBeenCalledWith(
       recurring
-        ? "mutate_recurring_event_with_capacity"
+        ? "mutate_recurring_event_with_capacity_and_time_slots"
         : "save_event_with_capacity_and_time_slots",
       expect.not.objectContaining({ returnTo: expect.anything() }),
     );

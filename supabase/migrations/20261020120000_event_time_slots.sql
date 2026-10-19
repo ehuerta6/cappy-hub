@@ -298,7 +298,7 @@ revoke all on function private.replace_event_time_slots(bigint,jsonb,timestamptz
 create function private.award_selected_event_time_slots(p_event_id bigint,p_officer_ids bigint[] default null,
   p_manual_conflict text default 'skip') returns bigint[]
 language plpgsql security definer set search_path = '' as $$
-declare e public.events%rowtype; target record; p_id bigint; award_id bigint; award_points numeric;
+declare e public.events%rowtype; target record; award_id bigint; award_points numeric;
   awarded bigint[]:='{}'::bigint[]; existing public.point_transactions%rowtype;
   changed boolean; prior_points numeric;
 begin
@@ -531,9 +531,7 @@ grant execute on function private.change_event_time_slot_signup(bigint,bigint,bi
 
 -- Preserve the legacy bulk contract for unslotted Events and force callers to
 -- name the selected slot set for every slotted historical award.
-alter function private.bulk_add_event_officers(bigint,bigint[])
-  rename to bulk_add_event_officers_without_time_slots;
-create function private.bulk_add_event_officers(p_event_id bigint,p_officer_ids bigint[])
+create function private.bulk_add_event_officers_compatible(p_event_id bigint,p_officer_ids bigint[])
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare e public.events%rowtype;
 begin
@@ -551,17 +549,18 @@ begin
   ) then
     raise exception 'This Officer already has an active award for this Event.';
   end if;
-  return private.bulk_add_event_officers_without_time_slots(p_event_id,p_officer_ids);
+  return private.bulk_add_event_officers(p_event_id,p_officer_ids);
 end;
 $$;
 create or replace function public.bulk_add_event_officers(p_event_id bigint,p_officer_ids bigint[])
 returns jsonb language sql security invoker set search_path = '' as $$
-  select private.bulk_add_event_officers(p_event_id,p_officer_ids)
+  select private.bulk_add_event_officers_compatible(p_event_id,p_officer_ids)
 $$;
-revoke all on function private.bulk_add_event_officers_without_time_slots(bigint,bigint[]),
-  private.bulk_add_event_officers(bigint,bigint[]),public.bulk_add_event_officers(bigint,bigint[])
+revoke all on function private.bulk_add_event_officers_compatible(bigint,bigint[]),
+  public.bulk_add_event_officers(bigint,bigint[])
   from public,anon,authenticated;
-grant execute on function private.bulk_add_event_officers(bigint,bigint[]),public.bulk_add_event_officers(bigint,bigint[])
+grant execute on function private.bulk_add_event_officers_compatible(bigint,bigint[]),
+  public.bulk_add_event_officers(bigint,bigint[])
   to authenticated;
 
 create function private.bulk_add_event_officers_to_slots(
@@ -782,8 +781,6 @@ grant execute on function private.create_recurring_event_with_capacity_and_time_
 
 -- Keep the established recurrence scope, optimistic revision, schedule, and
 -- idempotency implementation. The wrapper adds slot definitions atomically.
-alter function private.mutate_recurring_event(bigint,text,text,uuid,bigint,integer,jsonb,text,date[])
-  rename to mutate_recurring_event_without_time_slots;
 create table private.event_time_slot_recurrence_mutations (
   request_key uuid primary key,
   actor_id uuid not null references auth.users(id),
@@ -792,22 +789,24 @@ create table private.event_time_slot_recurrence_mutations (
 );
 revoke all on private.event_time_slot_recurrence_mutations from public,anon,authenticated;
 
-create function private.mutate_recurring_event(
+create function private.mutate_recurring_event_with_capacity_and_time_slots(
   p_selected_id bigint,p_scope text,p_operation text,p_request_key uuid,
-  p_series_id bigint,p_revision integer,p_patch jsonb default '{}',p_rule text default null,p_dates date[] default null
+  p_series_id bigint,p_revision integer,p_patch jsonb default '{}',p_rule text default null,p_dates date[] default null,
+  p_capacity_changed boolean default false,p_max_volunteers integer default 0
 ) returns bigint language plpgsql security definer set search_path = '' as $$
 declare actor uuid:=auth.uid(); payload jsonb; prior private.event_time_slot_recurrence_mutations%rowtype;
   base_patch jsonb; result_id bigint; selected public.events; target_series bigint; occurrence_id bigint;
   source_slots jsonb; original_occurrence_ids bigint[];
 begin
   if p_patch is null or not (p_patch ? 'time_slots') then
-    return private.mutate_recurring_event_without_time_slots(p_selected_id,p_scope,p_operation,p_request_key,
-      p_series_id,p_revision,p_patch,p_rule,p_dates);
+    return private.mutate_recurring_event_with_capacity(p_selected_id,p_scope,p_operation,p_request_key,
+      p_series_id,p_revision,p_patch,p_rule,p_dates,p_capacity_changed,p_max_volunteers);
   end if;
   if p_operation<>'edit' then raise exception 'Time Slots can only be changed while editing an Event'; end if;
   if p_patch->'time_slots'='null'::jsonb then raise exception 'Time Slots must be an array'; end if;
   payload:=jsonb_build_object('selected_id',p_selected_id,'scope',p_scope,'operation',p_operation,
-    'series_id',p_series_id,'revision',p_revision,'patch',p_patch,'rule',p_rule,'dates',p_dates);
+    'series_id',p_series_id,'revision',p_revision,'patch',p_patch,'rule',p_rule,'dates',p_dates,
+    'capacity_changed',p_capacity_changed,'max_volunteers',p_max_volunteers);
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_request_key::text,68));
   select * into prior from private.event_time_slot_recurrence_mutations where request_key=p_request_key;
   if found then
@@ -826,8 +825,8 @@ begin
   select coalesce(array_agg(id order by id),'{}'::bigint[]) into original_occurrence_ids
     from public.events where recurrence_series_id=p_series_id;
   base_patch:=p_patch-'time_slots';
-  result_id:=private.mutate_recurring_event_without_time_slots(p_selected_id,p_scope,p_operation,
-    p_request_key,p_series_id,p_revision,base_patch,p_rule,p_dates);
+  result_id:=private.mutate_recurring_event_with_capacity(p_selected_id,p_scope,p_operation,
+    p_request_key,p_series_id,p_revision,base_patch,p_rule,p_dates,p_capacity_changed,p_max_volunteers);
   select * into selected from public.events where id=p_selected_id;
   if not found then raise exception 'Occurrence not found'; end if;
   if p_rule is not null then
@@ -863,17 +862,17 @@ begin
   return result_id;
 end;
 $$;
-create or replace function public.mutate_recurring_event(
+create function public.mutate_recurring_event_with_capacity_and_time_slots(
   p_selected_id bigint,p_scope text,p_operation text,p_request_key uuid,
-  p_series_id bigint,p_revision integer,p_patch jsonb default '{}',p_rule text default null,p_dates date[] default null
+  p_series_id bigint,p_revision integer,p_patch jsonb default '{}',p_rule text default null,p_dates date[] default null,
+  p_capacity_changed boolean default false,p_max_volunteers integer default 0
 ) returns bigint language sql security invoker set search_path = '' as $$
-  select private.mutate_recurring_event(p_selected_id,p_scope,p_operation,p_request_key,p_series_id,
-    p_revision,p_patch,p_rule,p_dates)
+  select private.mutate_recurring_event_with_capacity_and_time_slots(p_selected_id,p_scope,p_operation,
+    p_request_key,p_series_id,p_revision,p_patch,p_rule,p_dates,p_capacity_changed,p_max_volunteers)
 $$;
-revoke all on function private.mutate_recurring_event_without_time_slots(bigint,text,text,uuid,bigint,integer,jsonb,text,date[]),
-  private.mutate_recurring_event(bigint,text,text,uuid,bigint,integer,jsonb,text,date[]),
-  public.mutate_recurring_event(bigint,text,text,uuid,bigint,integer,jsonb,text,date[])
+revoke all on function private.mutate_recurring_event_with_capacity_and_time_slots(bigint,text,text,uuid,bigint,integer,jsonb,text,date[],boolean,integer),
+  public.mutate_recurring_event_with_capacity_and_time_slots(bigint,text,text,uuid,bigint,integer,jsonb,text,date[],boolean,integer)
   from public,anon,authenticated;
-grant execute on function private.mutate_recurring_event(bigint,text,text,uuid,bigint,integer,jsonb,text,date[]),
-  public.mutate_recurring_event(bigint,text,text,uuid,bigint,integer,jsonb,text,date[])
+grant execute on function private.mutate_recurring_event_with_capacity_and_time_slots(bigint,text,text,uuid,bigint,integer,jsonb,text,date[],boolean,integer),
+  public.mutate_recurring_event_with_capacity_and_time_slots(bigint,text,text,uuid,bigint,integer,jsonb,text,date[],boolean,integer)
   to authenticated;

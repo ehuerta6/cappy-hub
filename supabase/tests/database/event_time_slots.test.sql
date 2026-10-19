@@ -153,12 +153,13 @@ select lives_ok($$select public.change_event_time_slot_signup(
   -2951,array[(select min(s.id) from event_time_slots s join events e on e.id=s.event_id
     where e.name='Recurring slot fixture' and e.recurrence_key='2099-10-02')]::bigint[],'join_selected')$$,
   'an occurrence keeps its own slot signup');
-select lives_ok($$select public.mutate_recurring_event(
+select lives_ok($$select public.mutate_recurring_event_with_capacity_and_time_slots(
   (select e.id from events e where e.name='Recurring slot fixture' and e.recurrence_key='2099-10-02'),
   'following','edit','00000000-0000-4000-8000-000000002958',
   (select recurrence_series_id from events where name='Recurring slot fixture' limit 1),
   (select revision from event_series where id=(select recurrence_series_id from events where name='Recurring slot fixture' limit 1)),
-  '{"time_slots":[{"start_time":"09:30","end_time":"10:30","capacity":2},{"start_time":"10:30","end_time":"11:00","capacity":2}]}'::jsonb)$$,
+  '{"time_slots":[{"start_time":"09:30","end_time":"10:30","capacity":2},{"start_time":"10:30","end_time":"11:00","capacity":2}]}'::jsonb,
+  null,null,false,0)$$,
   'This and following propagates configured Time Slot changes');
 select is((select min(s.starts_at at time zone 'America/Denver')::time from event_time_slots s
   join events e on e.id=s.event_id where e.name='Recurring slot fixture' and e.recurrence_key='2099-10-01'),

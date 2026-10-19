@@ -1486,6 +1486,22 @@ export type Database = {
         };
         Returns: number;
       };
+      mutate_recurring_event_with_capacity_and_time_slots: {
+        Args: {
+          p_capacity_changed?: boolean;
+          p_dates?: string[];
+          p_max_volunteers?: number;
+          p_operation: string;
+          p_patch?: Json;
+          p_request_key: string;
+          p_revision: number;
+          p_rule?: string;
+          p_scope: string;
+          p_selected_id: number;
+          p_series_id: number;
+        };
+        Returns: number;
+      };
       mutate_recurring_task: {
         Args: {
           p_dates?: string[];

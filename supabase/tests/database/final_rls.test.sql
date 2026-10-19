@@ -126,6 +126,7 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       ,'public.restore_event_archive(bigint)'::regprocedure
       ,'public.restore_task(bigint)'::regprocedure
       ,'public.mutate_recurring_event(bigint,text,text,uuid,bigint,integer,jsonb,text,date[])'::regprocedure
+      ,'public.mutate_recurring_event_with_capacity_and_time_slots(bigint,text,text,uuid,bigint,integer,jsonb,text,date[],boolean,integer)'::regprocedure
       ,'public.mutate_recurring_task(bigint,text,text,uuid,bigint,integer,jsonb,text,date[])'::regprocedure
       ,'public.set_task_event_links(bigint[],bigint[])'::regprocedure
       ,'public.save_task_with_events(text,text,text,bigint,date,numeric,boolean,bigint[])'::regprocedure
