@@ -23,7 +23,9 @@ insert into public.audit_logs(id,action,entity_type,entity_id,details)
 values
   (92201,'event.waitlist_joined','event','92201','{"event_id":92201,"officer_id":92203,"waitlist_id":92211}'::jsonb),
   (92202,'event.waitlist_left','event','92201','{"event_id":92201,"officer_id":92204,"waitlist_id":92212}'::jsonb),
-  (92203,'event.waitlist_promoted','event','92201','{"event_id":92201,"officer_id":92203,"waitlist_id":92211}'::jsonb);
+  (92203,'event.waitlist_promoted','event','92201','{"event_id":92201,"officer_id":92203,"waitlist_id":92211}'::jsonb),
+  (92204,'event.waitlist_retired','event','92201',
+    '{"event_id":92201,"officer_id":92203,"waitlist_id":92211,"joined_at":"2099-06-01T12:34:56+00:00"}'::jsonb);
 
 create table upgrade_fixture.pre_event_waitlist as
   select id,event_id,officer_id,joined_at from public.event_waitlist where event_id=92201;
