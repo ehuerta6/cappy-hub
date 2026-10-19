@@ -3,22 +3,30 @@ create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 select no_plan();
 
-select ok(to_regclass('public.event_waitlist') is not null,
-  'Waitlist table remains available to the currently deployed application');
+select is(to_regclass('public.event_waitlist')::text,null::text,
+  'operational Waitlist table is removed after the contract migration');
 select results_eq(
-  $$select id,event_id,officer_id,joined_at from event_waitlist where event_id=92201 order by id$$,
+  $$select (details->>'waitlist_id')::bigint,(details->>'event_id')::bigint,
+      (details->>'officer_id')::bigint,(details->>'joined_at')::timestamptz
+    from audit_logs where action='event.waitlist_retired' and entity_id='92201'
+    order by (details->>'waitlist_id')::bigint$$,
   $$select id,event_id,officer_id,joined_at from upgrade_fixture.pre_event_waitlist order by id$$,
-  'pending Waitlist entries and join times remain unchanged through the compatible upgrade');
+  'each pending Waitlist entry is retired with its Event, Officer, and original join time');
 select is((select count(*) from audit_logs where action='event.waitlist_retired'
-  and entity_id='92201'),0::bigint,
-  'the compatibility migration leaves pending entries for the later contract migration to archive');
+  and entity_id='92201' and details->>'waitlist_id'='92211'),1::bigint,
+  'pre-existing retirement history is not duplicated');
+select is((select count(*) from event_officers where event_id=92201 and officer_id in (92203,92204)),0::bigint,
+  'pending Officers are not promoted into confirmed signups');
+select is((select count(*) from point_transactions where event_id=92201),
+  (select count(*) from upgrade_fixture.pre_event_points),
+  'Waitlist retirement awards no participation Points');
 select results_eq(
   $$select to_jsonb(a) from audit_logs a where entity_id='92201'
       and action in ('event.waitlist_joined','event.waitlist_left','event.waitlist_promoted')
     order by action,id$$,
   $$select original from upgrade_fixture.pre_event_waitlist_audit
     order by original->>'action',(original->>'id')::bigint$$,
-  'historical Waitlist join, leave and promotion audit records remain unchanged');
+  'historical Waitlist join, leave, and promotion audit records remain unchanged');
 select results_eq(
   $$select event_id,officer_id from event_officers where event_id=92201 order by event_id,officer_id$$,
   $$select event_id,officer_id from upgrade_fixture.pre_event_officers order by event_id,officer_id$$,
@@ -287,8 +295,8 @@ select throws_ok($$insert into officers(name,position_id,personal_email) values
 select hasnt_column('positions','can_manage_branch_events','obsolete capability flag is gone');
 select hasnt_column('events','flyer_status','flyer event column is gone');
 select hasnt_column('application_config','flyer_completion_points','flyer configuration is gone');
-select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),21::bigint,
-  'final schema contains canonical Task assignment data and presenter slots');
+select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),20::bigint,
+  'final schema contains canonical Task and presenter data without the retired Waitlist table');
 select is((select count(*) from events where recurrence_series_id is not null and id not in (90680,90681)),0::bigint,
   'existing Events remain standalone after the additive recurrence migration');
 select is((select count(*) from tasks where recurrence_series_id is not null and id not in (90680,90681)),0::bigint,
