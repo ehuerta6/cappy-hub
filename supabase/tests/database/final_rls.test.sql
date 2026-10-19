@@ -144,7 +144,6 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       ,'public.set_branch_active(bigint,boolean)'::regprocedure
       ,'public.set_position_active(bigint,boolean)'::regprocedure
       ,'public.event_signup_counts()'::regprocedure
-      ,'public.leave_event_waitlist(bigint,bigint)'::regprocedure
       ,'public.save_event_with_capacity(text,text,bigint,text,date,timestamptz,timestamptz,bigint[],text,integer,bigint,text,text)'::regprocedure
       ,'public.create_recurring_event_with_capacity(text,text,bigint,text,bigint[],text,text,text,integer,uuid,text,date[],timestamptz[],timestamptz[])'::regprocedure
       ,'public.mutate_recurring_event_with_capacity(bigint,text,text,uuid,bigint,integer,jsonb,text,date[],boolean,integer)'::regprocedure

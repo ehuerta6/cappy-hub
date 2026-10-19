@@ -27,10 +27,9 @@ vi.mock("@/app/(protected)/points/history-table", () => ({
 }));
 vi.mock("@/app/(protected)/events/event-controls", () => ({
   SelfSignupForm: ({ full }: { full: boolean }) => (
-    <button>{full ? "Join waitlist" : "Sign up"}</button>
+    <button disabled={full}>{full ? "Event full" : "Sign up"}</button>
   ),
   SignupForm: () => <button>Remove signup</button>,
-  LeaveWaitlistForm: () => <button>Leave waitlist</button>,
 }));
 vi.mock("@/app/(protected)/tasks/task-action-form", () => ({
   default: () => (
@@ -646,7 +645,6 @@ it("limits every Events page to eight scheduled rows and keeps page context", as
     event_types: { name: "Workshop" },
     event_branches: [],
     event_officers: [],
-    event_waitlist: [],
   }));
   const html = await render(EventsPage, { page: "2" });
   const rowQuery = forTable("events").find(({ calls }) =>
@@ -666,7 +664,7 @@ it("limits every Events page to eight scheduled rows and keeps page context", as
   expect(html).toContain('href="/events/9?returnTo=%2Fevents%3Fpage%3D2"');
 });
 
-it("groups only the eight Events on this page by confirmed or waitlisted participation", async () => {
+it("groups only the eight Events on this page by confirmed participation", async () => {
   visibleCount = 10;
   rows.events = Array.from({ length: 10 }, (_, index) => {
     const id = index + 1;
@@ -683,7 +681,6 @@ it("groups only the eight Events on this page by confirmed or waitlisted partici
       event_types: { name: "Workshop" },
       event_branches: [],
       event_officers: id === 1 || id === 5 ? [{ officer_id: 1 }] : [],
-      event_waitlist: id === 3 ? [{ officer_id: 1 }] : [],
     };
   });
 
@@ -697,12 +694,10 @@ it("groups only the eight Events on this page by confirmed or waitlisted partici
   expect(yourHeading).toBeGreaterThan(-1);
   expect(otherHeading).toBeGreaterThan(yourHeading);
   expect(html.indexOf("Grouped event 1")).toBeGreaterThan(yourHeading);
-  expect(html.indexOf("Grouped event 3")).toBeGreaterThan(
+  expect(html.indexOf("Grouped event 5")).toBeGreaterThan(
     html.indexOf("Grouped event 1"),
   );
-  expect(html.indexOf("Grouped event 5")).toBeGreaterThan(
-    html.indexOf("Grouped event 3"),
-  );
+  expect(html.indexOf("Grouped event 5")).toBeLessThan(otherHeading);
   expect(html.indexOf("Grouped event 2")).toBeGreaterThan(otherHeading);
   expect(html).not.toContain("Your event</span>");
   expect(html).not.toContain("Other event</span>");
@@ -735,7 +730,6 @@ it.each(["past", "cancelled", "archived"])(
         event_types: { name: "Workshop" },
         event_branches: [],
         event_officers: [{ officer_id: 1 }],
-        event_waitlist: [],
       },
       {
         id: 2,
@@ -750,7 +744,6 @@ it.each(["past", "cancelled", "archived"])(
         event_types: { name: "Workshop" },
         event_branches: [],
         event_officers: [],
-        event_waitlist: [],
       },
     ];
 
@@ -798,7 +791,6 @@ it("offers direct Event page selection and preserves every active filter", async
     event_types: { name: "Workshop" },
     event_branches: [],
     event_officers: [],
-    event_waitlist: [],
   }));
 
   const html = await render(EventsPage, {
@@ -889,16 +881,16 @@ it("scopes the Lead Archived view to assigned branches before paging", async () 
   expect(html).toContain('href="/events/new"');
 });
 
-it("keeps signup, leave, and waitlist actions on eligible Event rows", async () => {
+it("keeps signup and leave-signup actions on eligible Event rows", async () => {
   visibleCount = 3;
   rows.events = [
     { id: 1, name: "Own", event_officers: [{ officer_id: 1 }] },
     { id: 2, name: "Full", event_officers: [{ officer_id: 2 }] },
     {
       id: 3,
-      name: "Waiting",
+      name: "Other",
+      max_volunteers: 2,
       event_officers: [{ officer_id: 2 }],
-      event_waitlist: [{ officer_id: 1 }],
     },
   ].map((row, index) => ({
     event_date: "2099-10-08",
@@ -910,17 +902,14 @@ it("keeps signup, leave, and waitlist actions on eligible Event rows", async () 
     participation_points_per_hour_at_end: null,
     event_types: { name: "Workshop" },
     event_branches: [],
-    event_waitlist: [],
     ...row,
   }));
   const html = await render(EventsPage);
   expect(html.split("Own</a>")[1].split("</tr>")[0]).toContain("Remove signup");
-  expect(html.split("Full</a>")[1].split("</tr>")[0]).toContain(
-    "Join waitlist",
-  );
-  expect(html.split("Waiting</a>")[1].split("</tr>")[0]).toContain(
-    "Leave waitlist",
-  );
+  expect(html.split("Full</a>")[1].split("</tr>")[0]).toContain("Event full");
+  expect(html.split("Full</a>")[1].split("</tr>")[0]).toContain("disabled");
+  expect(html.split("Other</a>")[1].split("</tr>")[0]).toContain("Sign up");
+  expect(html).not.toContain("waitlist");
   expect(html).toContain(">Your events</h3>");
   expect(html).toContain(">Other events</h3>");
 });

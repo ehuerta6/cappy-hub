@@ -26,7 +26,7 @@ export default async function DashboardPage() {
       supabase
         .from("events")
         .select(
-          "*,event_types(name),event_officers(officer_id),event_waitlist(officer_id),presentation_slots(officer_id)",
+          "*,event_types(name),event_officers(officer_id),presentation_slots(officer_id)",
         )
         .neq("status", "cancelled")
         .is("deleted_at", null)
@@ -283,16 +283,12 @@ export default async function DashboardPage() {
                   <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted sm:flex-col sm:items-end sm:gap-y-0.5">
                     <span>
                       {countsResult.error ||
-                      signupCounts.get(event.id)?.confirmed_count == null ||
-                      signupCounts.get(event.id)?.waitlist_count == null
+                      signupCounts.get(event.id)?.confirmed_count == null
                         ? "Signup counts unavailable"
                         : eventSignupCountLabel({
                             max_volunteers: event.max_volunteers,
                             confirmed_count: Number(
                               signupCounts.get(event.id)?.confirmed_count,
-                            ),
-                            waitlist_count: Number(
-                              signupCounts.get(event.id)?.waitlist_count,
                             ),
                           })}
                     </span>
@@ -305,15 +301,11 @@ export default async function DashboardPage() {
                           : "text-muted"
                       }
                     >
-                      {(event.event_waitlist ?? []).some(
-                        (entry) => entry.officer_id === officer.id,
-                      )
-                        ? "Waitlisted"
-                        : participationLabel(
-                            event.event_officers.some(
-                              (signup) => signup.officer_id === officer.id,
-                            ),
-                          )}
+                      {participationLabel(
+                        event.event_officers.some(
+                          (signup) => signup.officer_id === officer.id,
+                        ),
+                      )}
                     </span>
                     {(openSlotCounts.get(event.id) ?? 0) > 0 && (
                       <Link

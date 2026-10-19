@@ -153,7 +153,6 @@ it("serializes concurrent signup requests so capacity cannot be overfilled", asy
   runSql(`
     delete from public.audit_logs where actor_officer_id in (${firstOfficerId},${secondOfficerId},-981783);
     delete from public.point_transactions where event_id=${eventId};
-    delete from public.event_waitlist where event_id=${eventId};
     delete from public.event_officers where event_id=${eventId};
     delete from public.events where id=${eventId};
     delete from public.officers where id in (${firstOfficerId},${secondOfficerId},-981783);
@@ -203,23 +202,18 @@ it("serializes concurrent signup requests so capacity cannot be overfilled", asy
       secondSignup.closed,
     ]);
     expect(firstResult.code).toBe(0);
-    expect(secondResult.code).toBe(0);
+    expect(secondResult.code).not.toBe(0);
+    expect(secondResult.errors).toContain("Event capacity has been reached");
     expect(Date.now() - competingSignupStartedAt).toBeGreaterThan(500);
     expect(
       runSql(
         `select count(*) from public.event_officers where event_id=${eventId};`,
       ).trim(),
     ).toBe("1");
-    expect(
-      runSql(
-        `select count(*) from public.event_waitlist where event_id=${eventId};`,
-      ).trim(),
-    ).toBe("1");
   } finally {
     runSql(`
       delete from public.audit_logs where actor_officer_id in (${firstOfficerId},${secondOfficerId},-981783);
       delete from public.point_transactions where event_id=${eventId};
-      delete from public.event_waitlist where event_id=${eventId};
       delete from public.event_officers where event_id=${eventId};
       delete from public.events where id=${eventId};
       delete from public.officers where id in (${firstOfficerId},${secondOfficerId},-981783);
@@ -239,7 +233,6 @@ it("serializes concurrent presenter claims so only one Officer acquires a slot",
   runSql(`
     delete from public.audit_logs where entity_id='${eventId}';
     delete from public.presentation_slots where event_id=${eventId};
-    delete from public.event_waitlist where event_id=${eventId};
     delete from public.event_officers where event_id=${eventId};
     delete from public.events where id=${eventId};
     delete from public.officers where id in (${firstOfficerId},${secondOfficerId});
@@ -296,16 +289,10 @@ it("serializes concurrent presenter claims so only one Officer acquires a slot",
         `select count(*) from public.event_officers where event_id=${eventId};`,
       ).trim(),
     ).toBe("1");
-    expect(
-      runSql(
-        `select count(*) from public.event_waitlist where event_id=${eventId};`,
-      ).trim(),
-    ).toBe("0");
   } finally {
     runSql(`
       delete from public.audit_logs where entity_id='${eventId}';
       delete from public.presentation_slots where event_id=${eventId};
-      delete from public.event_waitlist where event_id=${eventId};
       delete from public.event_officers where event_id=${eventId};
       delete from public.events where id=${eventId};
       delete from public.officers where id in (${firstOfficerId},${secondOfficerId});

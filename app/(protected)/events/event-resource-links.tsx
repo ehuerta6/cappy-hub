@@ -27,8 +27,8 @@ export default function EventResourceLinks({
       </div>
       {signupSheetUrl && (
         <p className="mt-2 text-sm text-muted">
-          External Google Sheet resource. Cappy Hub signups, capacity, waitlist,
-          and participation are managed separately.
+          External Google Sheet resource. Cappy Hub signups, capacity, and
+          participation are managed separately.
         </p>
       )}
     </section>

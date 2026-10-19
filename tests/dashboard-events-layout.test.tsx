@@ -58,7 +58,6 @@ const upcoming: Pick<
   event_types: { name: string };
   event_branches: { branches: { name: string } }[];
   event_officers: { officer_id: number }[];
-  event_waitlist?: { officer_id: number }[];
   presentation_slots?: { officer_id: number | null }[];
 } = {
   id: 1,
@@ -73,7 +72,6 @@ const upcoming: Pick<
   event_types: { name: "Meeting" },
   event_branches: [],
   event_officers: [{ officer_id: 8 }],
-  event_waitlist: [],
 };
 let events: (typeof upcoming)[];
 let transactions: {
@@ -213,7 +211,6 @@ beforeEach(() => {
       const counts = events.map((event) => ({
         event_id: event.id,
         confirmed_count: event.event_officers.length,
-        waitlist_count: event.event_waitlist?.length ?? 0,
       }));
       return Object.assign(Promise.resolve({ data: counts, error: null }), {
         in: async (_column: string, ids: number[]) => {
@@ -340,7 +337,7 @@ it("preserves all three summary metric values and the existing summary/activity 
     [
       "select",
       [
-        "*,event_types(name),event_officers(officer_id),event_waitlist(officer_id),presentation_slots(officer_id)",
+        "*,event_types(name),event_officers(officer_id),presentation_slots(officer_id)",
       ],
     ],
     ["neq", ["status", "cancelled"]],

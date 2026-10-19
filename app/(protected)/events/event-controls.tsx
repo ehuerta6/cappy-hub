@@ -21,7 +21,6 @@ import {
   restoreEvent,
   restoreEventArchive,
   removeEvent,
-  leaveEventWaitlist,
 } from "./actions";
 export function SelfSignupForm({
   eventId,
@@ -39,17 +38,11 @@ export function SelfSignupForm({
     <form action={action} className="gap-2">
       <input type="hidden" name="event_id" value={eventId} />
       <button
-        disabled={pending}
-        aria-label={`${full ? "Join the waitlist for" : "Sign up for"} ${eventName}`}
+        disabled={pending || full}
+        aria-label={`${full ? "Sign up unavailable for" : "Sign up for"} ${eventName}`}
         className="whitespace-nowrap px-3 py-1.5"
       >
-        {pending
-          ? full
-            ? "Joining waitlist…"
-            : "Signing up…"
-          : full
-            ? "Join waitlist"
-            : "Sign up"}
+        {pending ? "Signing up…" : full ? "Event full" : "Sign up"}
       </button>
       <ActionFeedback state={state} />
     </form>
@@ -60,13 +53,11 @@ export function SignupForm({
   officers,
   remove = false,
   officerId,
-  full = false,
 }: {
   eventId: number;
   officers?: Pick<Tables<"officers">, "id" | "name">[];
   remove?: boolean;
   officerId?: number;
-  full?: boolean;
 }) {
   const [state, action, pending] = useActionState(changeSignup, {
     ...initialFormActionState,
@@ -107,29 +98,10 @@ export function SignupForm({
         {pending
           ? remove
             ? "Removing…"
-            : full
-              ? "Joining waitlist…"
-              : "Adding…"
+            : "Adding…"
           : remove
             ? "Remove signup"
-            : full
-              ? "Join waitlist"
-              : "Add officer"}
-      </button>
-    </form>
-  );
-}
-
-export function LeaveWaitlistForm({ eventId }: { eventId: number }) {
-  const [state, action, pending] = useActionState(leaveEventWaitlist, {
-    ...initialFormActionState,
-  });
-  return (
-    <form action={action}>
-      <input type="hidden" name="event_id" value={eventId} />
-      <ActionFeedback state={state} />
-      <button disabled={pending} className="button-secondary">
-        {pending ? "Leaving waitlist…" : "Leave waitlist"}
+            : "Add officer"}
       </button>
     </form>
   );

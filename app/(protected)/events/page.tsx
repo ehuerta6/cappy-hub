@@ -23,11 +23,7 @@ import {
 import { searchOrFilter } from "@/lib/list-search";
 import { eventListFiltersSchema } from "./filter-validation";
 import { currentDenverWeek } from "@/lib/current-denver-week";
-import {
-  LeaveWaitlistForm,
-  SelfSignupForm,
-  SignupForm,
-} from "./event-controls";
+import { SelfSignupForm, SignupForm } from "./event-controls";
 import { eventSignupCountLabel, type EventListItem } from "@/lib/event-list";
 
 const EVENT_PAGE_SIZE = 8;
@@ -66,7 +62,7 @@ export default async function EventsPage({
   const archivedLead =
     status === "archived" && isLead(actor) && !canSeeAllBranches(actor);
   const eventSelection =
-    "id,name,event_date,starts_at,ends_at,status,deleted_at,max_volunteers,participation_points_per_hour_at_end,event_types(name),event_branches(branch_id,branches(name)),filter_branch:event_branches(branch_id),scope_branch:event_branches(branch_id),event_officers(officer_id),event_waitlist(officer_id)";
+    "id,name,event_date,starts_at,ends_at,status,deleted_at,max_volunteers,participation_points_per_hour_at_end,event_types(name),event_branches(branch_id,branches(name)),filter_branch:event_branches(branch_id),scope_branch:event_branches(branch_id),event_officers(officer_id)";
   const buildEventQuery = (includeFilters: boolean, countOnly = false) => {
     let query = supabase
       .from("events")
@@ -165,13 +161,9 @@ export default async function EventsPage({
     confirmed_count: Number(
       counts.get(event.id)?.confirmed_count ?? event.event_officers.length,
     ),
-    waitlist_count: Number(counts.get(event.id)?.waitlist_count ?? 0),
   }));
   const participates = (event: EventListItem) =>
-    event.event_officers.some(({ officer_id }) => officer_id === actor.id) ||
-    (event.event_waitlist ?? []).some(
-      ({ officer_id }) => officer_id === actor.id,
-    );
+    event.event_officers.some(({ officer_id }) => officer_id === actor.id);
   // Pagination selects and orders the page first; presentation groups only
   // those eight Events and keeps their order within each group.
   const sections =
@@ -350,11 +342,6 @@ export default async function EventsPage({
                               const signedUp = event.event_officers.some(
                                 ({ officer_id }) => officer_id === actor.id,
                               );
-                              const waitlisted = (
-                                event.event_waitlist ?? []
-                              ).some(
-                                ({ officer_id }) => officer_id === actor.id,
-                              );
                               const canAct =
                                 signupActionsOpen &&
                                 eventSignupOpen(event, now.getTime());
@@ -397,11 +384,7 @@ export default async function EventsPage({
                                   {signupActionsOpen && (
                                     <td className="min-w-0">
                                       {canAct &&
-                                        (waitlisted ? (
-                                          <LeaveWaitlistForm
-                                            eventId={event.id}
-                                          />
-                                        ) : signedUp ? (
+                                        (signedUp ? (
                                           <SignupForm
                                             eventId={event.id}
                                             officerId={actor.id}
