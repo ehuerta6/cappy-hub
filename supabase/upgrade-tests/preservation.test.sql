@@ -3,18 +3,15 @@ create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 select no_plan();
 
-select is(to_regclass('public.event_waitlist'),null::regclass,
-  'operational Event Waitlist table is removed by the upgrade');
-select is((select count(*) from audit_logs where action='event.waitlist_retired'
-  and entity_id='92201'),2::bigint,
-  'each pending entry creates one retirement audit record');
+select ok(to_regclass('public.event_waitlist') is not null,
+  'Waitlist table remains available to the currently deployed application');
 select results_eq(
-  $$select (details->>'event_id')::bigint,(details->>'officer_id')::bigint,
-      (details->>'waitlist_id')::bigint,(details->>'joined_at')::timestamptz
-    from audit_logs where action='event.waitlist_retired' and entity_id='92201'
-    order by (details->>'waitlist_id')::bigint$$,
-  $$select event_id,officer_id,id,joined_at from upgrade_fixture.pre_event_waitlist order by id$$,
-  'retirement audit records retain each Event, Officer, waitlist ID and original join time');
+  $$select id,event_id,officer_id,joined_at from event_waitlist where event_id=92201 order by id$$,
+  $$select id,event_id,officer_id,joined_at from upgrade_fixture.pre_event_waitlist order by id$$,
+  'pending Waitlist entries and join times remain unchanged through the compatible upgrade');
+select is((select count(*) from audit_logs where action='event.waitlist_retired'
+  and entity_id='92201'),0::bigint,
+  'the compatibility migration leaves pending entries for the later contract migration to archive');
 select results_eq(
   $$select to_jsonb(a) from audit_logs a where entity_id='92201'
       and action in ('event.waitlist_joined','event.waitlist_left','event.waitlist_promoted')
@@ -31,7 +28,7 @@ select results_eq(
   $$select original from upgrade_fixture.pre_event_points$$,
   'existing Event Point transactions remain unchanged');
 select is((select max_volunteers from events where id=92201),2,
-  'Event capacity remains unchanged by Waitlist retirement');
+  'Event capacity remains unchanged by Waitlist deactivation');
 
 select is((select count(*)::integer from cron.job
   where jobname='cappy-process-finished-events'),0,
@@ -290,7 +287,7 @@ select throws_ok($$insert into officers(name,position_id,personal_email) values
 select hasnt_column('positions','can_manage_branch_events','obsolete capability flag is gone');
 select hasnt_column('events','flyer_status','flyer event column is gone');
 select hasnt_column('application_config','flyer_completion_points','flyer configuration is gone');
-select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),20::bigint,
+select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),21::bigint,
   'final schema contains canonical Task assignment data and presenter slots');
 select is((select count(*) from events where recurrence_series_id is not null and id not in (90680,90681)),0::bigint,
   'existing Events remain standalone after the additive recurrence migration');

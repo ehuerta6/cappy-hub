@@ -269,6 +269,49 @@ export type Database = {
         };
         Relationships: [];
       };
+      event_waitlist: {
+        Row: {
+          event_id: number;
+          id: number;
+          joined_at: string;
+          officer_id: number;
+        };
+        Insert: {
+          event_id: number;
+          id?: number;
+          joined_at?: string;
+          officer_id: number;
+        };
+        Update: {
+          event_id?: number;
+          id?: number;
+          joined_at?: string;
+          officer_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_waitlist_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_waitlist_officer_id_fkey";
+            columns: ["officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_waitlist_officer_id_fkey";
+            columns: ["officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       events: {
         Row: {
           created_at: string;
@@ -1313,7 +1356,12 @@ export type Database = {
         Returns: {
           confirmed_count: number;
           event_id: number;
+          waitlist_count: number;
         }[];
+      };
+      leave_event_waitlist: {
+        Args: { p_event_id: number; p_officer_id: number };
+        Returns: undefined;
       };
       mutate_recurring_event: {
         Args: {

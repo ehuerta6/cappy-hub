@@ -1,74 +1,17 @@
--- cappy-hub: approve-destructive-migration
--- reason: Issue #292 retires the operational Event queue after archiving pending entries.
--- Preserve each pending entry in the existing System Log before removing the
--- operational queue. These retirement rows keep the original Event, Officer,
--- Waitlist entry ID and join time without changing participation or Points.
-insert into public.audit_logs(action, entity_type, entity_id, details)
-select 'event.waitlist_retired', 'event', w.event_id::text,
-  pg_catalog.jsonb_build_object(
-    'event_id', w.event_id,
-    'officer_id', w.officer_id,
-    'waitlist_id', w.id,
-    'joined_at', w.joined_at
-  )
-from public.event_waitlist w
-where not exists (
-  select 1
-  from public.audit_logs a
-  where a.action = 'event.waitlist_retired'
-    and a.entity_type = 'event'
-    and a.entity_id = w.event_id::text
-    and a.details->>'waitlist_id' = w.id::text
-);
+-- Keep the existing table, RPC signatures, and signup-count return shape in
+-- place so the currently deployed application remains compatible until the
+-- new application has been deployed. A follow-up contract migration will
+-- drop these legacy objects after that rollout is verified.
 
-drop function public.event_signup_counts();
-create function public.event_signup_counts()
-returns table(event_id bigint, confirmed_count bigint)
-language sql security definer set search_path = '' as $$
-  select e.id,
-    (select count(*) from public.event_officers eo where eo.event_id=e.id)
-  from public.events e
-  where private.current_active_officer_id() is not null
-$$;
-revoke all on function public.event_signup_counts() from public, anon, authenticated;
-grant execute on function public.event_signup_counts() to authenticated;
-
-drop trigger if exists event_officers_no_waitlist_overlap on public.event_officers;
-drop trigger if exists event_waitlist_no_confirmed_overlap on public.event_waitlist;
-drop function private.prevent_event_signup_overlap();
-
-create function private.prevent_event_signup_over_capacity()
-returns trigger language plpgsql security definer set search_path = '' as $$
-declare capacity integer; confirmed_count bigint;
+-- Keep callers of the old promotion helper valid while preventing queue
+-- entries from being promoted into confirmed participation.
+create or replace function private.promote_event_waitlist(p_event_id bigint)
+returns integer language plpgsql security definer set search_path = '' as $$
 begin
-  if tg_op = 'UPDATE'
-    and new.event_id is not distinct from old.event_id
-    and new.officer_id is not distinct from old.officer_id then
-    return new;
-  end if;
-  select max_volunteers into capacity
-  from public.events where id = new.event_id for update;
-  if not found then raise exception 'Event not found'; end if;
-  confirmed_count := (
-    select count(*) from public.event_officers eo where eo.event_id = new.event_id
-  );
-  if tg_op = 'UPDATE' and old.event_id = new.event_id then
-    confirmed_count := confirmed_count - 1;
-  end if;
-  if capacity is not null and confirmed_count >= capacity then
-    raise exception 'Event capacity has been reached';
-  end if;
-  return new;
+  return 0;
 end;
 $$;
-create trigger event_officers_capacity_limit
-  before insert or update of event_id, officer_id on public.event_officers
-  for each row execute function private.prevent_event_signup_over_capacity();
-revoke all on function private.prevent_event_signup_over_capacity() from public, anon, authenticated;
-
-drop function private.promote_event_waitlist(bigint);
-drop function public.leave_event_waitlist(bigint, bigint);
-drop function private.leave_event_waitlist(bigint, bigint);
+revoke all on function private.promote_event_waitlist(bigint) from public, anon, authenticated;
 
 create or replace function private.set_event_capacity(
   p_event_id bigint, p_max_volunteers integer
@@ -102,7 +45,7 @@ create or replace function private.change_event_signup(
 ) returns void language plpgsql security definer set search_path = '' as $$
 declare current_event public.events%rowtype;
   actor_id bigint := private.current_active_officer_id();
-  changed_rows integer; confirmed_count bigint;
+  changed_rows integer; confirmed_count bigint; old_entry public.event_waitlist%rowtype;
 begin
   if actor_id is null then raise exception 'Unauthorized'; end if;
   select * into current_event from public.events where id=p_event_id for update;
@@ -127,6 +70,14 @@ begin
     if current_event.max_volunteers is not null and confirmed_count>=current_event.max_volunteers then
       raise exception 'Event capacity has been reached';
     end if;
+    select * into old_entry from public.event_waitlist
+      where event_id=p_event_id and officer_id=p_officer_id for update;
+    if found then
+      perform private.write_audit_log('event.waitlist_retired','event',p_event_id::text,
+        pg_catalog.jsonb_build_object('event_id',p_event_id,'officer_id',p_officer_id,
+          'waitlist_id',old_entry.id,'joined_at',old_entry.joined_at));
+      delete from public.event_waitlist where id=old_entry.id;
+    end if;
     insert into public.event_officers(event_id,officer_id) values(p_event_id,p_officer_id)
       on conflict(event_id,officer_id) do nothing;
     get diagnostics changed_rows=row_count;
@@ -147,7 +98,7 @@ declare current_event public.events%rowtype; actor_id bigint := private.current_
   requested_ids bigint[]; added_ids bigint[]; award_targets bigint[];
   awarded_ids bigint[] := '{}'::bigint[]; target_id bigint; current_rate numeric;
   award_points numeric; scheduled_hours numeric; award_id bigint; snapshot_created boolean := false;
-  confirmed_count bigint; new_count bigint;
+  confirmed_count bigint; new_count bigint; old_entry public.event_waitlist%rowtype;
 begin
   if actor_id is null then raise exception 'Unauthorized'; end if;
   if p_officer_ids is null or cardinality(p_officer_ids)=0 or array_position(p_officer_ids,null) is not null then
@@ -168,6 +119,14 @@ begin
     select 1 from public.event_officers eo where eo.event_id=p_event_id and eo.officer_id=id));
   if current_event.max_volunteers is not null and confirmed_count+new_count>current_event.max_volunteers then
     raise exception 'The selected Officers exceed the Event capacity'; end if;
+  for old_entry in select * from public.event_waitlist
+    where event_id=p_event_id and officer_id=any(requested_ids) order by id for update
+  loop
+    perform private.write_audit_log('event.waitlist_retired','event',p_event_id::text,
+      pg_catalog.jsonb_build_object('event_id',p_event_id,'officer_id',old_entry.officer_id,
+        'waitlist_id',old_entry.id,'joined_at',old_entry.joined_at,'actor_id',actor_id));
+    delete from public.event_waitlist where id=old_entry.id;
+  end loop;
   with inserted as (
     insert into public.event_officers(event_id,officer_id)
     select p_event_id,id from unnest(requested_ids) submitted(id)
@@ -213,5 +172,3 @@ begin
     'awarded_officer_ids',awarded_ids,'rate',current_rate,'points_per_officer',award_points);
 end;
 $$;
-
-drop table public.event_waitlist;

@@ -33,7 +33,11 @@ values
  (-1792,'Private signup count','Test Event','TBA',(select id from event_types where name='Meeting'),date '2099-02-07',timestamptz '2099-02-07 16:00Z',timestamptz '2099-02-07 17:00Z','upcoming',1);
 update events set deleted_at=pg_catalog.now(),deleted_by='00000000-0000-4000-8000-000000001780' where id=-1790;
 insert into event_officers(event_id,officer_id) values
- (-1780,-1781),(-1785,-1781),(-1786,-1781),(-1786,-1783),(-1787,-1781),(-1788,-1781),(-1791,-1781),(-1792,-1792);
+ (-1780,-1781),(-1785,-1781),(-1786,-1781),(-1786,-1783),(-1787,-1781),(-1788,-1781),
+ (-1791,-1781),(-1792,-1792);
+insert into event_waitlist(event_id,officer_id) values
+ (-1780,-1782),(-1780,-1783),(-1785,-1784),
+ (-1791,-1784),(-1791,-1783),(-1792,-1793),(-1792,-1794),(-1792,-1795);
 insert into event_branches(event_id,branch_id) values(-1792,(select min(id) from branches));
 insert into officer_branches(officer_id,branch_id) values(-1795,(select min(id) from branches));
 
@@ -42,11 +46,11 @@ select throws_ok($$update events set max_volunteers=0 where id=-1780$$,'23514',n
   'database rejects a non-positive capacity');
 select throws_ok($$insert into event_officers(event_id,officer_id) values(-1780,-1783)$$,
   'P0001','Event capacity has been reached','confirmed roster cannot exceed the capacity even through a direct writer');
-select is(to_regclass('public.event_waitlist'),null::regclass,'operational Waitlist table is removed');
-select is(to_regprocedure('public.leave_event_waitlist(bigint,bigint)'),null::regprocedure,
-  'public leave-Waitlist RPC is removed');
-select is(to_regprocedure('private.promote_event_waitlist(bigint)'),null::regprocedure,
-  'private promotion function is removed');
+select ok(to_regclass('public.event_waitlist') is not null,'Waitlist table remains during the compatibility phase');
+select ok(to_regprocedure('public.leave_event_waitlist(bigint,bigint)') is not null,
+  'public leave-Waitlist RPC remains available to old application versions');
+select ok(to_regprocedure('private.promote_event_waitlist(bigint)') is not null,
+  'private promotion function signature remains available to old callers');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001780',true);
 set local role authenticated;
@@ -58,20 +62,66 @@ select is((select count(*) from event_officers where event_id=-1780),1::bigint,'
 select throws_ok($$select bulk_add_event_officers(-1780,array[-1784]::bigint[])$$,'P0001','The selected Officers exceed the Event capacity',
   'manager bulk addition cannot bypass full Event capacity');
 select is((select confirmed_count from event_signup_counts() where event_id=-1792),1::bigint,
-  'signup counts expose confirmed participation only');
+  'signup count response retains its confirmed count field');
+select is((select waitlist_count from event_signup_counts() where event_id=-1792),3::bigint,
+  'signup-count return shape remains compatible with the deployed application');
+select is((select count(*) from event_waitlist where event_id=-1780),2::bigint,
+  'full signup failures do not add new Waitlist rows');
+select is((select count(*) from event_waitlist where event_id=-1792),3::bigint,
+  'old queue rows remain readable by the trusted count function');
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001781',true);
+set local role authenticated;
+select is((select count(*) from event_waitlist where event_id=-1792),0::bigint,
+  'ordinary Officer cannot read other queue identities during the compatibility phase');
+select is((select waitlist_count from event_signup_counts() where event_id=-1792),3::bigint,
+  'ordinary Officer can still read the compatible aggregate Waitlist count');
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001782',true);
+set local role authenticated;
+select is((select array_agg(officer_id order by officer_id) from event_waitlist where event_id=-1792),
+  array[-1793]::bigint[],'waitlisted Officer can still read only their own queue row');
+select is((select waitlist_count from event_signup_counts() where event_id=-1792),3::bigint,
+  'waitlisted Officer retains the old aggregate return field');
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001784',true);
+set local role authenticated;
+select is((select count(*) from event_waitlist where event_id=-1792),3::bigint,
+  'authorized Event manager can still read queue rows for an old application version');
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001780',true);
+set local role authenticated;
+select lives_ok($$select leave_event_waitlist(-1791,-1784)$$,
+  'legacy leave-Waitlist RPC remains available during the transition');
 reset role;
 update officers set status='inactive' where id=-1782;
 select lives_ok($$select change_event_signup(-1780,-1781,true)$$,'confirmed Officer can leave an Event');
 select is((select count(*) from event_officers where event_id=-1780),0::bigint,
   'leaving a confirmed signup does not promote anyone');
+select is((select count(*) from event_waitlist where event_id=-1780),2::bigint,
+  'leaving a confirmed signup retains the existing legacy queue rows without promotion');
 select is((select count(*) from point_transactions where event_id=-1780),0::bigint,
   'leaving a future Event does not create participation Points');
 select lives_ok($$select private.set_event_capacity(-1785,2)$$,'capacity can increase');
 select is((select count(*) from event_officers where event_id=-1785),1::bigint,
   'capacity increase does not promote anyone');
+select is((select count(*) from event_waitlist where event_id=-1785),1::bigint,
+  'capacity increase preserves the legacy queue without promoting it');
+select lives_ok($$select private.bulk_add_event_officers(-1785,array[-1784]::bigint[])$$,
+  'manager can confirm a previously queued Officer when capacity is available');
+select is((select count(*) from event_waitlist where event_id=-1785),0::bigint,
+  'confirming a queued Officer archives and removes that transitional queue entry');
+select is((select count(*) from audit_logs where action='event.waitlist_retired' and entity_id='-1785'),1::bigint,
+  'queued Officer confirmation retains the entry in historical audit data');
 select lives_ok($$select private.set_event_capacity(-1785,null)$$,'limited Event can become unlimited');
-select is((select count(*) from event_officers where event_id=-1785),1::bigint,
+select is((select count(*) from event_officers where event_id=-1785),2::bigint,
   'unlimited capacity does not promote anyone');
+select lives_ok($$select private.set_event_capacity(-1791,2)$$,
+  'capacity increase on a separate Event remains compatible');
+select is((select count(*) from event_officers where event_id=-1791),1::bigint,
+  'capacity increase never promotes a legacy queued Officer');
+select is((select count(*) from event_waitlist where event_id=-1791),1::bigint,
+  'legacy leave action removes only its selected queue row and capacity edits retain the remaining row');
 select is((select count(*) from audit_logs where action='event.capacity_changed' and entity_id='-1785'),2::bigint,
   'capacity changes are audited');
 select throws_ok($$select private.set_event_capacity(-1786,1)$$,'P0001',

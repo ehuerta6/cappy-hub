@@ -101,8 +101,8 @@ try {
     ) {
       psql(readFileSync("supabase/fixtures/pre-task-assignment-contract.sql"));
     }
-    if (migration === "20261019150000_remove_event_waitlists.sql") {
-      psql(readFileSync("supabase/fixtures/pre-event-waitlist-retirement.sql"));
+    if (migration === "20261019150000_disable_event_waitlists.sql") {
+      psql(readFileSync("supabase/fixtures/pre-event-waitlist-transition.sql"));
     }
     if (migration.endsWith("_harden_catalogs_lifecycle_and_rls.sql")) {
       psql(`create table upgrade_fixture.pre_hardening_events as select to_jsonb(e) row from public.events e;
