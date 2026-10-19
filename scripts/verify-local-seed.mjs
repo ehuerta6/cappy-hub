@@ -65,6 +65,16 @@ const output = run(
       "(select count(*) from public.events),",
       "(select count(*) from public.point_transactions),",
       "(select count(*) from public.officer_warnings),",
+      "(select count(*) from public.event_time_slots),",
+      "(select count(*) from public.event_time_slot_officers),",
+      "(select count(*) from public.point_transactions where event_time_slot_id is not null and award_type='participation' and removed_at is null),",
+      "(select count(*) from public.point_transactions where event_time_slot_id is not null and slot_selection_removed),",
+      "(select count(*) from public.event_time_slots where event_id=-2020 and capacity is not null),",
+      "(select count(*) from public.event_time_slots where event_id in (-2030,-2031)),",
+      "(select count(distinct event_id) from public.event_time_slots where event_id in (-2030,-2031)),",
+      "(select count(*) from public.events e where e.max_volunteers is not null and exists(select 1 from public.event_time_slots s where s.event_id=e.id)),",
+      "(select max_volunteers from public.events where id=-2025),",
+      "(select count(*) from public.event_time_slots s where s.event_id=-2021 and s.starts_at > (select max(previous_slot.ends_at) from public.event_time_slots previous_slot where previous_slot.event_id=s.event_id and previous_slot.ends_at<s.starts_at)),",
       "(select count(*) from public.tasks t where t.id=-8001 and not exists",
       "  (select 1 from public.task_officer_assignments a where a.task_id=t.id)),",
       "(select count(*) from public.task_officer_assignments where task_id=-8003),",
@@ -83,6 +93,16 @@ const [
   events,
   points,
   warnings,
+  timeSlots,
+  slotSelections,
+  activeSlotAwards,
+  removedSlotAwards,
+  equalSlotCapacities,
+  recurringSlots,
+  recurringSlotEvents,
+  slottedEventCapacities,
+  ordinaryEventCapacity,
+  customSlotGaps,
   unassignedTask,
   singleOfficerTask,
   multiOfficerTask,
@@ -91,9 +111,24 @@ const [
   pastNotCompletedNoAward,
 ] = output.split("|").map((value) => Number(value));
 
-if (officers < 20 || events < 10 || points < 250 || warnings < 6) {
+if (
+  officers < 30 ||
+  events < 20 ||
+  points < 320 ||
+  warnings < 10 ||
+  timeSlots < 14 ||
+  slotSelections < 18 ||
+  activeSlotAwards < 4 ||
+  removedSlotAwards < 1 ||
+  equalSlotCapacities !== 2 ||
+  recurringSlots !== 4 ||
+  recurringSlotEvents !== 2 ||
+  slottedEventCapacities !== 0 ||
+  ordinaryEventCapacity !== 3 ||
+  customSlotGaps < 1
+) {
   throw new Error(
-    `Seed verification failed: officers=${officers}, events=${events}, points=${points}, warnings=${warnings}`,
+    `Seed verification failed: officers=${officers}, events=${events}, points=${points}, warnings=${warnings}, slots=${timeSlots}, selections=${slotSelections}, activeSlotAwards=${activeSlotAwards}, removedSlotAwards=${removedSlotAwards}, equalSlotCapacities=${equalSlotCapacities}, recurringSlots=${recurringSlots}, recurringSlotEvents=${recurringSlotEvents}, slottedEventCapacities=${slottedEventCapacities}, ordinaryEventCapacity=${ordinaryEventCapacity}, customSlotGaps=${customSlotGaps}`,
   );
 }
 if (
@@ -110,5 +145,5 @@ if (
 }
 
 console.log(
-  `Synthetic seed verified: ${officers} officers, ${events} events, ${points} point transactions, ${warnings} warnings; Task examples include unassigned, single and multiple assignments, and due-date awards.`,
+  `Synthetic seed verified: ${officers} officers, ${events} events, ${points} point transactions, ${warnings} warnings, ${timeSlots} Time Slots, ${slotSelections} slot selections; includes separate active and removed slot awards, equal and custom capacities, recurring occurrences, and the existing Task scenarios.`,
 );

@@ -20,6 +20,8 @@ import {
 } from "@/lib/event-status";
 import { personalSignupState } from "../personal-signup-state";
 import PresenterSlotsSection from "../presenter-slots-section";
+import TimeSlotsSection from "../time-slots-section";
+import { LeaveAllTimeSlotsForm } from "../time-slot-controls";
 import {
   formatCalendarDate,
   formatDateTime,
@@ -281,8 +283,13 @@ export default async function EventDetailPage({
   const start = (page - 1) * RELATED_PAGE_SIZE;
 
   const canAddOfficers = canManage && !event.deleted_at && (signupOpen || past);
+  const canCorrectTimeSlots =
+    canManage && !event.deleted_at && event.status !== "cancelled";
   const showPresenters =
     section === "overview" && isSessionEventType(event.event_types.name);
+  const showTimeSlots =
+    (section === "overview" || section === "roster") &&
+    !isSessionEventType(event.event_types.name);
   const presenterClosedReason = presenterSlotsClosedReason(event);
   const canAssignPresenters =
     showPresenters && canManage && presenterClosedReason === null;
@@ -290,6 +297,8 @@ export default async function EventDetailPage({
     candidateOfficersResult,
     presenterSlotsResult,
     presenterCandidatesResult,
+    timeSlotOfficerCandidatesResult,
+    timeSlotsResult,
     rosterResult,
     tasksResult,
     transactionsResult,
@@ -320,6 +329,22 @@ export default async function EventDetailPage({
           .select("id,name")
           .eq("status", "active")
           .order("name")
+      : Promise.resolve(undefined),
+    canManage && showTimeSlots
+      ? supabase
+          .from("officers")
+          .select("id,name")
+          .eq("status", "active")
+          .order("name")
+      : Promise.resolve(undefined),
+    showTimeSlots
+      ? supabase
+          .from("event_time_slots")
+          .select(
+            "id,starts_at,ends_at,capacity,event_time_slot_officers(officer_id,officers!event_time_slot_officers_officer_id_fkey(id,name))",
+          )
+          .eq("event_id", event.id)
+          .order("starts_at")
       : Promise.resolve(undefined),
     section === "overview"
       ? supabase
@@ -366,12 +391,17 @@ export default async function EventDetailPage({
     candidateOfficersResult?.error ||
     presenterSlotsResult?.error ||
     presenterCandidatesResult?.error ||
+    timeSlotOfficerCandidatesResult?.error ||
+    timeSlotsResult?.error ||
     rosterResult?.error ||
     tasksResult?.error ||
     transactionsResult?.error
   )
     throw new Error("Failed to load Event related records");
   const officersAvailableToAdd = candidateOfficersResult?.data ?? [];
+  const officersAvailableForSlots =
+    timeSlotOfficerCandidatesResult?.data ?? officersAvailableToAdd;
+  const timeSlots = timeSlotsResult?.data ?? [];
   const rosterRows = rosterResult?.data ?? [];
   const linkedTasks = (tasksResult?.data ?? []).map(({ tasks }) => tasks);
   const transactions = transactionsResult?.data ?? [];
@@ -515,10 +545,13 @@ export default async function EventDetailPage({
                   This Event is full. Signup is unavailable.
                 </p>
               )}
-              {personalSignup === "confirmed" && signupOpen && (
-                <SignupForm eventId={event.id} officerId={actor.id} remove />
-              )}
-              {!canManage &&
+              {personalSignup === "confirmed" &&
+                signupOpen &&
+                timeSlots.length === 0 && (
+                  <SignupForm eventId={event.id} officerId={actor.id} remove />
+                )}
+              {timeSlots.length === 0 &&
+                !canManage &&
                 (personalSignup === "available" ||
                   personalSignup === "full") && (
                   <SelfSignupForm
@@ -527,6 +560,20 @@ export default async function EventDetailPage({
                     full={personalSignup === "full"}
                   />
                 )}
+              {timeSlots.length > 0 && (
+                <TimeSlotsSection
+                  eventId={event.id}
+                  slots={timeSlots}
+                  actorId={actor.id}
+                  canCorrectAssignments={canCorrectTimeSlots}
+                  signupOpen={signupOpen}
+                  confirmed={confirmed}
+                  activeOfficer={eligibleForSelfSignup}
+                  eventCapacityBlocked={full && !confirmed}
+                  officers={officersAvailableForSlots}
+                  past={past}
+                />
+              )}
               {confirmedCount > 0 ? (
                 <div>
                   <h3 className="mb-1 text-sm font-medium">
@@ -555,6 +602,7 @@ export default async function EventDetailPage({
                 <p className="text-sm text-muted">No officers signed up.</p>
               )}
               {canManage &&
+                timeSlots.length === 0 &&
                 signupOpen &&
                 (officersAvailableToAdd.length > 0 ? (
                   <details className="event-roster-disclosure">
@@ -572,6 +620,7 @@ export default async function EventDetailPage({
                   </p>
                 ))}
               {canManage &&
+                timeSlots.length === 0 &&
                 past &&
                 !event.deleted_at &&
                 (officersAvailableToAdd.length > 0 ? (
@@ -596,6 +645,25 @@ export default async function EventDetailPage({
                     No active officers are available to add.
                   </p>
                 ))}
+              {canManage &&
+                timeSlots.length > 0 &&
+                (signupOpen || past) &&
+                officersAvailableToAdd.length > 0 && (
+                  <details className="event-roster-disclosure">
+                    <summary>
+                      {past
+                        ? "Add attendees and award slot Points"
+                        : "Add officers to Time Slots"}
+                    </summary>
+                    <BulkAddOfficersForm
+                      eventId={event.id}
+                      officers={officersAvailableToAdd}
+                      timeSlots={timeSlots.map(({ id }) => ({ id }))}
+                      pointsPerHour={event.participation_points_per_hour_at_end}
+                      past={past}
+                    />
+                  </details>
+                )}
             </section>
           </div>
           {showPresenters && (
@@ -654,6 +722,7 @@ export default async function EventDetailPage({
                 <thead>
                   <tr>
                     <th scope="col">Officer</th>
+                    {timeSlots.length > 0 && <th scope="col">Time Slots</th>}
                     <th scope="col">Signup</th>
                   </tr>
                 </thead>
@@ -668,9 +737,38 @@ export default async function EventDetailPage({
                           {officer.name}
                         </Link>
                       </td>
+                      {timeSlots.length > 0 && (
+                        <td>
+                          {timeSlots
+                            .map((slot, index) => ({
+                              slot,
+                              index,
+                            }))
+                            .filter(({ slot }) =>
+                              slot.event_time_slot_officers.some(
+                                ({ officer_id }) => officer_id === officer.id,
+                              ),
+                            )
+                            .map(
+                              ({ slot, index }) =>
+                                `Slot ${index + 1} (${formatEventSchedule(slot.starts_at, slot.ends_at)})`,
+                            )
+                            .join(", ") || "None"}
+                        </td>
+                      )}
                       <td>
-                        {signupOpen &&
-                        (canManage || officer.id === actor.id) ? (
+                        {timeSlots.length > 0 &&
+                        (canManage ||
+                          (signupOpen && officer.id === actor.id)) ? (
+                          <LeaveAllTimeSlotsForm
+                            eventId={event.id}
+                            officerId={
+                              officer.id === actor.id ? undefined : officer.id
+                            }
+                          />
+                        ) : signupOpen &&
+                          timeSlots.length === 0 &&
+                          (canManage || officer.id === actor.id) ? (
                           <SignupForm
                             eventId={event.id}
                             officerId={officer.id}

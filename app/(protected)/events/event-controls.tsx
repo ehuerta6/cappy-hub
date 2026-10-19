@@ -22,6 +22,7 @@ import {
   restoreEventArchive,
   removeEvent,
 } from "./actions";
+import { BulkAssignOfficersToSlotsForm } from "./time-slot-controls";
 export function SelfSignupForm({
   eventId,
   eventName,
@@ -111,15 +112,38 @@ export function BulkAddOfficersForm({
   officers,
   past = false,
   pointsPerOfficer,
+  timeSlots,
+  pointsPerHour,
 }: {
   eventId: number;
   officers: Pick<Tables<"officers">, "id" | "name">[];
   past?: boolean;
   pointsPerOfficer?: number;
+  timeSlots?: Pick<Tables<"event_time_slots">, "id">[];
+  pointsPerHour?: number | null;
 }) {
   const [state, action, pending] = useActionState(bulkAddEventOfficers, {
     ...initialFormActionState,
   });
+  if (timeSlots) {
+    return (
+      <div className="mt-4 space-y-3">
+        {past && (
+          <p className="text-sm text-muted">
+            Each selected slot receives its own duration based award
+            {pointsPerHour === null || pointsPerHour === undefined
+              ? " using the Event rate saved when processing starts."
+              : ` using the saved rate of ${pointsPerHour} Points/hour.`}
+          </p>
+        )}
+        <BulkAssignOfficersToSlotsForm
+          eventId={eventId}
+          officers={officers}
+          slots={timeSlots}
+        />
+      </div>
+    );
+  }
   const selectedOfficers = submittedValues(state.values, "officer_ids");
   const fieldErrors = state.fieldErrors ?? {};
   return (

@@ -87,7 +87,9 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
   where n.nspname='public' and has_function_privilege('authenticated',p.oid,'EXECUTE')
     and p.oid not in (
       'public.change_event_signup(bigint,bigint,boolean)'::regprocedure,
+      'public.change_event_time_slot_signup(bigint,bigint,bigint[],text)'::regprocedure,
       'public.bulk_add_event_officers(bigint,bigint[])'::regprocedure,
+      'public.bulk_add_event_officers_to_slots(bigint,bigint[],bigint[])'::regprocedure,
       'public.save_officer(text,bigint,text,bigint[],bigint,text,text,text)'::regprocedure,
       'public.claim_current_officer_identity()'::regprocedure,
       'public.set_officer_application_role(bigint,text)'::regprocedure,
@@ -114,14 +116,17 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       'public.remove_point_transaction(bigint)'::regprocedure,
       'public.save_event_with_links(text,text,bigint,text,date,timestamptz,timestamptz,bigint[],bigint,text,text)'::regprocedure,
       'public.save_event_with_signup_sheet(text,text,bigint,text,date,timestamptz,timestamptz,bigint[],text,bigint,text,text)'::regprocedure,
+      'public.save_event_with_capacity_and_time_slots(text,text,bigint,text,date,timestamptz,timestamptz,bigint[],text,integer,bigint,text,text,jsonb)'::regprocedure,
       'public.save_task(text,text,text,bigint,date,numeric,boolean)'::regprocedure,
       'public.create_recurring_event(text,text,bigint,text,bigint[],text,text,uuid,text,date[],timestamptz[],timestamptz[])'::regprocedure
       ,'public.create_recurring_event(text,text,bigint,text,bigint[],text,text,text,uuid,text,date[],timestamptz[],timestamptz[])'::regprocedure
+      ,'public.create_recurring_event_with_capacity_and_time_slots(text,text,bigint,text,bigint[],text,text,text,integer,uuid,text,date[],timestamptz[],timestamptz[],jsonb)'::regprocedure
       ,'public.create_recurring_task(text,text,text,bigint,numeric,boolean,uuid,text,date[])'::regprocedure
       ,'public.remove_task(bigint)'::regprocedure
       ,'public.restore_event_archive(bigint)'::regprocedure
       ,'public.restore_task(bigint)'::regprocedure
       ,'public.mutate_recurring_event(bigint,text,text,uuid,bigint,integer,jsonb,text,date[])'::regprocedure
+      ,'public.mutate_recurring_event_with_capacity_and_time_slots(bigint,text,text,uuid,bigint,integer,jsonb,text,date[],boolean,integer)'::regprocedure
       ,'public.mutate_recurring_task(bigint,text,text,uuid,bigint,integer,jsonb,text,date[])'::regprocedure
       ,'public.set_task_event_links(bigint[],bigint[])'::regprocedure
       ,'public.save_task_with_events(text,text,text,bigint,date,numeric,boolean,bigint[])'::regprocedure

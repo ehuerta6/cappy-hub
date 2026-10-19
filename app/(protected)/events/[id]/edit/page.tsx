@@ -13,6 +13,7 @@ import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import EventForm from "../../event-form";
+import { denverParts } from "@/lib/event-time";
 import { PageHeader } from "@/components/ui";
 export default async function EditEventPage({
   params,
@@ -27,20 +28,37 @@ export default async function EditEventPage({
   const { id: eventIdParam } = await params;
   if (!/^-?[1-9]\d*$/.test(eventIdParam)) notFound();
   const eventId = Number(eventIdParam);
-  const [event, branches, eventTypes, locations] = await Promise.all([
-    supabase
-      .from("events")
-      .select("*,event_branches(branch_id)")
-      .eq("id", eventId)
-      .maybeSingle(),
-    supabase.from("branches").select("id,name,is_active").order("name"),
-    supabase
-      .from("event_types")
-      .select("id,name,available_for_new_events")
-      .order("name"),
-    supabase.from("event_locations").select("id,name").order("name"),
-  ]);
-  if (event.error || branches.error || eventTypes.error || locations.error)
+  const [event, branches, eventTypes, locations, signupCount, timeSlots] =
+    await Promise.all([
+      supabase
+        .from("events")
+        .select("*,event_branches(branch_id)")
+        .eq("id", eventId)
+        .maybeSingle(),
+      supabase.from("branches").select("id,name,is_active").order("name"),
+      supabase
+        .from("event_types")
+        .select("id,name,available_for_new_events")
+        .order("name"),
+      supabase.from("event_locations").select("id,name").order("name"),
+      supabase
+        .from("event_officers")
+        .select("officer_id", { count: "exact", head: true })
+        .eq("event_id", eventId),
+      supabase
+        .from("event_time_slots")
+        .select("id,starts_at,ends_at,capacity")
+        .eq("event_id", eventId)
+        .order("starts_at"),
+    ]);
+  if (
+    event.error ||
+    branches.error ||
+    eventTypes.error ||
+    locations.error ||
+    signupCount.error ||
+    timeSlots.error
+  )
     throw new Error("Failed to load event form");
   if (!event.data || event.data.deleted_at) notFound();
   const currentEvent = event.data;
@@ -90,6 +108,15 @@ export default async function EditEventPage({
         branchIds={currentEvent.event_branches.map(
           (eventBranch) => eventBranch.branch_id,
         )}
+        canEnableTimeSlots={
+          (timeSlots.data?.length ?? 0) > 0 || (signupCount.count ?? 0) === 0
+        }
+        timeSlots={(timeSlots.data ?? []).map((slot) => ({
+          id: slot.id,
+          start_time: denverParts(slot.starts_at).time,
+          end_time: denverParts(slot.ends_at).time,
+          capacity: slot.capacity,
+        }))}
       />
     </div>
   );

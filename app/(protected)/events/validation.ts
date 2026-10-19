@@ -70,6 +70,46 @@ export const saveEventInputSchema = zod
     }
   });
 
+const eventTimeSlotSchema = zod.object({
+  id: zod.number().int().positive().optional(),
+  start_time: eventTimeInputSchema,
+  end_time: eventTimeInputSchema,
+  capacity: zod.number().int().positive().nullable(),
+});
+
+export const eventTimeSlotsInputSchema = zod.preprocess((value) => {
+  if (typeof value !== "string") return value;
+  if (!value || value === "null") return null;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
+}, zod.array(eventTimeSlotSchema).min(1).max(24).nullable());
+
+export function timeSlotBoundsError(
+  slots: zod.infer<typeof eventTimeSlotSchema>[] | null,
+  eventStart: string,
+  eventEnd: string,
+) {
+  if (slots === null) return undefined;
+  const ordered = [...slots].sort((left, right) =>
+    left.start_time.localeCompare(right.start_time),
+  );
+  for (let index = 0; index < ordered.length; index += 1) {
+    const slot = ordered[index];
+    if (
+      slot.start_time >= slot.end_time ||
+      slot.start_time < eventStart ||
+      slot.end_time > eventEnd
+    )
+      return "Each Time Slot must fit within the Event schedule and end after it starts";
+    if (index > 0 && ordered[index - 1].end_time > slot.start_time)
+      return "Time Slots cannot overlap";
+  }
+  return undefined;
+}
+
 export const eventBranchIdsInputSchema = zod.array(
   safeIntegerStringSchema("Select valid branches"),
 );
