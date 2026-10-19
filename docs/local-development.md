@@ -38,7 +38,7 @@ These synthetic accounts are created only by the local setup/reset workflow. Nev
 
 Cappy Hub does not use automated browser testing in local development, GitHub Actions, CI/CD, or deployment validation. Do not install, launch, or configure browsers for automated checks, and do not generate screenshots automatically. This includes Playwright and browser-based accessibility checks.
 
-Use the existing Vitest, PostgreSQL/pgTAP, migration, authorization, lint, format, type, and production build checks where applicable. Preview and Production smoke checks remain HTTP-only. Manual visual review is acceptable; the maintained [UI screenshot catalog](ui-reference/README.md) is the visual reference. Capture catalog images manually when a UI change requires updated evidence; `scripts/build-ui-reference.mjs` only validates catalog metadata and generates its HTML index and coverage report.
+Use the existing Vitest, PostgreSQL/pgTAP, migration, authorization, lint, format, type, and production build checks where applicable. Preview and Production smoke checks remain HTTP-only. Manual visual review is supported. Screenshots may be attached directly to Pull Requests when they help reviewers understand a UI change.
 
 For local interactive development, `npm run local:reset` prepares synthetic data and local Auth accounts. It is destructive to the local database; see [Rebuild local from scratch](#rebuild-local-from-scratch) before using it.
 
