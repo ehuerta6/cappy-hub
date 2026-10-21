@@ -161,21 +161,24 @@ export default async function PointsPage({
   }
 
   async function loadHistoryData() {
-    const [historyCount, visibleHistoryCount, officers, events] =
+    const [historyCount, visibleHistoryCount, officers, selectedEvent] =
       await Promise.all([
         buildPointHistoryQuery(true, true),
         buildPointHistoryQuery(false, true),
         supabase.from("officers").select("id,name,status").order("name"),
-        supabase
-          .from("events")
-          .select("id,name,event_date")
-          .order("event_date", { ascending: false }),
+        eventId === undefined
+          ? Promise.resolve({ data: null, error: null })
+          : supabase
+              .from("events")
+              .select("id,name,event_date")
+              .eq("id", eventId)
+              .maybeSingle(),
       ]);
     if (
       historyCount.error ||
       visibleHistoryCount.error ||
       officers.error ||
-      events.error
+      selectedEvent.error
     )
       throw new Error("Failed to load points");
 
@@ -209,7 +212,7 @@ export default async function PointsPage({
     return {
       historyCount,
       officers,
-      events,
+      selectedEvent,
       totalPages,
       page,
       transactions,
@@ -333,7 +336,7 @@ export default async function PointsPage({
           />
           <PointHistoryFilterControls
             officers={historyData!.officers.data}
-            events={historyData!.events.data}
+            selectedEvent={historyData!.selectedEvent.data}
             isAdmin={admin}
             status={status}
             fromDate={fromDate ?? ""}

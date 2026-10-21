@@ -16,6 +16,7 @@ import {
   changeParticipationRate,
   removeParticipationAward,
   searchEvents,
+  searchPointHistoryEvents,
 } from "@/app/(protected)/points/actions";
 
 const rpc = vi.fn().mockResolvedValue({ error: null });
@@ -211,6 +212,87 @@ it("distinguishes no matching Events from genuine lookup failures", async () => 
     error: false,
   });
   await expect(searchEvents("Request failure")).resolves.toEqual({
+    events: [],
+    error: true,
+  });
+});
+
+it("bounds Point History Event search to twenty rows and keeps historical Events eligible", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    applicationRole: "officer",
+  } as never);
+  const calls: unknown[][] = [];
+  const historicalEvents = Array.from({ length: 500 }, (_, index) => ({
+    id: index + 1,
+    name:
+      index === 0
+        ? "Archived Workshop"
+        : index === 1
+          ? "Cancelled Workshop"
+          : `Workshop ${index + 1}`,
+    event_date: `2025-01-${String(index + 1).padStart(2, "0")}`,
+  }));
+  let limitValue = 0;
+  const query = {
+    select: (columns: string) => {
+      calls.push(["select", columns]);
+      return query;
+    },
+    ilike: (...args: unknown[]) => {
+      calls.push(["ilike", ...args]);
+      return query;
+    },
+    order: (...args: unknown[]) => {
+      calls.push(["order", ...args]);
+      return query;
+    },
+    limit: (count: number) => {
+      calls.push(["limit", count]);
+      limitValue = count;
+      return query;
+    },
+    then: (resolve: (value: unknown) => unknown) =>
+      Promise.resolve({
+        data: historicalEvents.slice(0, limitValue),
+        error: null,
+      }).then(resolve),
+  };
+  vi.mocked(createClient).mockResolvedValue({
+    from: (table: string) => {
+      calls.push(["from", table]);
+      return query;
+    },
+  } as never);
+
+  await expect(searchPointHistoryEvents("Workshop")).resolves.toEqual({
+    events: historicalEvents.slice(0, 20),
+    error: false,
+  });
+  expect(calls).toContainEqual(["limit", 20]);
+  expect(calls).toContainEqual(["select", "id,name,event_date"]);
+  expect(calls).toContainEqual(["ilike", "name", "%Workshop%"]);
+  expect(calls.some((call) => call[0] === "is" || call[0] === "eq")).toBe(
+    false,
+  );
+});
+
+it("returns a distinct failure result when Point History Event search errors", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    applicationRole: "officer",
+  } as never);
+  const query = {
+    select: () => query,
+    ilike: () => query,
+    order: () => query,
+    limit: () => query,
+    then: (resolve: (value: unknown) => unknown) =>
+      Promise.resolve({
+        data: null,
+        error: { message: "private detail" },
+      }).then(resolve),
+  };
+  vi.mocked(createClient).mockResolvedValue({ from: () => query } as never);
+  await expect(searchPointHistoryEvents("Request failure")).resolves.toEqual({
     events: [],
     error: true,
   });
