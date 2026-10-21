@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { ActionFeedback, FieldError } from "@/components/ui";
 import { initialFormActionState, submittedValues } from "@/lib/form-feedback";
+import { denverParts } from "@/lib/event-time";
 import type { Tables } from "@/lib/database.types";
 import {
   assignBulkOfficersToTimeSlots,
@@ -59,7 +60,9 @@ export function JoinSelectedTimeSlotsForm({
   slots,
 }: {
   eventId: number;
-  slots: Pick<Tables<"event_time_slots">, "id" | "starts_at" | "ends_at">[];
+  slots: (Pick<Tables<"event_time_slots">, "id" | "starts_at" | "ends_at"> & {
+    position: number;
+  })[];
 }) {
   const [state, action, pending] = useActionState(changeTimeSlotSignup, {
     ...initialFormActionState,
@@ -76,17 +79,21 @@ export function JoinSelectedTimeSlotsForm({
       >
         <legend className="text-sm font-medium">Choose Time Slots</legend>
         <div className="grid gap-x-4 gap-y-2 sm:grid-cols-2">
-          {slots.map((slot, index) => (
-            <label key={slot.id} className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                name="slot_ids"
-                value={slot.id}
-                defaultChecked={selected.includes(String(slot.id))}
-              />
-              Slot {index + 1}
-            </label>
-          ))}
+          {slots.map((slot) => {
+            const start = denverParts(slot.starts_at).time;
+            const end = denverParts(slot.ends_at).time;
+            return (
+              <label key={slot.id} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  name="slot_ids"
+                  value={slot.id}
+                  defaultChecked={selected.includes(String(slot.id))}
+                />
+                Slot {slot.position}: {start}–{end}
+              </label>
+            );
+          })}
         </div>
         <FieldError id="time-slot-selection-error">{error}</FieldError>
       </fieldset>
