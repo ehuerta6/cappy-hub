@@ -85,6 +85,10 @@ beforeEach(() => {
           data: { participation_points_per_hour: 1 },
           error: null,
         }),
+        maybeSingle: async () => ({
+          data: { id: 456, name: "Historic Event", event_date: "2025-01-01" },
+          error: null,
+        }),
         then: (resolve: (value: unknown) => unknown) =>
           Promise.resolve({
             data:
@@ -176,13 +180,12 @@ it("shows History when explicitly selected", async () => {
   );
 
   expect(html).toMatch(/<a aria-current="page"[^>]*>History<\/a>/);
+  expect(queriedTables).not.toContain("events");
   expect(html).toContain("Point history filters");
   expect(html).toContain("Point history");
   expect(html).not.toContain("Officer totals");
   expect(queriedTables).toContain("point_history");
   expect(queriedTables).toContain("officers");
-  expect(queriedTables).toContain("events");
-  expect(queriedTables.filter((table) => table === "events")).toHaveLength(1);
   expect(queriedTables.filter((table) => table === "officers")).toHaveLength(1);
   expect(
     queriedTables.filter((table) => table === "point_history"),
@@ -217,6 +220,10 @@ it.each([
   );
 
   expect(html).toMatch(/<a aria-current="page"[^>]*>History<\/a>/);
+  if ("event" in searchParams) {
+    expect(queriedTables).toContain("events");
+    expect(html).toContain("Historic Event — Jan 1, 2025");
+  }
 });
 
 it("shows a paginated eight-Officer ranking with a separate rankPage parameter", async () => {
