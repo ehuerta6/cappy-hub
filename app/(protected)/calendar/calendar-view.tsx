@@ -3,11 +3,11 @@
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/react/daygrid";
 import classicThemePlugin from "@fullcalendar/react/themes/classic";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { useTheme } from "@/components/theme";
-import { filterCalendarEntries } from "./calendar-events";
+import { filterCalendarEntries, type CalendarEntry } from "./calendar-events";
 import { fetchCalendarRange } from "./calendar-actions";
 
 function calendarRoute(
@@ -25,8 +25,43 @@ export default function CalendarView() {
   const router = useRouter();
   const { theme } = useTheme();
   const [visible, setVisible] = useState({ event: true, task: true });
-  const [loading, setLoading] = useState(false);
+  const [entries, setEntries] = useState<CalendarEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const latestRequest = useRef(0);
+  const latestRange = useRef<string | null>(null);
+  const displayedEntries = filterCalendarEntries(entries, visible);
+
+  const loadVisibleRange = useCallback((info: { start: Date; end: Date }) => {
+    const start = info.start.toISOString();
+    const end = info.end.toISOString();
+    const rangeKey = `${start}/${end}`;
+    if (rangeKey === latestRange.current) return;
+    latestRange.current = rangeKey;
+    const requestId = ++latestRequest.current;
+
+    // FullCalendar may report a new range during its render lifecycle.
+    // Defer the action and React updates until after that lifecycle completes.
+    window.setTimeout(() => {
+      if (requestId !== latestRequest.current) return;
+      setEntries([]);
+      setLoading(true);
+      setLoadError(false);
+      void fetchCalendarRange(start, end)
+        .then((nextEntries) => {
+          if (requestId === latestRequest.current) setEntries(nextEntries);
+        })
+        .catch(() => {
+          if (requestId === latestRequest.current) {
+            setEntries([]);
+            setLoadError(true);
+          }
+        })
+        .finally(() => {
+          if (requestId === latestRequest.current) setLoading(false);
+        });
+    }, 0);
+  }, []);
 
   return (
     <div className="calendar-shell min-w-0 rounded-md border border-border bg-surface p-4">
@@ -62,6 +97,15 @@ export default function CalendarView() {
           page.
         </p>
       )}
+      {!loading && !loadError && displayedEntries.length === 0 && (
+        <p className="calendar-empty" role="status">
+          {entries.length === 0
+            ? "No Events or Task due dates yet."
+            : !visible.event && !visible.task
+              ? "Choose Events or Tasks to show entries."
+              : "No entries of the selected type."}
+        </p>
+      )}
       <FullCalendar
         plugins={[classicThemePlugin, dayGridPlugin]}
         initialView="dayGridMonth"
@@ -78,16 +122,8 @@ export default function CalendarView() {
         moreLinkClass="calendar-more"
         popoverClass="calendar-shell calendar-popover"
         popoverFormat={{ weekday: "long", month: "long", day: "numeric" }}
-        events={async (info: { start: Date; end: Date }) => {
-          setLoadError(false);
-          const entries = await fetchCalendarRange(
-            info.start.toISOString(),
-            info.end.toISOString(),
-          );
-          return filterCalendarEntries(entries, visible);
-        }}
-        loading={setLoading}
-        eventSourceFailure={() => setLoadError(true)}
+        datesSet={loadVisibleRange}
+        events={displayedEntries}
         eventTimeFormat={{
           hour: "numeric",
           minute: "2-digit",

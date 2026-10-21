@@ -9,6 +9,12 @@ import {
 const harness = vi.hoisted(() => ({
   options: {} as CalendarOptions,
   visible: { event: true, task: true },
+  entries: [] as unknown[],
+  loading: true,
+  loadError: false,
+  latestRequest: { current: 0 },
+  latestRange: { current: null as string | null },
+  loadVisibleRange: undefined as unknown,
   push: vi.fn(),
   fetchRange: vi.fn(),
 }));
@@ -25,7 +31,17 @@ vi.mock("react", async (importOriginal) => ({
             harness.visible = update(harness.visible);
           },
         ]
-      : [initial, vi.fn()],
+      : Array.isArray(initial)
+        ? [harness.entries, (next: unknown[]) => (harness.entries = next)]
+        : initial === true
+          ? [harness.loading, (next: boolean) => (harness.loading = next)]
+          : [harness.loadError, (next: boolean) => (harness.loadError = next)],
+  useRef: (initial: unknown) =>
+    initial === 0 ? harness.latestRequest : harness.latestRange,
+  useCallback: (callback: unknown) => {
+    harness.loadVisibleRange ??= callback;
+    return harness.loadVisibleRange;
+  },
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: harness.push }),
@@ -63,9 +79,18 @@ const entries = [
 
 beforeEach(() => {
   harness.visible = { event: true, task: true };
+  harness.entries = [];
+  harness.loading = true;
+  harness.loadError = false;
+  harness.latestRequest.current = 0;
+  harness.latestRange.current = null;
+  harness.loadVisibleRange = undefined;
   vi.clearAllMocks();
   harness.fetchRange.mockResolvedValue(entries);
   vi.unstubAllGlobals();
+  vi.stubGlobal("window", {
+    setTimeout: globalThis.setTimeout.bind(globalThis),
+  });
 });
 
 it("uses the desktop month view, Denver time, and a read-only calendar", () => {
@@ -89,38 +114,71 @@ it("uses the desktop month view, Denver time, and a read-only calendar", () => {
   expect(harness.options.colorScheme).toBe("light");
 });
 
-it("loads the visible range and applies the selected entry filters", async () => {
+it("loads each visible range once and filters loaded entries without refetching", async () => {
+  harness.entries = entries;
   const tree = CalendarView();
   // Exercise the actual checkbox callback, then render with the updated hook state.
   const labels = tree.props.children[0].props.children[0].props.children[1];
   labels[1].props.children[0].props.onChange({ target: { checked: false } });
   renderToStaticMarkup(<CalendarView />);
-  const eventSource = harness.options.events as (info: {
+  expect(harness.options.events).toEqual([entries[0]]);
+  const datesSet = harness.options.datesSet as (info: {
     start: Date;
     end: Date;
-  }) => Promise<typeof entries>;
-  expect(
-    await eventSource({
-      start: new Date("2026-10-01T06:00:00.000Z"),
-      end: new Date("2026-11-01T06:00:00.000Z"),
-    }),
-  ).toEqual([entries[0]]);
+  }) => void;
+  const octoberRange = {
+    start: new Date("2026-10-01T06:00:00.000Z"),
+    end: new Date("2026-11-01T06:00:00.000Z"),
+  };
+  datesSet(octoberRange);
+  await new Promise((resolve) => setTimeout(resolve, 10));
   expect(harness.fetchRange).toHaveBeenCalledWith(
     "2026-10-01T06:00:00.000Z",
     "2026-11-01T06:00:00.000Z",
   );
+  datesSet(octoberRange);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  expect(harness.fetchRange).toHaveBeenCalledTimes(1);
   labels[1].props.children[0].props.onChange({ target: { checked: true } });
   labels[0].props.children[0].props.onChange({ target: { checked: false } });
   renderToStaticMarkup(<CalendarView />);
-  expect(
-    await (
-      harness.options.events as (info: {
-        start: Date;
-        end: Date;
-      }) => Promise<typeof entries>
-    )({ start: new Date(), end: new Date(Date.now() + 1000) }),
-  ).toEqual([entries[1]]);
+  expect(harness.options.events).toEqual([entries[1]]);
+  expect(harness.fetchRange).toHaveBeenCalledTimes(1);
   expect(entries).toHaveLength(2);
+});
+
+it("ignores a late response from a range that is no longer visible", async () => {
+  let resolveOctober!: (value: typeof entries) => void;
+  let resolveNovember!: (value: typeof entries) => void;
+  harness.fetchRange
+    .mockImplementationOnce(
+      () => new Promise((resolve) => (resolveOctober = resolve)),
+    )
+    .mockImplementationOnce(
+      () => new Promise((resolve) => (resolveNovember = resolve)),
+    );
+  renderToStaticMarkup(<CalendarView />);
+  const datesSet = harness.options.datesSet as (info: {
+    start: Date;
+    end: Date;
+  }) => void;
+  datesSet({
+    start: new Date("2026-10-01T06:00:00.000Z"),
+    end: new Date("2026-11-01T06:00:00.000Z"),
+  });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  datesSet({
+    start: new Date("2026-11-01T06:00:00.000Z"),
+    end: new Date("2026-12-01T07:00:00.000Z"),
+  });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  resolveNovember([entries[1]]);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(harness.entries).toEqual([entries[1]]);
+  resolveOctober([entries[0]]);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(harness.entries).toEqual([entries[1]]);
+  expect(harness.loading).toBe(false);
 });
 
 it("renders type and time text and gives entry links an accessible full description", () => {
@@ -173,8 +231,11 @@ it("routes Event and Task clicks to canonical details and leaves URL-less entrie
 });
 
 it("explains disabled presentation filters", () => {
+  harness.entries = entries;
+  harness.loading = false;
   renderToStaticMarkup(<CalendarView />);
   harness.visible = { event: false, task: false };
-  renderToStaticMarkup(<CalendarView />);
-  expect(harness.options.events).toBeTypeOf("function");
+  const html = renderToStaticMarkup(<CalendarView />);
+  expect(html).toContain("Choose Events or Tasks to show entries.");
+  expect(harness.options.events).toEqual([]);
 });
