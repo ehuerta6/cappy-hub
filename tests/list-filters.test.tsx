@@ -233,6 +233,19 @@ beforeEach(() => {
         data: { participation_points_per_hour: 1 },
         error: null,
       });
+      query.maybeSingle = async () => {
+        record.calls.push(["maybeSingle"]);
+        const selectedId = record.calls.find(
+          ([method, column]) => method === "eq" && column === "id",
+        )?.[2];
+        return {
+          data:
+            rows.events?.find(
+              (event) => (event as { id: number }).id === selectedId,
+            ) ?? null,
+          error: null,
+        };
+      };
       query.then = (resolve: (value: unknown) => unknown) => {
         const head = record.calls.some(
           ([method, , opts]) =>
@@ -1437,6 +1450,14 @@ it("keeps the filtered Task page in returnTo and resets it on filter submission"
 
 it("keeps all Points capabilities with one GET form and preserves pagination filters", async () => {
   filteredCount = 60;
+  rows.events = [
+    {
+      id: -2001,
+      name: "Archived historical Event",
+      event_date: "2025-02-14",
+      deleted_at: "2025-03-01T00:00:00Z",
+    },
+  ];
   const params = {
     q: "Avery",
     type: "manual",
@@ -1455,19 +1476,16 @@ it("keeps all Points capabilities with one GET form and preserves pagination fil
   has(history, "gte", "activity_date", params.from);
   has(history, "lte", "activity_date", params.to);
   has(history, "not", "removed_at", "is", null);
-  const eventOptions = forTable("events").find((query) =>
+  const selectedEvent = forTable("events").find((query) =>
     query.calls.some(
       ([method, columns]) =>
         method === "select" && columns === "id,name,event_date",
     ),
   )!;
-  expect(eventOptions.calls).toContainEqual([
-    "order",
-    "event_date",
-    { ascending: false },
-  ]);
+  has(selectedEvent, "eq", "id", -2001);
+  expect(selectedEvent.calls).toContainEqual(["maybeSingle"]);
   expect(
-    eventOptions.calls.some(
+    selectedEvent.calls.some(
       ([method, column]) =>
         method === "is" ||
         (method === "eq" &&
@@ -1478,7 +1496,7 @@ it("keeps all Points capabilities with one GET form and preserves pagination fil
   ).toBe(false);
   expect(html).toContain('method="get"');
   expect(html).toContain("Officer #-1013 (name unavailable)");
-  expect(html).toContain("Event #-2001 (name unavailable)");
+  expect(html).toContain("Archived historical Event — Feb 14, 2025");
   expect(html).not.toContain('type="hidden" name="page"');
   expect(html).toContain(
     'data-return-to="/points?view=history&amp;q=Avery&amp;type=manual&amp;officer=-1013&amp;event=-2001&amp;status=removed&amp;from=2026-09-01&amp;to=2026-10-01&amp;page=2"',
