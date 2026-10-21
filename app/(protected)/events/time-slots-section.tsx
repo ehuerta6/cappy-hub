@@ -49,13 +49,14 @@ export default function TimeSlotsSection({
       ({ officer_id }) => officer_id === actorId,
     ),
   );
-  const availableToJoin = slots.filter(
-    (slot) =>
-      !slot.event_time_slot_officers.some(
-        ({ officer_id }) => officer_id === actorId,
-      ) &&
-      (slot.capacity === null ||
-        slot.event_time_slot_officers.length < slot.capacity),
+  const availableToJoin = slots.flatMap((slot, index) =>
+    !slot.event_time_slot_officers.some(
+      ({ officer_id }) => officer_id === actorId,
+    ) &&
+    (slot.capacity === null ||
+      slot.event_time_slot_officers.length < slot.capacity)
+      ? [{ ...slot, position: index + 1 }]
+      : [],
   );
   const allSelected = selected.length === slots.length;
   const fullUnselectedSlot = slots.find(
