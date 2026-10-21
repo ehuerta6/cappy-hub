@@ -10,21 +10,30 @@ const harness = vi.hoisted(() => ({
   options: {} as CalendarOptions,
   visible: { event: true, task: true },
   push: vi.fn(),
+  fetchRange: vi.fn(),
 }));
 
 vi.mock("react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react")>()),
-  useState: () => [
-    harness.visible,
-    (update: (current: typeof harness.visible) => typeof harness.visible) => {
-      harness.visible = update(harness.visible);
-    },
-  ],
+  useState: (initial: unknown) =>
+    typeof initial === "object" && initial !== null && "event" in initial
+      ? [
+          harness.visible,
+          (
+            update: (current: typeof harness.visible) => typeof harness.visible,
+          ) => {
+            harness.visible = update(harness.visible);
+          },
+        ]
+      : [initial, vi.fn()],
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: harness.push }),
 }));
 vi.mock("@/components/theme", () => ({ useTheme: () => ({ theme: "light" }) }));
+vi.mock("@/app/(protected)/calendar/calendar-actions", () => ({
+  fetchCalendarRange: harness.fetchRange,
+}));
 vi.mock("@fullcalendar/react", () => ({
   default: (options: CalendarOptions) => {
     harness.options = options;
@@ -55,11 +64,12 @@ const entries = [
 beforeEach(() => {
   harness.visible = { event: true, task: true };
   vi.clearAllMocks();
+  harness.fetchRange.mockResolvedValue(entries);
   vi.unstubAllGlobals();
 });
 
 it("uses the desktop month view, Denver time, and a read-only calendar", () => {
-  const html = renderToStaticMarkup(<CalendarView entries={entries} />);
+  const html = renderToStaticMarkup(<CalendarView />);
   expect(html).toContain("Show Calendar entries");
   expect(html.match(/checked=""/g)).toHaveLength(2);
   expect(harness.options.plugins).toEqual([
@@ -79,22 +89,42 @@ it("uses the desktop month view, Denver time, and a read-only calendar", () => {
   expect(harness.options.colorScheme).toBe("light");
 });
 
-it("the checkbox callbacks update transient state and display the selected entries", () => {
-  const tree = CalendarView({ entries });
+it("loads the visible range and applies the selected entry filters", async () => {
+  const tree = CalendarView();
   // Exercise the actual checkbox callback, then render with the updated hook state.
   const labels = tree.props.children[0].props.children[0].props.children[1];
   labels[1].props.children[0].props.onChange({ target: { checked: false } });
-  renderToStaticMarkup(<CalendarView entries={entries} />);
-  expect(harness.options.events).toEqual([entries[0]]);
+  renderToStaticMarkup(<CalendarView />);
+  const eventSource = harness.options.events as (info: {
+    start: Date;
+    end: Date;
+  }) => Promise<typeof entries>;
+  expect(
+    await eventSource({
+      start: new Date("2026-10-01T06:00:00.000Z"),
+      end: new Date("2026-11-01T06:00:00.000Z"),
+    }),
+  ).toEqual([entries[0]]);
+  expect(harness.fetchRange).toHaveBeenCalledWith(
+    "2026-10-01T06:00:00.000Z",
+    "2026-11-01T06:00:00.000Z",
+  );
   labels[1].props.children[0].props.onChange({ target: { checked: true } });
   labels[0].props.children[0].props.onChange({ target: { checked: false } });
-  renderToStaticMarkup(<CalendarView entries={entries} />);
-  expect(harness.options.events).toEqual([entries[1]]);
+  renderToStaticMarkup(<CalendarView />);
+  expect(
+    await (
+      harness.options.events as (info: {
+        start: Date;
+        end: Date;
+      }) => Promise<typeof entries>
+    )({ start: new Date(), end: new Date(Date.now() + 1000) }),
+  ).toEqual([entries[1]]);
   expect(entries).toHaveLength(2);
 });
 
 it("renders type and time text and gives entry links an accessible full description", () => {
-  renderToStaticMarkup(<CalendarView entries={entries} />);
+  renderToStaticMarkup(<CalendarView />);
   for (const entry of entries) {
     const info = { event: entry, timeText: "5pm" };
     const content = (
@@ -116,7 +146,7 @@ it("renders type and time text and gives entry links an accessible full descript
 });
 
 it("routes Event and Task clicks to canonical details and leaves URL-less entries alone", () => {
-  renderToStaticMarkup(<CalendarView entries={entries} />);
+  renderToStaticMarkup(<CalendarView />);
   const preventDefault = vi.fn();
   for (const event of entries)
     (harness.options.eventClick as (info: unknown) => void)({
@@ -142,13 +172,9 @@ it("routes Event and Task clicks to canonical details and leaves URL-less entrie
   expect(harness.push).toHaveBeenCalledTimes(2);
 });
 
-it("explains empty data and disabled presentation filters", () => {
-  expect(renderToStaticMarkup(<CalendarView entries={[]} />)).toContain(
-    "No Events or Task due dates yet.",
-  );
+it("explains disabled presentation filters", () => {
+  renderToStaticMarkup(<CalendarView />);
   harness.visible = { event: false, task: false };
-  expect(renderToStaticMarkup(<CalendarView entries={entries} />)).toContain(
-    "Choose Events or Tasks to show entries.",
-  );
-  expect(harness.options.events).toEqual([]);
+  renderToStaticMarkup(<CalendarView />);
+  expect(harness.options.events).toBeTypeOf("function");
 });

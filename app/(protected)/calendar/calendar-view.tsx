@@ -7,7 +7,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { useTheme } from "@/components/theme";
-import { filterCalendarEntries, type CalendarEntry } from "./calendar-events";
+import { filterCalendarEntries } from "./calendar-events";
+import { fetchCalendarRange } from "./calendar-actions";
 
 function calendarRoute(
   url: string,
@@ -20,15 +21,12 @@ function calendarRoute(
   return undefined;
 }
 
-export default function CalendarView({
-  entries,
-}: {
-  entries: CalendarEntry[];
-}) {
+export default function CalendarView() {
   const router = useRouter();
   const { theme } = useTheme();
   const [visible, setVisible] = useState({ event: true, task: true });
-  const displayedEntries = filterCalendarEntries(entries, visible);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   return (
     <div className="calendar-shell min-w-0 rounded-md border border-border bg-surface p-4">
@@ -53,13 +51,15 @@ export default function CalendarView({
         </fieldset>
         <p className="text-xs">Event times · America/Denver</p>
       </div>
-      {displayedEntries.length === 0 && (
+      {loading && (
         <p className="calendar-empty" role="status">
-          {entries.length === 0
-            ? "No Events or Task due dates yet."
-            : !visible.event && !visible.task
-              ? "Choose Events or Tasks to show entries."
-              : "No entries of the selected type."}
+          Loading Calendar entries.
+        </p>
+      )}
+      {loadError && (
+        <p className="calendar-empty" role="alert">
+          Could not load Calendar entries. Try another month or refresh the
+          page.
         </p>
       )}
       <FullCalendar
@@ -78,7 +78,16 @@ export default function CalendarView({
         moreLinkClass="calendar-more"
         popoverClass="calendar-shell calendar-popover"
         popoverFormat={{ weekday: "long", month: "long", day: "numeric" }}
-        events={displayedEntries}
+        events={async (info: { start: Date; end: Date }) => {
+          setLoadError(false);
+          const entries = await fetchCalendarRange(
+            info.start.toISOString(),
+            info.end.toISOString(),
+          );
+          return filterCalendarEntries(entries, visible);
+        }}
+        loading={setLoading}
+        eventSourceFailure={() => setLoadError(true)}
         eventTimeFormat={{
           hour: "numeric",
           minute: "2-digit",

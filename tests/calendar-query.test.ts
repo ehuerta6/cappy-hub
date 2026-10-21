@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   CALENDAR_QUERY_PAGE_SIZE,
   fetchAllCalendarPages,
+  fetchCalendarRecordsForRange,
 } from "@/app/(protected)/calendar/calendar-query";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/database.types";
 
 describe("calendar query pagination", () => {
   it.each([
@@ -56,5 +59,74 @@ describe("calendar query pagination", () => {
     await expect(
       fetchAllCalendarPages(async () => ({ data: null, error: null })),
     ).rejects.toThrow("Failed to load calendar entries");
+  });
+
+  it("queries the visible interval with overlap semantics and complete pagination", async () => {
+    const calls: Array<{ table: string; method: string; args: unknown[] }> = [];
+    const fixture = {
+      events: Array.from({ length: 503 }, (_, id) => ({ id })),
+      tasks: Array.from({ length: 2 }, (_, id) => ({ id })),
+    };
+    const client = {
+      from(table: "events" | "tasks") {
+        const builder = {
+          select: (...args: unknown[]) => record("select", ...args),
+          is: (...args: unknown[]) => record("is", ...args),
+          neq: (...args: unknown[]) => record("neq", ...args),
+          lt: (...args: unknown[]) => record("lt", ...args),
+          gt: (...args: unknown[]) => record("gt", ...args),
+          gte: (...args: unknown[]) => record("gte", ...args),
+          order: (...args: unknown[]) => record("order", ...args),
+          range: async (from: number, to: number) => {
+            calls.push({ table, method: "range", args: [from, to] });
+            const rows = fixture[table].slice(from, to + 1);
+            return { data: rows, error: null };
+          },
+        };
+        function record(method: string, ...args: unknown[]) {
+          calls.push({ table, method, args });
+          return builder;
+        }
+        return builder;
+      },
+    } as unknown as SupabaseClient<Database>;
+
+    const [events, tasks] = await fetchCalendarRecordsForRange(client, {
+      start: "2026-03-01T07:00:00.000Z",
+      end: "2026-04-05T06:00:00.000Z",
+      startDate: "2026-03-01",
+      endDate: "2026-04-05",
+    });
+
+    expect(events).toHaveLength(503);
+    expect(tasks).toHaveLength(2);
+    expect(calls).toContainEqual({
+      table: "events",
+      method: "lt",
+      args: ["starts_at", "2026-04-05T06:00:00.000Z"],
+    });
+    expect(calls).toContainEqual({
+      table: "events",
+      method: "gt",
+      args: ["ends_at", "2026-03-01T07:00:00.000Z"],
+    });
+    expect(calls).toContainEqual({
+      table: "tasks",
+      method: "gte",
+      args: ["due_date", "2026-03-01"],
+    });
+    expect(calls).toContainEqual({
+      table: "tasks",
+      method: "lt",
+      args: ["due_date", "2026-04-05"],
+    });
+    expect(
+      calls.filter(
+        (call) => call.table === "events" && call.method === "range",
+      ),
+    ).toEqual([
+      { table: "events", method: "range", args: [0, 499] },
+      { table: "events", method: "range", args: [500, 999] },
+    ]);
   });
 });
