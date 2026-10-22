@@ -77,6 +77,11 @@ describe.skipIf(!enabled)("CAPPYHUB TEST Calendar publication", () => {
         "No eligible synthetic Events found. Run `npm run local:reset` first.",
       );
     const eventIds = events.map((event) => event.id);
+    const syncSequentially = async () => {
+      for (const eventId of eventIds) {
+        expect(await syncGoogleCalendarEvents([eventId], supabase)).toBe(true);
+      }
+    };
     expect(
       events.filter((event) => event.name === "Mock: Weekly Coding Workshop"),
     ).toHaveLength(2);
@@ -86,7 +91,7 @@ describe.skipIf(!enabled)("CAPPYHUB TEST Calendar publication", () => {
     const { token: readToken } = await readClient.getAccessToken();
     if (!readToken) throw new Error("Google ADC returned no read token");
     const calendarResponse = await fetch(
-      `https://www.googleapis.com/calendar/v3/users/me/calendarList/${encodeURIComponent(calendarId)}`,
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}`,
       { headers: { Authorization: `Bearer ${readToken}` } },
     );
     if (!calendarResponse.ok)
@@ -94,27 +99,28 @@ describe.skipIf(!enabled)("CAPPYHUB TEST Calendar publication", () => {
         `Could not verify test calendar (HTTP ${calendarResponse.status})`,
       );
     const calendar = (await calendarResponse.json()) as {
+      id?: string;
       summary?: string;
-      accessRole?: string;
     };
+    if (calendar.id !== calendarId)
+      throw new Error("Configured Google calendar ID did not match target");
     if (calendar.summary !== "CAPPYHUB TEST")
       throw new Error("Configured Google calendar is not named CAPPYHUB TEST");
-    if (calendar.accessRole !== "writer" && calendar.accessRole !== "owner")
-      throw new Error(
-        "Impersonated ADC identity does not have calendar write access",
-      );
+    // A shared calendar can be directly accessible without appearing in the
+    // impersonated account's calendarList. The actual Event upsert below
+    // verifies writer access without changing that list or calendar ACL.
 
     const eventAccessToken = await googleCalendarAccessToken(calendarId);
-    expect(await syncGoogleCalendarEvents(eventIds, supabase)).toBe(true);
+    await syncSequentially();
     await verifyReadBack(events, calendarId, appUrl, eventAccessToken);
 
     // A second publication must update the same deterministic IDs.
-    expect(await syncGoogleCalendarEvents(eventIds, supabase)).toBe(true);
+    await syncSequentially();
     await verifyReadBack(events, calendarId, appUrl, eventAccessToken);
     console.info(
       `Published and verified ${events.length} eligible synthetic Event occurrences in CAPPYHUB TEST.`,
     );
-  });
+  }, 120_000);
 
   async function verifyReadBack(
     events: Array<{
@@ -163,7 +169,7 @@ describe.skipIf(!enabled)("CAPPYHUB TEST Calendar publication", () => {
         Date.parse(expected.end.dateTime),
       );
       expect(actual.end.timeZone).toBe("America/Denver");
-      expect(actual.transparency).toBe(expected.transparency);
+      expect(actual.transparency ?? "opaque").toBe(expected.transparency);
       expect(actual.attendees).toBeUndefined();
     }
   }
