@@ -4,11 +4,5 @@
     "deploymentEnabled": {
       "main": false
     }
-  },
-  "crons": [
-    {
-      "path": "/api/cron/google-calendar",
-      "schedule": "* * * * *"
-    }
-  ]
+  }
 }

@@ -84,9 +84,6 @@ try {
     )
     .sort();
   for (const migration of followupMigrations) {
-    if (migration === "20261022110000_google_calendar_event_sync.sql") {
-      psql(readFileSync("supabase/fixtures/pre-google-calendar-sync.sql"));
-    }
     if (migration.endsWith("_stable_officer_actor_attribution.sql")) {
       psql(
         readFileSync("supabase/fixtures/pre-stable-officer-attribution.sql"),

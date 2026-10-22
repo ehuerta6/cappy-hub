@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
 import {
   buildGoogleCalendarEvent,
   googleCalendarEventId,
@@ -9,7 +10,7 @@ import {
   GoogleCalendarApi,
   GoogleCalendarApiError,
 } from "@/lib/google-calendar-api";
-import { syncGoogleCalendarJob } from "@/lib/google-calendar-sync";
+import { syncGoogleCalendarEvent } from "@/lib/google-calendar-sync";
 
 const event: CalendarMirrorEvent = {
   id: 42,
@@ -272,13 +273,11 @@ describe("Google Calendar API operations", () => {
         : Response.json({}, { headers: { ETag: '"v2"' } }),
     );
     const calendar = new GoogleCalendarApi("token", "test-calendar", request);
-    await syncGoogleCalendarJob(
-      { event_id: event.id, revision: 8 },
-      {
-        loadEvent: async () => event,
-        calendar,
-        calendarAppUrl: "https://cappy.example",
-      },
+    await syncGoogleCalendarEvent(
+      event.id,
+      event,
+      calendar,
+      "https://cappy.example",
     );
     expect(request.mock.calls.map(([, init]) => init?.method)).toEqual([
       "GET",

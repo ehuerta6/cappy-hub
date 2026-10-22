@@ -2,6 +2,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { createElement, useActionState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
+vi.mock("server-only", () => ({}));
 vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
   useActionState: vi.fn(),

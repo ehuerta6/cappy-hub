@@ -3,14 +3,6 @@ create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 select no_plan();
 
-select results_eq(
-  $$select event_id from private.google_calendar_event_sync where event_id between -29290 and -29288 order by event_id$$,
-  $$values (-29289::bigint),(-29290::bigint) order by 1$$,
-  'activation backfill includes upcoming Events across type and branch while excluding past Events');
-select ok((select bool_and(needs_sync) from private.google_calendar_event_sync
-  where event_id in (-29290,-29289)),
-  'activation backfill leaves each eligible Event ready to publish');
-
 select is(to_regclass('public.event_waitlist')::text,null::text,
   'operational Waitlist table is removed after the contract migration');
 select results_eq(

@@ -51,44 +51,18 @@ begin
 end $$;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000681',true);
 select pg_temp.fixture('event-fields','event');
-create temporary table event_mirror_snapshot as
- select q.event_id,q.revision from private.google_calendar_event_sync q
- where q.event_id in (select unnest(ids) from pg_temp.fixtures where label='event-fields');
-select is((select count(*) from event_mirror_snapshot),3::bigint,
- 'recurring Event creation queues each occurrence separately');
 insert into event_officers values(pg_temp.id('event-fields',1),-683),(pg_temp.id('event-fields',2),-683);
 set local role authenticated;
 select lives_ok($$select pg_temp.mutate('event-fields',2,'occurrence','edit','{"name":"Only second","event_date":"2099-03-20","start_time":"12:00","end_time":"13:00"}')$$,'Event occurrence edit');
-reset role;
-select is((select revision from private.google_calendar_event_sync where event_id=pg_temp.id('event-fields',2)),
- (select revision+1 from event_mirror_snapshot where event_id=pg_temp.id('event-fields',2)),
- 'editing one recurring occurrence queues only that Google Calendar Event');
-select is((select revision from private.google_calendar_event_sync where event_id=pg_temp.id('event-fields',1)),
- (select revision from event_mirror_snapshot where event_id=pg_temp.id('event-fields',1)),
- 'editing one occurrence does not queue its earlier sibling');
-set local role authenticated;
 select is((select name from events where id=pg_temp.id('event-fields',1)),'event-fields','Event sibling details unchanged');
 select is((select event_date::text from events where id=pg_temp.id('event-fields',2)),'2099-03-20','single Event date is an exception');
 select is((select recurrence_key::text from events where id=pg_temp.id('event-fields',2)),'2099-03-07','single edit preserves original recurrence identity');
 select lives_ok($$select cancel_event(pg_temp.id('event-fields',3))$$,'prepare cancelled sibling');
 select lives_ok($$select pg_temp.mutate('event-fields',2,'following','edit','{"location":"New room"}')$$,'following Event metadata edit');
-reset role;
-select is((select revision from private.google_calendar_event_sync where event_id=pg_temp.id('event-fields',3)),
- (select revision+2 from event_mirror_snapshot where event_id=pg_temp.id('event-fields',3)),
- 'editing following recurring occurrences queues each later Event');
-select is((select revision from private.google_calendar_event_sync where event_id=pg_temp.id('event-fields',1)),
- (select revision from event_mirror_snapshot where event_id=pg_temp.id('event-fields',1)),
- 'editing following occurrences leaves earlier Event sync state unchanged');
-set local role authenticated;
 select is((select location from events where id=pg_temp.id('event-fields',1)),'Campus','earlier Event location untouched');
 select is((select location from events where id=pg_temp.id('event-fields',3)),'New room','following includes later cancelled Event');
 select is((select status from events where id=pg_temp.id('event-fields',3)),'cancelled','cancelled state preserved during edit');
 select lives_ok($$select pg_temp.mutate('event-fields',1,'series','edit','{"description":"Shared details"}')$$,'whole-series Event metadata edit');
-reset role;
-select ok((select bool_and(q.revision>s.revision) from private.google_calendar_event_sync q
- join event_mirror_snapshot s using(event_id)),
- 'whole-series Event edits queue every occurrence for Google Calendar');
-set local role authenticated;
 select is((select name from events where id=pg_temp.id('event-fields',2)),'Only second','unsubmitted Event override preserved');
 select is((select count(*) from event_officers where event_id in (select unnest(ids) from pg_temp.fixtures where label='event-fields')),2::bigint,'all Event signups preserved');
 select lives_ok($$select pg_temp.mutate('event-fields',2,'occurrence','remove')$$,'individual Event removal');

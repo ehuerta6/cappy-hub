@@ -8,6 +8,8 @@ The separate [`docs/design.md`](../design.md) is the authority for visual and in
 
 Cappy Hub is Coding Interview Club's internal administrative application. It provides structured workflows for Officers, Events, Tasks, participation Points, Warnings, and related administration. The Dashboard summarizes those workflows; it is not an independent analytics or workflow system.
 
+Cappy Hub serves fewer than 50 Officers. Prefer existing infrastructure and free-tier services; do not add paid services without explicit approval. Favor simple, maintainable solutions proportional to actual requirements. This scale informs architecture but never weakens security, authorization, or data integrity, and does not justify artificial limits on database records or future growth.
+
 Google Drive remains CIC's collaborative file system. Discord remains its primary communication platform. Cappy Hub may store links to external files, but it does not copy or synchronize their contents. Native Cappy Hub records remain authoritative for the workflows represented in the application.
 
 ## 2. Product status convention
@@ -197,7 +199,7 @@ The following rules are enforced, or must be enforced where indicated, at a trus
 
 ### Google Calendar Event mirror — Issue #29
 
-**Planned / accepted; not shipped on current `main`.** Cappy Hub is authoritative; the existing private CIC Google Calendar is a one-way mirror of every eligible Event occurrence, across types and Branches. Initial activation includes upcoming and happening Events. Create, edit, cancellation/restoration, archive/restoration, and recurring occurrence changes update the same logical Google event. Cancelled Events remain visible and free; archived Events are removed. The mirror contains Event name, America/Denver date and time, location, the general Event description, and a protected Cappy Hub link. It never includes signups, attendees, other resource links, internal notes, Points, audit data, or Tasks. Signup and withdrawal do not synchronize. Google-side changes never edit Cappy Hub. Calendar sharing remains CIC's responsibility; production activation requires authorized server-side write access.
+**Planned / accepted; not shipped on current `main`.** Cappy Hub is authoritative; the existing private CIC Google Calendar is a one-way mirror of every eligible Event occurrence, across types and Branches. Initial activation includes upcoming and happening Events through a one-time explicit activation procedure. Create, edit, cancellation/restoration, archive/restoration, and recurring occurrence changes update the same logical Google event. Cancelled Events remain visible and free; archived Events are removed. The mirror contains Event name, America/Denver date and time, location, the general Event description, and a protected Cappy Hub link. It never includes signups, attendees, other resource links, internal notes, Points, audit data, or Tasks. Signup and withdrawal do not synchronize. Google-side changes never edit Cappy Hub. Event mutations commit before direct server-side Google API calls. A Google failure leaves the Cappy Hub change saved and shows a warning; there is no automatic retry, and a later normal Event modification may update the mirror. Calendar sharing remains CIC's responsibility; production activation requires authorized server-side write access.
 
 ## 16. Audit and history expectations
 

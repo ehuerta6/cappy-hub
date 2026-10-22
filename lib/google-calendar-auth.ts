@@ -5,8 +5,22 @@ import { ExternalAccountClient, GoogleAuth } from "google-auth-library";
 
 const calendarScope = "https://www.googleapis.com/auth/calendar.events";
 
-export async function googleCalendarAccessToken(): Promise<string> {
+export function googleCalendarSyncEnabled(): boolean {
+  if (process.env.VERCEL === "1")
+    return process.env.VERCEL_ENV === "production";
+  return (
+    process.env.NODE_ENV !== "production" &&
+    process.env.CI !== "true" &&
+    process.env.CAPPYHUB_GOOGLE_CALENDAR_TEST_OPT_IN === "true"
+  );
+}
+
+export async function googleCalendarAccessToken(
+  calendarId: string,
+): Promise<string> {
   if (process.env.VERCEL === "1") {
+    if (process.env.VERCEL_ENV !== "production")
+      throw new Error("Google Calendar writes are disabled outside Production");
     const projectNumber = required("GCP_PROJECT_NUMBER");
     const poolId = required("GCP_WORKLOAD_IDENTITY_POOL_ID");
     const providerId = required("GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID");
@@ -29,6 +43,18 @@ export async function googleCalendarAccessToken(): Promise<string> {
     if (!token)
       throw new Error("Google workload identity returned no access token");
     return token;
+  }
+
+  if (
+    process.env.NODE_ENV === "production" ||
+    process.env.CI === "true" ||
+    process.env.CAPPYHUB_GOOGLE_CALENDAR_TEST_OPT_IN !== "true" ||
+    !process.env.CAPPYHUB_TEST_CALENDAR_ID?.trim() ||
+    calendarId !== process.env.CAPPYHUB_TEST_CALENDAR_ID.trim()
+  ) {
+    throw new Error(
+      "Local Google Calendar writes require explicit test opt-in",
+    );
   }
 
   const auth = new GoogleAuth({ scopes: [calendarScope] });

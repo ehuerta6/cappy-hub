@@ -12,6 +12,9 @@ vi.mock("@/lib/authorization", () => ({
       branches.some((branchId) => actor.branchIds?.includes(branchId))),
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("@/lib/google-calendar-sync", () => ({
+  syncGoogleCalendarEvents: vi.fn().mockResolvedValue(true),
+}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 
@@ -19,8 +22,11 @@ import { redirect } from "next/navigation";
 import { getAuthorizationContext } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { syncGoogleCalendarEvents } from "@/lib/google-calendar-sync";
 import {
   bulkAddEventOfficers,
+  cancelEvent,
+  removeEvent,
   restoreEvent,
   restoreEventArchive,
   saveEvent,
@@ -33,7 +39,27 @@ const from = vi.fn(() => {
   const query = {
     select: () => query,
     eq: () => query,
-    maybeSingle: async () => ({ data: null, error: null }),
+    in: () => query,
+    maybeSingle: async () => ({
+      data: {
+        recurrence_series_id: 3,
+        recurrence_key: "2026-10-12",
+      },
+      error: null,
+    }),
+    single: async () => ({
+      data: { recurrence_series_id: 3 },
+      error: null,
+    }),
+    then: (resolve: (value: unknown) => unknown) =>
+      Promise.resolve({
+        data: [
+          { id: 12, recurrence_key: "2026-10-12" },
+          { id: 13, recurrence_key: "2026-10-13" },
+          { id: 14, recurrence_key: "2026-10-14" },
+        ],
+        error: null,
+      }).then(resolve),
   };
   return query;
 });
@@ -63,6 +89,7 @@ const eventForm = () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(syncGoogleCalendarEvents).mockResolvedValue(true);
   vi.mocked(getAuthorizationContext).mockResolvedValue({ id: 8 } as never);
   vi.mocked(createClient).mockResolvedValue({ rpc, from } as never);
   rpc.mockResolvedValue({
@@ -113,6 +140,40 @@ it("restores an archived Event through the archive restore RPC", async () => {
     success: "Event restored",
   });
   expect(rpc).toHaveBeenCalledWith("restore_event_archive", { p_event_id: 12 });
+  expect(syncGoogleCalendarEvents).toHaveBeenCalledWith(
+    [12],
+    expect.anything(),
+  );
+});
+
+it("cancels an Event before mirroring its canonical state", async () => {
+  const data = new FormData();
+  data.set("event_id", "12");
+
+  expect(await cancelEvent({ error: "", success: "" }, data)).toEqual({
+    error: "",
+    success: "Event cancelled",
+  });
+  expect(rpc).toHaveBeenCalledWith("cancel_event", { p_event_id: 12 });
+  expect(syncGoogleCalendarEvents).toHaveBeenCalledWith(
+    [12],
+    expect.anything(),
+  );
+});
+
+it("archives an Event before deleting its Google representation", async () => {
+  const data = new FormData();
+  data.set("event_id", "12");
+
+  expect(await removeEvent({ error: "", success: "" }, data)).toEqual({
+    error: "",
+    success: "Event archived",
+  });
+  expect(rpc).toHaveBeenCalledWith("remove_event", { p_event_id: 12 });
+  expect(syncGoogleCalendarEvents).toHaveBeenCalledWith(
+    [12],
+    expect.anything(),
+  );
 });
 
 it("rejects malformed Event input before calling the RPC", async () => {
@@ -161,6 +222,31 @@ it("sends validated Event fields to the existing RPC", async () => {
   expect(redirect).toHaveBeenCalledWith(
     "/events/12?returnTo=%2Fevents%3Fq%3Dmeeting%26branch%3D2&feedback=event-saved",
   );
+});
+
+it("saves an Event before reporting that Google Calendar could not be updated", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 8,
+    positionName: "President",
+    positionCode: "president",
+  } as never);
+  rpc.mockResolvedValueOnce({ data: 42, error: null });
+  vi.mocked(syncGoogleCalendarEvents).mockResolvedValueOnce(false);
+
+  const result = await saveEvent({ error: "", success: "" }, eventForm());
+
+  expect(rpc).toHaveBeenCalledWith(
+    "save_event_with_capacity_and_time_slots",
+    expect.objectContaining({ p_event_id: undefined }),
+  );
+  expect(syncGoogleCalendarEvents).toHaveBeenCalledWith(
+    [42],
+    expect.anything(),
+  );
+  expect(result.error).toBe(
+    "Cappy Hub saved this Event, but Google Calendar could not be updated.",
+  );
+  expect(redirect).not.toHaveBeenCalled();
 });
 
 it("uses per-slot capacity instead of Event capacity for a slotted Event", async () => {
@@ -294,6 +380,7 @@ it("self signup derives identity on the server and revalidates the grouped page"
     p_remove: false,
   });
   expect(result.error).toBe("");
+  expect(syncGoogleCalendarEvents).not.toHaveBeenCalled();
   expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
 });
 
@@ -336,6 +423,10 @@ it.each(["occurrence", "following", "series"] as const)(
     );
     expect(rpc).not.toHaveBeenCalledWith(
       "save_event_with_links",
+      expect.anything(),
+    );
+    expect(syncGoogleCalendarEvents).toHaveBeenCalledWith(
+      scope === "occurrence" ? [12] : [12, 13, 14],
       expect.anything(),
     );
   },
