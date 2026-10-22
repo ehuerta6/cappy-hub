@@ -77,9 +77,9 @@ Project-specific requirements, repository documentation, and explicit user decis
 
 ## Testing policy
 
-- Cappy Hub does not use automated browser testing in local development, GitHub Actions, CI/CD, or deployment validation. Do not install, launch, or configure browsers for automated checks, and do not generate screenshots automatically.
+- Use agent-driven interactive browser validation against the local application with synthetic data when it materially improves confidence in UI interaction, navigation, client state, asynchronous behavior, or visual changes. Existing supported browser-control tools may be used for real interactions and temporary console, network, or performance inspection. Do not require browser validation for every PR or generate persistent screenshots automatically.
+- Do not add browser-testing dependencies, committed E2E suites, CI/CD or deployment browser automation, or unapproved global browser configuration. Never use production data/accounts or automate production administrative workflows. Preview and Production smoke checks remain HTTP-only.
 - Use Vitest, PostgreSQL/pgTAP, migration and upgrade checks, authorization/RLS and integration tests, ESLint, Prettier, TypeScript, and production builds where applicable.
-- Keep Preview and Production smoke checks HTTP-only. Manual visual review is supported.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

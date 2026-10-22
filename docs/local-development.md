@@ -47,13 +47,11 @@ These synthetic accounts are created only by the local setup/reset workflow. Nev
 
 The remaining seeded records cover past, upcoming, happening, cancelled, removed, and Session Events; Point awards, corrections, and removals; warning approval states; and Tasks with no assignee, one or several assignees, completed assignments, and due-date awards. Run `npm run local:reset` to restore these examples after changing local data.
 
-## Visual review and automated testing
+## Local UI validation and automated testing
 
-Cappy Hub does not use automated browser testing in local development, GitHub Actions, CI/CD, or deployment validation. Do not install, launch, or configure browsers for automated checks, and do not generate screenshots automatically. This includes Playwright and browser-based accessibility checks.
+When it materially improves confidence, an agent may use an already available supported browser-control tool for focused interactive validation of the local application with synthetic data. This is ad hoc automated browser interaction, not a permanent E2E suite. Use real clicks and controls, and inspect temporary console, network, or performance information as needed. Do not require it for every PR. Reuse the current local database when possible; `npm run local:reset` is destructive, so check whether its state must be preserved before using it. See [Rebuild local from scratch](#rebuild-local-from-scratch).
 
-Use the existing Vitest, PostgreSQL/pgTAP, migration, authorization, lint, format, type, and production build checks where applicable. Preview and Production smoke checks remain HTTP-only. Manual visual review is supported. Screenshots may be attached directly to Pull Requests when they help reviewers understand a UI change.
-
-For local interactive development, `npm run local:reset` prepares synthetic data and local Auth accounts. It is destructive to the local database; see [Rebuild local from scratch](#rebuild-local-from-scratch) before using it.
+Do not add browser dependencies, committed E2E suites, CI/CD or deployment browser automation, or unapproved global browser configuration. Never use production data/accounts or automate production administrative workflows. Do not generate persistent screenshots automatically; temporary captures or observations may help during a specific investigation. Preview and Production smoke checks remain HTTP-only. Use the existing Vitest, PostgreSQL/pgTAP, migration, authorization, lint, format, type, and production build checks where applicable.
 
 ## Daily development
 

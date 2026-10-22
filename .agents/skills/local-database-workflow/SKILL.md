@@ -29,7 +29,7 @@ npm run local:reset
 
 This starts the full stack, replays migrations, loads synthetic `supabase/seed.sql`, creates local Auth accounts, links synthetic Officers, and updates `.env.local`.
 
-Automated browser testing is not part of Cappy Hub's supported workflow. Do not install, launch, or configure browsers for automated tests or screenshot generation. Manual visual review is supported. Preview and Production smoke checks remain HTTP-only.
+Focused agent-driven interactive browser validation of the local application is supported when it materially improves confidence; use existing browser-control tooling and synthetic local data. Do not add browser dependencies, permanent E2E suites, or CI/deployment browser automation. Preview and Production smoke checks remain HTTP-only. See `docs/local-development.md` for the policy and local UI workflow.
 
 `db:reset` → migrations-only DB → correct for `npm test` / pgTAP.
 `local:reset` → seeded DB plus Auth accounts → correct for local app development and manual review.

@@ -132,7 +132,7 @@ Before considering implementation complete:
 - confirm no unrequested behavior was added;
 - confirm the implementation remains within Issue scope.
 
-Cappy Hub does not use automated browser testing. Do not install, launch, or configure browsers for automated checks or generate screenshots automatically. Use the project's configured tests and HTTP checks; manual visual review follows `docs/local-development.md`. If an interactive path cannot be exercised, report that gap and the available evidence.
+Focused agent-driven browser interaction with an already available tool is allowed against the local synthetic application when it materially improves confidence; it is ad hoc validation, not a permanent E2E suite. Do not add browser dependencies or suites, browser automation to CI/CD or deployment, or automatic persistent screenshots. Keep Preview and Production smoke checks HTTP-only and do not automate production administrative workflows. Follow `docs/local-development.md`. If an interactive path cannot be exercised, report that gap and the available evidence.
 
 Then use `verify-change`.
 
