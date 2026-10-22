@@ -1,7 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
 import type { Database } from "@/lib/database.types";
-import { fetchCalendarRecords } from "@/app/(protected)/calendar/calendar-query";
+import {
+  fetchCalendarRecords,
+  fetchCalendarRecordsForRange,
+} from "@/app/(protected)/calendar/calendar-query";
 
 const postgrestUrl = process.env.CALENDAR_POSTGREST_API_URL;
 const serviceRoleKey = process.env.CALENDAR_POSTGREST_SERVICE_KEY;
@@ -147,6 +150,22 @@ describePostgrest(
           eventRows.map(({ name }) => name),
         );
         expect(matchingTasks.map(({ title }) => title)).toEqual(
+          taskRows.map(({ title }) => title),
+        );
+
+        const [rangeEvents, rangeTasks] = await fetchCalendarRecordsForRange(
+          supabase,
+          {
+            start: "2099-10-08T06:00:00.000Z",
+            end: "2099-10-09T06:00:00.000Z",
+            startDate: "2099-10-08",
+            endDate: "2099-10-09",
+          },
+        );
+        expect(rangeEvents.map(({ name }) => name)).toEqual(
+          eventRows.map(({ name }) => name),
+        );
+        expect(rangeTasks.map(({ title }) => title)).toEqual(
           taskRows.map(({ title }) => title),
         );
       } finally {
