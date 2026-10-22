@@ -16,7 +16,7 @@ export function createGoogleCalendarSyncStore(): CalendarSyncStore {
   const client = createClient<Database>(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const rpc = client.rpc as unknown as (
+  const rpc = client.rpc.bind(client) as unknown as (
     name: string,
     args: Record<string, unknown>,
   ) => Promise<RpcResult>;

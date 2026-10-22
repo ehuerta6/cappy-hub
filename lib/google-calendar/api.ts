@@ -42,15 +42,8 @@ export class GoogleCalendarApi {
     );
     if (calendar.id !== this.options.calendarId)
       throw new GoogleCalendarApiError(403, "calendar_identity_mismatch");
-    const entry = await this.request<{ id?: string; accessRole?: string }>(
-      "GET",
-      `/users/me/calendarList/${encodeURIComponent(this.options.calendarId)}`,
-    );
-    if (
-      entry.id !== this.options.calendarId ||
-      !["writer", "owner"].includes(entry.accessRole ?? "")
-    )
-      throw new GoogleCalendarApiError(403, "calendar_write_access_required");
+    // A shared calendar need not have a CalendarList entry for the Service
+    // Account. Actual writer access is proven by the Event create/update calls.
   }
 
   async upsert(

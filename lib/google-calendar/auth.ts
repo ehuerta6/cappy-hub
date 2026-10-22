@@ -10,7 +10,7 @@ export async function createLocalGoogleCalendarApi() {
   const auth = new GoogleAuth({
     scopes: [
       "https://www.googleapis.com/auth/calendar.events",
-      "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+      "https://www.googleapis.com/auth/calendar.calendars.readonly",
     ],
   });
   const client = await auth.getClient();

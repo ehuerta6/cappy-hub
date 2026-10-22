@@ -80,10 +80,13 @@ export async function runGoogleCalendarApiSmokeTest(calendar: SmokeCalendar) {
     if (updated.status !== "synced")
       throw new Error("Synthetic smoke Event update was superseded");
     const modifiedReadBack = await calendar.readOwnedEvent(eventId, marker);
+    const actualStartMs = Date.parse(modifiedReadBack?.start?.dateTime ?? "");
+    const expectedStartMs = Date.parse(modified.start.dateTime);
     if (
       !modifiedReadBack ||
       modifiedReadBack.summary !== modified.summary ||
-      modifiedReadBack.start?.dateTime !== modified.start.dateTime
+      // Google Calendar serializes event times to whole-second precision.
+      Math.floor(actualStartMs / 1000) !== Math.floor(expectedStartMs / 1000)
     )
       throw new Error("Synthetic smoke Event modification did not persist");
 

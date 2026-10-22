@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { GoogleCalendarApi } from "@/lib/google-calendar/api";
 import { runGoogleCalendarApiSmokeTest } from "@/lib/google-calendar/smoke";
 import type { GoogleEventProjection } from "@/lib/google-calendar/projection";
@@ -27,6 +27,10 @@ function jsonResponse(value: unknown, status = 200, headers?: HeadersInit) {
     },
   });
 }
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 function googleEvent(generation = "3", etag = '"v3"') {
   return {
@@ -181,7 +185,7 @@ describe("Google Calendar API adapter", () => {
     });
   });
 
-  it("rejects a calendar identity mismatch or a read-only calendar role", async () => {
+  it("rejects a calendar identity mismatch", async () => {
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({ id: "other-calendar" }));
@@ -194,20 +198,23 @@ describe("Google Calendar API adapter", () => {
     await expect(api.verifyCalendar()).rejects.toMatchObject({
       reason: "calendar_identity_mismatch",
     });
+  });
 
-    const readOnlyFetcher = vi
+  it("verifies an explicitly shared calendar without a CalendarList entry", async () => {
+    const fetcher = vi
       .fn()
-      .mockResolvedValueOnce(jsonResponse({ id: calendarId }))
-      .mockResolvedValueOnce(
-        jsonResponse({ id: calendarId, accessRole: "reader" }),
-      );
-    await expect(
-      new GoogleCalendarApi({
-        calendarId,
-        getAccessToken: async () => "redacted-test-token",
-        fetcher: readOnlyFetcher,
-      }).verifyCalendar(),
-    ).rejects.toMatchObject({ reason: "calendar_write_access_required" });
+      .mockResolvedValueOnce(jsonResponse({ id: calendarId }));
+
+    await new GoogleCalendarApi({
+      calendarId,
+      getAccessToken: async () => "redacted-test-token",
+      fetcher,
+    }).verifyCalendar();
+
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher.mock.calls[0]?.[0]).toContain(
+      `/calendars/${encodeURIComponent(calendarId)}`,
+    );
   });
 
   it("does not make an API request after token acquisition fails", async () => {
@@ -227,6 +234,8 @@ describe("Google Calendar API adapter", () => {
   });
 
   it("smokes metadata, create, read, modify, and owned cleanup in order", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-22T18:15:42.391Z"));
     const calls: string[] = [];
     let current: {
       summary: string;
@@ -237,9 +246,11 @@ describe("Google Calendar API adapter", () => {
       verifyCalendar: vi.fn(async () => void calls.push("metadata")),
       upsert: vi.fn(async (event: typeof body, etag?: string | null) => {
         calls.push(etag ? "modify" : "create");
+        const googleStart = new Date(event.start.dateTime);
+        googleStart.setUTCMilliseconds(0);
         current = {
           summary: event.summary,
-          start: event.start,
+          start: { dateTime: googleStart.toISOString().replace("Z", "+00:00") },
           status: "confirmed",
         };
         return { status: "synced" as const, etag: '"v1"', htmlLink: null };
