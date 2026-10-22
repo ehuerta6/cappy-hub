@@ -8,6 +8,8 @@ The separate [`docs/design.md`](../design.md) is the authority for visual and in
 
 Cappy Hub is Coding Interview Club's internal administrative application. It provides structured workflows for Officers, Events, Tasks, participation Points, Warnings, and related administration. The Dashboard summarizes those workflows; it is not an independent analytics or workflow system.
 
+Cappy Hub serves fewer than 50 Officers. Prefer existing infrastructure and free-tier services; do not add paid services without explicit approval. Favor simple, maintainable solutions proportional to actual requirements. This scale informs architecture but never weakens security, authorization, or data integrity, and does not justify artificial limits on database records or future growth.
+
 Google Drive remains CIC's collaborative file system. Discord remains its primary communication platform. Cappy Hub may store links to external files, but it does not copy or synchronize their contents. Native Cappy Hub records remain authoritative for the workflows represented in the application.
 
 ## 2. Product status convention
@@ -195,7 +197,9 @@ The following rules are enforced, or must be enforced where indicated, at a trus
 
 ## 15. Planned / accepted behavior
 
-No accepted open product decisions are listed in this revision. Decisions from completed Issues are incorporated into the current behavior above; their implementation status on `main` is distinct from production deployment status.
+### Google Calendar Event mirror — Issue #29
+
+**Planned / accepted; not shipped on current `main`.** Cappy Hub is authoritative; the existing private CIC Google Calendar is a one-way mirror of every eligible Event occurrence, across types and Branches. Initial activation includes upcoming and happening Events through a one-time explicit activation procedure. Create, edit, cancellation/restoration, archive/restoration, and recurring occurrence changes update the same logical Google event. Cancelled Events remain visible and free; archived Events are removed. The mirror contains Event name, America/Denver date and time, location, the general Event description, and a protected Cappy Hub link. It never includes signups, attendees, other resource links, internal notes, Points, audit data, or Tasks. Signup and withdrawal do not synchronize. Google-side changes never edit Cappy Hub. Event mutations commit before direct server-side Google API calls. A Google failure leaves the Cappy Hub change saved and shows a warning; there is no automatic retry, and a later normal Event modification may update the mirror. Calendar sharing remains CIC's responsibility; production activation requires authorized server-side write access.
 
 ## 16. Audit and history expectations
 
@@ -208,7 +212,7 @@ Logical removal, deactivation, cancellation, correction, retirement, void, and r
 - Google Drive remains the external collaborative file system; Event resource fields store URLs only.
 - The Event Signup sheet is an optional external resource URL. There is no Google Sheets OAuth, row synchronization, import, export, or roster reconciliation.
 - Additional Officer profile fields have no approved allowlist; Issue [#140](https://github.com/ehuerta6/cappy-hub/issues/140) remains blocked pending field-specific purpose, visibility, editing, retention, and audit decisions. Candidate onboarding fields are not requirements.
-- The internal Calendar is read-only. Google Calendar integration is separate work tracked by [#29](https://github.com/ehuerta6/cappy-hub/issues/29) and is not part of this specification's shipped behavior or Issue #183 scope.
+- The internal Calendar is read-only and is not a second source of scheduling truth. The accepted Google Calendar mirror in [#29](https://github.com/ehuerta6/cappy-hub/issues/29) is separate, one-way Event synchronization; it does not include Task deadlines or calendar administration.
 - Cappy Hub has no separate attendance/check-in subsystem. Confirmed native Event signups are the participation roster under current behavior.
 - The Dashboard does not introduce speculative analytics, metrics, or duplicated workflows.
 - The System Log does not provide a second mutation interface or log ordinary reads.

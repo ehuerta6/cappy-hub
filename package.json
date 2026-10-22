@@ -20,6 +20,7 @@
     "local:reset": "supabase stop && npm run local:start && node scripts/setup-local-dev.mjs",
     "local:stop": "supabase stop",
     "test:local-seed": "node scripts/verify-local-seed.mjs",
+    "calendar:publish-test": "vitest run tests/google-calendar-test-calendar.integration.test.ts",
     "local:setup": "npm run local:reset"
   },
   "dependencies": {
@@ -27,6 +28,8 @@
     "@fullcalendar/react": "^7.1.0",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.117.2",
+    "@vercel/oidc": "^4.0.3",
+    "google-auth-library": "^11.3.1",
     "lucide-react": "1.50.0",
     "next": "16.3.6",
     "react": "19.2.8",

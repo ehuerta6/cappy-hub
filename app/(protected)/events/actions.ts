@@ -22,6 +22,7 @@ import { revalidatePath } from "next/cache";
 import { withReturnTo } from "@/lib/return-context";
 import { withSuccessNotice } from "@/lib/mutation-feedback";
 import { redirect } from "next/navigation";
+import { syncGoogleCalendarEvents } from "@/lib/google-calendar-sync";
 import {
   bulkAddEventOfficersInputSchema,
   changeSignupInputSchema,
@@ -55,6 +56,8 @@ const eventFormFields = [
   "recurrence_until",
 ] as const;
 const eventFieldErrors = eventFormFields;
+const calendarSyncWarning =
+  "Cappy Hub saved this Event, but Google Calendar could not be updated.";
 export async function saveEvent(
   _previous: FormActionState,
   formData: FormData,
@@ -149,6 +152,12 @@ export async function saveEvent(
     );
   const supabase = await createClient();
   if (validatedEventInput.id && formData.has("recurrence_series_id")) {
+    const beforeIds = await recurringEventIdsForScope(
+      supabase,
+      formData,
+      validatedEventInput.id,
+      false,
+    );
     try {
       const args = await recurrenceMutation(
         "event",
@@ -195,6 +204,29 @@ export async function saveEvent(
       );
     }
     revalidatePath("/", "layout");
+    const afterIds = await recurringEventIdsForScope(
+      supabase,
+      formData,
+      validatedEventInput.id,
+      true,
+    );
+    const synced = await syncGoogleCalendarEvents(
+      [
+        ...new Set([
+          ...(beforeIds ?? [validatedEventInput.id]),
+          ...(afterIds ?? [validatedEventInput.id]),
+        ]),
+      ],
+      supabase,
+    );
+    if (!synced || !beforeIds || !afterIds)
+      return formFailure(
+        calendarSyncWarning,
+        formData,
+        eventFormFields,
+        undefined,
+        ["branches", "recurrence_weekdays"],
+      );
     redirect(
       withSuccessNotice(
         withReturnTo(
@@ -273,6 +305,16 @@ export async function saveEvent(
         ["branches", "recurrence_weekdays"],
       );
     revalidatePath("/", "layout");
+    const eventIds = await recurringEventIdsFromFirstOccurrence(supabase, data);
+    const synced = await syncGoogleCalendarEvents(eventIds ?? [data], supabase);
+    if (!synced || !eventIds)
+      return formFailure(
+        calendarSyncWarning,
+        formData,
+        eventFormFields,
+        undefined,
+        ["branches", "recurrence_weekdays"],
+      );
     redirect(
       withSuccessNotice(
         withReturnTo(`/events/${data}`, formData.get("returnTo")),
@@ -310,6 +352,15 @@ export async function saveEvent(
       ["branches", "recurrence_weekdays"],
     );
   revalidatePath("/", "layout");
+  const synced = await syncGoogleCalendarEvents([data], supabase);
+  if (!synced)
+    return formFailure(
+      calendarSyncWarning,
+      formData,
+      eventFormFields,
+      undefined,
+      ["branches", "recurrence_weekdays"],
+    );
   redirect(
     withSuccessNotice(
       withReturnTo(`/events/${data}`, formData.get("returnTo")),
@@ -430,6 +481,14 @@ export async function cancelEvent(
   if (!validationResult.success)
     return { error: validationResult.error.issues[0].message, success: "" };
   const supabase = await createClient();
+  const beforeIds = formData.has("recurrence_series_id")
+    ? await recurringEventIdsForScope(
+        supabase,
+        formData,
+        validationResult.data.event_id,
+        false,
+      )
+    : [validationResult.data.event_id];
   let response;
   try {
     response = formData.has("recurrence_series_id")
@@ -451,6 +510,28 @@ export async function cancelEvent(
   const { error } = response;
   if (error) return { error: mutationError(error.message), success: "" };
   revalidatePath("/", "layout");
+  const afterIds = formData.has("recurrence_series_id")
+    ? await recurringEventIdsForScope(
+        supabase,
+        formData,
+        validationResult.data.event_id,
+        true,
+      )
+    : [validationResult.data.event_id];
+  const eventIds = formData.has("recurrence_series_id")
+    ? [
+        ...new Set([
+          ...(beforeIds ?? [validationResult.data.event_id]),
+          ...(afterIds ?? [validationResult.data.event_id]),
+        ]),
+      ]
+    : [validationResult.data.event_id];
+  if (
+    !(await syncGoogleCalendarEvents(eventIds, supabase)) ||
+    !beforeIds ||
+    !afterIds
+  )
+    return { error: calendarSyncWarning, success: "" };
   return { error: "", success: "Event cancelled" };
 }
 
@@ -475,6 +556,13 @@ export async function restoreEventArchive(
   revalidatePath("/", "layout");
   revalidatePath("/events");
   revalidatePath("/system-log");
+  if (
+    !(await syncGoogleCalendarEvents(
+      [restoreEventValidationResult.data.event_id],
+      supabase,
+    ))
+  )
+    return { error: calendarSyncWarning, success: "" };
   return { error: "", success: "Event restored" };
 }
 
@@ -494,6 +582,8 @@ export async function restoreEvent(
   });
   if (error) return { error: mutationError(error.message), success: "" };
   revalidatePath("/", "layout");
+  if (!(await syncGoogleCalendarEvents([validation.data.event_id], supabase)))
+    return { error: calendarSyncWarning, success: "" };
   return { error: "", success: "Event restored" };
 }
 
@@ -508,6 +598,14 @@ export async function removeEvent(
   if (!validationResult.success)
     return { error: validationResult.error.issues[0].message, success: "" };
   const supabase = await createClient();
+  const beforeIds = formData.has("recurrence_series_id")
+    ? await recurringEventIdsForScope(
+        supabase,
+        formData,
+        validationResult.data.event_id,
+        false,
+      )
+    : [validationResult.data.event_id];
   let response;
   try {
     response = formData.has("recurrence_series_id")
@@ -529,8 +627,92 @@ export async function removeEvent(
   const { data, error } = response;
   if (error) return { error: mutationError(error.message), success: "" };
   revalidatePath("/", "layout");
+  const afterIds = formData.has("recurrence_series_id")
+    ? await recurringEventIdsForScope(
+        supabase,
+        formData,
+        validationResult.data.event_id,
+        true,
+      )
+    : [validationResult.data.event_id];
+  const eventIds = formData.has("recurrence_series_id")
+    ? [
+        ...new Set([
+          ...(beforeIds ?? [validationResult.data.event_id]),
+          ...(afterIds ?? [validationResult.data.event_id]),
+        ]),
+      ]
+    : [validationResult.data.event_id];
+  if (
+    !(await syncGoogleCalendarEvents(eventIds, supabase)) ||
+    !beforeIds ||
+    !afterIds
+  )
+    return { error: calendarSyncWarning, success: "" };
   return {
     error: "",
     success: data ? "Event archived" : "Event was already archived",
   };
+}
+
+async function recurringEventIdsForScope(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  formData: FormData,
+  selectedEventId: number,
+  afterMutation: boolean,
+): Promise<number[] | null> {
+  const scope = formData.get("scope");
+  if (scope === "occurrence") return [selectedEventId];
+  if (scope !== "following" && scope !== "series") return null;
+
+  const originalSeriesId = Number(formData.get("recurrence_series_id"));
+  if (!Number.isInteger(originalSeriesId) || originalSeriesId <= 0) return null;
+  const { data: selected, error: selectedError } = await supabase
+    .from("events")
+    .select("recurrence_series_id,recurrence_key")
+    .eq("id", selectedEventId)
+    .maybeSingle();
+  if (selectedError || !selected) return null;
+
+  const seriesIds = new Set([originalSeriesId]);
+  if (afterMutation && selected.recurrence_series_id !== null)
+    seriesIds.add(selected.recurrence_series_id);
+  const { data: occurrences, error } = await supabase
+    .from("events")
+    .select("id,recurrence_key,recurrence_series_id")
+    .in("recurrence_series_id", [...seriesIds]);
+  if (error || !occurrences) return null;
+  const selectedKey = selected.recurrence_key;
+  return [
+    ...new Set([
+      selectedEventId,
+      ...occurrences
+        .filter(
+          (occurrence) =>
+            scope === "series" ||
+            (selectedKey !== null &&
+              occurrence.recurrence_key !== null &&
+              occurrence.recurrence_key >= selectedKey),
+        )
+        .map((occurrence) => occurrence.id),
+    ]),
+  ];
+}
+
+async function recurringEventIdsFromFirstOccurrence(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  firstEventId: number,
+): Promise<number[] | null> {
+  const { data: first, error: firstError } = await supabase
+    .from("events")
+    .select("recurrence_series_id")
+    .eq("id", firstEventId)
+    .single();
+  if (firstError || !first?.recurrence_series_id) return null;
+  const { data, error } = await supabase
+    .from("events")
+    .select("id")
+    .eq("recurrence_series_id", first.recurrence_series_id);
+  if (error || !data) return null;
+  return data.map((event) => event.id);
 }

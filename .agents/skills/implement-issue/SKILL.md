@@ -70,6 +70,8 @@ Determine:
 
 Prefer the smallest complete and readable implementation. Reuse existing domain and platform patterns before adding dependencies or new abstractions. When an approach depends on an unfamiliar or version-sensitive API or external integration, inspect the installed version and authoritative documentation; skip external research for routine internal changes.
 
+Before introducing infrastructure, dependencies, background jobs, queues, schedulers, or architectural abstractions, identify the requirement they serve, consider the simplest solution using existing patterns, and cite concrete evidence for why that simpler solution is insufficient. Verify compatibility with current hosting, service plans, operational constraints, and costs. Prefer direct CRUD and existing application patterns when they meet the approved requirements. Request approval before adding materially greater complexity or new paid infrastructure that was not already authorized. This comparison is only needed when considering such additions; routine engineering decisions remain autonomous.
+
 Do not bundle unrelated cleanup, redesigns, dependency changes, or refactors.
 
 Do not introduce speculative abstractions for hypothetical future requirements.
