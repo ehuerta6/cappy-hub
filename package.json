@@ -20,6 +20,7 @@
     "local:reset": "supabase stop && npm run local:start && node scripts/setup-local-dev.mjs",
     "local:stop": "supabase stop",
     "test:local-seed": "node scripts/verify-local-seed.mjs",
+    "calendar:publish-test": "vitest run tests/google-calendar-test-calendar.integration.test.ts",
     "local:setup": "npm run local:reset"
   },
   "dependencies": {

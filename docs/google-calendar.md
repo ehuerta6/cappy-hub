@@ -34,12 +34,30 @@ may differ from Cappy Hub until that happens.
 
 ## Initial activation
 
-After Production credentials and private calendar write access are configured,
-publish existing upcoming and happening Events once by opening each eligible
-Event in Cappy Hub and saving it. This uses the ordinary Event editor and its
-normal authorization; the stable Google ID makes repeating the operation safe.
-Do not include past or archived Events. No scheduled job or special management
-screen is involved.
+For local integration testing, run `npm run local:reset` to restore the
+synthetic local Events, configure the local test-calendar values below, then
+run the explicit publication command:
+
+```sh
+GOOGLE_CALENDAR_ID='CAPPYHUB TEST calendar ID' \
+CAPPYHUB_TEST_CALENDAR_ID='same CAPPYHUB TEST calendar ID' \
+CAPPYHUB_APP_URL='http://localhost:3000' \
+CAPPYHUB_GOOGLE_CALENDAR_TEST_OPT_IN=true \
+CAPPYHUB_GOOGLE_CALENDAR_PUBLISH_TEST_EVENTS=true \
+npm run calendar:publish-test
+```
+
+The command refuses to run in CI, Vercel, or production; verifies local
+Supabase, explicit opt-in, matching test calendar IDs, and that Google reports
+the target calendar name as `CAPPYHUB TEST`; then publishes eligible synthetic
+upcoming and happening Events and reads each event back from Google Calendar.
+It can be rerun safely because publication uses the existing deterministic
+Google Event IDs and upsert logic. It does not delete other calendar entries.
+
+For Production activation, the club must authorize the integration identity
+and calendar write access first. Publish existing upcoming and happening
+Events once by opening each eligible Event in Cappy Hub and saving it. No
+scheduled job or special management screen is involved.
 
 ## Configuration and security
 
@@ -67,8 +85,9 @@ account. Google credentials remain server-side and short-lived; no service
 account JSON key is used. Preview deployments skip Google synchronization.
 
 For local opt-in testing, use Google Application Default Credentials (ADC)
-configured for short-lived impersonation of the test service account. Set
-`GOOGLE_CALENDAR_ID` and `CAPPYHUB_TEST_CALENDAR_ID` to the `CAPPYHUB TEST`
-calendar and set `CAPPYHUB_GOOGLE_CALENDAR_TEST_OPT_IN=true`. Ordinary local
-work and CI tests do not contact Google. Never create or commit long-lived
-service-account key files.
+configured for short-lived impersonation of the existing test service account.
+Set `GOOGLE_CALENDAR_ID` and `CAPPYHUB_TEST_CALENDAR_ID` to the same calendar
+ID, verified by the command to be named `CAPPYHUB TEST`, and set
+`CAPPYHUB_APP_URL=http://localhost:3000`. Ordinary local work and CI tests do
+not contact Google. Never create or commit long-lived service-account key
+files.
