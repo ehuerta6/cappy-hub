@@ -1328,6 +1328,13 @@ export type Database = {
         Args: Record<PropertyKey, never>;
         Returns: number;
       };
+      claim_google_calendar_event_sync: {
+        Args: { p_limit?: number };
+        Returns: {
+          event_id: number;
+          revision: number;
+        }[];
+      };
       create_branch: { Args: { p_name: string }; Returns: number };
       create_event_location: { Args: { p_name: string }; Returns: number };
       create_event_type: { Args: { p_name: string }; Returns: number };
@@ -1455,6 +1462,10 @@ export type Database = {
           confirmed_count: number;
           event_id: number;
         }[];
+      };
+      finish_google_calendar_event_sync: {
+        Args: { p_error?: string; p_event_id: number; p_revision: number };
+        Returns: boolean;
       };
       mutate_recurring_event: {
         Args: {
