@@ -195,7 +195,7 @@ The following rules are enforced, or must be enforced where indicated, at a trus
 
 ## 15. Planned / accepted behavior
 
-No accepted open product decisions are listed in this revision. Decisions from completed Issues are incorporated into the current behavior above; their implementation status on `main` is distinct from production deployment status.
+Issue [#29](https://github.com/ehuerta6/cappy-hub/issues/29) has approved Google Calendar behavior: publish every eligible Event occurrence across types and Branches; initially include current and future occurrences; use a one-way private projection with stable per-occurrence identity; show cancelled Events as labelled and non-busy; remove archived Events and restore them when eligible; publish the Event name, date/time, short safe description, location, and protected canonical Event URL. Officer signup does not create invitations, attendees, or RSVP state. Supabase remains authoritative. Production access is limited to authorized active Officers; no public Calendar or ICS is allowed. This decision does not change the shipped status above; Issue #29 implementation and production readiness are tracked separately.
 
 ## 16. Audit and history expectations
 

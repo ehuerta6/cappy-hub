@@ -88,6 +88,7 @@ it("enforces the MVP invariants and concurrent award uniqueness in local Postgre
 
   runSql(`
     delete from public.point_transactions where officer_id=${concurrentFixtureId};
+    delete from private.event_google_calendar_sync where event_id=${concurrentFixtureId};
     delete from public.events where id=${concurrentFixtureId};
     delete from public.officers where id=${concurrentFixtureId};
     insert into public.officers(id,name,utep_email,position_id,status)
@@ -137,6 +138,7 @@ it("enforces the MVP invariants and concurrent award uniqueness in local Postgre
   } finally {
     runSql(`
       delete from public.point_transactions where officer_id=${concurrentFixtureId};
+      delete from private.event_google_calendar_sync where event_id=${concurrentFixtureId};
       delete from public.events where id=${concurrentFixtureId};
       delete from public.event_locations where name='Concurrent award fixture location'
         and not exists (select 1 from public.events where location_id=public.event_locations.id);
@@ -154,6 +156,7 @@ it("serializes concurrent signup requests so capacity cannot be overfilled", asy
     delete from public.audit_logs where actor_officer_id in (${firstOfficerId},${secondOfficerId},-981783);
     delete from public.point_transactions where event_id=${eventId};
     delete from public.event_officers where event_id=${eventId};
+    delete from private.event_google_calendar_sync where event_id=${eventId};
     delete from public.events where id=${eventId};
     delete from public.officers where id in (${firstOfficerId},${secondOfficerId},-981783);
     delete from auth.users where id='${managerId}';
@@ -215,6 +218,7 @@ it("serializes concurrent signup requests so capacity cannot be overfilled", asy
       delete from public.audit_logs where actor_officer_id in (${firstOfficerId},${secondOfficerId},-981783);
       delete from public.point_transactions where event_id=${eventId};
       delete from public.event_officers where event_id=${eventId};
+      delete from private.event_google_calendar_sync where event_id=${eventId};
       delete from public.events where id=${eventId};
       delete from public.officers where id in (${firstOfficerId},${secondOfficerId},-981783);
       delete from auth.users where id='${managerId}';
@@ -234,6 +238,7 @@ it("serializes concurrent presenter claims so only one Officer acquires a slot",
     delete from public.audit_logs where entity_id='${eventId}';
     delete from public.presentation_slots where event_id=${eventId};
     delete from public.event_officers where event_id=${eventId};
+    delete from private.event_google_calendar_sync where event_id=${eventId};
     delete from public.events where id=${eventId};
     delete from public.officers where id in (${firstOfficerId},${secondOfficerId});
     delete from auth.users where id in ('${firstAuthId}','${secondAuthId}');
@@ -294,6 +299,7 @@ it("serializes concurrent presenter claims so only one Officer acquires a slot",
       delete from public.audit_logs where entity_id='${eventId}';
       delete from public.presentation_slots where event_id=${eventId};
       delete from public.event_officers where event_id=${eventId};
+      delete from private.event_google_calendar_sync where event_id=${eventId};
       delete from public.events where id=${eventId};
       delete from public.officers where id in (${firstOfficerId},${secondOfficerId});
       delete from auth.users where id in ('${firstAuthId}','${secondAuthId}');
@@ -314,6 +320,7 @@ it("serializes concurrent Time Slot registrations so per-slot capacity is not ex
     delete from public.point_transactions where event_id=${eventId};
     delete from public.event_officers where event_id=${eventId};
     delete from public.event_time_slots where event_id=${eventId};
+    delete from private.event_google_calendar_sync where event_id=${eventId};
     delete from public.events where id=${eventId};
     delete from public.officers where id in (${firstOfficerId},${secondOfficerId},${managerOfficerId});
     delete from auth.users where id='${managerId}';
@@ -382,6 +389,7 @@ it("serializes concurrent Time Slot registrations so per-slot capacity is not ex
       delete from public.point_transactions where event_id=${eventId};
       delete from public.event_officers where event_id=${eventId};
       delete from public.event_time_slots where event_id=${eventId};
+      delete from private.event_google_calendar_sync where event_id=${eventId};
       delete from public.events where id=${eventId};
       delete from public.officers where id in (${firstOfficerId},${secondOfficerId},${managerOfficerId});
       delete from auth.users where id='${managerId}';

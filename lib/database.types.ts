@@ -1328,6 +1328,36 @@ export type Database = {
         Args: Record<PropertyKey, never>;
         Returns: number;
       };
+      claim_event_google_calendar_sync_batch: {
+        Args: { p_calendar_id: string; p_limit: number };
+        Returns: {
+          archived_at: string;
+          ends_at: string;
+          event_id: number;
+          event_name: string;
+          event_status: string;
+          generation: number;
+          google_etag: string;
+          google_event_id: string;
+          google_html_link: string;
+          lease_token: string;
+          starts_at: string;
+          was_remote_visible: boolean;
+        }[];
+      };
+      complete_event_google_calendar_sync: {
+        Args: {
+          p_calendar_id: string;
+          p_event_id: number;
+          p_generation: number;
+          p_google_etag: string;
+          p_google_event_id: string;
+          p_google_html_link: string;
+          p_lease_token: string;
+          p_sync_state: string;
+        };
+        Returns: boolean;
+      };
       create_branch: { Args: { p_name: string }; Returns: number };
       create_event_location: { Args: { p_name: string }; Returns: number };
       create_event_type: { Args: { p_name: string }; Returns: number };
@@ -1569,12 +1599,25 @@ export type Database = {
         Args: { p_event_id: number; p_slot_ids: number[] };
         Returns: undefined;
       };
+      requeue_failed_event_google_calendar_sync: {
+        Args: { p_calendar_id: string; p_event_id?: number };
+        Returns: number;
+      };
       restore_event: { Args: { p_event_id: number }; Returns: undefined };
       restore_event_archive: {
         Args: { p_event_id: number };
         Returns: undefined;
       };
       restore_task: { Args: { p_task_id: number }; Returns: undefined };
+      retry_event_google_calendar_sync: {
+        Args: {
+          p_calendar_id: string;
+          p_error_code: string;
+          p_event_id: number;
+          p_lease_token: string;
+        };
+        Returns: boolean;
+      };
       save_event_with_capacity: {
         Args: {
           p_branch_ids: number[];

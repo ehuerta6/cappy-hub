@@ -11,7 +11,31 @@ npm run local:setup
 npm run dev
 ```
 
-`local:setup` runs the full local reset. It starts Supabase, replays migrations, loads the synthetic `supabase/seed.sql`, creates local Auth test accounts, links those accounts to synthetic officers, and writes the local public URL and publishable key to `.env.local`.
+`local:setup` runs the full local reset. It starts Supabase, replays migrations, loads the synthetic `supabase/seed.sql`, creates local Auth test accounts, links those accounts to synthetic officers, and writes local configuration to `.env.local`. If Supabase is already running and you need local environment configuration without resetting the database, run `npm run local:env`.
+
+## Optional Google Calendar sandbox sync
+
+Google Calendar calls are disabled in ordinary local development and CI. The optional live integration is restricted to a local Supabase database and the dedicated `CAPPYHUB TEST` calendar. It authenticates through short-lived impersonation of `cappyhub-calendar-local@cappy-hub.iam.gserviceaccount.com`; it does not use the Cappy Hub Google OAuth sign-in session or a downloaded Service Account key.
+
+Add these non-secret settings to the ignored `.env.local`, using the sandbox Calendar ID supplied to the maintainer and the origin where the local Next.js app is running:
+
+```dotenv
+GOOGLE_CALENDAR_MODE=
+GOOGLE_CALENDAR_ID=
+CAPPY_HUB_APP_ORIGIN=
+```
+
+Set `GOOGLE_CALENDAR_MODE` to `local-test`. `npm run local:env`, `npm run local:setup`, and `npm run local:reset` write the local Supabase service secret as `SUPABASE_SECRET_KEY` for trusted server-side work; the file is restricted to the current user and the secret is never a `NEXT_PUBLIC_` variable. Do not copy that secret or the sandbox Calendar ID into tracked files.
+
+The local developer identity must be granted `roles/iam.serviceAccountTokenCreator` on the testing Service Account by a maintainer. Then authenticate ADC with:
+
+```bash
+gcloud auth application-default login --impersonate-service-account=cappyhub-calendar-local@cappy-hub.iam.gserviceaccount.com
+```
+
+The server verifies that ADC is an impersonated credential for that exact Service Account, Supabase points to local `127.0.0.1:54321`/`localhost:54321`, the configured Calendar ID is explicit, and Google reports writer or owner access to the same Calendar. Event changes enter PostgreSQL transactionally. An active local Officer can explicitly process pending work by POSTing to `/api/google-calendar/sync`; this is a manual local test trigger and does not run by default. POST `/api/google-calendar/smoke` to verify Calendar metadata, create a uniquely marked synthetic Event, read it, modify its title/time, verify the change, delete only that Event, and confirm cleanup. Google failures leave Event mutations committed and durable work retryable. Disable the integration by removing `GOOGLE_CALENDAR_MODE` or setting it to any value other than `local-test`.
+
+For Event API tests, the Service Account needs only **Make changes to events** (writer). The broader **Make changes and manage sharing** permission is not required because the local integration does not change Calendar ACLs. The local ACL role check verifies that the Service Account is a writer; it does not test access provisioning or revocation. Never use synthetic local Officer identities to change real Calendar sharing. Production publishing, its scheduler, CIC Calendar owner identity, and Officer ACL reconciliation remain disabled until CIC separately authorizes and configures them. This repository's `vercel.json` has no Cron Job, and the connected project metadata does not expose its plan. Vercel Hobby permits only one run per day; a once-per-minute reconciler requires Pro or Enterprise, or another CIC-approved scheduler ([Vercel Cron usage and pricing](https://vercel.com/docs/cron-jobs/usage-and-pricing)). The current projection deliberately omits free-text location and description because the Event form accepts arbitrary text; a defensible publication source/approval policy is still needed to meet those two approved fields.
 
 ## Local test accounts
 
