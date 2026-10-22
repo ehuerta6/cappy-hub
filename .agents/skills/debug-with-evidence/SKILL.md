@@ -45,7 +45,7 @@ Prefer, in roughly this order:
 
 The reproduction should fail because of the reported bug and become successful when the bug is fixed.
 
-Cappy Hub does not use automated browser checks. Do not install, launch, or configure browsers for automated checks. Manual visual inspection follows `docs/local-development.md`.
+For user-visible workflows, use an already available supported browser-control tool for focused interactive reproduction when it materially improves confidence and repository policy permits it. This does not authorize adding browser dependencies, permanent E2E suites, or CI/deployment browser automation. Follow `docs/local-development.md` for local synthetic data and safety.
 
 ### 3. Gather evidence
 

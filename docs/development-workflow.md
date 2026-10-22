@@ -40,7 +40,7 @@ npm run db:reset
 npm test
 ```
 
-`db:start` does not reset rows. `db:reset` clears the local database and replays migrations without synthetic seed data, which is required by pgTAP fixtures. For interactive app development or manual visual review, use `npm run local:reset` instead; that creates the separate seeded local app state. See [Local Development](local-development.md#visual-review-and-automated-testing) for the visual review policy and [Local Database Workflow](../.agents/skills/local-database-workflow/SKILL.md) for state transitions and failure diagnosis.
+`db:start` does not reset rows. `db:reset` clears the local database and replays migrations without synthetic seed data, which is required by pgTAP fixtures. For interactive app development or manual visual review, use `npm run local:reset` instead; that creates the separate seeded local app state. See [Local Development](local-development.md#local-ui-validation-and-automated-testing) for the local UI validation policy and [Local Database Workflow](../.agents/skills/local-database-workflow/SKILL.md) for state transitions and failure diagnosis.
 
 If formatting needs correction, run `npm run format` and review the resulting diff.
 
