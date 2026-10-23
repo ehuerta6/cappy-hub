@@ -1494,7 +1494,7 @@ it("keeps all Points capabilities with one GET form and preserves pagination fil
           )),
     ),
   ).toBe(false);
-  expect(html).toContain('method="get"');
+  expect(html).toContain('action="/points"');
   expect(html).toContain("Officer #-1013 (name unavailable)");
   expect(html).toContain("Archived historical Event — Feb 14, 2025");
   expect(html).not.toContain('type="hidden" name="page"');
@@ -1587,7 +1587,7 @@ it.each([OfficersPage, EventsPage, TasksPage, PointsPage, SystemLogPage])(
     });
     expect(matching).toMatch(/match these filters/);
     expect(matching).toContain("Clear filters");
-    expect(matching).toContain('method="get"');
+    expect(matching).toContain('role="search"');
     expect(matching).not.toContain('name="page"');
     queries = [];
     visibleCount = 0;
@@ -1603,17 +1603,18 @@ it.each([OfficersPage, EventsPage, TasksPage, PointsPage, SystemLogPage])(
 );
 
 it.each([
-  [OfficersPage, "Officer filters"],
-  [EventsPage, "Event filters"],
-  [TasksPage, "Task filters"],
-  [PointsPage, "Point history filters"],
-  [SystemLogPage, "System Log filters"],
+  [OfficersPage, "Officer filters", "/officers"],
+  [EventsPage, "Event filters", "/events"],
+  [TasksPage, "Task filters", "/tasks"],
+  [PointsPage, "Point history filters", "/points"],
+  [SystemLogPage, "System Log filters", "/system-log"],
 ] as const)(
   "keeps %s filters grouped for narrow layouts",
-  async (Page, label) => {
+  async (Page, label, action) => {
     const html = await render(Page, { q: "filter" });
     const form = html.split(`aria-label="${label}"`)[1].split("</form>")[0];
-    expect(form).toContain('method="get"');
+    expect(html).toContain('role="search"');
+    expect(html).toContain(`action="${action}"`);
     expect(form).toContain("Apply filters");
     expect(form).toContain("Clear filters");
     expect(form).toContain("flex-wrap");
