@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { Route } from "next";
+import Form from "next/form";
 import Link from "next/link";
 import { displayPoints } from "@/lib/participation";
 import { formatLabel } from "@/lib/presentation";
@@ -245,7 +246,7 @@ export function ListFilterBar({
   clearHref,
   children,
 }: {
-  action: string;
+  action: Route;
   label: string;
   active: boolean;
   clearHref: Route;
@@ -253,9 +254,8 @@ export function ListFilterBar({
 }) {
   return (
     <div className="rounded-lg border border-border bg-surface/40 p-3">
-      <form
+      <Form
         action={action}
-        method="get"
         role="search"
         aria-label={label}
         className="!flex w-full !max-w-none flex-wrap items-end gap-2.5"
@@ -275,7 +275,7 @@ export function ListFilterBar({
             </Link>
           )}
         </div>
-      </form>
+      </Form>
     </div>
   );
 }
