@@ -18,7 +18,7 @@ Google Drive remains CIC's collaborative file system. Discord remains its primar
 - **Planned / accepted** describes a product decision captured by an approved, open Issue. It is not shipped behavior and must not be presented as available in the application.
 - An open Issue alone does not make unrelated ideas part of the roadmap. Work remains subject to its Issue scope and review.
 
-Open accepted decisions, when present, are summarized in [Planned / accepted behavior](#15-planned--accepted-behavior). They do not change the shipped descriptions elsewhere in this document.
+Open accepted decisions, when present, are summarized in [Planned / accepted behavior](#15-planned--accepted-behavior). They do not change the shipped descriptions elsewhere in this document. Where accepted direction supersedes a shipped rule, section 15 defines the target for the linked implementation Issues; the shipped rule remains evidence of the transition required, not a restriction on that approved work.
 
 ## 3. Users and authorization model
 
@@ -197,9 +197,56 @@ The following rules are enforced, or must be enforced where indicated, at a trus
 
 ## 15. Planned / accepted behavior
 
+### Administrative simplification — Issue #325 (approved 2026-10-29)
+
+**Approved future direction; not implemented by this documentation change.** [#325](https://github.com/ehuerta6/cappy-hub/issues/325) records the maintainer's confirmed decisions. This section supersedes conflicting target policies in the shipped descriptions in sections 6–14 and the earlier Cancel/Archive mirror contract in #29. Those descriptions retain current implementation evidence until their focused changes land. The [implementation roadmap](administrative-simplification.md) records conflicts, dependencies and verification gates.
+
+#### Purpose and principles
+
+Make Cappy Hub easier to administer: **CRUD First**, **Safe by Default**, **Connected Operations**, **Minimal Restrictions**, and **Simple UX, Reliable Backend**. Authorized users can manage administrative records and correct history. Important deletions are reversible. Changes reconcile genuinely dependent data automatically. Keep restrictions supported by product scope, authorization or integrity; reuse existing architecture and patterns with MVP-level UX simplicity and finished-product reliability.
+
+#### Events and participation Points
+
+- Authorized managers have full Event CRUD, including historical corrections and signup corrections after an Event finishes. Normal Officer self-signup permissions remain time/state limited. Correcting schedules preserves signups; current schedule determines Upcoming/Happening/Past rather than permanent processing state.
+- User-facing **Delete + Restore** replaces Cancel and Archive. Delete excludes the Event from active operations while preserving recovery relationships, signups and audit history. Every Event-linked Point transaction, including manual awards, stops contributing to active totals. Restore reconciles eligible records and credit without restoring awards intentionally removed beforehand.
+- Automatically reconcile participation after schedule, duration, roster and eligible Time Slot changes. Descriptive changes do not require unnecessary recalculation. Preserve slot bounds/capacity, valid selections and historical relationships; do not silently migrate independent records.
+- Participation earns **exactly 1 point per eligible hour**, including eligible fractional slot durations and excluding gaps. Task Points remain a separate fixed-value model. Verify historical configured/snapshotted rates against the database before removing rate-related schema; do not erase historical evidence or assume legacy rates.
+- Manual Points are independent signed credit, with a required reason and optional Event reference. They neither replace nor block automatic participation. Preserve transaction audit history and automatic award uniqueness; retries and concurrent reconciliation must not duplicate awards.
+- **Event 53 regression:** the Admin reports that premature awards were manually removed after processing before the actual Event date. The corrected Event retains its five signups and must grant legitimate participation after its actual end. Preserve removed premature awards as history. This is a general schedule-correction regression, not permission for a production repair or an ID-specific rule. Distinguish removed invalid premature awards from deliberate suppression of otherwise legitimate credit; do not globally reactivate removed transactions.
+- Preserve occurrence/following-occurrence scopes and existing recurrence semantics where appropriate. Explicit scoped recovery must not restore independently removed occurrences or alter unrelated overrides, assignments or signups. Stable IDs, request idempotency, series revision checks and atomic scope authorization remain essential.
+- Eligible changes, Delete and Restore synchronize with Google Calendar. Cappy Hub remains authoritative; failures must be visible and recoverable, including partial scoped failure. Recovery uses current canonical state and does not require unrelated edits or create duplicates. Reuse the direct server integration; no speculative queue or new service is approved.
+
+#### Tasks
+
+Use the same CRUD and Delete/Restore experience wherever appropriate. Authorized managers can correct completed Tasks, fixed Point values, due dates and assignments. Automatically reconcile dependent Task awards. Delete suspends associated awards while preserving Task/assignment/completion history; Restore reconciles eligible awards. Preserve existing Task-specific manager completion permissions and after-due-date America/Denver eligibility, recurrence scopes, independent assignments and contextual Event links. A linked Event change alone does not change Task awards.
+
+#### Warnings
+
+Admins directly create, read, update, Delete and Restore Warnings. New Warnings do not require leadership approval/voting. Historical edits retain actor attribution and meaningful before/after history. Delete replaces terminal Void as the ordinary removal operation; counts update automatically. Three active Warnings still trigger Admin review without automatic deactivation. Preserve legacy approval snapshots and decisions; migration, restoration or unrelated edits must not retroactively turn rejected or pending Warnings into approved ones. Historical Void remains auditable; compatibility must explicitly preserve its original meaning.
+
+#### Catalogs, permissions and consistent UX
+
+Provide authorized CRUD for existing manageable catalogs, including Event Types, Positions, Branches and relevant existing configuration. Referenced values remain recoverable and historically readable without broken relationships. Preserve stable system identifiers, required Position protections and permissions. Do not invent catalog modules.
+
+Admins have global management authority within existing product boundaries; Leads/Managers act within authorized scope; Officers retain authorized personal operations. Keep trusted server/database authorization, RLS and essential integrity rules. Preserve Officer identity, deactivation/reactivation and last-Admin safeguards. This decision does not expand any role through a display name or relationship.
+
+Use consistent Delete confirmations explaining consequences, discoverable Deleted views and Restore actions where appropriate, and clear errors and recovery paths. Preserve meaningful audit history and recoverable data. Avoid exposing lifecycle implementation fields unnecessarily. The Dashboard and internal Calendar derive updated state from the existing domains; they do not acquire independent workflows.
+
+**Presenter Slots are postponed.** Preserve existing behavior and necessary compatibility; do not redesign, expand or remove them under this effort. Existing notification proposals do not become dependencies of this roadmap.
+
+#### Pending detail and compatibility gates
+
+Direct editing of automatically calculated Point transaction amounts was recommended against but **has not been finalized**. Do not silently disable or endorse it as the target policy. Source-based reconciliation and separate manual Points are approved; isolate work requiring this narrow choice until explicitly resolved. Assess existing direct edits and preserve evidence before changing their treatment.
+
+Historical rate verification is an evidence gate, not a pending choice about the new 1-point/hour rule. Database representation and migration handling of ambiguous removal/lifecycle states must be assessed before affected implementation; do not invent historical intent. Production access/deployment/repair requires its own authorization. Development and tests use synthetic data only.
+
+#### Verification and delivery
+
+Deliver small end-to-end Issues, with authorization/RLS, audit attribution, deletion/restoration, historical corrections, retries/concurrency and data-preservation regression coverage. Forward migrations must support historical production rows and existing references; update generated types when necessary. Use existing migration replay, historical upgrade, pgTAP/Vitest and repository checks. Use local synthetic browser interaction where it materially verifies UX; Preview/Production smoke remains HTTP-only. No application functionality, production migrations or production records are changed by this documentation work.
+
 ### Google Calendar Event mirror — Issue #29
 
-**Planned / accepted; not shipped on current `main`.** Cappy Hub is authoritative; the existing private CIC Google Calendar is a one-way mirror of every eligible Event occurrence, across types and Branches. Initial activation includes upcoming and happening Events through a one-time explicit activation procedure. Create, edit, cancellation/restoration, archive/restoration, and recurring occurrence changes update the same logical Google event. Cancelled Events remain visible and free; archived Events are removed. The mirror contains Event name, America/Denver date and time, location, the general Event description, and a protected Cappy Hub link. It never includes signups, attendees, other resource links, internal notes, Points, audit data, or Tasks. Signup and withdrawal do not synchronize. Google-side changes never edit Cappy Hub. Event mutations commit before direct server-side Google API calls. A Google failure leaves the Cappy Hub change saved and shows a warning; there is no automatic retry, and a later normal Event modification may update the mirror. Calendar sharing remains CIC's responsibility; production activation requires authorized server-side write access.
+**Current integration present in repository; production activation is tracked separately.** Cappy Hub is authoritative and the private CIC Google Calendar is a one-way mirror. The existing implementation uses stable Event-derived Google IDs and direct server-side upsert/remove calls after Cappy Hub mutations, returning failure feedback. Initial activation and server-side write access remain operational concerns. The payload contains Event name, America/Denver schedule, location, general description and protected Cappy Hub link; it excludes signups, attendees, internal notes, Points, audit data and Tasks. Google-side edits never change Cappy Hub; sharing remains CIC's responsibility. Signup/withdrawal does not synchronize. The accepted simplification above replaces the older Cancel/Archive user-facing contract and requires a discoverable recovery path for synchronization failures; do not treat the existing no-dedicated-retry behavior as the approved target.
 
 ## 16. Audit and history expectations
 
