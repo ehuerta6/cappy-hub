@@ -106,7 +106,7 @@ it("enforces the MVP invariants and concurrent award uniqueness in local Postgre
     const firstInsert = startSql(`
       begin;
       insert into public.point_transactions(officer_id,event_id,points,reason,award_type)
-        values (${concurrentFixtureId},${concurrentFixtureId},1,'Concurrent first','manual');
+        values (${concurrentFixtureId},${concurrentFixtureId},1,'Concurrent first','participation');
       \\echo HOLDER_INSERTED
       select pg_catalog.pg_sleep(1.5);
       commit;
@@ -116,7 +116,7 @@ it("enforces the MVP invariants and concurrent award uniqueness in local Postgre
     const competingInsertStartedAt = Date.now();
     const secondInsert = startSql(`
       insert into public.point_transactions(officer_id,event_id,points,reason,award_type)
-        values (${concurrentFixtureId},${concurrentFixtureId},2,'Concurrent second','manual');
+        values (${concurrentFixtureId},${concurrentFixtureId},2,'Concurrent second','participation');
     `);
     const [firstResult, secondResult] = await Promise.all([
       firstInsert.closed,
@@ -126,7 +126,7 @@ it("enforces the MVP invariants and concurrent award uniqueness in local Postgre
     expect(firstResult.code).toBe(0);
     expect(secondResult.code).not.toBe(0);
     expect(secondResult.errors).toContain(
-      "one_active_primary_event_award_per_officer",
+      "one_ordinary_participation_award_per_officer_event",
     );
     expect(Date.now() - competingInsertStartedAt).toBeGreaterThan(500);
     expect(
@@ -385,6 +385,105 @@ it("serializes concurrent Time Slot registrations so per-slot capacity is not ex
       delete from public.events where id=${eventId};
       delete from public.officers where id in (${firstOfficerId},${secondOfficerId},${managerOfficerId});
       delete from auth.users where id='${managerId}';
+    `);
+  }
+}, 30_000);
+
+it("preserves independent manual credit during concurrent processing and intentional manual submissions", async () => {
+  const id = -327900;
+  const admin = "00000000-0000-4000-8000-000000327900";
+  runSql(`
+    insert into auth.users(id,email) values('${admin}','manual-concurrency@example.test');
+    insert into public.officers(id,name,utep_email,position_id,status,application_role,auth_user_id)
+      values(${id},'Manual concurrency Admin','manual-concurrency@example.test',
+        (select id from public.positions where name='Officer'),'active','admin','${admin}');
+    insert into public.events(id,name,description,location,event_type_id,starts_at,ends_at)
+      values(${id},'Manual concurrency','Synthetic','TBA',
+        (select id from public.event_types where name='Meeting'),'2020-01-01 09:00-07','2020-01-01 11:00-07');
+    insert into public.event_officers(event_id,officer_id) values(${id},${id});
+  `);
+  try {
+    const processing = startSql(`
+      begin;
+      select private.process_finished_events();
+      \\echo AUTOMATIC_PROCESSED
+      select pg_catalog.pg_sleep(1.5);
+      commit;
+    `);
+    await processing.waitFor("AUTOMATIC_PROCESSED");
+    const manual = startSql(`
+      begin;
+      set local role authenticated;
+      select set_config('request.jwt.claim.sub','${admin}',true);
+      select public.add_manual_transaction(${id},3,'Concurrent addition','manual',${id});
+      commit;
+    `);
+    expect(runSql("select private.process_finished_events();").trim()).toBe(
+      "0",
+    );
+    const outcomes = await Promise.all([processing.closed, manual.closed]);
+    for (const outcome of outcomes)
+      expect(outcome.code, outcome.errors).toBe(0);
+
+    const first = startSql(`
+      begin;
+      set local role authenticated;
+      select set_config('request.jwt.claim.sub','${admin}',true);
+      select public.add_manual_transaction(${id},-1,'Intentional first deduction','manual',${id});
+      \\echo MANUAL_INSERTED
+      select pg_catalog.pg_sleep(1.5);
+      commit;
+    `);
+    await first.waitFor("MANUAL_INSERTED");
+    const second = startSql(`
+      begin;
+      set local role authenticated;
+      select set_config('request.jwt.claim.sub','${admin}',true);
+      select public.add_manual_transaction(${id},-1,'Intentional second deduction','manual',${id});
+      commit;
+    `);
+    for (const outcome of await Promise.all([first.closed, second.closed]))
+      expect(outcome.code, outcome.errors).toBe(0);
+    runSql(`
+      begin;
+      select set_config('request.jwt.claim.sub','${admin}',true);
+      select public.bulk_add_event_officers(${id},array[${id}]::bigint[]);
+      select public.bulk_add_event_officers(${id},array[${id}]::bigint[]);
+      commit;
+    `);
+    expect(
+      runSql(
+        `select count(*) from public.point_transactions where event_id=${id} and award_type='participation';`,
+      ).trim(),
+    ).toBe("1");
+    expect(
+      runSql(
+        `select count(*) from public.point_transactions where event_id=${id} and award_type='manual';`,
+      ).trim(),
+    ).toBe("3");
+    expect(
+      runSql(
+        `select sum(points) from public.point_transactions where event_id=${id} and award_type='manual';`,
+      ).trim(),
+    ).toBe("1");
+    expect(
+      runSql(
+        `select count(*) from public.audit_logs where action='points.participation_created' and details->>'event_id'='${id}';`,
+      ).trim(),
+    ).toBe("1");
+    expect(
+      runSql(
+        `select count(*) from public.audit_logs where action='points.manual_created' and actor_officer_id=${id};`,
+      ).trim(),
+    ).toBe("3");
+  } finally {
+    runSql(`
+      delete from public.audit_logs where actor_officer_id=${id} or details->>'event_id'='${id}';
+      delete from public.point_transactions where event_id=${id};
+      delete from public.event_officers where event_id=${id};
+      delete from public.events where id=${id};
+      delete from public.officers where id=${id};
+      delete from auth.users where id='${admin}';
     `);
   }
 }, 30_000);

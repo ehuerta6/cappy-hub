@@ -3,6 +3,23 @@ create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 select no_plan();
 
+-- #327 removes only manual precedence; every pre-existing field stays intact.
+select results_eq($$select id,to_jsonb(p) from point_transactions p order by id$$,
+ $$select id,original from upgrade_fixture.pre_independent_manual_points order by id$$,
+ 'independent manual migration preserves every historical Point row including direct edits and removals');
+select results_eq($$select id,to_jsonb(a) from audit_logs a order by id$$,
+ $$select id,original from upgrade_fixture.pre_independent_manual_audit order by id$$,
+ 'independent manual migration preserves every audit row and actor');
+select results_eq($$select id,to_jsonb(e) from events e order by id$$,
+ $$select id,original from upgrade_fixture.pre_independent_manual_events order by id$$,
+ 'independent manual migration preserves rates, processing markers and lifecycle combinations');
+select results_eq($$select to_jsonb(eo) from event_officers eo order by event_id,officer_id$$,
+ $$select original from upgrade_fixture.pre_independent_manual_signups order by (original->>'event_id')::bigint,(original->>'officer_id')::bigint$$,
+ 'independent manual migration preserves canonical signups');
+select results_eq($$select to_jsonb(s) from event_time_slot_officers s order by slot_id,officer_id$$,
+ $$select original from upgrade_fixture.pre_independent_manual_slots order by (original->>'slot_id')::bigint,(original->>'officer_id')::bigint$$,
+ 'independent manual migration preserves slot selections');
+
 select is(to_regclass('public.event_waitlist')::text,null::text,
   'operational Waitlist table is removed after the contract migration');
 select results_eq(

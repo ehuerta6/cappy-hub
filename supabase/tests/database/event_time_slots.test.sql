@@ -78,8 +78,18 @@ select is((select points from point_transactions where event_id=-2951 and office
   and event_time_slot_id=-295102 and award_type='participation'),25::numeric,
   'second slot award equals its 2.5 hour duration times the captured rate');
 select is((select count(*) from point_transactions where event_id=-2951 and officer_id=-2953
-  and award_type='participation'),0::bigint,'active manual Event award takes precedence over all slot awards');
+  and award_type='participation'),2::bigint,'independent manual credit does not suppress either slot award');
 select is(private.process_finished_events(),0,'automatic slot processing is idempotent');
+select throws_ok($$insert into point_transactions(officer_id,event_id,event_time_slot_id,points,reason,award_type)
+ values(-2952,-2951,-295101,20,'Duplicate slot','participation')$$,'23505',null,
+ 'slot automatic identity remains unique');
+select throws_ok($$insert into point_transactions(officer_id,event_id,points,reason,award_type)
+ values(-2952,-2951,50,'Overlapping ordinary','participation')$$,'23505',null,
+ 'ordinary automatic participation cannot overlap active slot participation');
+select lives_ok($$insert into point_transactions(officer_id,event_id,points,reason,award_type)
+ values(-2952,-2951,-1,'After slot processing','manual')$$,
+ 'manual deductions also coexist when slot participation was created first');
+
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000002951',true);
 set local role authenticated;
@@ -90,6 +100,9 @@ select is((select points from point_transactions where event_id=-2952 and office
   'historical bulk award uses selected slot duration and captures the configured rate');
 select is((select count(*) from event_officers where event_id=-2952 and officer_id=-2952),1::bigint,
   'multiple slot awards use one canonical Event signup');
+reset role;
+insert into point_transactions(officer_id,event_id,points,reason,award_type) values(-2953,-2952,-1,'Independent slot deduction','manual');
+set local role authenticated;
 select lives_ok($$select public.bulk_add_event_officers_to_slots(-2952,array[-2953]::bigint[],array[-295202]::bigint[])$$,
   'later bulk addition awards only its newly selected Officer and slot');
 select is((select count(*) from point_transactions where event_id=-2952 and award_type='participation'),2::bigint,

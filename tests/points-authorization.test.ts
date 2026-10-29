@@ -368,3 +368,44 @@ it("uses the protected removal RPC and surfaces an already-removed result", asyn
     p_transaction_id: 5,
   });
 });
+
+it.each(["3", "-1"])(
+  "submits independent signed manual credit (%s) with Event context",
+  async (points) => {
+    vi.mocked(getAuthorizationContext).mockResolvedValue({
+      applicationRole: "admin",
+    } as never);
+    const transaction = form();
+    transaction.set("award_type", "manual");
+    transaction.set("event_id", "12");
+    transaction.set("points", points);
+    transaction.set("reason", "  Independent contribution  ");
+    expect(
+      await addTransaction({ error: "", success: "" }, transaction),
+    ).toMatchObject({ success: "Point transaction added" });
+    expect(rpc).toHaveBeenCalledWith("add_manual_transaction", {
+      p_officer_id: 3,
+      p_event_id: 12,
+      p_points: Number(points),
+      p_reason: "Independent contribution",
+      p_award_type: "manual",
+    });
+    expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+  },
+);
+
+it.each(["", "   ", "\t\n"])(
+  "rejects a blank manual reason (%j) before persistence",
+  async (reason) => {
+    vi.mocked(getAuthorizationContext).mockResolvedValue({
+      applicationRole: "admin",
+    } as never);
+    const transaction = form();
+    transaction.set("award_type", "manual");
+    transaction.set("reason", reason);
+    expect(
+      await addTransaction({ error: "", success: "" }, transaction),
+    ).toMatchObject({ fieldErrors: { reason: "Enter a reason" } });
+    expect(rpc).not.toHaveBeenCalled();
+  },
+);
