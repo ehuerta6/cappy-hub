@@ -6,6 +6,8 @@ Status: approved future direction, 2026-10-29. Parent: [#325](https://github.com
 
 Implement **#326 first**: assess historical Points compatibility and define safe synthetic regression fixtures. Existing removal markers and processor state must not be interpreted as proof of product intent. The Event 53 regression needs legitimate later credit while preserving both premature removal history and deliberate suppression of legitimate awards. Verify historical rates before any rate-schema removal; this planning task has not queried production.
 
+The [#326 compatibility assessment](points-compatibility.md) records repository/local evidence, synthetic regression fixtures, read-only verification queries and the remaining historical-data gates. It does not implement reconciliation or establish production rate history.
+
 | Issue                                                    | Outcome                                                                           | Blocked by                                                                                                         |
 | -------------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | [#326](https://github.com/ehuerta6/cappy-hub/issues/326) | Assess historical Points compatibility and define safe reconciliation fixtures    | None; first                                                                                                        |
