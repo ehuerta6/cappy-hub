@@ -84,6 +84,9 @@ try {
     )
     .sort();
   for (const migration of followupMigrations) {
+    if (migration.endsWith("_independent_manual_points.sql")) {
+      psql(readFileSync("supabase/fixtures/pre-independent-manual-points.sql"));
+    }
     if (migration.endsWith("_stable_officer_actor_attribution.sql")) {
       psql(
         readFileSync("supabase/fixtures/pre-stable-officer-attribution.sql"),

@@ -103,7 +103,8 @@ export default function TransactionForm({
               id="add-transaction-description"
               className={dialogDescriptionClassName}
             >
-              Record a manual award or correct an existing Point total.
+              Add or deduct Points with a reason. An optional Event link keeps
+              context; automatic participation Points remain separate.
             </p>
           </header>
           <TransactionFields

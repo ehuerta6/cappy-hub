@@ -204,19 +204,22 @@ insert into point_transactions(officer_id,event_id,points,reason,award_type)
   values(-338,-338,2,'Existing manual primary award','manual');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000331',true);
 set local role authenticated;
-select throws_ok($$select bulk_add_event_officers(-338,array[-338]::bigint[])$$,
-  'P0001','This Officer already has an active award for this Event.',
-  'past bulk signup reports an existing manual primary award');
+select lives_ok($$select bulk_add_event_officers(-338,array[-338]::bigint[])$$,
+  'past bulk signup creates automatic credit alongside existing manual credit');
+select lives_ok($$select bulk_add_event_officers(-338,array[-338]::bigint[])$$,
+  'exact bulk retry preserves both independent categories');
 reset role;
 select set_config('request.jwt.claim.sub','',true);
-select is((select count(*) from event_officers where event_id=-338),0::bigint,
-  'bulk award conflict rolls back the new signup');
+select is((select count(*) from event_officers where event_id=-338),1::bigint,
+  'manual credit never blocks the canonical signup');
 select is((select count(*) from point_transactions where event_id=-338
-  and award_type='participation'),0::bigint,
-  'bulk award conflict does not report success without an award');
-select is((select participation_points_per_hour_at_end from events where id=-338),
-  null::numeric,'bulk award conflict rolls back the first rate snapshot');
-delete from point_transactions where event_id=-338 and award_type='manual';
+  and award_type='participation'),1::bigint,'bulk retry preserves unique automatic credit');
+select is((select sum(points) from point_transactions where event_id=-338),79::numeric,
+  'one hour at the configured 77 rate adds to existing two manual Points');
+-- Reset only these synthetic rows to keep the independent atomicity probe below.
+delete from point_transactions where event_id=-338;
+delete from event_officers where event_id=-338;
+update events set participation_points_per_hour_at_end=null where id=-338;
 
 alter table audit_logs add constraint reject_bulk_event_audit
   check (action <> 'event.officers_bulk_added') not valid;
