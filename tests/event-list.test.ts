@@ -265,12 +265,12 @@ it("accepts positive URL pages and falls back for malformed page values", () => 
   expect(eventListFiltersSchema.parse({ page: ["2", "3"] }).page).toBe(1);
 });
 
-it("shows archived Events only in the explicit Archived view", () => {
+it("shows deleted and legacy archived Events only in the Deleted view", () => {
   const result = organizeEventList(
     [
       event(
         1,
-        "Archived",
+        "Deleted",
         "2026-10-01",
         "2026-10-01T16:00:00Z",
         "2026-10-01T17:00:00Z",
@@ -286,7 +286,7 @@ it("shows archived Events only in the explicit Archived view", () => {
         "2026-10-08T17:00:00Z",
       ),
     ],
-    "archived",
+    "deleted",
     new Date("2026-10-07T12:00:00Z"),
   );
   expect(result.view).toBe("single");

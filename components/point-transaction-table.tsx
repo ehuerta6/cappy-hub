@@ -36,6 +36,9 @@ export default function PointTransactionTable({
   transactions,
 }: PointTransactionTableProps) {
   if (!transactions.length) return <p>No point transactions yet.</p>;
+  const showsRemoval = transactions.some(
+    (transaction) => transaction.removed_at !== null,
+  );
   return (
     <table>
       <thead>
@@ -45,6 +48,7 @@ export default function PointTransactionTable({
           <th scope="col">Reason</th>
           <th scope="col">Points</th>
           <th scope="col">Award type</th>
+          {showsRemoval && <th scope="col">Status</th>}
           <th scope="col">Date</th>
         </tr>
       </thead>
@@ -64,6 +68,15 @@ export default function PointTransactionTable({
               <PointValue value={transaction.points} />
             </td>
             <td>{formatLabel(transaction.award_type)}</td>
+            {showsRemoval && (
+              <td>
+                {transaction.event_delete_suspended
+                  ? "Suspended with Event"
+                  : transaction.removed_at
+                    ? "Removed"
+                    : "Active"}
+              </td>
+            )}
             <td>{formatDate(transaction.created_at)}</td>
           </tr>
         ))}

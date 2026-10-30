@@ -31,10 +31,9 @@ import {
   BulkAddOfficersForm,
   SignupForm,
   SelfSignupForm,
-  CancelForm,
   RestoreCancelledEventForm,
-  RestoreArchivedEventForm,
-  RemoveEventForm,
+  RestoreDeletedEventForm,
+  DeleteEventForm,
 } from "../event-controls";
 import {
   ActionLink,
@@ -205,6 +204,12 @@ export default async function EventDetailPage({
     event.event_branches.map((eventBranch) => eventBranch.branch_id),
   );
   if (event.deleted_at && !canManage) notFound();
+  const eventPointsCountQuery = supabase
+    .from("point_transactions")
+    .select("id", { count: "exact", head: true })
+    .eq("event_id", event.id);
+  if (!event.delete_points_suspended)
+    eventPointsCountQuery.is("removed_at", null);
   const [
     rosterCountResult,
     taskCountResult,
@@ -222,11 +227,7 @@ export default async function EventDetailPage({
       .from("task_events")
       .select("task_id", { count: "exact", head: true })
       .eq("event_id", event.id),
-    supabase
-      .from("point_transactions")
-      .select("id", { count: "exact", head: true })
-      .is("removed_at", null)
-      .eq("event_id", event.id),
+    eventPointsCountQuery,
     supabase
       .from("event_officers")
       .select("officer_id", { count: "exact", head: true })
@@ -367,16 +368,19 @@ export default async function EventDetailPage({
           .range(start, start + RELATED_PAGE_SIZE - 1)
       : Promise.resolve(undefined),
     section === "points"
-      ? supabase
-          .from("point_transactions")
-          .select(
-            "*,officers!point_transactions_officer_id_fkey(id,name),events(id,name),tasks(id,title)",
-          )
-          .is("removed_at", null)
-          .eq("event_id", event.id)
-          .order("created_at", { ascending: false })
-          .order("id", { ascending: false })
-          .range(start, start + RELATED_PAGE_SIZE - 1)
+      ? (() => {
+          const query = supabase
+            .from("point_transactions")
+            .select(
+              "*,officers!point_transactions_officer_id_fkey(id,name),events(id,name),tasks(id,title)",
+            )
+            .eq("event_id", event.id);
+          if (!event.delete_points_suspended) query.is("removed_at", null);
+          return query
+            .order("created_at", { ascending: false })
+            .order("id", { ascending: false })
+            .range(start, start + RELATED_PAGE_SIZE - 1);
+        })()
       : Promise.resolve(undefined),
   ]);
   if (
@@ -444,7 +448,13 @@ export default async function EventDetailPage({
                 <dt>Status</dt>
                 <dd>
                   <StatusBadge
-                    status={event.deleted_at ? "Archived" : status}
+                    status={
+                      event.deleted_at
+                        ? event.delete_points_suspended
+                          ? "Deleted"
+                          : "Archived"
+                        : status
+                    }
                   />
                 </dd>
                 <dt>Branches</dt>
@@ -477,7 +487,11 @@ export default async function EventDetailPage({
                 )}
                 {event.deleted_at && (
                   <>
-                    <dt>Archived at</dt>
+                    <dt>
+                      {event.delete_points_suspended
+                        ? "Deleted at"
+                        : "Archived at"}
+                    </dt>
                     <dd>{formatDateTime(event.deleted_at)}</dd>
                   </>
                 )}
@@ -498,25 +512,14 @@ export default async function EventDetailPage({
                 signupSheetUrl={event.signup_sheet_url}
               />
               {canManage && event.deleted_at && (
-                <RestoreArchivedEventForm eventId={event.id} />
+                <RestoreDeletedEventForm eventId={event.id} />
               )}
               {canManage && !event.deleted_at && (
                 <div className="flex flex-wrap gap-3 [&>form]:w-auto">
                   {status === "cancelled" && (
                     <RestoreCancelledEventForm eventId={event.id} />
                   )}
-                  {signupOpen && (
-                    <CancelForm
-                      eventId={event.id}
-                      series={seriesData}
-                      requestKey={crypto.randomUUID()}
-                    />
-                  )}
-                  <RemoveEventForm
-                    eventId={event.id}
-                    series={seriesData}
-                    requestKey={crypto.randomUUID()}
-                  />
+                  <DeleteEventForm eventId={event.id} />
                 </div>
               )}
             </section>

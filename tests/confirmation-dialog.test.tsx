@@ -3,8 +3,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it, vi } from "vitest";
 
 vi.mock("@/app/(protected)/events/actions", () => ({
-  cancelEvent: vi.fn(),
-  removeEvent: vi.fn(),
+  deleteEvent: vi.fn(),
+  restoreDeletedEvent: vi.fn(),
 }));
 vi.mock("@/app/(protected)/events/time-slot-actions", () => ({
   changeTimeSlotSignup: vi.fn(),
@@ -39,10 +39,7 @@ import {
   dialogTitleClassName,
 } from "@/components/ui";
 import { recurrenceScopeLabels } from "@/components/recurrence-scope";
-import {
-  CancelForm,
-  RemoveEventForm,
-} from "@/app/(protected)/events/event-controls";
+import { DeleteEventForm } from "@/app/(protected)/events/event-controls";
 import { TaskDeleteForm } from "@/app/(protected)/tasks/task-remove-form";
 import {
   DeleteWarningForm,
@@ -50,12 +47,6 @@ import {
 } from "@/app/(protected)/officers/warning-forms";
 import PointActions from "@/app/(protected)/points/point-actions";
 import { PointHistoryState } from "@/app/(protected)/points/point-history-state";
-
-const series = {
-  id: 12,
-  revision: 3,
-  recurrence_rule: "RRULE:FREQ=DAILY;INTERVAL=1;COUNT=3",
-};
 
 it("labels the native dialog and gives only Confirm submit behavior", () => {
   const html = renderToStaticMarkup(
@@ -160,28 +151,16 @@ it.each([
   },
 );
 
-it("shows action-specific Event cancel and removal confirmations", () => {
-  const cancelHtml = renderToStaticMarkup(
-    createElement(CancelForm, {
-      eventId: 9,
-      series,
-      requestKey: "00000000-0000-4000-8000-000000000001",
-    }),
-  );
+it("confirms Event deletion and explains its retained history", () => {
   const removeHtml = renderToStaticMarkup(
-    createElement(RemoveEventForm, {
+    createElement(DeleteEventForm, {
       eventId: 9,
-      series,
-      requestKey: "00000000-0000-4000-8000-000000000001",
     }),
   );
 
-  expect(cancelHtml).toContain("Cancel Event?");
-  expect(cancelHtml).toContain("This applies cancellation to the selected");
-  expect(cancelHtml).toContain("This occurrence");
-  expect(removeHtml).toContain("Archive Event?");
-  expect(removeHtml).toContain("workflow history is preserved");
-  expect(removeHtml).toContain("This occurrence");
+  expect(removeHtml).toContain("Delete Event?");
+  expect(removeHtml).toContain("Volunteer Time Slots, recurrence identity");
+  expect(removeHtml).toContain("Event linked Points stop counting");
 });
 
 it("confirms reversible Task deletion and keeps recurrence scope out of this action", () => {

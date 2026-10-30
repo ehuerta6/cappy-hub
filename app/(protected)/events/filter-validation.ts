@@ -4,11 +4,12 @@ import {
   optionalListIdSchema,
 } from "@/lib/search-params";
 
-const eventListStatusSchema = searchParamStringSchema.transform((value) =>
-  (["upcoming", "happening", "past", "cancelled", "archived"] as const).find(
-    (status) => status === value,
-  ),
-);
+const eventListStatusSchema = searchParamStringSchema.transform((value) => {
+  const normalized = value === "archived" ? "deleted" : value;
+  return (
+    ["upcoming", "happening", "past", "cancelled", "deleted"] as const
+  ).find((status) => status === normalized);
+});
 
 export const eventListFiltersSchema = zod.object({
   q: searchParamStringSchema.transform((value) => value.trim().slice(0, 100)),

@@ -88,7 +88,10 @@ const actionPresentations: Record<string, ActionPresentation> = {
   "event.participation_processed": { label: "Processed event participation" },
   "event.removed": { label: "Removed an event" },
   "event.archived": { label: "Archived an Event" },
+  "event.deleted": { label: "Deleted an Event" },
   "event.restored": { label: "Restored an event" },
+  "points.event_delete_suspended": { label: "Suspended Event points" },
+  "points.event_delete_restored": { label: "Restored Event points" },
   "event.signout": {
     label: "Removed an event signup",
     kind: "event-signout",

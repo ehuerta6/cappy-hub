@@ -37,10 +37,10 @@ export default async function EventsPage({
   const actor = await getAuthorizationContext();
   const params = await searchParams;
   const filters = eventListFiltersSchema.parse(params);
-  const mayBrowseArchived =
+  const mayBrowseDeleted =
     canSeeAllBranches(actor) || (isLead(actor) && actor.branchIds.length > 0);
   const status =
-    filters.status === "archived" && !mayBrowseArchived
+    filters.status === "deleted" && !mayBrowseDeleted
       ? undefined
       : filters.status;
   const {
@@ -59,10 +59,10 @@ export default async function EventsPage({
   if (typeId !== undefined) filtersInUrl.set("type", String(typeId));
   if (branchId !== undefined) filtersInUrl.set("branch", String(branchId));
 
-  const archivedLead =
-    status === "archived" && isLead(actor) && !canSeeAllBranches(actor);
+  const deletedLead =
+    status === "deleted" && isLead(actor) && !canSeeAllBranches(actor);
   const eventSelection =
-    "id,name,event_date,starts_at,ends_at,status,deleted_at,max_volunteers,participation_points_per_hour_at_end,event_types(name),event_branches(branch_id,branches(name)),filter_branch:event_branches(branch_id),scope_branch:event_branches(branch_id),event_officers(officer_id,removed_at)";
+    "id,name,event_date,starts_at,ends_at,status,deleted_at,delete_points_suspended,max_volunteers,participation_points_per_hour_at_end,event_types(name),event_branches(branch_id,branches(name)),filter_branch:event_branches(branch_id),scope_branch:event_branches(branch_id),event_officers(officer_id,removed_at)";
   const buildEventQuery = (includeFilters: boolean, countOnly = false) => {
     let query = supabase
       .from("events")
@@ -71,10 +71,10 @@ export default async function EventsPage({
         countOnly ? { count: "exact", head: true } : undefined,
       );
     query =
-      status === "archived"
+      status === "deleted"
         ? query.not("deleted_at", "is", null)
         : query.is("deleted_at", null);
-    if (archivedLead)
+    if (deletedLead)
       query = query
         .in("scope_branch.branch_id", actor.branchIds)
         .not("scope_branch", "is", null);
@@ -112,7 +112,7 @@ export default async function EventsPage({
           ? query
               .order("ends_at", { ascending: false })
               .order("id", { ascending: false })
-          : status === "cancelled" || status === "archived"
+          : status === "cancelled" || status === "deleted"
             ? query
                 .order("event_date", { ascending: false })
                 .order("starts_at", { ascending: false })
@@ -190,8 +190,8 @@ export default async function EventsPage({
                 ? "Past events"
                 : status === "cancelled"
                   ? "Cancelled events"
-                  : status === "archived"
-                    ? "Archived events"
+                  : status === "deleted"
+                    ? "Deleted events"
                     : status === "happening"
                       ? "Happening events"
                       : "Upcoming events",
@@ -216,8 +216,8 @@ export default async function EventsPage({
       ? "No past events."
       : status === "cancelled"
         ? "No cancelled events."
-        : status === "archived"
-          ? "No archived Events."
+        : status === "deleted"
+          ? "No deleted Events."
           : status === "upcoming"
             ? "No upcoming events."
             : status === "happening"
@@ -263,7 +263,7 @@ export default async function EventsPage({
             <option value="happening">Happening</option>
             <option value="past">Past</option>
             <option value="cancelled">Cancelled</option>
-            {mayBrowseArchived && <option value="archived">Archived</option>}
+            {mayBrowseDeleted && <option value="deleted">Deleted</option>}
           </select>
         </label>
         <label className="min-w-36">

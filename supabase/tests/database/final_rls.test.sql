@@ -121,6 +121,8 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       'public.restore_warning(bigint)'::regprocedure,
       'public.void_warning(bigint)'::regprocedure,
       'public.remove_event(bigint)'::regprocedure,
+      'public.delete_event(bigint)'::regprocedure,
+      'public.restore_deleted_event(bigint)'::regprocedure,
       'public.update_point_transaction(bigint,numeric)'::regprocedure,
       'public.remove_point_transaction(bigint)'::regprocedure,
       'public.save_event_with_links(text,text,bigint,text,date,timestamptz,timestamptz,bigint[],bigint,text,text)'::regprocedure,

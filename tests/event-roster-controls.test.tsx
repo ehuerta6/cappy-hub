@@ -5,10 +5,9 @@ vi.mock("@/app/(protected)/events/actions", () => ({
   bulkAddEventOfficers: vi.fn(),
   changeSignup: vi.fn(),
   selfSignup: vi.fn(),
-  cancelEvent: vi.fn(),
   restoreEvent: vi.fn(),
-  restoreEventArchive: vi.fn(),
-  removeEvent: vi.fn(),
+  restoreDeletedEvent: vi.fn(),
+  deleteEvent: vi.fn(),
 }));
 vi.mock("@/app/(protected)/events/time-slot-actions", () => ({
   changeTimeSlotSignup: vi.fn(),

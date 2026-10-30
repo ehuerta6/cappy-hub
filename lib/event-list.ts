@@ -2,7 +2,7 @@ import type { Tables } from "./database.types";
 import { currentDenverWeek } from "./current-denver-week";
 
 export type EventListStatus =
-  "upcoming" | "happening" | "past" | "cancelled" | "archived" | undefined;
+  "upcoming" | "happening" | "past" | "cancelled" | "deleted" | undefined;
 
 export type EventListItem = Pick<
   Tables<"events">,
@@ -16,6 +16,7 @@ export type EventListItem = Pick<
   | "participation_points_per_hour_at_end"
   | "max_volunteers"
 > & {
+  delete_points_suspended?: boolean;
   event_types: { name: string };
   event_branches: { branches: { name: string } }[];
   event_officers: { officer_id: number; removed_at?: string | null }[];
@@ -40,7 +41,7 @@ export function organizeEventList(
   const nowMs = now.getTime();
   const { today, sunday } = currentDenverWeek(now);
   const visible = events.filter((event) => {
-    if (status === "archived") return event.deleted_at !== null;
+    if (status === "deleted") return event.deleted_at !== null;
     if (event.deleted_at) return false;
     if (status === "cancelled") return event.status === "cancelled";
     if (event.status === "cancelled") return false;
@@ -57,7 +58,7 @@ export function organizeEventList(
   const sort = (left: EventListItem, right: EventListItem) => {
     if (status === "past")
       return right.ends_at.localeCompare(left.ends_at) || right.id - left.id;
-    if (status === "cancelled" || status === "archived") {
+    if (status === "cancelled" || status === "deleted") {
       return (
         right.event_date.localeCompare(left.event_date) ||
         right.starts_at.localeCompare(left.starts_at) ||
