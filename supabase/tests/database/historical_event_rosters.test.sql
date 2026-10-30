@@ -31,15 +31,19 @@ values
  (-32903,'Other branch roster','Synthetic','Campus',(select id from event_types where name='Meeting'),
   '2020-01-03 09:00-07','2020-01-03 11:00-07','past',1,null),
  (-32910,'Historical first processing','Synthetic','Campus',(select id from event_types where name='Meeting'),
-  '2020-01-04 09:00-07','2020-01-04 11:00-07','past',null,null);
+  '2020-01-04 09:00-07','2020-01-04 11:00-07','past',null,null),
+ (-32911,'Historical single signup processing','Synthetic','Campus',(select id from event_types where name='Meeting'),
+  '2020-01-05 09:00-07','2020-01-05 11:00-07','past',null,null);
 insert into event_branches(event_id,branch_id)
 select -32901,id from branches where name='intro'
 union all select -32902,id from branches where name='intro'
 union all select -32903,id from branches where name='icpc';
 insert into event_branches(event_id,branch_id)
-select -32910,id from branches where name='intro';
+select event_id,id from (values (-32910::bigint),(-32911::bigint)) events(event_id)
+cross join branches where branches.name='intro';
 insert into event_officers(event_id,officer_id) values
- (-32901,-32903),(-32901,-32904),(-32902,-32903),(-32910,-32903),(-32910,-32907);
+ (-32901,-32903),(-32901,-32904),(-32902,-32903),
+ (-32910,-32903),(-32910,-32907),(-32911,-32903),(-32911,-32907);
 insert into event_time_slots(id,event_id,starts_at,ends_at,capacity)
 values(-329201,-32902,'2020-01-02 09:00-07','2020-01-02 10:00-07',null);
 insert into event_time_slot_officers(event_id,slot_id,officer_id,created_by)
@@ -130,6 +134,16 @@ select is((select participation_points_per_hour_at_end from public.events where 
 select is((select count(*) from public.point_transactions where event_id=-32910 and award_type='participation'
   and removed_at is null),3::bigint,
  'first snapshot processing awards all preexisting and newly added eligible roster members');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032902',true);
+set local role authenticated;
+select lives_ok($$select public.change_event_signup(-32911,-32906,false)$$,
+ 'single manager signup can first process an ended Event');
+reset role;
+select is((select participation_points_per_hour_at_end from public.events where id=-32911),1::numeric,
+ 'single signup establishes the first participation snapshot');
+select is((select count(*) from public.point_transactions where event_id=-32911
+  and award_type='participation' and removed_at is null),3::bigint,
+ 'single signup first processing awards existing as well as newly added roster members');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032901',true);
 set local role authenticated;

@@ -149,7 +149,12 @@ begin
       on conflict(event_id,officer_id) do nothing;
     get diagnostics changed_rows=row_count;
     if changed_rows>0 then
-      perform private.reconcile_event_participation_for_roster(p_event_id,false,array[p_officer_id]);
+      if current_event.ends_at<=pg_catalog.now()
+         and current_event.participation_points_per_hour_at_end is null then
+        perform private.reconcile_event_participation(p_event_id,false);
+      else
+        perform private.reconcile_event_participation_for_roster(p_event_id,false,array[p_officer_id]);
+      end if;
     end if;
   end if;
   if changed_rows>0 then
