@@ -1,6 +1,6 @@
 # Administrative simplification implementation roadmap
 
-Status: approved direction, 2026-10-29; #326 completed and #327 implemented in repository (production rollout separate). Parent: [#325](https://github.com/ehuerta6/cappy-hub/issues/325). The [canonical product specification, section 15](design-doc.md#15-planned--accepted-behavior) owns product requirements. This document records implementation conflicts and sequencing, not a second product contract.
+Status: approved direction, with owner clarifications recorded 2026-10-30; #326 completed and #327 implemented in repository (production rollout separate). Parent: [#325](https://github.com/ehuerta6/cappy-hub/issues/325). The [canonical product specification, section 15](design-doc.md#15-planned--accepted-behavior) owns product requirements. This document records implementation conflicts and sequencing, not a second product contract.
 
 ## Implementation order
 
@@ -45,11 +45,25 @@ Database test paths above are relative to `supabase/tests/database/` unless pref
 
 ## Compatibility and decision boundaries
 
-- Automatic transaction amount editing remains a narrow pending policy. #326 assesses existing edits; implementation must not silently finalize this choice. Approved source reconciliation/manual additive credit can proceed independently; surface any newly encountered dependent ambiguity.
+- **Automatic transaction amount editing is resolved:** Option C, Source of Truth Wins, was approved on 2026-10-30 and supersedes the earlier pending note. Direct editing remains available; relevant Event/Task source changes replace automatic amounts with source-derived values and meaningful before/after audits. Independent manual transactions and intentional removals remain protected. PR #343 implements the Event behavior; #331/#341 owns Task behavior.
 - Historical rate verification and ambiguous lifecycle/removal classification are evidence gates. Unavailable production evidence is a blocker for destructive schema cleanup, not permission to infer history. No production access, migration or repair is performed by this roadmap.
 - Each Issue includes data preservation, trusted authorization, historical upgrade and meaningful regression requirements. Use synthetic local fixtures; never copy production data into development or deploy synthetic seeds.
 - Closed #180, #184, #185, #186 and #295 record earlier duplicate-award, lifecycle, catalog, Warning and Time Slot decisions. These new Issues intentionally supersede the conflicting policies; they do not reopen or erase those records. #29 remains the integration foundation.
 - Existing #267/#268 and #271–#276 Presenter/notification proposals remain outside this effort and are postponed here. #293 attendance check-in is separate, not a prerequisite. Officer lifecycle and last-Admin safeguards remain unchanged.
-- No new generic lifecycle framework, notification subsystem, queue, catalog module or audit editing surface is approved. Reuse existing architecture and narrow vertical slices.
+- No generic lifecycle framework, notification subsystem, queue, or audit editing surface is approved. Task Types are the one explicitly approved additional manageable catalog; do not generalize it into a catalog framework. Reuse existing architecture and narrow vertical slices.
+
+## Owner-confirmed follow-up impact (2026-10-30)
+
+The current Issue descriptions remain unchanged until their scope is visibly reviewed. Follow-on planning is:
+
+- **Volunteer Time Slots:** Add one focused retirement Issue after #328. Keep historical slot rows, relationships, participation transactions and audit evidence; no destructive migration or production repair is implied. The active Time Slot correction requirement in #329 conflicts with the new direction, so #329 must be re-scoped to the still-approved historical Event roster work before implementation. Coordinate this transition with #330 because both touch Event lifecycle, signup and participation behavior. Presenter Slots remain out of scope and unchanged.
+- **Task Types:** [#347](https://github.com/ehuerta6/cappy-hub/issues/347) provides the dedicated CRUD follow-up. It is a narrow approved exception for the existing hardcoded values, not approval for a generic catalog framework; integrate after #337 and #331 to avoid shared catalog and Task form/database edits.
+- **Warnings:** Keep #336 as the Delete/Restore implementation. Before it starts, visibly add the approved simplification of everyday legacy approval views while retaining historical approvals, assignments, statuses and audit evidence; do not retroactively approve rejected or pending rows.
+- **Points administration:** Prepare one focused UI follow-up for a unified signed manual-adjustment workflow and simpler useful history filters. Keep transaction history/classifications and the leaderboard; avoid changing source reconciliation in that UI issue. Sequence it after the current #343/#341 Points integrations.
+- **Semesters:** Defer implementation planning until the attribution date for existing Event, Task, manual and unlinked transactions is selected and the initial historical semester periods are defined. Current `point_history.activity_date` uses an Event date when Event-linked and otherwise the transaction creation date in America/Denver; Task due-date attribution is not currently represented there.
+- **System Log:** Prepare a separate UI-removal Issue after #336/#337 to avoid overlapping Warning and Admin navigation work. First remove the page/navigation/filters; preserve `audit_logs`, trusted audit writers and transaction history. Assess any storage/writer simplification separately after dependencies are inventoried.
+- **Signup Sheet:** Keep the optional external link until its remaining need outside native signup is confirmed. Keep reusable Event Locations, Event resource links, Google Calendar sync, recurrence, classifications, catalog behavior and other approved product behavior.
+
+Before any Time Slot retirement migration that depends on live inventory, obtain sanitized read-only counts of active/upcoming slotted Events, existing slot signups and slot-linked Point transactions. No production query or write was made for this plan.
 
 #335 is implemented in the repository: Admin Warnings take effect immediately, historical reason corrections are audited, and current decision prompts are removed. Legacy decisions/statuses remain preserved; reversible Delete/Restore is still #336. Production deployment is a separate operation.
