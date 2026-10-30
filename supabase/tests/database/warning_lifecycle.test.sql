@@ -80,8 +80,10 @@ select is((select status from officers where id=-33502),'active','review thresho
 select set_config('test.third_warning_id',(select id::text from officer_warnings where reason='Third active warning'),true);
 set local role authenticated;
 select lives_ok($$select delete_warning(current_setting('test.third_warning_id')::bigint)$$,'Admin deletes an active Warning through the trusted RPC');
+select is((select count(*) from officer_warnings where officer_id=-33502 and status='approved' and voided_at is null and deleted_at is null),2::bigint,'deleting the third active Warning lowers the count from three to two');
 select throws_ok($$select delete_warning(current_setting('test.third_warning_id')::bigint)$$,'P0001','Warning is already deleted','repeat Delete is rejected without changing history');
 select lives_ok($$select restore_warning(current_setting('test.third_warning_id')::bigint)$$,'Admin restores a deleted Warning through the trusted RPC');
+select is((select count(*) from officer_warnings where officer_id=-33502 and status='approved' and voided_at is null and deleted_at is null),3::bigint,'restoring the third eligible Warning raises the count from two to three');
 select throws_ok($$select restore_warning(current_setting('test.third_warning_id')::bigint)$$,'P0001','Warning is not deleted','repeat Restore is rejected');
 select lives_ok($$select delete_warning(-33511)$$,'Admin can reversibly delete a historical pending Warning');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033503',true);
