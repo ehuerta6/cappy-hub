@@ -105,6 +105,29 @@ it("groups this week and upcoming events, excludes ended/cancelled/removed, and 
   expect(result.thisWeek[0].event_officers).toEqual([{ officer_id: 7 }]);
 });
 
+it("does not group a preserved removed signup as one of the Officer's events", () => {
+  const rows = [
+    event(
+      1,
+      "Historical signup only",
+      "2026-10-12",
+      "2026-10-12T17:00:00Z",
+      "2026-10-12T18:00:00Z",
+      {
+        event_officers: [{ officer_id: 7, removed_at: "2026-10-01T00:00:00Z" }],
+      },
+    ),
+  ];
+
+  const groups = groupEventPage(rows, undefined, 7, now);
+  expect(groups).toMatchObject([
+    {
+      label: "Upcoming events · Other events",
+      events: [{ name: "Historical signup only" }],
+    },
+  ]);
+});
+
 it("shows ended Events only in explicit Past, newest ended first", () => {
   const rows = [
     event(

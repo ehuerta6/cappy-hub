@@ -154,14 +154,17 @@ export type Database = {
         Row: {
           event_id: number;
           officer_id: number;
+          removed_at: string | null;
         };
         Insert: {
           event_id: number;
           officer_id: number;
+          removed_at?: string | null;
         };
         Update: {
           event_id?: number;
           officer_id?: number;
+          removed_at?: string | null;
         };
         Relationships: [
           {

@@ -57,7 +57,7 @@ const upcoming: Pick<
 > & {
   event_types: { name: string };
   event_branches: { branches: { name: string } }[];
-  event_officers: { officer_id: number }[];
+  event_officers: { officer_id: number; removed_at?: string | null }[];
   presentation_slots?: { officer_id: number | null }[];
 } = {
   id: 1,
@@ -337,7 +337,7 @@ it("preserves all three summary metric values and the existing summary/activity 
     [
       "select",
       [
-        "*,event_types(name),event_officers(officer_id),presentation_slots(officer_id)",
+        "*,event_types(name),event_officers(officer_id,removed_at),presentation_slots(officer_id)",
       ],
     ],
     ["neq", ["status", "cancelled"]],

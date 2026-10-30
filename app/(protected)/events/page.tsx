@@ -62,7 +62,7 @@ export default async function EventsPage({
   const archivedLead =
     status === "archived" && isLead(actor) && !canSeeAllBranches(actor);
   const eventSelection =
-    "id,name,event_date,starts_at,ends_at,status,deleted_at,max_volunteers,participation_points_per_hour_at_end,event_types(name),event_branches(branch_id,branches(name)),filter_branch:event_branches(branch_id),scope_branch:event_branches(branch_id),event_officers(officer_id)";
+    "id,name,event_date,starts_at,ends_at,status,deleted_at,max_volunteers,participation_points_per_hour_at_end,event_types(name),event_branches(branch_id,branches(name)),filter_branch:event_branches(branch_id),scope_branch:event_branches(branch_id),event_officers(officer_id,removed_at)";
   const buildEventQuery = (includeFilters: boolean, countOnly = false) => {
     let query = supabase
       .from("events")
@@ -159,11 +159,16 @@ export default async function EventsPage({
   const events = (pageEvents as EventListItem[]).map((event) => ({
     ...event,
     confirmed_count: Number(
-      counts.get(event.id)?.confirmed_count ?? event.event_officers.length,
+      counts.get(event.id)?.confirmed_count ??
+        event.event_officers.filter(({ removed_at }) => removed_at == null)
+          .length,
     ),
   }));
   const participates = (event: EventListItem) =>
-    event.event_officers.some(({ officer_id }) => officer_id === actor.id);
+    event.event_officers.some(
+      ({ officer_id, removed_at }) =>
+        officer_id === actor.id && removed_at == null,
+    );
   // Pagination selects and orders the page first; presentation groups only
   // those eight Events and keeps their order within each group.
   const sections =
@@ -340,7 +345,8 @@ export default async function EventsPage({
                           <tbody>
                             {group.events.map((event) => {
                               const signedUp = event.event_officers.some(
-                                ({ officer_id }) => officer_id === actor.id,
+                                ({ officer_id, removed_at }) =>
+                                  officer_id === actor.id && removed_at == null,
                               );
                               const canAct =
                                 signupActionsOpen &&

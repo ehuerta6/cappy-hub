@@ -234,6 +234,7 @@ export default async function OfficerDetailPage({
         countOnly ? { count: "exact", head: true } : { count: "exact" },
       )
       .eq("officer_id", officer.id)
+      .is("removed_at", null)
       .is("events.deleted_at", null)
       .neq("events.status", "cancelled");
     if (!countOnly)
