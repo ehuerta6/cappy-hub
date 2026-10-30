@@ -81,7 +81,7 @@ reset role;
 set local role anon;
 select throws_ok($$select restore_event_location(-33701)$$,'42501','permission denied for function restore_event_location','anonymous Restore denied');
 reset role;
--- Existing Session identity restrictions stay in force; no Presenter changes.
+-- Preserved presentation history does not block Event Type edits.
 insert into events(id,name,description,event_type_id,location,event_date,starts_at,ends_at)
  values(-33710,'Session identity control','Synthetic existing behavior',
  (select id from event_types where lower(name)='session'),'TBA','2099-09-20',
@@ -89,8 +89,8 @@ insert into events(id,name,description,event_type_id,location,event_date,starts_
 insert into presentation_slots(event_id,position) values(-33710,1);
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033701',true);
 set local role authenticated;
-select throws_ok($$select rename_event_type((select id from event_types where lower(name)='session'),'Renamed Session')$$,
- 'P0001','Cannot rename the Session Event Type while presenter slots exist','manageable Event Types preserve existing Session guard');
+select lives_ok($$select rename_event_type((select id from event_types where lower(name)='session'),'Renamed Session')$$,
+ 'historical Presenter Slot rows do not block an authorized Event Type rename');
 reset role;
 create function pg_temp.reject_catalog_audit() returns trigger language plpgsql as $$begin
  if new.action='branch.deleted' then raise exception 'Synthetic catalog audit failure'; end if;return new;end;$$;

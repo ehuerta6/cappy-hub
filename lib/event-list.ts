@@ -32,38 +32,6 @@ export function eventSignupCountLabel(event: {
     : `${confirmedCount} / ${event.max_volunteers} confirmed`;
 }
 
-// Counts real slots, so a fourth or later slot counts and repeated difficulty
-// does not merge slots. Mirrors private.presenter_slots_open for closed Events.
-export function openPresenterSlotCount(
-  event: Pick<
-    Tables<"events">,
-    | "status"
-    | "deleted_at"
-    | "starts_at"
-    | "participation_points_per_hour_at_end"
-  > & {
-    event_types: { name: string } | null;
-    presentation_slots?: { officer_id: number | null }[];
-  },
-  now = Date.now(),
-) {
-  if (event.event_types?.name.trim().toLowerCase() !== "session") return 0;
-  if (
-    event.deleted_at ||
-    event.status === "cancelled" ||
-    event.participation_points_per_hour_at_end !== null ||
-    now >= new Date(event.starts_at).getTime()
-  )
-    return 0;
-  return (event.presentation_slots ?? []).filter(
-    ({ officer_id }) => officer_id === null,
-  ).length;
-}
-
-export function openPresenterSlotLabel(count: number) {
-  return `${count} presenter ${count === 1 ? "slot" : "slots"} open`;
-}
-
 export function organizeEventList(
   events: EventListItem[],
   status: EventListStatus,

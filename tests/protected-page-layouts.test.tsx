@@ -94,6 +94,7 @@ const task = {
 };
 let officersForList: Record<string, unknown>[];
 let eventRosterRows: Record<string, unknown>[];
+let historicalPresentationRows: Record<string, unknown>[];
 let eventRosterCount = 0;
 let personalRosterCount = 0;
 let eventTaskRows: Record<string, unknown>[];
@@ -110,6 +111,7 @@ beforeEach(() => {
   event.participation_points_per_hour_at_end = null;
   officersForList = [];
   eventRosterRows = [];
+  historicalPresentationRows = [];
   eventRosterCount = 0;
   personalRosterCount = 0;
   eventTaskRows = [];
@@ -239,22 +241,24 @@ beforeEach(() => {
                       query.rangeStart,
                       query.rangeEnd + 1,
                     )
-                  : table === "event_officers"
-                    ? eventRosterRows.slice(
-                        query.rangeStart,
-                        query.rangeEnd + 1,
-                      )
-                    : table === "task_events" && filters.has("task_id")
-                      ? task.task_events.slice(
+                  : table === "presentation_slots"
+                    ? historicalPresentationRows
+                    : table === "event_officers"
+                      ? eventRosterRows.slice(
                           query.rangeStart,
                           query.rangeEnd + 1,
                         )
-                      : table === "task_events"
-                        ? eventTaskRows.slice(
+                      : table === "task_events" && filters.has("task_id")
+                        ? task.task_events.slice(
                             query.rangeStart,
                             query.rangeEnd + 1,
                           )
-                        : [],
+                        : table === "task_events"
+                          ? eventTaskRows.slice(
+                              query.rangeStart,
+                              query.rangeEnd + 1,
+                            )
+                          : [],
             count:
               table === "officers"
                 ? officersForList.length
@@ -718,25 +722,47 @@ it("keeps manager bulk signup available when eligible Officers exist", async () 
   expect(html).toContain('name="officer_ids" value="4"');
 });
 
-it("shows presenter slots only on Session Events", async () => {
+it("shows historical presentations after an Event type edit without active controls", async () => {
   const meetingHtml = renderToStaticMarkup(
     await EventDetail({ params: Promise.resolve({ id: "7" }) }),
   );
-  expect(meetingHtml).not.toContain('aria-label="Presenters"');
+  expect(meetingHtml).not.toContain('aria-label="Historical presentations"');
   expect(queryLog.some(({ table }) => table === "presentation_slots")).toBe(
-    false,
+    true,
   );
 
   const originalType = event.event_types;
-  event.event_types = { name: "Session" };
+  event.event_types = { name: "Workshop" };
+  historicalPresentationRows = [
+    {
+      id: 61,
+      position: 2,
+      officer_id: 8,
+      presentation_title: "Historical topic",
+      difficulty: "Medium",
+      resource_url: "https://example.org/history",
+      prep_notes: "Historical preparation notes.",
+      officers: { id: 8, name: "Historical Presenter" },
+    },
+  ];
   try {
-    officersForList = [{ id: 4, name: "Available Officer", status: "active" }];
     const sessionHtml = renderToStaticMarkup(
       await EventDetail({ params: Promise.resolve({ id: "7" }) }),
     );
-    expect(sessionHtml).toContain('aria-label="Presenters"');
-    expect(sessionHtml).toContain("No presenter slots yet.");
-    expect(sessionHtml).toContain("Add presenter slot");
+    expect(sessionHtml).toContain('aria-label="Historical presentations"');
+    expect(sessionHtml).toContain("Historical topic");
+    expect(sessionHtml).toContain("Historical Presenter");
+    expect(sessionHtml).toContain("Historical preparation notes.");
+    for (const activeControl of [
+      "Volunteer",
+      "Step down",
+      "Assign presenter",
+      "Move up",
+      "Edit details",
+      "Add presenter slot",
+    ]) {
+      expect(sessionHtml).not.toContain(activeControl);
+    }
     expect(queryLog).toContainEqual({
       table: "presentation_slots",
       method: "order",

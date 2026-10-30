@@ -16,7 +16,6 @@ import {
   eventStatus,
   eventSignupOpen,
   isSessionEventType,
-  presenterSlotsClosedReason,
 } from "@/lib/event-status";
 import { personalSignupState } from "../personal-signup-state";
 import PresenterSlotsSection from "../presenter-slots-section";
@@ -287,18 +286,13 @@ export default async function EventDetailPage({
   const canAddOfficers = canManage && !event.deleted_at && (signupOpen || past);
   const canCorrectTimeSlots =
     canManage && !event.deleted_at && event.status !== "cancelled";
-  const showPresenters =
-    section === "overview" && isSessionEventType(event.event_types.name);
+  const showPresenters = section === "overview";
   const showTimeSlots =
     (section === "overview" || section === "roster") &&
     !isSessionEventType(event.event_types.name);
-  const presenterClosedReason = presenterSlotsClosedReason(event);
-  const canAssignPresenters =
-    showPresenters && canManage && presenterClosedReason === null;
   const [
     candidateOfficersResult,
     presenterSlotsResult,
-    presenterCandidatesResult,
     timeSlotOfficerCandidatesResult,
     timeSlotsResult,
     rosterResult,
@@ -325,13 +319,6 @@ export default async function EventDetailPage({
           )
           .eq("event_id", event.id)
           .order("position")
-      : Promise.resolve(undefined),
-    canAssignPresenters
-      ? supabase
-          .from("officers")
-          .select("id,name")
-          .eq("status", "active")
-          .order("name")
       : Promise.resolve(undefined),
     canManage && showTimeSlots
       ? supabase
@@ -395,7 +382,6 @@ export default async function EventDetailPage({
   if (
     candidateOfficersResult?.error ||
     presenterSlotsResult?.error ||
-    presenterCandidatesResult?.error ||
     timeSlotOfficerCandidatesResult?.error ||
     timeSlotsResult?.error ||
     rosterResult?.error ||
@@ -672,20 +658,7 @@ export default async function EventDetailPage({
             </section>
           </div>
           {showPresenters && (
-            <PresenterSlotsSection
-              eventId={event.id}
-              slots={presenterSlotsResult?.data ?? []}
-              actorId={actor.id}
-              canManage={canManage}
-              canVolunteer={eligibleForSelfSignup}
-              volunteerBlockedReason={
-                full && !confirmed
-                  ? "This Session is full, so only confirmed officers can volunteer."
-                  : null
-              }
-              closedReason={presenterClosedReason}
-              officers={presenterCandidatesResult?.data ?? []}
-            />
+            <PresenterSlotsSection slots={presenterSlotsResult?.data ?? []} />
           )}
           {taskCount > 0 && (
             <p className="text-sm">
