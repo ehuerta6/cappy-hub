@@ -517,6 +517,7 @@ create or replace view public.point_history with (security_invoker=true) as
     end as activity_date,
     p.created_by_officer_id,p.updated_by_officer_id,p.removed_by_officer_id,
     updater.name as updated_by_name,p.participation_superseded_at,
+    p.participation_schedule_suspended,
     (p.removed_at is not null and not p.slot_selection_removed and p.award_type='participation'
       and p.participation_superseded_at is null
       and (p.removed_by is not null or p.removed_by_officer_id is not null)) as premature_confirmation_available

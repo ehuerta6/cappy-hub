@@ -1196,6 +1196,7 @@ export type Database = {
           id: number | null;
           officer_id: number | null;
           officer_name: string | null;
+          participation_schedule_suspended: boolean | null;
           participation_superseded_at: string | null;
           points: number | null;
           premature_confirmation_available: boolean | null;

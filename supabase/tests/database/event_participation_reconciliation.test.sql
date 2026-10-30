@@ -29,6 +29,8 @@ select results_eq($$select to_jsonb(p) from point_transactions p where event_id=
  $$select original from before_description order by (original->>'id')::bigint$$,'descriptive edit leaves every transaction unchanged');
 update events set event_date='2099-01-01',starts_at='2099-01-01 09:00-07',ends_at='2099-01-01 12:30-07' where id=-32801;
 select is((select total_points from officer_point_totals where id=-32802),3::numeric,'moving into future excludes premature automatic credit only');
+select is((select participation_schedule_suspended from point_history where event_id=-32801 and award_type='participation'),
+ true,'Point History distinguishes automatic schedule suspension from human removal');
 select is(private.process_finished_events(),0,'future schedule cannot grant credit');
 select results_eq($$select to_jsonb(eo) from event_officers eo where event_id=-32801$$,
  $$select original from retained_signups$$,'corrected future schedule preserves signup identity');

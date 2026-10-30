@@ -134,11 +134,23 @@ export default function HistoryTable({
                   <div>{actorName(transaction)}</div>
                   {transaction.removed_at && (
                     <div className="space-y-1">
-                      <StatusBadge status="removed" />
-                      <div>
-                        Removed by{" "}
-                        {transaction.removed_by_name ?? "Unlinked account"}
-                      </div>
+                      {transaction.participation_schedule_suspended ? (
+                        <>
+                          <StatusBadge status="suspended" />
+                          <div>
+                            Temporarily excluded from totals; eligible credit is
+                            reconciled after the corrected Event ends.
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <StatusBadge status="removed" />
+                          <div>
+                            Removed by{" "}
+                            {transaction.removed_by_name ?? "Unlinked account"}
+                          </div>
+                        </>
+                      )}
                       <div>{formatDate(transaction.removed_at)}</div>
                     </div>
                   )}
