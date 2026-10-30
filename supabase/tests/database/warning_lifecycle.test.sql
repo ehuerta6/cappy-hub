@@ -68,6 +68,11 @@ select throws_ok($$select delete_warning(current_setting('test.third_warning_id'
 select lives_ok($$select restore_warning(current_setting('test.third_warning_id')::bigint)$$,'Admin restores a deleted Warning through the trusted RPC');
 select throws_ok($$select restore_warning(current_setting('test.third_warning_id')::bigint)$$,'P0001','Warning is not deleted','repeat Restore is rejected');
 select lives_ok($$select delete_warning(-33511)$$,'Admin can reversibly delete a historical pending Warning');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033503',true);
+select throws_ok($$select decide_warning(-33511,'rejected')$$,'P0001','This warning is deleted','legacy approver cannot decide a deleted pending Warning');
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033501',true);
+set local role authenticated;
 select lives_ok($$select restore_warning(-33511)$$,'Admin can restore a historical pending Warning');
 select lives_ok($$select delete_warning(-33514)$$,'Admin can reversibly delete a historically voided Warning');
 select lives_ok($$select restore_warning(-33514)$$,'Admin can restore a historically voided Warning');
@@ -147,6 +152,10 @@ select throws_ok($$select restore_warning(-33513)$$,'42501','permission denied f
 reset role;
 
 -- Source mutations roll back with their audit if recording history fails.
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033501',true);
+set local role authenticated;
+select lives_ok($$select delete_warning(current_setting('test.third_warning_id')::bigint)$$,'prepare a deleted Warning for Restore audit rollback test');
+reset role;
 create function pg_temp.reject_warning_audit() returns trigger language plpgsql as $$
 begin
  if new.action in ('warning.created','warning.updated','warning.deleted','warning.restored') then raise exception 'Synthetic audit failure'; end if;
@@ -158,11 +167,12 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033501'
 set local role authenticated;
 select throws_ok($$select create_warning(-33502,'Should roll back')$$,'P0001','Synthetic audit failure','create and audit fail atomically');
 select throws_ok($$select update_warning(-33513,'Should roll back')$$,'P0001','Synthetic audit failure','historical correction and audit fail atomically');
-select throws_ok($$select delete_warning(current_setting('test.third_warning_id')::bigint)$$,'P0001','Synthetic audit failure','Warning deletion rolls back with its audit');
+select throws_ok($$select delete_warning(-33513)$$,'P0001','Synthetic audit failure','Warning deletion rolls back with its audit');
 select throws_ok($$select restore_warning(current_setting('test.third_warning_id')::bigint)$$,'P0001','Synthetic audit failure','Warning restoration rolls back with its audit');
 reset role;
 select is((select count(*) from officer_warnings where reason='Should roll back'),0::bigint,'no unaudited create or reason edit remains');
-select is((select deleted_at from officer_warnings where id=current_setting('test.third_warning_id')::bigint),null::timestamptz,'failed delete or restore preserves the prior Warning lifecycle');
+select isnt((select deleted_at from officer_warnings where id=current_setting('test.third_warning_id')::bigint),null::timestamptz,'failed restore preserves the prior deleted lifecycle');
+select is((select deleted_at from officer_warnings where id=-33513),null::timestamptz,'failed delete leaves the Warning active');
 select is((select reason from officer_warnings where id=-33513),'Legacy approved','failed edit preserves original historical reason');
 
 select * from finish();

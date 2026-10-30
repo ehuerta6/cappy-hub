@@ -89,3 +89,47 @@ returns boolean language sql stable security definer set search_path = '' as $$
       and a.decision='pending' and w.status='pending'
       and w.voided_at is null and w.deleted_at is null)
 $$;
+
+create or replace function private.decide_warning(p_warning_id bigint,p_decision text)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  warning public.officer_warnings;
+  approval public.warning_approvals;
+  resulting_status text;
+begin
+  if private.current_active_officer_id() is null then raise exception 'Unauthorized'; end if;
+  if p_decision is null or p_decision not in ('approved','rejected') then
+    raise exception 'Invalid warning decision';
+  end if;
+  select * into warning from public.officer_warnings where id=p_warning_id for update;
+  if not found then raise exception 'Warning not found'; end if;
+  if warning.deleted_at is not null then raise exception 'This warning is deleted'; end if;
+  if warning.status<>'pending' then raise exception 'This warning is already closed'; end if;
+  select * into approval from public.warning_approvals
+    where warning_id=p_warning_id and approver_id=auth.uid() for update;
+  if not found then raise exception 'You are not an approver for this warning'; end if;
+  if approval.decision<>'pending' then
+    raise exception 'This approval has already been decided'; end if;
+  update public.warning_approvals set decision=p_decision,decided_at=now()
+    where warning_id=p_warning_id and approver_id=auth.uid();
+  if exists(select 1 from public.warning_approvals
+      where warning_id=p_warning_id and decision='rejected') then
+    resulting_status := 'rejected';
+  elsif not exists(select 1 from public.warning_approvals
+      where warning_id=p_warning_id and decision<>'approved') then
+    resulting_status := 'approved';
+  else
+    resulting_status := 'pending';
+  end if;
+  update public.officer_warnings set status=resulting_status where id=p_warning_id;
+  perform private.write_audit_log(
+    case when p_decision='approved' then 'warning.approved_by_approver'
+      else 'warning.rejected_by_approver' end,
+    'warning',p_warning_id::text,
+    pg_catalog.jsonb_build_object('warning_id',p_warning_id,
+      'officer_id',warning.officer_id,'approver_id',auth.uid(),
+      'decision',p_decision,'status',resulting_status));
+end;
+$$;
+revoke all on function private.decide_warning(bigint,text) from public,anon,authenticated;
+grant execute on function private.decide_warning(bigint,text) to authenticated;

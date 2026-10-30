@@ -492,7 +492,7 @@ export default async function OfficerDetailPage({
             key={status}
             href={withReturnTo(
               status === "active"
-                ? `/officers/${officerIdParam}`
+                ? `/officers/${officerIdParam}?section=warnings`
                 : `/officers/${officerIdParam}?warningStatus=${status}`,
               returnTo,
             )}
