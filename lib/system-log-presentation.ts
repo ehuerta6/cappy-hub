@@ -59,6 +59,10 @@ type ActionPresentation = {
 };
 
 const actionPresentations: Record<string, ActionPresentation> = {
+  "branch.restored": { label: "Restored a branch" },
+  "position.restored": { label: "Restored a position" },
+  "event_type.restored": { label: "Restored an Event type" },
+  "event_location.restored": { label: "Restored an Event location" },
   "branch.created": { label: "Created a branch" },
   "branch.deleted": { label: "Deleted a branch" },
   "branch.renamed": { label: "Renamed a branch" },

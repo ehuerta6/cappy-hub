@@ -28,3 +28,9 @@ it("builds same-route category URLs and drops pagination when changing category"
   );
   expect(catalogUrl("locations")).not.toContain("page=");
 });
+
+it("keeps Deleted state when changing pages", () => {
+  expect(catalogUrl("types", 2, "deleted")).toBe(
+    "/officers/catalogs?category=types&status=deleted&page=2",
+  );
+});

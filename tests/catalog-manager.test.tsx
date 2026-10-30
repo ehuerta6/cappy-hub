@@ -51,7 +51,7 @@ it("protects system Positions by machine identity and leaves deceptive custom la
   expect(html).not.toContain('name="id" value="1"');
 });
 
-it("shows retired catalog state and a reactivation action", () => {
+it("shows deleted catalog state and a Restore action", () => {
   const html = renderToStaticMarkup(
     createElement(CatalogManager, {
       catalog: "branch",
@@ -59,11 +59,11 @@ it("shows retired catalog state and a reactivation action", () => {
       records: [{ id: 8, name: "Systems", is_active: false }],
     }),
   );
-  expect(html).toContain("Retired");
-  expect(html).toContain('name="operation" value="reactivate"');
+  expect(html).toContain("Deleted");
+  expect(html).toContain('name="operation" value="restore"');
 });
 
-it("renders compact editable management rows without unsupported location retirement", () => {
+it("renders compact editable management rows with recoverable removal", () => {
   const branchHtml = renderToStaticMarkup(
     createElement(CatalogManager, {
       catalog: "branch",
@@ -83,10 +83,10 @@ it("renders compact editable management rows without unsupported location retire
   expect(branchHtml).toContain("Systems");
   expect(branchHtml).toContain(">Rename</button>");
   expect(branchHtml).not.toContain('name="operation" value="rename"');
-  expect(branchHtml).toContain('name="operation" value="retire"');
+  expect(branchHtml).toContain('name="operation" value="delete"');
   expect(locationHtml).toContain('class="catalog-record-row"');
   expect(locationHtml).not.toContain('name="operation" value="retire"');
-  expect(locationHtml).not.toContain('name="operation" value="reactivate"');
+  expect(locationHtml).not.toContain('name="operation" value="restore"');
 });
 
 it("opens inline rename on demand and retains validation values and focus", async () => {
@@ -185,19 +185,14 @@ it.each([
     "position",
     "Position",
     "Data Analyst",
-    "A Position in use cannot be deleted.",
+    "Existing records and relationships stay readable.",
   ],
-  [
-    "branch",
-    "Branch",
-    "Systems",
-    "Branches used by Officers, Events, or Tasks cannot be deleted.",
-  ],
+  ["branch", "Branch", "Systems", "You can restore it from Deleted values."],
   [
     "event_location",
     "Event location",
     "Engineering Building",
-    "Existing Events keep their recorded location.",
+    "This removes the value from new choices.",
   ],
 ] as const)(
   "requires confirmation before deleting a %s and identifies its record",

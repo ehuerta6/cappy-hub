@@ -130,18 +130,21 @@ export type Database = {
         Row: {
           created_at: string;
           id: number;
+          is_active: boolean;
           name: string;
           normalized_name: string | null;
         };
         Insert: {
           created_at?: string;
           id?: number;
+          is_active?: boolean;
           name: string;
           normalized_name?: never;
         };
         Update: {
           created_at?: string;
           id?: number;
+          is_active?: boolean;
           name?: string;
           normalized_name?: never;
         };
@@ -1569,11 +1572,15 @@ export type Database = {
         Args: { p_event_id: number; p_slot_ids: number[] };
         Returns: undefined;
       };
+      restore_branch: { Args: { p_id: number }; Returns: undefined };
       restore_event: { Args: { p_event_id: number }; Returns: undefined };
       restore_event_archive: {
         Args: { p_event_id: number };
         Returns: undefined;
       };
+      restore_event_location: { Args: { p_id: number }; Returns: undefined };
+      restore_event_type: { Args: { p_id: number }; Returns: undefined };
+      restore_position: { Args: { p_id: number }; Returns: undefined };
       restore_task: { Args: { p_task_id: number }; Returns: undefined };
       save_event_with_capacity: {
         Args: {

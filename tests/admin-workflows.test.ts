@@ -208,15 +208,15 @@ it("denies a non-admin catalog action before calling the RPC", async () => {
   expect(rpc).not.toHaveBeenCalled();
 });
 
-it("rejects obsolete event type catalog mutations before any RPC", async () => {
+it("routes approved Event Type deletion through the trusted RPC", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 601,
     applicationRole: "admin",
   } as never);
-  expect((await changeCatalog(previous, catalogForm("delete"))).error).toBe(
-    "Invalid catalog operation",
+  expect((await changeCatalog(previous, catalogForm("delete"))).success).toBe(
+    "Event type removed",
   );
-  expect(rpc).not.toHaveBeenCalled();
+  expect(rpc).toHaveBeenCalledWith("delete_event_type", { p_id: 7 });
 });
 
 it("routes a valid catalog create through the existing branch RPC", async () => {
@@ -382,3 +382,19 @@ it("denies an assigned Lead direct access to Officer mutation", async () => {
   expect(rpc).not.toHaveBeenCalled();
   expect(redirect).not.toHaveBeenCalled();
 });
+
+it.each(["position", "branch", "event_type", "event_location"])(
+  "restores %s through its specific trusted RPC",
+  async (catalog) => {
+    vi.mocked(getAuthorizationContext).mockResolvedValue({
+      id: 601,
+      applicationRole: "admin",
+    } as never);
+    const form = new FormData();
+    form.set("catalog", catalog);
+    form.set("operation", "restore");
+    form.set("id", "14");
+    expect((await changeCatalog(previous, form)).error).toBe("");
+    expect(rpc).toHaveBeenCalledWith(`restore_${catalog}`, { p_id: 14 });
+  },
+);

@@ -98,12 +98,9 @@ select throws_ok($$select create_position('  LEAD  ')$$,'23505',null,
 select lives_ok($$select delete_branch((select id from branches where name='research-new'))$$,
  'admin deletes unused branch');
 
-select throws_ok($$select create_event_type('Seminar')$$,
- '42501',null,'event type catalog is fixed');
-select throws_ok($$select rename_event_type((select id from event_types where name='Workshop'),'Workshop New')$$,
- '42501',null,'allowed event types cannot be renamed');
-select throws_ok($$select delete_event_type((select id from event_types where name='Workshop'))$$,
- '42501',null,'allowed event types cannot be deleted');
+select lives_ok($$select create_event_type('Seminar')$$,'Admin creates a manageable Event Type');
+select lives_ok($$select rename_event_type((select id from event_types where name='Seminar'),'Seminar New')$$,'Admin renames Event Type');
+select lives_ok($$select delete_event_type((select id from event_types where name='Seminar New'))$$,'Admin recoverably deletes Event Type');
 select is((select count(*) from audit_logs where action in ('position.created','position.renamed','position.deleted')),
  3::bigint,'position create, rename and delete audited once each');
 
@@ -127,17 +124,13 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000601'
 set local role authenticated;
 select lives_ok($$select rename_position((select id from positions where name='Historian'),'Club Historian')$$,
  'referenced position can be renamed');
-select throws_ok($$select delete_position((select id from positions where name='Club Historian'))$$,
- 'P0001','This position cannot be deleted because officers are using it','referenced position cannot be deleted');
+select lives_ok($$select delete_position((select id from positions where name='Club Historian'))$$,'referenced Position stays recoverable');
 select lives_ok($$select rename_branch((select id from branches where name='officer-reference'),'officer-renamed')$$,
  'membership branch can be renamed');
-select throws_ok($$select delete_branch((select id from branches where name='officer-renamed'))$$,
- 'P0001','This branch cannot be deleted because dependent records are using it','membership branch cannot be deleted');
+select lives_ok($$select delete_branch((select id from branches where name='officer-renamed'))$$,'membership Branch stays recoverable');
 select lives_ok($$select rename_branch((select id from branches where name='event-reference'),'event-renamed')$$,
  'event branch can be renamed');
-select throws_ok($$select delete_branch((select id from branches where name='event-renamed'))$$,
- 'P0001','This branch cannot be deleted because dependent records are using it','event branch cannot be deleted');
-select throws_ok($$select delete_branch((select id from branches where name='task-reference'))$$,
- 'P0001','This branch cannot be deleted because dependent records are using it','Task branch cannot be deleted');
+select lives_ok($$select delete_branch((select id from branches where name='event-renamed'))$$,'Event Branch stays recoverable');
+select lives_ok($$select delete_branch((select id from branches where name='task-reference'))$$,'Task Branch stays recoverable');
 select * from finish();
 rollback;

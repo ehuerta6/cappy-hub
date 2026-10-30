@@ -23,7 +23,7 @@ The [#326 compatibility assessment](points-compatibility.md) records repository/
 | [#336](https://github.com/ehuerta6/cappy-hub/issues/336) | Replace Warning Void with reversible Delete and Restore                           | [#335](https://github.com/ehuerta6/cappy-hub/issues/335)                                                           |
 | [#337](https://github.com/ehuerta6/cappy-hub/issues/337) | Provide recoverable CRUD for existing administrative catalogs                     | [#326](https://github.com/ehuerta6/cappy-hub/issues/326)                                                           |
 
-After #326, manual Points, Task corrections, direct Warning management and catalogs are independent branches of the graph. Event reconciliation depends on independent manual Points; historical roster corrections and Event deletion then build on reconciliation. Task deletion builds on Task corrections. Recurrence recovery joins both lifecycle changes, and Calendar recovery follows scoped Event lifecycle behavior. These are genuine blockers, not a requirement to implement every row serially.
+After #326, manual Points, Task corrections, direct Warning management and catalogs are independent branches of the graph. #337 implements recoverable CRUD for the four existing catalog surfaces in the repository; production rollout is separate. Event reconciliation depends on independent manual Points; historical roster corrections and Event deletion then build on reconciliation. Task deletion builds on Task corrections. Recurrence recovery joins both lifecycle changes, and Calendar recovery follows scoped Event lifecycle behavior. These are genuine blockers, not a requirement to implement every row serially.
 
 ## Implementation conflicts assessed before delivery
 

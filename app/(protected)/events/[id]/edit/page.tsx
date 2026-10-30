@@ -40,7 +40,11 @@ export default async function EditEventPage({
         .from("event_types")
         .select("id,name,available_for_new_events")
         .order("name"),
-      supabase.from("event_locations").select("id,name").order("name"),
+      supabase
+        .from("event_locations")
+        .select("id,name")
+        .eq("is_active", true)
+        .order("name"),
       supabase
         .from("event_officers")
         .select("officer_id", { count: "exact", head: true })

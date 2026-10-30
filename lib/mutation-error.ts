@@ -1,5 +1,7 @@
 // Database constraint details are useful in logs, but not in form responses.
 const safeMessages = new Set([
+  "Cannot rename the Session Event Type while presenter slots exist",
+  "Location is deleted; restore it instead",
   "Invalid recurrence scope or operation",
   "Invalid recurrence edit fields",
   "Recurring series not found",

@@ -6,12 +6,13 @@ import { ActionFeedback, FieldError } from "@/components/ui";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { changeCatalog } from "./actions";
 
-type Catalog = "position" | "branch" | "event_location";
+type Catalog = "position" | "branch" | "event_location" | "event_type";
 export type CatalogRecord = {
   id: number;
   name: string;
   code?: string | null;
   is_active?: boolean;
+  available_for_new_events?: boolean;
 };
 
 function CatalogForm({
@@ -20,7 +21,7 @@ function CatalogForm({
   record,
 }: {
   catalog: Catalog;
-  operation: "create" | "delete" | "retire" | "reactivate";
+  operation: "create" | "delete" | "restore";
   record?: CatalogRecord;
 }) {
   const [state, action, pending] = useActionState(
@@ -35,7 +36,9 @@ function CatalogForm({
       ? "Event location"
       : catalog === "branch"
         ? "Branch"
-        : "Position";
+        : catalog === "event_type"
+          ? "Event type"
+          : "Position";
   const formClassName =
     operation === "create" ? "catalog-create-form" : "catalog-action-form";
   return (
@@ -43,10 +46,9 @@ function CatalogForm({
       <input type="hidden" name="catalog" value={catalog} />
       <input type="hidden" name="operation" value={operation} />
       {record && <input type="hidden" name="id" value={record.id} />}
-      {(operation === "delete" ||
-        operation === "retire" ||
-        operation === "reactivate") &&
-        record && <input type="hidden" name="name" value={record.name} />}
+      {(operation === "delete" || operation === "restore") && record && (
+        <input type="hidden" name="name" value={record.name} />
+      )}
       {operation === "create" && (
         <label
           className="sr-only"
@@ -72,13 +74,7 @@ function CatalogForm({
       {operation === "delete" && record ? (
         <ConfirmationDialog
           title={`Delete ${catalogName}?`}
-          description={
-            catalog === "position"
-              ? "This removes the Position from available Officer choices. A Position in use cannot be deleted."
-              : catalog === "branch"
-                ? "This removes the Branch from available choices. Branches used by Officers, Events, or Tasks cannot be deleted."
-                : "This removes the saved location from future choices. Existing Events keep their recorded location."
-          }
+          description="This removes the value from new choices. Existing records and relationships stay readable. You can restore it from Deleted values."
           triggerLabel="Delete"
           confirmLabel={`Delete ${catalogName}`}
           destructive
@@ -90,13 +86,9 @@ function CatalogForm({
             defaultValue: record.name,
           }}
         />
-      ) : operation === "retire" || operation === "reactivate" ? (
+      ) : operation === "restore" ? (
         <button type="submit" disabled={pending} className="button-secondary">
-          {pending
-            ? "Saving…"
-            : operation === "retire"
-              ? "Retire"
-              : "Reactivate"}
+          {pending ? "Restoring…" : "Restore"}
         </button>
       ) : (
         <button type="submit" disabled={pending} className="button-secondary">
@@ -131,7 +123,9 @@ function CatalogRename({
       ? "Event location"
       : catalog === "branch"
         ? "Branch"
-        : "Position";
+        : catalog === "event_type"
+          ? "Event type"
+          : "Position";
 
   useEffect(() => {
     if (editing) inputRef.current?.focus();
@@ -215,17 +209,19 @@ export default function CatalogManager({
   catalog,
   title,
   records,
+  showCreate = true,
 }: {
   catalog: Catalog;
   title: string;
   records: CatalogRecord[];
+  showCreate?: boolean;
 }) {
   return (
     <section className="catalog-manager space-y-3">
       <h2 id="catalog-category-heading" className="text-lg font-semibold">
         {title}
       </h2>
-      <CatalogForm catalog={catalog} operation="create" />
+      {showCreate && <CatalogForm catalog={catalog} operation="create" />}
       <ul
         className={
           catalog === "position"
@@ -235,8 +231,9 @@ export default function CatalogManager({
       >
         {records.map((record) => {
           const required = catalog === "position" && record.code != null;
-          const supportsLifecycle =
-            catalog === "branch" || (catalog === "position" && !required);
+          const deleted =
+            record.is_active === false ||
+            record.available_for_new_events === false;
           return (
             <li key={record.id} className="catalog-record-row">
               {required ? (
@@ -247,23 +244,14 @@ export default function CatalogManager({
               ) : (
                 <>
                   <CatalogRename catalog={catalog} record={record} />
-                  {record.is_active === false && (
-                    <span className="catalog-record-status">Retired</span>
+                  {deleted && (
+                    <span className="catalog-record-status">Deleted</span>
                   )}
                   <CatalogForm
                     catalog={catalog}
-                    operation="delete"
+                    operation={deleted ? "restore" : "delete"}
                     record={record}
                   />
-                  {supportsLifecycle && (
-                    <CatalogForm
-                      catalog={catalog}
-                      operation={
-                        record.is_active === false ? "reactivate" : "retire"
-                      }
-                      record={record}
-                    />
-                  )}
                 </>
               )}
             </li>

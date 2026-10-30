@@ -17,6 +17,12 @@ export const CATALOG_CATEGORIES = [
     catalog: "event_location",
     table: "event_locations",
   },
+  {
+    value: "types",
+    label: "Event Types",
+    catalog: "event_type",
+    table: "event_types",
+  },
 ] as const;
 
 export type CatalogCategory = (typeof CATALOG_CATEGORIES)[number]["value"];
@@ -37,9 +43,14 @@ export function selectedCatalogPage(value: string | string[] | undefined) {
   return Number.isSafeInteger(page) ? page : 1;
 }
 
-export function catalogUrl(category: CatalogCategory, page = 1) {
+export function catalogUrl(
+  category: CatalogCategory,
+  page = 1,
+  status: "active" | "deleted" = "active",
+) {
   const params = new URLSearchParams();
   params.set("category", category);
+  if (status === "deleted") params.set("status", status);
   if (page > 1) params.set("page", String(page));
   return `/officers/catalogs?${params.toString()}` as const;
 }
