@@ -1,5 +1,7 @@
 // Database constraint details are useful in logs, but not in form responses.
 const safeMessages = new Set([
+  "Cannot rename the Session Event Type while presenter slots exist",
+  "Location is deleted; restore it instead",
   "Historical participation needs reviewed compatibility handling before schedule reconciliation",
   "Only an independently removed participation award can be confirmed premature",
   "Correct the Event schedule before confirming a premature award",

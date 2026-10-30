@@ -31,7 +31,7 @@ The external design reference named in the changelog is only an influence on gen
 | Officers            | `/officers`                            | Directory filters, officer table, and read-only historical Warning approval assignments.                    |
 | Officer detail      | `/officers/[id]`                       | Profile, application access, warnings when visible, associated events, and points.                          |
 | Add/edit officer    | `/officers/new`, `/officers/[id]/edit` | Officer record fields; application role is managed separately.                                              |
-| Officer catalogs    | `/officers/catalogs`                   | Admin-only positions, branches, and reusable event locations.                                               |
+| Officer catalogs    | `/officers/catalogs`                   | Admin-only positions, branches, Event Types and reusable Event locations.                                   |
 | Points              | `/points`                              | Participation rate, officer totals, on-demand Admin transaction entry, and point history.                   |
 | System Log          | `/system-log`                          | Admin-only, searchable and paginated record of changes made in Cappy Hub.                                   |
 | Admin               | `/admin`                               | Admin-only directory to existing administration areas.                                                      |
@@ -466,15 +466,10 @@ The following sections describe the actual product workflows and the design dire
 
 ### Officer catalogs
 
-- **Purpose:** Maintain the existing position, branch, and event-location choices.
-- **Existing functionality that MUST be preserved — CURRENT:** Admin-only page with Positions, Branches, and Event locations. URL-backed category navigation selects one catalog at a time on `/officers/catalogs`; category selection survives reload and browser history. Each category displays up to eight records per page using the shared first/previous/page selector/next/last controls and category-specific record counts. Results include active and retired values and use stable name/ID ordering. Each category supports add; records support rename/delete when current restrictions permit. Branches and custom Positions can be retired/reactivated; retired values are marked and omitted from new relationship choices while existing relationships remain readable and can be kept during unrelated edits or removed. The six baseline Positions are identified by protected machine codes and cannot be renamed, deleted, or retired. The page explains that referenced records cannot be deleted and that renaming or retirement retains IDs and relationships.
-- **Information hierarchy:** Title and constraints note; compact category navigation; selected category heading, create control, records and shared pagination.
-- **Recommended layout:** Keep this as a lightweight, dense management page. Show each record name as plain text by default; Rename reveals an adjacent inline editor with Save and Cancel. Keep create, delete, retire, and reactivate controls visible beside eligible records.
-- **Primary action:** Add a record within a chosen catalog, or choose Rename for an existing record.
-- **Secondary actions:** Rename or delete an eligible record; retire or reactivate a Branch or custom Position.
-- **Data presentation:** Simple lists with plain record names, compact on-demand rename forms, and visible success/error feedback. Retain the entered name on validation errors and return focus to the Rename action after saving or cancelling. Existing Admin-only page access and Server Action authorization remain the security boundaries; Lead and Officer access stays denied. Retired relationship values remain readable and the six required Positions remain protected.
-- **Minimalism notes:** Keep the page scoped to the three existing catalogs; avoid dashboard cards and decorative metadata.
-- **Do not add:** Event-type management, extra catalog areas, bulk import, or delete behavior that bypasses current referential restrictions.
+- **Purpose:** Administer existing Positions, Branches, Event Types and reusable Event locations.
+- **Current workflow:** The existing catalog page uses category navigation and eight-row pages, with Active values and discoverable Deleted values. Create and inline Rename retain existing focus/error behavior. Delete confirms removal from new choices while preserving existing records and relationships; Restore uses the same stable value. Previously retired/unavailable rows are recoverable from Deleted.
+- **Permissions and protections:** Admin-only page and trusted mutations remain required. The six system Positions stay protected by machine code. Historical references remain readable during unrelated edits; Session Presenter Slot guards remain unchanged.
+- **Presentation:** Keep compact management rows, natural page scrolling, explicit pending/error feedback and category/status context in pagination. Do not add new catalog modules, bulk imports, dashboard cards or decorative metadata.
 
 ### Officer warnings (embedded workflows)
 

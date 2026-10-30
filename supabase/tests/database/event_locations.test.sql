@@ -77,8 +77,8 @@ select lives_ok($$select delete_event_location(
   (select location_id from events where name='First #44 room Event')
 )$$,'admin can safely remove a reusable location referenced by historical Events');
 select is((select count(*) from events where name in
-  ('First #44 room Event','Second #44 room Event') and location_id is null),
-  2::bigint,'removal clears optional catalog references');
+  ('First #44 room Event','Second #44 room Event') and location_id is not null),
+  2::bigint,'recoverable removal preserves catalog references');
 select is((select location from events where name='First #44 room Event'),
   'CCSB   1.032','removal preserves historical Event location text');
 

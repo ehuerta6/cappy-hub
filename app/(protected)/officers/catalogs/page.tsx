@@ -25,16 +25,23 @@ export default async function OfficerCatalogsPage({
 
   const params = await searchParams;
   const category = selectedCatalogCategory(params.category);
+  const status = params.status === "deleted" ? "deleted" : "active";
   const requestedPage = selectedCatalogPage(params.page);
   const categoryDefinition = CATALOG_CATEGORIES.find(
     (item) => item.value === category,
   )!;
   const supabase = await createClient();
   const table = categoryDefinition.table;
-
-  const countResult = await supabase
-    .from(table)
-    .select("id", { count: "exact", head: true });
+  const countResult =
+    table === "event_types"
+      ? await supabase
+          .from("event_types")
+          .select("id", { count: "exact", head: true })
+          .eq("available_for_new_events", status === "active")
+      : await supabase
+          .from(table)
+          .select("id", { count: "exact", head: true })
+          .eq("is_active", status === "active");
   if (countResult.error) throw new Error("Could not load catalog count");
   const totalCount = countResult.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / CATALOGS_PER_PAGE));
@@ -42,12 +49,13 @@ export default async function OfficerCatalogsPage({
 
   if (
     params.category !== category ||
+    (params.status !== undefined && params.status !== "deleted") ||
     (params.page !== undefined &&
       (typeof params.page !== "string" ||
         String(page) !== params.page ||
         page === 1))
   ) {
-    redirect(catalogUrl(category, page));
+    redirect(catalogUrl(category, page, status));
   }
 
   const start = (page - 1) * CATALOGS_PER_PAGE;
@@ -58,6 +66,7 @@ export default async function OfficerCatalogsPage({
     const result = await supabase
       .from("positions")
       .select("id,name,code,is_active")
+      .eq("is_active", status === "active")
       .order("name")
       .order("id")
       .range(start, end);
@@ -67,6 +76,17 @@ export default async function OfficerCatalogsPage({
     const result = await supabase
       .from("branches")
       .select("id,name,is_active")
+      .eq("is_active", status === "active")
+      .order("name")
+      .order("id")
+      .range(start, end);
+    records = result.data;
+    hasRecordsError = result.error !== null;
+  } else if (categoryDefinition.catalog === "event_type") {
+    const result = await supabase
+      .from("event_types")
+      .select("id,name,available_for_new_events")
+      .eq("available_for_new_events", status === "active")
       .order("name")
       .order("id")
       .range(start, end);
@@ -75,7 +95,8 @@ export default async function OfficerCatalogsPage({
   } else {
     const result = await supabase
       .from("event_locations")
-      .select("id,name")
+      .select("id,name,is_active")
+      .eq("is_active", status === "active")
       .order("name")
       .order("id")
       .range(start, end);
@@ -86,17 +107,17 @@ export default async function OfficerCatalogsPage({
     throw new Error("Could not load catalog records");
 
   const filters = new URLSearchParams({ category });
+  if (status === "deleted") filters.set("status", status);
   return (
     <div className="space-y-5">
       <PageHeader
         title="Officer catalogs"
-        description="Manage officer positions, branches and reusable Event locations."
+        description="Manage positions, branches, Event Types and reusable Event locations."
       />
       <p className="text-sm text-muted">
-        The six baseline positions are required. Retired branches and custom
-        positions remain readable in history but cannot be newly assigned.
-        Referenced records cannot be deleted; renaming and retirement retain
-        their IDs and relationships.
+        Required system Positions are protected. Deleted values stay readable on
+        existing records and can be restored. Existing retired or unavailable
+        values appear in Deleted without changing their history.
       </p>
       <nav aria-label="Catalog categories" className="catalog-category-nav">
         {CATALOG_CATEGORIES.map((item) => (
@@ -114,15 +135,31 @@ export default async function OfficerCatalogsPage({
           </Link>
         ))}
       </nav>
+      <nav aria-label="Catalog status" className="flex gap-4 text-sm">
+        <Link
+          href={catalogUrl(category)}
+          aria-current={status === "active" ? "page" : undefined}
+        >
+          Active values
+        </Link>
+        <Link
+          href={catalogUrl(category, 1, "deleted")}
+          aria-current={status === "deleted" ? "page" : undefined}
+        >
+          Deleted values
+        </Link>
+      </nav>
       <section aria-labelledby="catalog-category-heading" className="space-y-3">
         <CatalogManager
           catalog={categoryDefinition.catalog}
           title={categoryDefinition.label}
           records={records}
+          showCreate={status === "active"}
         />
         {records.length === 0 ? (
           <p className="text-sm text-muted">
-            No {categoryDefinition.label.toLowerCase()} yet.
+            No {status === "deleted" ? "deleted " : ""}
+            {categoryDefinition.label.toLowerCase()} yet.
           </p>
         ) : (
           <ListPagination
@@ -133,7 +170,9 @@ export default async function OfficerCatalogsPage({
             totalPages={totalPages}
             totalCount={totalCount}
             countLabel={totalCount === 1 ? "record" : "records"}
-            getPageHref={(targetPage) => catalogUrl(category, targetPage)}
+            getPageHref={(targetPage) =>
+              catalogUrl(category, targetPage, status)
+            }
           />
         )}
       </section>

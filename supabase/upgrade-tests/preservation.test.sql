@@ -3,6 +3,27 @@ create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 select no_plan();
 
+-- Recoverable catalogs add availability only; all prior IDs/values/flags stay.
+select results_eq($$select id,to_jsonb(p) from positions p order by id$$,
+ $$select id,original from upgrade_fixture.pre_recoverable_positions order by id$$,
+ 'recoverable catalogs preserve required/custom Position IDs, codes and legacy retirement');
+select results_eq($$select id,to_jsonb(b) from branches b order by id$$,
+ $$select id,original from upgrade_fixture.pre_recoverable_branches order by id$$,
+ 'recoverable catalogs preserve Branch IDs and prior availability');
+select results_eq($$select id,to_jsonb(t) from event_types t order by id$$,
+ $$select id,original from upgrade_fixture.pre_recoverable_types order by id$$,
+ 'recoverable catalogs preserve historical Event Types and unavailable values');
+select results_eq($$select id,to_jsonb(l)-'is_active' from event_locations l order by id$$,
+ $$select id,original from upgrade_fixture.pre_recoverable_locations order by id$$,
+ 'recoverable catalogs preserve location IDs, text and normalization');
+select results_eq($$select id,event_type_id,location,location_id from events order by id$$,
+ $$select * from upgrade_fixture.pre_recoverable_events order by id$$,
+ 'recoverable catalogs never rewrite historical Event references or location snapshots');
+select results_eq($$select officer_id,branch_id from officer_branches order by officer_id,branch_id$$,
+ $$select * from upgrade_fixture.pre_recoverable_memberships order by officer_id,branch_id$$,
+ 'recoverable catalogs preserve all Officer Branch memberships');
+
+
 -- Direct Admin management changes new writes only, never legacy history.
 select results_eq($$select id,to_jsonb(w) from officer_warnings w order by id$$,
  $$select id,original from upgrade_fixture.pre_direct_admin_warnings order by id$$,

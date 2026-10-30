@@ -4,7 +4,7 @@ import {
   requiredTrimmedStringSchema,
 } from "@/lib/validation";
 
-const catalogNameSchema = zod.enum(["position", "branch"], {
+const catalogNameSchema = zod.enum(["position", "branch", "event_type"], {
   error: "Invalid catalog operation",
 });
 
@@ -33,7 +33,7 @@ export const catalogMutationInputSchema = zod.discriminatedUnion(
     }),
     zod.object({
       catalog: catalogNameSchema,
-      operation: zod.enum(["retire", "reactivate"]),
+      operation: zod.enum(["retire", "reactivate", "restore"]),
       id: positiveSafeIntegerStringSchema("Invalid catalog record"),
     }),
   ],
@@ -53,7 +53,7 @@ export const eventLocationMutationInputSchema = zod.discriminatedUnion(
       name: requiredTrimmedStringSchema("Location is required").trim(),
     }),
     zod.object({
-      operation: zod.literal("delete"),
+      operation: zod.enum(["delete", "restore"]),
       id: positiveSafeIntegerStringSchema("Invalid location"),
     }),
   ],

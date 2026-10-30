@@ -87,6 +87,9 @@ try {
     if (migration.endsWith("_direct_admin_warnings.sql")) {
       psql(readFileSync("supabase/fixtures/pre-direct-admin-warnings.sql"));
     }
+    if (migration.endsWith("_recoverable_catalogs.sql")) {
+      psql(readFileSync("supabase/fixtures/pre-recoverable-catalogs.sql"));
+    }
     if (migration.endsWith("_independent_manual_points.sql")) {
       psql(readFileSync("supabase/fixtures/pre-independent-manual-points.sql"));
     }
