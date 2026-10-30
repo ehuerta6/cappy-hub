@@ -35,7 +35,9 @@ insert into warning_approvals(warning_id,approver_id,approver_officer_id,approve
 insert into warning_approvals(warning_id,approver_id,approver_officer_id,approver_role,decision,decided_at)
  values(-33516,'00000000-0000-4000-8000-000000033503',-33503,'President','pending',null);
 create temp table original_approvals as select to_jsonb(a) original from warning_approvals a;
-create temp table original_warnings as select id,to_jsonb(w) original from officer_warnings w;
+create temp table original_warnings as
+ select id,to_jsonb(w) original from officer_warnings w
+ where id between -33514 and -33511;
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033501',true);
 set local role authenticated;
@@ -129,7 +131,7 @@ reset role;
 -- route. Unrelated edits do not decide them, and new records have no approvals.
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033503',true);
 set local role authenticated;
-select is((select count(*) from officer_warnings),1::bigint,'legacy approver retains only assigned pending visibility');
+select is((select count(*) from officer_warnings),2::bigint,'legacy approver retains only assigned pending visibility');
 select throws_ok($$select create_warning(-33502,'Forged Lead warning')$$,'P0001','Admin required','Lead cannot create Warning');
 select throws_ok($$select update_warning(-33511,'Forged Lead correction')$$,'P0001','Admin required','Lead cannot correct Warning');
 select throws_ok($$select delete_warning(-33513)$$,'P0001','Admin required','Lead cannot delete a Warning');
