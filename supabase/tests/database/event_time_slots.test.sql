@@ -114,25 +114,28 @@ select throws_ok($$select public.bulk_add_event_officers_to_slots(-2952,array[-2
   'P0001','The selected Officers exceed a Time Slot capacity','bulk additions enforce per-slot capacity atomically');
 select is((select count(*) from event_officers where event_id=-2952 and officer_id=-2954),0::bigint,
   'failed capacity check leaves no canonical partial signup');
-select lives_ok($$select public.change_event_time_slot_signup(-2953,-2952,array[-295301]::bigint[],'join_selected')$$,
-  'manager can assign one slot on a future Event');
-select lives_ok($$select public.change_event_time_slot_signup(-2953,-2953,array[-295302]::bigint[],'join_selected')$$,
-  'a second Officer can join the available slot');
-select lives_ok($$select public.change_event_time_slot_signup(-2953,-2954,array[-295302]::bigint[],'join_selected')$$,
-  'a third Officer can join another available place on the same slot');
-select is((select count(*) from event_officers where event_id=-2953),3::bigint,
-  'per-slot capacities allow more confirmed Officers than the former Event-wide limit');
-select throws_ok($$select public.change_event_time_slot_signup(-2953,-2951,array[-295301,-295302]::bigint[],'join_all')$$,
-  'P0001','A selected Time Slot is full; no Time Slot selections were added','join all fails atomically when one required slot is full');
-select is((select count(*) from event_time_slot_officers where event_id=-2953 and officer_id=-2951),0::bigint,
-  'failed join all adds no partial slot selection');
-select lives_ok($$select public.change_event_time_slot_signup(-2953,-2952,array[-295301]::bigint[],'leave_selected')$$,
-  'manager can remove one selected slot');
-select is((select count(*) from event_officers where event_id=-2953 and officer_id=-2952
-  and removed_at is null),0::bigint,
-  'leaving the final slot also removes the canonical Event signup');
-select ok((select removed_at is not null from event_officers where event_id=-2953 and officer_id=-2952),
-  'leaving the final slot preserves the signup identity as inactive history');
+select is(has_function_privilege('authenticated',
+  'public.change_event_time_slot_signup(bigint,bigint,bigint[],text)','execute'),false,
+  'authenticated users can no longer join, leave, or change active Time Slot signups');
+select is(has_function_privilege('authenticated',
+  'public.save_event_with_capacity_and_time_slots(text,text,bigint,text,date,timestamptz,timestamptz,bigint[],text,integer,bigint,text,text,jsonb)','execute'),false,
+  'authenticated users can no longer create or edit Time Slots through Event forms');
+select is(has_function_privilege('authenticated',
+  'public.create_recurring_event_with_capacity_and_time_slots(text,text,bigint,text,bigint[],text,text,text,integer,uuid,text,date[],timestamptz[],timestamptz[],jsonb)','execute'),false,
+  'authenticated users can no longer create recurring Time Slots');
+select is(has_function_privilege('authenticated',
+  'public.mutate_recurring_event_with_capacity_and_time_slots(bigint,text,text,uuid,bigint,integer,jsonb,text,date[],boolean,integer)','execute'),false,
+  'authenticated users can no longer edit recurring Time Slots');
+select is(has_function_privilege('authenticated',
+  'private.bulk_add_event_officers_to_slots(bigint,bigint[],bigint[])','execute'),false,
+  'authenticated users cannot bypass the historical Event end-date guard');
+select throws_ok($$select public.bulk_add_event_officers_to_slots(-2953,array[-2952]::bigint[],array[-295301]::bigint[])$$,
+  'P0001','Time Slot roster corrections are only available after the Event ends',
+  'active Time Slot roster changes are rejected at the trusted database boundary');
+select is((select count(*) from event_officers where event_id=-2953),0::bigint,
+  'rejected active Time Slot roster changes leave signups unchanged');
+select is((select count(*) from event_time_slot_officers where event_id=-2953),0::bigint,
+  'rejected active Time Slot roster changes leave historical slot rows unchanged');
 select ok((select count(*)=2 from event_time_slots where event_id=-2953),
   'authenticated roster readers can see the slot rows');
 reset role;
@@ -167,53 +170,15 @@ select is((select slot_selection_removed from point_transactions where event_id=
   and officer_id=-2952 and event_time_slot_id=-295101),false,
   'administrative removal provenance stays distinct from selection removal');
 
-select lives_ok($$select public.create_recurring_event_with_capacity_and_time_slots(
-  'Recurring slot fixture','Details',(select id from event_types where name='Meeting'),'Campus','{}'::bigint[],
-  null,null,null,3,'00000000-0000-4000-8000-000000002959',
-  'RRULE:FREQ=DAILY;INTERVAL=1;COUNT=3',array['2099-10-01'::date,'2099-10-02','2099-10-03'],
-  array[timestamptz '2099-10-01 09:00-06',timestamptz '2099-10-02 09:00-06',timestamptz '2099-10-03 09:00-06'],
-  array[timestamptz '2099-10-01 11:00-06',timestamptz '2099-10-02 11:00-06',timestamptz '2099-10-03 11:00-06'],
-  '[{"start_time":"09:00","end_time":"10:00","capacity":1},{"start_time":"10:00","end_time":"11:00","capacity":2}]'::jsonb)$$,
-  'recurring Event creation copies configured Time Slots to each occurrence');
-select is((select count(*) from event_time_slots s join events e on e.id=s.event_id
-  where e.name='Recurring slot fixture'),6::bigint,
-  'each of three occurrences owns two slot records');
-select is((select count(distinct s.id) from event_time_slots s join events e on e.id=s.event_id
-  where e.name='Recurring slot fixture'),6::bigint,
-  'recurring Event slots have independent record identities');
-select lives_ok($$select public.change_event_time_slot_signup(
-  (select min(e.id) from events e where e.name='Recurring slot fixture' and e.recurrence_key='2099-10-02'),
-  -2951,array[(select min(s.id) from event_time_slots s join events e on e.id=s.event_id
-    where e.name='Recurring slot fixture' and e.recurrence_key='2099-10-02')]::bigint[],'join_selected')$$,
-  'an occurrence keeps its own slot signup');
-select lives_ok($$select public.mutate_recurring_event_with_capacity_and_time_slots(
-  (select e.id from events e where e.name='Recurring slot fixture' and e.recurrence_key='2099-10-02'),
-  'following','edit','00000000-0000-4000-8000-000000002958',
-  (select recurrence_series_id from events where name='Recurring slot fixture' limit 1),
-  (select revision from event_series where id=(select recurrence_series_id from events where name='Recurring slot fixture' limit 1)),
-  '{"time_slots":[{"start_time":"09:30","end_time":"10:30","capacity":2},{"start_time":"10:30","end_time":"11:00","capacity":2}]}'::jsonb,
-  null,null,false,0)$$,
-  'This and following propagates configured Time Slot changes');
-select is((select min(s.starts_at at time zone 'America/Denver')::time from event_time_slots s
-  join events e on e.id=s.event_id where e.name='Recurring slot fixture' and e.recurrence_key='2099-10-01'),
-  time '09:00','earlier occurrence keeps its independent Time Slot schedule');
-select is((select min(s.starts_at at time zone 'America/Denver')::time from event_time_slots s
-  join events e on e.id=s.event_id where e.name='Recurring slot fixture' and e.recurrence_key='2099-10-02'),
-  time '09:30','selected occurrence receives the scoped Time Slot change');
-select is((select count(*) from event_time_slot_officers so join events e on e.id=so.event_id
-  where e.name='Recurring slot fixture' and e.recurrence_key='2099-10-02' and so.officer_id=-2951),
-  1::bigint,'scoped slot propagation preserves independent Officer selections');
-
 select is((select count(*) from point_transactions where event_id=-2952 and award_type='participation'),2::bigint,
   'a repeated processor run does not replace manager-created slot awards');
 
 -- A manager correction on a historical slotted Event preserves the legacy slot
--- relationship and Point transaction. Active self-service leave above retains
--- its established behavior.
+-- relationship and Point transaction. Active slot self-service is retired.
 set local role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000002951',true);
-select lives_ok($$select public.change_event_time_slot_signup(-2952,-2952,'{}'::bigint[],'leave_all')$$,
-  'manager can remove a historical slotted roster member through the existing leave-all action');
+select lives_ok($$select public.change_event_signup(-2952,-2952,true)$$,
+  'manager can remove a historical slotted signup through the existing roster correction RPC');
 reset role;
 select ok((select removed_at is not null from event_officers where event_id=-2952 and officer_id=-2952),
   'historical leave-all correction marks the canonical signup inactive');
@@ -222,10 +187,5 @@ select is((select count(*) from event_time_slot_officers where event_id=-2952 an
 select is((select removed_at from point_transactions where event_id=-2952 and officer_id=-2952
   and event_time_slot_id=-295201 and award_type='participation') is not null,true,
   'historical leave-all correction supersedes the automatic slot Point without deleting it');
-set local role authenticated;
-select throws_ok($$select public.change_event_time_slot_signup(-2952,-2952,array[-295201]::bigint[],'join_selected')$$,
-  'P0001','This removed Time Slot signup cannot be restored',
-  'retained historical slot selections cannot implicitly reactivate a removed roster row');
-reset role;
 select * from finish();
 rollback;

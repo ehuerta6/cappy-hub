@@ -112,34 +112,28 @@ export function BulkAddOfficersForm({
   officers,
   past = false,
   pointsPerOfficer,
-  timeSlots,
-  pointsPerHour,
+  historicalTimeSlots,
 }: {
   eventId: number;
   officers: Pick<Tables<"officers">, "id" | "name">[];
   past?: boolean;
   pointsPerOfficer?: number;
-  timeSlots?: Pick<Tables<"event_time_slots">, "id">[];
-  pointsPerHour?: number | null;
+  historicalTimeSlots?: Pick<Tables<"event_time_slots">, "id">[];
 }) {
   const [state, action, pending] = useActionState(bulkAddEventOfficers, {
     ...initialFormActionState,
   });
-  if (timeSlots) {
+  if (historicalTimeSlots !== undefined) {
     return (
       <div className="mt-4 space-y-3">
-        {past && (
-          <p className="text-sm text-muted">
-            Each selected slot receives its own duration based award
-            {pointsPerHour === null || pointsPerHour === undefined
-              ? " using the Event rate saved when processing starts."
-              : ` using the saved rate of ${pointsPerHour} Points/hour.`}
-          </p>
-        )}
+        <p className="text-sm text-muted">
+          Each selected historical slot is reconciled against the Event&apos;s
+          existing participation rules.
+        </p>
         <BulkAssignOfficersToSlotsForm
           eventId={eventId}
           officers={officers}
-          slots={timeSlots}
+          slots={historicalTimeSlots}
         />
       </div>
     );

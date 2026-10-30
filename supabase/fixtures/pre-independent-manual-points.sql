@@ -18,6 +18,9 @@ insert into public.event_time_slot_officers(event_id,slot_id,officer_id) values(
 insert into public.point_transactions(id,officer_id,event_id,points,reason,award_type)
  values(92301,92301,92301,2.5,'Synthetic automatic history','participation'),
  (92302,92301,92302,5,'Synthetic premature award; intent requires separate evidence','participation');
+insert into public.point_transactions(id,officer_id,event_id,event_time_slot_id,points,reason,award_type,removed_at,removed_by)
+ values(92999,92301,92303,92303,1,'Synthetic historical slot participation','participation',pg_catalog.now(),
+  '00000000-0000-4000-8000-000000032701');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032701',false);
 select public.update_point_transaction(92301,7);
 select public.remove_participation_award(92302);
@@ -36,5 +39,7 @@ create table upgrade_fixture.pre_independent_manual_events as
  select id,to_jsonb(e) original from public.events e;
 create table upgrade_fixture.pre_independent_manual_signups as
  select to_jsonb(eo) original from public.event_officers eo;
+create table upgrade_fixture.pre_independent_manual_time_slots as
+ select id,to_jsonb(s) original from public.event_time_slots s;
 create table upgrade_fixture.pre_independent_manual_slots as
  select to_jsonb(s) original from public.event_time_slot_officers s;

@@ -301,93 +301,23 @@ it("serializes concurrent presenter claims so only one Officer acquires a slot",
   }
 }, 30_000);
 
-it("serializes concurrent Time Slot registrations so per-slot capacity is not exceeded", async () => {
-  const eventId = -981760;
-  const slotId = -981761;
-  const managerId = "00000000-0000-4000-8000-000000009760";
-  const firstOfficerId = -981762;
-  const secondOfficerId = -981763;
-  const managerOfficerId = -981764;
-
-  runSql(`
-    delete from public.audit_logs where entity_id='${eventId}' or actor_officer_id in (${firstOfficerId},${secondOfficerId},${managerOfficerId});
-    delete from public.point_transactions where event_id=${eventId};
-    delete from public.event_officers where event_id=${eventId};
-    delete from public.event_time_slots where event_id=${eventId};
-    delete from public.events where id=${eventId};
-    delete from public.officers where id in (${firstOfficerId},${secondOfficerId},${managerOfficerId});
-    delete from auth.users where id='${managerId}';
-    insert into auth.users(id,email) values ('${managerId}','time-slot-concurrency@example.test');
-    insert into public.officers(id,name,utep_email,position_id,status,application_role,auth_user_id)
-      values (${managerOfficerId},'Time Slot concurrency manager','time-slot-manager@example.test',
-        (select id from public.positions where name='Officer'),'active','admin','${managerId}');
-    insert into public.officers(id,name,utep_email,position_id,status)
-      values (${firstOfficerId},'Time Slot concurrency first','time-slot-first@example.test',
-        (select id from public.positions where name='Officer'),'active'),
-        (${secondOfficerId},'Time Slot concurrency second','time-slot-second@example.test',
-        (select id from public.positions where name='Officer'),'active');
-    with event_start as (
-      select ((now() at time zone 'America/Denver')::date + 3 + time '10:00') as starts_at_local
-    )
-    insert into public.events(id,name,description,location,event_type_id,event_date,starts_at,ends_at,status,max_volunteers)
-      select ${eventId},'Time Slot concurrency','Test Event','TBA',
-        (select id from public.event_types where name='Meeting'),starts_at_local::date,
-        starts_at_local at time zone 'America/Denver',
-        (starts_at_local + interval '2 hours') at time zone 'America/Denver','upcoming',2
-      from event_start;
-    insert into public.event_time_slots(id,event_id,starts_at,ends_at,capacity)
-      select ${slotId},id,starts_at,ends_at,1 from public.events where id=${eventId};
-  `);
-
-  try {
-    const firstRegistration = startSql(`
-      begin;
-      select set_config('request.jwt.claim.sub','${managerId}',true);
-      select id from public.events where id=${eventId} for update;
-      \\echo TIME_SLOT_EVENT_LOCKED
-      select pg_catalog.pg_sleep(1.5);
-      select public.change_event_time_slot_signup(${eventId},${firstOfficerId},array[${slotId}]::bigint[],'join_selected');
-      commit;
-    `);
-    await firstRegistration.waitFor("TIME_SLOT_EVENT_LOCKED");
-    const competingRegistrationStartedAt = Date.now();
-    const secondRegistration = startSql(`
-      begin;
-      select set_config('request.jwt.claim.sub','${managerId}',true);
-      select public.change_event_time_slot_signup(${eventId},${secondOfficerId},array[${slotId}]::bigint[],'join_selected');
-      commit;
-    `);
-    const [firstResult, secondResult] = await Promise.all([
-      firstRegistration.closed,
-      secondRegistration.closed,
-    ]);
-
-    expect(firstResult.code).toBe(0);
-    expect(secondResult.code).not.toBe(0);
-    expect(secondResult.errors).toContain("A selected Time Slot is full");
-    expect(Date.now() - competingRegistrationStartedAt).toBeGreaterThan(500);
-    expect(
-      runSql(
-        `select count(*) from public.event_time_slot_officers where event_id=${eventId};`,
-      ).trim(),
-    ).toBe("1");
-    expect(
-      runSql(
-        `select count(*) from public.event_officers where event_id=${eventId};`,
-      ).trim(),
-    ).toBe("1");
-  } finally {
-    runSql(`
-      delete from public.audit_logs where entity_id='${eventId}' or actor_officer_id in (${firstOfficerId},${secondOfficerId},${managerOfficerId});
-      delete from public.point_transactions where event_id=${eventId};
-      delete from public.event_officers where event_id=${eventId};
-      delete from public.event_time_slots where event_id=${eventId};
-      delete from public.events where id=${eventId};
-      delete from public.officers where id in (${firstOfficerId},${secondOfficerId},${managerOfficerId});
-      delete from auth.users where id='${managerId}';
-    `);
-  }
-}, 30_000);
+it("keeps historical Time Slot reads while disabling active signup RPC access", () => {
+  expect(
+    runSql(
+      "select has_function_privilege('authenticated', 'public.change_event_time_slot_signup(bigint,bigint,bigint[],text)', 'execute');",
+    ).trim(),
+  ).toBe("f");
+  expect(
+    runSql(
+      "select has_table_privilege('authenticated', 'public.event_time_slots', 'select');",
+    ).trim(),
+  ).toBe("t");
+  expect(
+    runSql(
+      "select has_table_privilege('authenticated', 'public.event_time_slot_officers', 'select');",
+    ).trim(),
+  ).toBe("t");
+});
 
 it("preserves independent manual credit during concurrent processing and intentional manual submissions", async () => {
   const id = -327900;

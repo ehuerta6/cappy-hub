@@ -93,6 +93,7 @@ const task = {
   due_date: "2099-10-08",
 };
 let officersForList: Record<string, unknown>[];
+let eventTimeSlots: Record<string, unknown>[];
 let eventRosterRows: Record<string, unknown>[];
 let eventRosterCount = 0;
 let personalRosterCount = 0;
@@ -109,6 +110,7 @@ beforeEach(() => {
   event.ends_at = "2099-10-09T01:00:00Z";
   event.participation_points_per_hour_at_end = null;
   officersForList = [];
+  eventTimeSlots = [];
   eventRosterRows = [];
   eventRosterCount = 0;
   personalRosterCount = 0;
@@ -239,22 +241,24 @@ beforeEach(() => {
                       query.rangeStart,
                       query.rangeEnd + 1,
                     )
-                  : table === "event_officers"
-                    ? eventRosterRows.slice(
-                        query.rangeStart,
-                        query.rangeEnd + 1,
-                      )
-                    : table === "task_events" && filters.has("task_id")
-                      ? task.task_events.slice(
+                  : table === "event_time_slots"
+                    ? eventTimeSlots
+                    : table === "event_officers"
+                      ? eventRosterRows.slice(
                           query.rangeStart,
                           query.rangeEnd + 1,
                         )
-                      : table === "task_events"
-                        ? eventTaskRows.slice(
+                      : table === "task_events" && filters.has("task_id")
+                        ? task.task_events.slice(
                             query.rangeStart,
                             query.rangeEnd + 1,
                           )
-                        : [],
+                        : table === "task_events"
+                          ? eventTaskRows.slice(
+                              query.rangeStart,
+                              query.rangeEnd + 1,
+                            )
+                          : [],
             count:
               table === "officers"
                 ? officersForList.length
@@ -716,6 +720,28 @@ it("keeps manager bulk signup available when eligible Officers exist", async () 
   expect(html).toContain("Add officers (1 available)");
   expect(html).toContain("Select officers to add");
   expect(html).toContain('name="officer_ids" value="4"');
+});
+
+it("keeps active signup controls hidden for legacy slot Events", async () => {
+  officersForList = [{ id: 4, name: "Available Officer", status: "active" }];
+  eventTimeSlots = [
+    {
+      id: 8,
+      starts_at: "2099-10-08T23:00:00Z",
+      ends_at: "2099-10-09T00:00:00Z",
+      capacity: null,
+      event_time_slot_officers: [],
+    },
+  ];
+
+  const html = renderToStaticMarkup(
+    await EventDetail({ params: Promise.resolve({ id: "7" }) }),
+  );
+
+  expect(html).toContain("Historical Time Slots");
+  expect(html).not.toContain("Add officers (1 available)");
+  expect(html).not.toContain("Select officers to add");
+  expect(html).not.toContain("Sign up for Synthetic Event");
 });
 
 it("shows presenter slots only on Session Events", async () => {

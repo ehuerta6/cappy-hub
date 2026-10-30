@@ -36,14 +36,14 @@ These synthetic accounts are created only by the local setup/reset workflow. Nev
 
 ## Seeded demo scenarios
 
-`supabase/seed.sql` adds synthetic records across Officers, Events, Points, warnings, and Tasks. Names beginning with `Mock:` identify demo Events. The Time Slot examples are:
+`supabase/seed.sql` adds synthetic records across Officers, Events, Points, warnings, and Tasks. Names beginning with `Mock:` identify demo Events. These legacy Time Slot records remain in the seed to exercise historical read compatibility; they do not offer active slot setup or signup:
 
-- `Mock: Equal Slots Volunteer Fair`: three equal shifts with capacities of 3, 2, and unlimited; existing selections demonstrate available and full shifts.
-- `Mock: Custom Slots Outreach Booth`: custom shifts with a gap, a full first shift, and an available second shift.
+- `Mock: Equal Slots Volunteer Fair`: three equal shifts with capacities of 3, 2, and unlimited; existing assignments remain historical references.
+- `Mock: Custom Slots Outreach Booth`: custom shifts with a gap and existing historical assignments.
 - `Mock: Processed Slots Career Day`: a past Event with separate Point transactions for selected slots and one removed selection whose award remains in history.
-- `Mock: Full Capacity Workshop`: both Time Slots are full; no Event-wide capacity is applied.
+- `Mock: Full Capacity Workshop`: both historical Time Slots are full; no Event-wide capacity is stored on this legacy Event.
 - `Mock: Event Capacity Workshop`: an unslotted Event that retains Event-wide Max volunteers.
-- `Mock: Weekly Coding Workshop`: two recurring occurrences with independent slots and Officer selections.
+- `Mock: Weekly Coding Workshop`: two recurring occurrences with independent historical slot rows and Officer selections.
 
 The remaining seeded records cover past, upcoming, happening, cancelled, removed, and Session Events; Point awards, corrections, and removals; warning approval states; and Tasks with no assignee, one or several assignees, completed assignments, and due-date awards. Run `npm run local:reset` to restore these examples after changing local data.
 

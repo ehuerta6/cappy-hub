@@ -475,5 +475,22 @@ select ok(exists(select 1 from audit_logs where action='points.premature_partici
  and entity_id='92302' and details->>'previous_basis_known'='false' and actor_officer_id=92301),
  'reviewed unknown legacy basis and confirming Admin are explicit audit evidence');
 
+select results_eq($$select id,to_jsonb(s) from event_time_slots s order by id$$,
+ $$select id,original from upgrade_fixture.pre_independent_manual_time_slots order by id$$,
+ 'Volunteer Time Slot retirement preserves historical slot rows and stable IDs');
+select results_eq($$select to_jsonb(s) from event_time_slot_officers s order by slot_id,officer_id$$,
+ $$select original from upgrade_fixture.pre_independent_manual_slots order by (original->>'slot_id')::bigint,(original->>'officer_id')::bigint$$,
+ 'Volunteer Time Slot retirement preserves historical signup relationships');
+select results_eq($$select id,to_jsonb(p)-'participation_superseded_at'-'participation_schedule_suspended'
+    -'task_reconciliation_suspended' from point_transactions p where id=92999$$,
+ $$select id,original from upgrade_fixture.pre_independent_manual_points where id=92999$$,
+ 'Volunteer Time Slot retirement preserves historical automatic Point ID, amount and removal evidence');
+select ok(not has_function_privilege('authenticated',
+  'public.change_event_time_slot_signup(bigint,bigint,bigint[],text)','execute'),
+  'historical upgrade leaves active Time Slot signup RPC unavailable');
+select ok(has_function_privilege('authenticated',
+  'public.bulk_add_event_officers_to_slots(bigint,bigint[],bigint[])','execute'),
+  'historical roster correction RPC remains available for ended Events');
+
 select * from finish();
 rollback;

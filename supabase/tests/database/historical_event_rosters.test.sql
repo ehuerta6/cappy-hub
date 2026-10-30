@@ -81,6 +81,8 @@ select throws_ok($$select public.change_event_signup(-32903,-32906,false)$$,
  'Lead cannot correct a roster outside managed branches');
 select throws_ok($$select public.bulk_add_event_officers(-32903,array[-32906]::bigint[])$$,
  'P0001','Event outside branch scope','Lead cannot add a signup outside managed branches');
+select throws_ok($$select public.bulk_add_event_officers_to_slots(-32903,array[-32906]::bigint[],array[-329201]::bigint[])$$,
+ 'P0001','Event outside branch scope','Lead cannot correct a legacy slot roster outside managed branches');
 select lives_ok($$select public.change_event_signup(-32901,-32904,true)$$,
  'scoped Lead can remove an inactive Officer from a historical roster');
 reset role;
@@ -224,9 +226,9 @@ set local role authenticated;
 select throws_ok($$select public.change_event_signup(-32902,-32903,false)$$,
  'P0001','Select one or more Time Slots to sign up for this Event',
  'roster correction does not reactivate or reassign a historical slot-linked signup');
-select throws_ok($$select public.bulk_add_event_officers_to_slots(-32902,array[-32903]::bigint[],array[-329201]::bigint[])$$,
- 'P0001','This removed Time Slot signup cannot be restored',
- 'explicit slot assignment cannot implicitly restore a removed historical signup');
+select is(has_function_privilege('authenticated',
+ 'public.bulk_add_event_officers_to_slots(bigint,bigint[],bigint[])','execute'),true,
+ 'trusted historical slot correction remains available for ended Events');
 reset role;
 select is((select removed_at is not null from public.event_officers where event_id=-32902 and officer_id=-32903),true,
  'a rejected slot-linked re-add leaves its stable signup row inactive');
@@ -237,8 +239,8 @@ select is((select count(*) from public.point_transactions where event_id=-32902 
  'rejected re-add leaves the slot-linked Point transaction superseded');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032901',true);
 set local role authenticated;
-select lives_ok($$select public.change_event_time_slot_signup(-32902,-32904,'{}'::bigint[],'leave_all')$$,
- 'manager can remove an inactive Officer from a historical slotted roster');
+select lives_ok($$select public.change_event_signup(-32902,-32904,true)$$,
+ 'manager can remove an inactive Officer from a historical slotted roster through roster correction');
 reset role;
 select ok((select removed_at is not null from public.event_officers where event_id=-32902 and officer_id=-32904),
  'inactive historical signup can be marked removed');
