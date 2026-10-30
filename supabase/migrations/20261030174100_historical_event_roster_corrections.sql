@@ -311,6 +311,7 @@ declare e public.events%rowtype; actor_id bigint:=private.current_active_officer
   slot_ids bigint[]; existing_signup boolean; added_slots bigint[]:='{}'::bigint[];
   removed_slots bigint[]:='{}'::bigint[]; new_signup boolean:=false; award_ids bigint[]:='{}'::bigint[];
   current_count bigint; selected_count bigint; preserve_slot_history boolean:=false;
+  award public.point_transactions%rowtype; affected_awards bigint[]:='{}'::bigint[];
 begin
   if actor_id is null then raise exception 'Unauthorized'; end if;
   if p_mode not in ('join_selected','join_all','leave_selected','leave_all') then raise exception 'Invalid Time Slot signup mode'; end if;
@@ -327,8 +328,10 @@ begin
   if target_id=actor_id and not private.can_manage_event(p_event_id) and
     (e.participation_points_per_hour_at_end is not null or e.ends_at<=pg_catalog.now()) then
     raise exception 'Signups are closed for this Event'; end if;
-  perform 1 from public.officers where id=target_id and status='active' for share;
-  if not found then raise exception 'Target Officer is not active'; end if;
+  if not preserve_slot_history then
+    perform 1 from public.officers where id=target_id and status='active' for share;
+    if not found then raise exception 'Target Officer is not active'; end if;
+  end if;
   existing_signup:=exists(select 1 from public.event_officers where event_id=p_event_id
     and officer_id=target_id and removed_at is null);
   if p_mode in ('join_all','join_selected') then
@@ -410,12 +413,30 @@ begin
       update public.event_officers set removed_at=pg_catalog.clock_timestamp()
         where event_id=p_event_id and officer_id=target_id and removed_at is null;
     end if;
+    if preserve_slot_history then
+      for award in select p.* from public.point_transactions p
+        where p.event_id=p_event_id and p.officer_id=target_id and p.award_type='participation'
+          and p.event_time_slot_id=any(slot_ids)
+          and (p.removed_at is null or p.participation_schedule_suspended)
+          and p.participation_superseded_at is null order by p.id for update
+      loop
+        update private.event_participation_basis set schedule_suspended=false
+          where transaction_id=award.id;
+        update public.point_transactions set removed_at=pg_catalog.clock_timestamp(),removed_by=auth.uid(),
+          removed_by_officer_id=actor_id,participation_schedule_suspended=false,
+          participation_superseded_at=pg_catalog.clock_timestamp() where id=award.id;
+        affected_awards:=array_append(affected_awards,award.id);
+        perform private.write_audit_log('points.participation_removed','point_transaction',award.id::text,
+          pg_catalog.jsonb_build_object('transaction_id',award.id,'officer_id',target_id,'event_id',p_event_id,
+            'before',to_jsonb(award),'removed_by',auth.uid(),'removal_source','event_signup'));
+      end loop;
+    end if;
   end if;
   if new_signup or cardinality(added_slots)>0 or cardinality(removed_slots)>0 then
     perform private.write_audit_log('event.time_slot_signup_changed','event',p_event_id::text,
       pg_catalog.jsonb_build_object('event_id',p_event_id,'officer_id',target_id,'actor_id',actor_id,
         'mode',p_mode,'added_slot_ids',added_slots,'removed_slot_ids',removed_slots,
-        'canonical_signup_created',new_signup));
+        'canonical_signup_created',new_signup,'participation_transaction_ids',affected_awards));
   end if;
   return pg_catalog.jsonb_build_object('event_id',p_event_id,'officer_id',target_id,'mode',p_mode,
     'added_slot_ids',added_slots,'removed_slot_ids',removed_slots,'award_transaction_ids',award_ids);
@@ -655,23 +676,21 @@ begin
         coalesce(jsonb_agg(to_jsonb(so) order by slot_id),'[]'::jsonb)
         into slot_ids,slot_selections
         from public.event_time_slot_officers so where event_id=p_event_id and officer_id=p_officer_id;
-      if not exists(select 1 from public.event_time_slots where event_id=p_event_id) then
-        for award in select p.* from public.point_transactions p where p.event_id=p_event_id
-          and p.officer_id=p_officer_id and p.award_type='participation'
-          and (p.removed_at is null or p.participation_schedule_suspended)
-          and p.participation_superseded_at is null order by p.id for update
-        loop
-          update private.event_participation_basis set schedule_suspended=false
-            where transaction_id=award.id;
-          update public.point_transactions set removed_at=pg_catalog.clock_timestamp(),removed_by=auth.uid(),
-            removed_by_officer_id=actor_id,participation_schedule_suspended=false,
-            participation_superseded_at=pg_catalog.clock_timestamp() where id=award.id;
-          affected_awards:=array_append(affected_awards,award.id);
-          perform private.write_audit_log('points.participation_removed','point_transaction',award.id::text,
-            jsonb_build_object('transaction_id',award.id,'officer_id',p_officer_id,'event_id',p_event_id,
-              'before',to_jsonb(award),'removed_by',auth.uid(),'removal_source','event_signup'));
-        end loop;
-      end if;
+      for award in select p.* from public.point_transactions p where p.event_id=p_event_id
+        and p.officer_id=p_officer_id and p.award_type='participation'
+        and (p.removed_at is null or p.participation_schedule_suspended)
+        and p.participation_superseded_at is null order by p.id for update
+      loop
+        update private.event_participation_basis set schedule_suspended=false
+          where transaction_id=award.id;
+        update public.point_transactions set removed_at=pg_catalog.clock_timestamp(),removed_by=auth.uid(),
+          removed_by_officer_id=actor_id,participation_schedule_suspended=false,
+          participation_superseded_at=pg_catalog.clock_timestamp() where id=award.id;
+        affected_awards:=array_append(affected_awards,award.id);
+        perform private.write_audit_log('points.participation_removed','point_transaction',award.id::text,
+          jsonb_build_object('transaction_id',award.id,'officer_id',p_officer_id,'event_id',p_event_id,
+            'before',to_jsonb(award),'removed_by',auth.uid(),'removal_source','event_signup'));
+      end loop;
       update public.event_officers set removed_at=pg_catalog.clock_timestamp()
         where event_id=p_event_id and officer_id=p_officer_id and removed_at is null;
       get diagnostics changed_rows=row_count;

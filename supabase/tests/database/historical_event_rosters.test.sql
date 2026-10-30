@@ -53,7 +53,8 @@ insert into event_officers(event_id,officer_id) values
 insert into event_time_slots(id,event_id,starts_at,ends_at,capacity)
 values(-329201,-32902,'2020-01-02 09:00-07','2020-01-02 10:00-07',null);
 insert into event_time_slot_officers(event_id,slot_id,officer_id,created_by)
-values(-32902,-329201,-32903,'00000000-0000-4000-8000-000000032901');
+values(-32902,-329201,-32903,'00000000-0000-4000-8000-000000032901'),
+ (-32902,-329201,-32904,'00000000-0000-4000-8000-000000032901');
 insert into point_transactions(id,officer_id,event_id,points,reason,award_type,created_by,
  removed_at,participation_schedule_suspended)
 values
@@ -61,8 +62,7 @@ values
  (-329102,-32904,-32901,2,'Event participation','participation',null,pg_catalog.now(),true),
  (-329103,-32903,-32901,3,'Independent manual adjustment','manual','00000000-0000-4000-8000-000000032901',null,false),
  (-329104,-32908,-32901,4,'Event participation','participation',null,null,false);
-insert into private.event_participation_basis(transaction_id,starts_at,ends_at,schedule_suspended)
-values(-329102,'2020-01-01 09:00-07','2020-01-01 11:00-07',true);
+update private.event_participation_basis set schedule_suspended=true where transaction_id=-329102;
 insert into point_transactions(id,officer_id,event_id,event_time_slot_id,points,reason,award_type,created_by)
 values(-329201,-32903,-32902,-329201,1,'Event time slot participation','participation',null);
 
@@ -208,10 +208,10 @@ select is((select removed_at is not null from public.event_officers where event_
  'historical slot-linked signup row is preserved and marked inactive');
 select is((select count(*) from public.event_time_slot_officers where event_id=-32902 and slot_id=-329201
   and officer_id=-32903),1::bigint,'signup removal preserves its historical slot selection row');
-select is((select event_id=-32902 and event_time_slot_id=-329201 and removed_at is null
-  and participation_superseded_at is null
+select is((select event_id=-32902 and event_time_slot_id=-329201 and removed_at is not null
+  and removed_by='00000000-0000-4000-8000-000000032901' and participation_superseded_at is not null
   from public.point_transactions where id=-329201),true,
- 'slot-linked Point history and its original event and slot identity survive signup removal');
+ 'slot-linked Point history is retained but removed from active credit with manager attribution');
 select ok(exists(select 1 from public.audit_logs l
   cross join lateral jsonb_array_elements(l.details->'removed_slot_selections') as selection(value)
   where l.action='event.officer_removed' and l.entity_id='-32902'
@@ -233,8 +233,17 @@ select is((select removed_at is not null from public.event_officers where event_
 select is((select count(*) from public.event_time_slot_officers where event_id=-32902 and slot_id=-329201
   and officer_id=-32903),1::bigint,'rejected re-add retains its original slot selection');
 select is((select count(*) from public.point_transactions where event_id=-32902 and officer_id=-32903
-  and event_time_slot_id=-329201 and removed_at is null and participation_superseded_at is null),1::bigint,
- 'rejected re-add leaves the slot-linked Point transaction unchanged');
+  and event_time_slot_id=-329201 and removed_at is not null and participation_superseded_at is not null),1::bigint,
+ 'rejected re-add leaves the slot-linked Point transaction superseded');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032901',true);
+set local role authenticated;
+select lives_ok($$select public.change_event_time_slot_signup(-32902,-32904,'{}'::bigint[],'leave_all')$$,
+ 'manager can remove an inactive Officer from a historical slotted roster');
+reset role;
+select ok((select removed_at is not null from public.event_officers where event_id=-32902 and officer_id=-32904),
+ 'inactive historical signup can be marked removed');
+select is((select count(*) from public.event_time_slot_officers where event_id=-32902 and slot_id=-329201
+  and officer_id=-32904),1::bigint,'inactive historical removal preserves its slot relationship');
 
 select set_config('request.jwt.claim.sub','',true);
 select * from finish();

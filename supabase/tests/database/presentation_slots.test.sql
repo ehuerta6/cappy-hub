@@ -205,7 +205,8 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001404',true);
 select throws_ok($$select change_presenter_slot((select id from presentation_slots where event_id=-1401 and position=4),-1404)$$,
  'P0001','Event capacity has been reached','full Session rejects new attendee presenter');
-select is((select count(*) from event_officers where event_id=-1401 and officer_id=-1404),0::bigint,'full presenter claim does not create a confirmed signup');
+select is((select count(*) from event_officers where event_id=-1401 and officer_id=-1404
+  and removed_at is null),0::bigint,'full presenter claim does not create a confirmed signup');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001405',true);
 select lives_ok($$select change_presenter_slot((select id from presentation_slots where event_id=-1401 and position=4),-1405)$$,'full Session allows already-confirmed Officer another slot');
 reset role;

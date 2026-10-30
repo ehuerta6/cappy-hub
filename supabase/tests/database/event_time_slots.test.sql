@@ -220,8 +220,8 @@ select ok((select removed_at is not null from event_officers where event_id=-295
 select is((select count(*) from event_time_slot_officers where event_id=-2952 and officer_id=-2952),1::bigint,
   'historical leave-all correction preserves the slot relationship');
 select is((select removed_at from point_transactions where event_id=-2952 and officer_id=-2952
-  and event_time_slot_id=-295201 and award_type='participation'),null::timestamptz,
-  'historical leave-all correction leaves the slot-linked Point transaction unchanged');
+  and event_time_slot_id=-295201 and award_type='participation') is not null,true,
+  'historical leave-all correction supersedes the automatic slot Point without deleting it');
 set local role authenticated;
 select throws_ok($$select public.change_event_time_slot_signup(-2952,-2952,array[-295201]::bigint[],'join_selected')$$,
   'P0001','This removed Time Slot signup cannot be restored',
