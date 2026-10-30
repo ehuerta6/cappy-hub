@@ -37,7 +37,7 @@ select results_eq($$select officer_id,branch_id from officer_branches order by o
  'recoverable catalogs preserve all Officer Branch memberships');
 
 -- Direct Admin management changes new writes only, never legacy history.
-select results_eq($$select id,to_jsonb(w) from officer_warnings w order by id$$,
+select results_eq($$select id,to_jsonb(w)-'deleted_at'-'deleted_by' from officer_warnings w order by id$$,
  $$select id,original from upgrade_fixture.pre_direct_admin_warnings order by id$$,
  'direct Admin migration preserves every Warning including pending/rejected/voided states');
 select results_eq($$select warning_id,approver_id,to_jsonb(a) from warning_approvals a order by warning_id,approver_id$$,

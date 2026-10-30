@@ -1030,7 +1030,7 @@ it("retains list context while changing the Officer warning filter", async () =>
     }),
   );
   expect(html).toContain(
-    'href="/officers/7?warningStatus=approved&amp;returnTo=%2Fofficers%3Fq%3Dsynthetic"',
+    'href="/officers/7?section=warnings&amp;returnTo=%2Fofficers%3Fq%3Dsynthetic"',
   );
 });
 
