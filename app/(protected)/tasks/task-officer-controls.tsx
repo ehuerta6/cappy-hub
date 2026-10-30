@@ -241,6 +241,10 @@ export function RemoveTaskAssignmentForm({
       <input type="hidden" name="task_id" value={taskId} />
       <input type="hidden" name="officer_id" value={officerId} />
       <ActionFeedback state={state} />
+      <p className="text-sm text-muted">
+        Removing this assignment excludes its Task points. Completion history is
+        retained if the Officer is added again.
+      </p>
       <button
         type="submit"
         disabled={pending}

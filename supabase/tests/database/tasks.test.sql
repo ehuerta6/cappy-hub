@@ -130,8 +130,10 @@ select is((select count(*) from point_transactions where task_id=-9711 and award
  'completion before the due date creates no award');
 select is((select completed_at from task_officer_assignments where task_id=-9711 and officer_id=-971),null::timestamptz,
  'one Officer completion does not change another Officer state');
-select throws_ok($$select remove_task_assignment(-9711,-973)$$,
- 'P0001','Completed or awarded Task assignments cannot be removed','completed assignment cannot be removed');
+select lives_ok($$select remove_task_assignment(-9711,-973)$$,
+ 'manager can remove completed assignment preserving its history');
+select lives_ok($$select bulk_assign_task_officers(-9711,array[-973]::bigint[])$$,
+ 'manager can restore completed assignment before further corrections');
 select throws_ok($$select remove_task(-9711)$$,
  'P0001','Completed or awarded Tasks cannot be archived','completed standalone Task cannot be archived');
 select lives_ok($$select set_task_assignment_completion(-9711,-973,false)$$,
@@ -173,17 +175,21 @@ select is((select id from point_transactions where task_id=-9712 and officer_id=
  current_setting('test.original_award_id')::bigint,'re-completion reuses the same transaction identity');
 select is((select removed_at from point_transactions where task_id=-9712 and officer_id=-973 and award_type='task'),null::timestamptz,
  'reactivated Task award is active');
-select throws_ok($$select update_task_details(-9712,'Past Task','Changed title','Airtable',
+select lives_ok($$select update_task_details(-9712,'Past Task','Changed title','Airtable',
  (select id from branches where name='intro'),current_setting('test.denver_today')::date-1,9)$$,
- 'P0001','Completed or awarded Task point settings cannot be edited','Task points cannot rewrite award history');
+ 'manager can correct awarded fixed Task point value');
+select is((select points from point_transactions where task_id=-9712 and officer_id=-973),9::numeric,
+ 'Task point correction reconciles the existing award');
 select lives_ok($$select update_task_details(-9712,'Past Task','Changed title','Airtable',
  (select id from branches where name='intro'),current_setting('test.denver_today')::date-1,5)$$,
  'other Task details may change without recalculating existing points');
-select throws_ok($$select update_task_details(-9712,'Past Task','Changed title','Airtable',
+select lives_ok($$select update_task_details(-9712,'Past Task','Changed title','Airtable',
  (select id from branches where name='intro'),current_setting('test.denver_today')::date+5,5)$$,
- 'P0001','Completed or awarded Task due dates cannot be edited','awarded standalone Task due date cannot move ahead of its history');
-select is((select due_date from tasks where id=-9712),current_setting('test.denver_today')::date-1,
- 'rejected standalone due-date edit leaves Task date unchanged');
+ 'awarded standalone Task due date can move to future and suspend credit');
+select is((select due_date from tasks where id=-9712),current_setting('test.denver_today')::date+5,
+ 'authorized historical due-date edit saves corrected date');
+select is((select count(*) from point_transactions where task_id=-9712 and removed_at is null),0::bigint,
+ 'future due date excludes premature Task credit');
 reset role;
 
 -- Simulate completion already present before the scheduled processor runs.

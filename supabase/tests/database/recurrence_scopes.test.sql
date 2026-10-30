@@ -162,11 +162,11 @@ select lives_ok($$select pg_temp.mutate('task-history',2,'occurrence','edit','{"
 select is((select title from tasks where id=pg_temp.id('task-history',1)),'task-history','individual Task edit leaves sibling title');
 select lives_ok($$select pg_temp.mutate('task-history',2,'following','edit','{"description":"Future details"}')$$,'following Task field edit');
 select is((select description from tasks where id=pg_temp.id('task-history',1)),'Details','earlier Task details unchanged');
-select throws_ok($$select pg_temp.mutate('task-history',1,'series','edit','{}','RRULE:FREQ=DAILY;INTERVAL=1;COUNT=3',array['2099-04-01'::date,'2099-04-02','2099-04-03'])$$,
- 'P0001','Completed or awarded Task due dates cannot be edited','recurring schedule cannot rewrite awarded Task due-date history');
+select lives_ok($$select pg_temp.mutate('task-history',1,'series','edit','{}','RRULE:FREQ=DAILY;INTERVAL=1;COUNT=3',array['2099-04-01'::date,'2099-04-02','2099-04-03'])$$,
+ 'recurring schedule can correct awarded Task due dates and reconcile credit');
 select lives_ok($$select pg_temp.mutate('task-history',1,'series','edit','{"title":"Series title"}')$$,'whole-series Task field edit preserves workflow');
-select throws_ok($$select pg_temp.mutate('task-history',1,'series','edit','{"points":8}')$$,'P0001','Completed or awarded Task point settings cannot be edited','awarded Task point settings protect entire edit atomically');
-select is((select points from tasks where id=pg_temp.id('task-history',1)),3::numeric,'rejected point edit leaves earlier Task unchanged');
+select lives_ok($$select pg_temp.mutate('task-history',1,'series','edit','{"points":8}')$$,'awarded Task fixed values can be corrected across series');
+select is((select points from tasks where id=pg_temp.id('task-history',1)),8::numeric,'series fixed value correction reaches earlier Task');
 reset role;
 create temporary table atomic_before as select
  (select jsonb_agg(to_jsonb(t) order by id) from tasks t where id in (select unnest(ids) from pg_temp.fixtures where label='task-history')) as rows,
@@ -182,7 +182,9 @@ select is((select to_jsonb(s) from task_series s where id=(select recurrence_ser
 select is((select count(*) from audit_logs),(select audits from atomic_before),'failed operations leave no partial audits');
 select is((select count(*) from private.recurrence_mutations),(select receipts from atomic_before),'failed operations leave no success receipt');
 select is((select to_jsonb(a) from task_officer_assignments a where task_id=pg_temp.id('task-history',3)),(select assignment from preserved_task_state),'Task assignee completion and approval preserved');
-select is((select to_jsonb(p) from point_transactions p where task_id=pg_temp.id('task-history',3)),(select points from preserved_task_state),'Task awarded points preserved');
+select is((select id from point_transactions where task_id=pg_temp.id('task-history',3)),(select (points->>'id')::bigint from preserved_task_state),'Task transaction identity preserved through schedule and amount corrections');
+select is((select points from point_transactions where task_id=pg_temp.id('task-history',3)),8::numeric,'Task award reflects corrected fixed value');
+select isnt((select removed_at from point_transactions where task_id=pg_temp.id('task-history',3)),null::timestamptz,'future corrected recurring due date excludes active credit');
 select pg_temp.fixture('task-remove','task');
 set local role authenticated;
 select lives_ok($$select pg_temp.mutate('task-remove',2,'occurrence','remove')$$,'remove this Task occurrence');

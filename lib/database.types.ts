@@ -628,6 +628,7 @@ export type Database = {
           removed_by_officer_id: number | null;
           slot_selection_removed: boolean;
           task_id: number | null;
+          task_reconciliation_suspended: boolean;
           updated_at: string | null;
           updated_by: string | null;
           updated_by_officer_id: number | null;
@@ -648,6 +649,7 @@ export type Database = {
           removed_by_officer_id?: number | null;
           slot_selection_removed?: boolean;
           task_id?: number | null;
+          task_reconciliation_suspended?: boolean;
           updated_at?: string | null;
           updated_by?: string | null;
           updated_by_officer_id?: number | null;
@@ -668,6 +670,7 @@ export type Database = {
           removed_by_officer_id?: number | null;
           slot_selection_removed?: boolean;
           task_id?: number | null;
+          task_reconciliation_suspended?: boolean;
           updated_at?: string | null;
           updated_by?: string | null;
           updated_by_officer_id?: number | null;
@@ -882,6 +885,8 @@ export type Database = {
           assigned_by: number;
           completed_at: string | null;
           officer_id: number;
+          removed_at: string | null;
+          removed_by: number | null;
           task_id: number;
         };
         Insert: {
@@ -891,6 +896,8 @@ export type Database = {
           assigned_by: number;
           completed_at?: string | null;
           officer_id: number;
+          removed_at?: string | null;
+          removed_by?: number | null;
           task_id: number;
         };
         Update: {
@@ -900,6 +907,8 @@ export type Database = {
           assigned_by?: number;
           completed_at?: string | null;
           officer_id?: number;
+          removed_at?: string | null;
+          removed_by?: number | null;
           task_id?: number;
         };
         Relationships: [
@@ -941,6 +950,20 @@ export type Database = {
           {
             foreignKeyName: "task_officer_assignments_officer_id_fkey";
             columns: ["officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_officer_assignments_removed_by_fkey";
+            columns: ["removed_by"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_officer_assignments_removed_by_fkey";
+            columns: ["removed_by"];
             isOneToOne: false;
             referencedRelation: "officers";
             referencedColumns: ["id"];

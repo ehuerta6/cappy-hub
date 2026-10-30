@@ -408,7 +408,7 @@ it("shows per-Officer completion controls to managers and read-only state to Off
     'aria-label="Completed for Other Officer"',
   );
   expect(assignmentRows?.[1]).toContain('name="officer_id" value="2"');
-  expect(assignmentRows?.[1]).toContain("History protected");
+  expect(assignmentRows?.[1]).toContain("Remove assignment");
   expect(assignmentRows?.[2]).toContain("Synthetic Officer");
   expect(assignmentRows?.[2]).toContain(
     'aria-label="Completed for Synthetic Officer"',
