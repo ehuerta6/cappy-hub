@@ -13,6 +13,7 @@ const state = vi.hoisted(() => ({
   orders: [] as Array<{ table: string; column: string; options?: unknown }>,
   operations: [] as string[],
   eventRows: [] as Array<{ events: Record<string, unknown> }>,
+  deletedWarnings: false,
   redirects: [] as string[],
 }));
 
@@ -33,9 +34,17 @@ vi.mock("@/lib/supabase/server", () => ({
           return query;
         },
         eq: () => query,
-        is: () => query,
+        is: (column: string, value: unknown) => {
+          state.operations.push(`${table}:is:${column}:${String(value)}`);
+          return query;
+        },
         neq: () => query,
-        not: () => query,
+        not: (column: string, operator: string, value: unknown) => {
+          state.operations.push(
+            `${table}:not:${column}:${operator}:${String(value)}`,
+          );
+          return query;
+        },
         order: (column: string, options?: unknown) => {
           state.orders.push({ table, column, options });
           state.operations.push(`${table}:order:${column}`);
@@ -105,19 +114,13 @@ vi.mock("@/lib/supabase/server", () => ({
                 : table === "officer_warnings"
                   ? [1, 2, 3].map((id) => ({
                       id,
-                      status: "pending",
+                      status: "approved",
                       voided_at: null,
+                      deleted_at: state.deletedWarnings
+                        ? "2026-10-12T00:00:00Z"
+                        : null,
                       created_at: `2099-10-0${id}T00:00:00Z`,
                       reason: `Warning reason ${id}`,
-                      warning_approvals: [
-                        {
-                          approver_id: "approver-1",
-                          approver_role: "president",
-                          approver_officer_id: 2,
-                          decision: "approved",
-                          decided_at: "2026-10-06T23:53:11Z",
-                        },
-                      ],
                     }))
                   : [],
             count:
@@ -247,7 +250,7 @@ it("allows a Lead to see their own permitted warnings but not another Officer's"
   expect(anotherProfile).not.toContain('aria-label="Warnings"');
 });
 
-it("shows the requested Warning status as active and preserves the legacy URL", async () => {
+it("keeps everyday Warning views simple and removes legacy approval details", async () => {
   state.actor = { id: 99, applicationRole: "admin" };
   state.targetOfficerId = 7;
   const html = renderToStaticMarkup(
@@ -262,14 +265,34 @@ it("shows the requested Warning status as active and preserves the legacy URL", 
 
   expect(html).toContain('aria-label="Warning status"');
   expect(html).toContain(
-    'aria-current="page" class="border-b-2 px-3 py-2 border-foreground font-semibold" href="/officers/7?warningStatus=pending&amp;returnTo=%2Fofficers%3Fq%3Dclub"',
+    'aria-current="page" class="border-b-2 px-3 py-2 border-foreground font-semibold" href="/officers/7?section=warnings&amp;returnTo=%2Fofficers%3Fq%3Dclub"',
   );
+  expect(html).toContain("Deleted");
+  expect(html).toContain("All history");
+  expect(html).not.toContain(">Pending</a>");
+  expect(html).not.toContain("Historical approvals:");
+  expect(html).not.toContain("Historical approval:");
   expect(html).toContain("Warning reason 1");
   expect(html).toContain("Warning reason 3");
   expect(html).toContain("Edit warning");
-  expect(html).toContain("Historical approvals:");
-  expect(html).toContain("Oct 6, 2026, 5:53 PM");
   expect(html).not.toContain("Approve warning?");
+});
+
+it("shows the Admin Deleted view with a Restore action", async () => {
+  state.actor = { id: 99, applicationRole: "admin" };
+  state.targetOfficerId = 7;
+  state.deletedWarnings = true;
+  state.operations = [];
+  const html = renderToStaticMarkup(
+    await OfficerDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({ warningStatus: "deleted" }),
+    }),
+  );
+
+  expect(html).toContain("Restore");
+  expect(state.operations).toContain("officer_warnings:not:deleted_at:is:null");
+  state.deletedWarnings = false;
 });
 
 it("uses server-side five-row paging for the full Point section", async () => {
@@ -313,7 +336,7 @@ it.each(["0", "abc", "9007199254740992"])(
   },
 );
 
-it("preserves the Warning filter when canonicalizing an invalid Warning page", async () => {
+it("drops obsolete Warning status filters when canonicalizing an invalid page", async () => {
   state.actor = { id: 99, applicationRole: "admin" };
   state.targetOfficerId = 7;
   state.redirects = [];
@@ -329,7 +352,7 @@ it("preserves the Warning filter when canonicalizing an invalid Warning page", a
   });
 
   expect(state.redirects).toContain(
-    "/officers/7?returnTo=%2Fofficers%3Fq%3Dclub&warningStatus=approved&section=warnings",
+    "/officers/7?returnTo=%2Fofficers%3Fq%3Dclub&section=warnings",
   );
 });
 

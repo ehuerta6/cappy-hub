@@ -20,7 +20,6 @@ import { eventStatus } from "@/lib/event-status";
 import {
   formatCalendarDate,
   formatDate,
-  formatDateTime,
   formatLabel,
 } from "@/lib/presentation";
 import { createClient } from "@/lib/supabase/server";
@@ -35,17 +34,16 @@ import type { Route } from "next";
 import RoleForm from "./role-form";
 import {
   CreateWarningForm,
+  DeleteWarningForm,
   EditWarningForm,
-  VoidWarningForm,
+  RestoreWarningForm,
 } from "../warning-forms";
 import type { Tables } from "@/lib/database.types";
 
 const SECTION_PAGE_SIZE = 5;
 const SECTION_PREVIEW_LIMITS = { warnings: 2, events: 4, points: 3 } as const;
 type OfficerSection = "overview" | "warnings" | "events" | "points";
-type WarningWithApprovals = Tables<"officer_warnings"> & {
-  warning_approvals: Tables<"warning_approvals">[];
-};
+type Warning = Tables<"officer_warnings">;
 type EventAssociation = { events: Tables<"events"> };
 type PointTransactionWithRelations = Tables<"point_transactions"> & {
   officers: Pick<Tables<"officers">, "id" | "name">;
@@ -146,10 +144,10 @@ export default async function OfficerDetailPage({
   const context = (await searchParams) ?? {};
   const { returnTo } = context;
   const safeReturnDestination = safeReturnTo(returnTo);
-  const warningStatus =
-    typeof context.warningStatus === "string"
+  const warningView =
+    context.warningStatus === "deleted" || context.warningStatus === "all"
       ? context.warningStatus
-      : undefined;
+      : "active";
   if (!/^-?[1-9]\d*$/.test(officerIdParam)) notFound();
   const officerId = Number(officerIdParam);
   const { data: officer, error } = await supabase
@@ -164,7 +162,7 @@ export default async function OfficerDetailPage({
   const requestedSection =
     typeof context.section === "string"
       ? context.section
-      : warningStatus
+      : context.warningStatus
         ? "warnings"
         : "overview";
   const section: OfficerSection = [
@@ -189,7 +187,7 @@ export default async function OfficerDetailPage({
     );
   const urlParams = new URLSearchParams();
   if (safeReturnDestination) urlParams.set("returnTo", safeReturnDestination);
-  if (warningStatus) urlParams.set("warningStatus", warningStatus);
+  if (warningView !== "active") urlParams.set("warningStatus", warningView);
   const requestedPage = parsePage(context.page);
   if (context.page !== undefined && !isValidPageParam(context.page))
     redirect(sectionHref(officerIdParam, visibleSection, urlParams));
@@ -209,20 +207,22 @@ export default async function OfficerDetailPage({
       let query = supabase
         .from("officer_warnings")
         .select(
-          countOnly ? "id" : "*,warning_approvals(*)",
+          countOnly ? "id" : "*",
           countOnly ? { count: "exact", head: true } : undefined,
         )
         .eq("officer_id", officer.id);
-      if (!isAdmin(actor)) query = query.is("voided_at", null);
-      else if (warningStatus === "voided")
-        query = query.not("voided_at", "is", null);
-      else if (warningStatus !== "all") {
-        query = query.is("voided_at", null);
-        if (["pending", "approved", "rejected"].includes(warningStatus ?? ""))
-          query = query.eq(
-            "status",
-            warningStatus as "pending" | "approved" | "rejected",
-          );
+      if (!isAdmin(actor)) {
+        query = query
+          .eq("status", "approved")
+          .is("voided_at", null)
+          .is("deleted_at", null);
+      } else if (warningView === "deleted") {
+        query = query.not("deleted_at", "is", null);
+      } else if (warningView !== "all") {
+        query = query
+          .eq("status", "approved")
+          .is("voided_at", null)
+          .is("deleted_at", null);
       }
       return query;
     })();
@@ -303,6 +303,7 @@ export default async function OfficerDetailPage({
           .eq("officer_id", officer.id)
           .eq("status", "approved")
           .is("voided_at", null)
+          .is("deleted_at", null)
       : Promise.resolve({ count: 0, error: null }),
     eventsNeeded
       ? makeEventsQuery(true)
@@ -330,7 +331,7 @@ export default async function OfficerDetailPage({
       : Promise.resolve({ data: [], error: null }),
   ]);
   const warnings = warningsResult as {
-    data: WarningWithApprovals[] | null;
+    data: Warning[] | null;
     error: { message: string } | null;
   };
   const events = eventsResult as {
@@ -365,10 +366,6 @@ export default async function OfficerDetailPage({
   const associatedEvents = (events.data ?? []).filter(
     ({ events: event }) => !event.deleted_at && event.status !== "cancelled",
   );
-  const approverNames =
-    warningsNeeded && isAdmin(actor)
-      ? await supabase.from("officers").select("id,name")
-      : null;
 
   const sectionNav = (
     <nav
@@ -487,18 +484,17 @@ export default async function OfficerDetailPage({
     >
       {[
         ["Active", "active"],
-        ["Pending", "pending"],
-        ["Approved", "approved"],
-        ["Rejected", "rejected"],
-        ["Voided", "voided"],
+        ["Deleted", "deleted"],
         ["All history", "all"],
       ].map(([label, status]) => {
-        const active = (warningStatus ?? "active") === status;
+        const active = warningView === status;
         return (
           <Link
             key={status}
             href={withReturnTo(
-              `/officers/${officerIdParam}?warningStatus=${status}`,
+              status === "active"
+                ? `/officers/${officerIdParam}?section=warnings`
+                : `/officers/${officerIdParam}?warningStatus=${status}`,
               returnTo,
             )}
             aria-current={active ? "page" : undefined}
@@ -531,11 +527,6 @@ export default async function OfficerDetailPage({
           Warning history unavailable. Reload this page to retry.
         </p>
       )}
-      {approverNames?.error && (
-        <p role="alert" className="text-sm">
-          Approver names unavailable. Reload this page to retry.
-        </p>
-      )}
       {isAdmin(actor) && approvedCountResult.error && (
         <p role="alert" className="text-sm">
           Approved warning count unavailable. Reload this page to retry.
@@ -551,7 +542,11 @@ export default async function OfficerDetailPage({
       {!warnings.error && visibleWarnings.length === 0 && (
         <p>
           {isAdmin(actor)
-            ? "No warnings in this view."
+            ? warningView === "deleted"
+              ? "No deleted warnings."
+              : warningView === "all"
+                ? "No warnings in history."
+                : "No active warnings."
             : "No approved warnings."}
         </p>
       )}
@@ -563,6 +558,9 @@ export default async function OfficerDetailPage({
           >
             <div className="flex flex-wrap items-center gap-3">
               <StatusBadge status={warning.status} />
+              {warning.deleted_at !== null && (
+                <span className="text-sm font-medium text-muted">Deleted</span>
+              )}
               {warning.voided_at !== null && (
                 <span className="text-sm font-medium text-muted">Voided</span>
               )}
@@ -573,48 +571,18 @@ export default async function OfficerDetailPage({
             <p className="whitespace-pre-wrap break-words">{warning.reason}</p>
             {isAdmin(actor) && (
               <>
-                <p className="text-sm">
-                  {warning.warning_approvals.length ? (
-                    <>
-                      Historical approvals:{" "}
-                      {
-                        warning.warning_approvals.filter(
-                          (approval) => approval.decision === "approved",
-                        ).length
-                      }
-                      /{warning.warning_approvals.length}
-                    </>
-                  ) : (
-                    "No leadership approvals recorded."
-                  )}
-                </p>
-                <ul className="text-sm text-muted">
-                  {warning.warning_approvals.map((approval) => (
-                    <li key={approval.approver_id}>
-                      {approval.approver_role} (
-                      {approverNames?.data?.find(
-                        (person) => person.id === approval.approver_officer_id,
-                      )?.name ??
-                        (approverNames?.error
-                          ? "name unavailable"
-                          : approval.approver_id)}
-                      ): {approval.decision}
-                      {approval.decided_at && (
-                        <time dateTime={approval.decided_at}>
-                          {" "}
-                          · {formatDateTime(approval.decided_at)}
-                        </time>
-                      )}
-                    </li>
-                  ))}
-                </ul>
                 <EditWarningForm
                   warningId={warning.id}
                   officerId={officer.id}
                   reason={warning.reason}
                 />
-                {warning.voided_at === null && (
-                  <VoidWarningForm
+                {warning.deleted_at === null ? (
+                  <DeleteWarningForm
+                    warningId={warning.id}
+                    officerId={officer.id}
+                  />
+                ) : (
+                  <RestoreWarningForm
                     warningId={warning.id}
                     officerId={officer.id}
                   />
@@ -773,11 +741,6 @@ export default async function OfficerDetailPage({
                     retry.
                   </p>
                 )}
-                {approverNames?.error && (
-                  <p role="alert" className="text-sm">
-                    Approver names unavailable. Reload this page to retry.
-                  </p>
-                )}
                 {warnings.error ? (
                   <p role="alert" className="text-sm">
                     Warning history unavailable. Reload this page to retry.
@@ -799,50 +762,18 @@ export default async function OfficerDetailPage({
                       </p>
                       {isAdmin(actor) && (
                         <>
-                          <p className="text-sm">
-                            {warning.warning_approvals.length ? (
-                              <>
-                                Historical approvals:{" "}
-                                {
-                                  warning.warning_approvals.filter(
-                                    (approval) =>
-                                      approval.decision === "approved",
-                                  ).length
-                                }
-                                /{warning.warning_approvals.length}
-                              </>
-                            ) : (
-                              "No leadership approvals recorded."
-                            )}
-                          </p>
-                          <ul className="text-sm text-muted">
-                            {warning.warning_approvals.map((approval) => (
-                              <li key={approval.approver_id}>
-                                {approval.approver_role} (
-                                {approverNames?.data?.find(
-                                  (person) =>
-                                    person.id === approval.approver_officer_id,
-                                )?.name ??
-                                  (approverNames?.error
-                                    ? "name unavailable"
-                                    : approval.approver_id)}
-                                ): {approval.decision}
-                                {approval.decided_at && (
-                                  <time dateTime={approval.decided_at}>
-                                    {" "}
-                                    · {formatDateTime(approval.decided_at)}
-                                  </time>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
                           <EditWarningForm
                             warningId={warning.id}
                             officerId={officer.id}
                             reason={warning.reason}
                           />
-                          {warning.voided_at === null && (
-                            <VoidWarningForm
+                          {warning.deleted_at === null ? (
+                            <DeleteWarningForm
+                              warningId={warning.id}
+                              officerId={officer.id}
+                            />
+                          ) : (
+                            <RestoreWarningForm
                               warningId={warning.id}
                               officerId={officer.id}
                             />

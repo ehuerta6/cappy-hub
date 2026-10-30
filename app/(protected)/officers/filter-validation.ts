@@ -24,10 +24,6 @@ export const officerListFiltersSchema = zod.object({
   position: optionalListIdSchema,
   branch: optionalListIdSchema,
   page: pageSchema,
-  reviewPage: pageSchema,
-  view: searchParamStringSchema.transform((value) =>
-    value === "warnings" ? "warnings" : "directory",
-  ),
 });
 
 export type OfficerListFilters = zod.infer<typeof officerListFiltersSchema>;

@@ -514,6 +514,8 @@ export type Database = {
       officer_warnings: {
         Row: {
           created_at: string;
+          deleted_at: string | null;
+          deleted_by: number | null;
           id: number;
           officer_id: number;
           reason: string;
@@ -523,6 +525,8 @@ export type Database = {
         };
         Insert: {
           created_at?: string;
+          deleted_at?: string | null;
+          deleted_by?: number | null;
           id?: number;
           officer_id: number;
           reason: string;
@@ -532,6 +536,8 @@ export type Database = {
         };
         Update: {
           created_at?: string;
+          deleted_at?: string | null;
+          deleted_by?: number | null;
           id?: number;
           officer_id?: number;
           reason?: string;
@@ -540,6 +546,20 @@ export type Database = {
           voided_by?: number | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "officer_warnings_deleted_by_fkey";
+            columns: ["deleted_by"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "officer_warnings_deleted_by_fkey";
+            columns: ["deleted_by"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "officer_warnings_officer_id_fkey";
             columns: ["officer_id"];
@@ -1621,6 +1641,7 @@ export type Database = {
       restore_event_type: { Args: { p_id: number }; Returns: undefined };
       restore_position: { Args: { p_id: number }; Returns: undefined };
       restore_task: { Args: { p_task_id: number }; Returns: undefined };
+      restore_warning: { Args: { p_warning_id: number }; Returns: undefined };
       save_event_with_capacity: {
         Args: {
           p_branch_ids: number[];
