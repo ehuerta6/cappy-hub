@@ -153,18 +153,48 @@ select is((select count(*) from audit_logs where action='points.participation_re
 select results_eq($$select to_jsonb(p) from point_transactions p where event_id=-32801 and award_type='manual'$$,
  $$select original from retained_manual$$,
  'source-derived automatic recalculation leaves independent manual credit and its history intact');
--- Missing legacy basis is unknown, not evidence of an unedited amount.
+-- A legacy active award may have no basis because the table was added later.
+-- A valid source correction replaces its amount and records that its original
+-- schedule is unknown, while establishing current basis for later corrections.
 insert into events(id,name,description,location,event_type_id,starts_at,ends_at,participation_points_per_hour_at_end)
- values(-32806,'Unknown legacy basis','Synthetic','Campus',(select id from event_types where name='Meeting'),
+ values(-32806,'Legacy participation without basis','Synthetic','Campus',(select id from event_types where name='Meeting'),
  '2020-05-01 09:00-06','2020-05-01 10:00-06',2.5);
 insert into event_officers(event_id,officer_id) values(-32806,-32802);
 insert into point_transactions(officer_id,event_id,points,reason,award_type)
  values(-32802,-32806,7,'Synthetic marker-free historic amount','participation');
+create temp table legacy_award as select id,to_jsonb(p) as original
+ from point_transactions p where event_id=-32806 and award_type='participation';
 delete from private.event_participation_basis where transaction_id in(select id from point_transactions where event_id=-32806);
-select throws_ok($$update events set ends_at='2020-05-01 11:00-06' where id=-32806$$,'P0001',
- 'Historical participation needs reviewed compatibility handling before schedule reconciliation',
- 'unknown historical direct-edit provenance is not silently overwritten');
-select is((select points from point_transactions where event_id=-32806),7::numeric,'unknown historic amount remains intact');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032801',true);
+set local role authenticated;
+select update_point_transaction(id,8) from point_transactions where event_id=-32806 and award_type='participation';
+reset role;
+select lives_ok($$update events set ends_at='2020-05-01 11:30-06' where id=-32806$$,
+ 'authorized source correction reconciles an active legacy award without basis metadata');
+select is((select points from point_transactions where event_id=-32806 and award_type='participation'),2.5::numeric,
+ 'legacy amount is recalculated at one Point per corrected fractional hour');
+select is((select id from point_transactions where event_id=-32806 and award_type='participation'),
+ (select id from legacy_award),'reconciliation preserves the existing automatic transaction identity');
+select is((select starts_at from private.event_participation_basis b join point_transactions p on p.id=b.transaction_id
+ where p.event_id=-32806),'2020-05-01 09:00-06'::timestamptz,'reconciliation establishes the corrected current start basis');
+select is((select ends_at from private.event_participation_basis b join point_transactions p on p.id=b.transaction_id
+ where p.event_id=-32806),'2020-05-01 11:30-06'::timestamptz,'reconciliation establishes the corrected current end basis');
+select ok(exists(select 1 from audit_logs where action='points.transaction_updated'
+ and entity_id=(select id::text from point_transactions where event_id=-32806)
+ and details->'before'->'points'='7'::jsonb and details->'after'->'points'='8'::jsonb),
+ 'prior direct edit audit remains intact');
+select ok(exists(select 1 from audit_logs where action='points.participation_reconciled'
+ and entity_id=(select id::text from point_transactions where event_id=-32806)
+ and details->>'previous_basis_known'='false' and details->'previous_basis'='null'::jsonb
+ and (details->>'before_points')::numeric=8 and (details->>'after_points')::numeric=2.5
+ and actor_officer_id=-32801),
+ 'reconciliation audits amount evidence and explicitly records unknown original basis without fabricating it');
+select lives_ok($$update events set ends_at='2020-05-01 09:45-06' where id=-32806$$,
+ 'a subsequent schedule reduction uses the established current basis');
+select is((select points from point_transactions where event_id=-32806 and award_type='participation'),0.75::numeric,
+ 'subsequent fractional duration reduction replaces the prior source-derived amount');
+select is((select count(*) from point_transactions where event_id=-32806 and award_type='participation'),1::bigint,
+ 'legacy reconciliation and later correction do not create duplicate automatic awards');
 
 -- Confirmation authorization and validation operate at trusted RPC boundary.
 set local role anon;
