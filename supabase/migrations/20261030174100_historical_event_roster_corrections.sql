@@ -134,7 +134,7 @@ begin
   loop
     changed:=false;
     if exists(select 1 from public.point_transactions p where p.event_id=p_event_id
-        and p.officer_id=target.officer_id and p.award_type in ('manual','participation')
+        and p.officer_id=target.officer_id and p.award_type='participation'
         and p.event_time_slot_id is null and p.removed_at is null) then
       if p_manual_conflict='raise' then raise exception 'This Officer already has an active award for this Event.'; end if;
       continue;
@@ -310,7 +310,7 @@ create or replace function private.change_event_time_slot_signup(
 declare e public.events%rowtype; actor_id bigint:=private.current_active_officer_id(); target_id bigint;
   slot_ids bigint[]; existing_signup boolean; added_slots bigint[]:='{}'::bigint[];
   removed_slots bigint[]:='{}'::bigint[]; new_signup boolean:=false; award_ids bigint[]:='{}'::bigint[];
-  current_count bigint; selected_count bigint;
+  current_count bigint; selected_count bigint; preserve_slot_history boolean:=false;
 begin
   if actor_id is null then raise exception 'Unauthorized'; end if;
   if p_mode not in ('join_selected','join_all','leave_selected','leave_all') then raise exception 'Invalid Time Slot signup mode'; end if;
@@ -319,6 +319,8 @@ begin
     raise exception 'Cannot manage another Officer signup for this Event'; end if;
   select * into e from public.events where id=p_event_id for update;
   if not found then raise exception 'Event not found'; end if;
+  preserve_slot_history:=p_mode='leave_all' and private.can_manage_event(p_event_id)
+    and (e.ends_at<=pg_catalog.now() or e.participation_points_per_hour_at_end is not null);
   if e.deleted_at is not null or e.status='cancelled' then raise exception 'This Event cannot accept Time Slot signups'; end if;
   if not exists(select 1 from public.event_time_slots where event_id=p_event_id) then
     raise exception 'This Event has no volunteer Time Slots'; end if;
@@ -341,6 +343,11 @@ begin
         raise exception 'One or more Time Slots do not belong to this Event'; end if;
     end if;
     if not existing_signup then
+      if exists(select 1 from public.event_officers inactive where inactive.event_id=p_event_id
+          and inactive.officer_id=target_id and inactive.removed_at is not null
+          and exists(select 1 from public.event_time_slot_officers prior
+            where prior.event_id=p_event_id and prior.officer_id=target_id)) then
+        raise exception 'This removed Time Slot signup cannot be restored'; end if;
       if e.max_volunteers is not null and (select count(*) from public.event_officers
           where event_id=p_event_id and removed_at is null)>=e.max_volunteers then
         raise exception 'Event capacity has been reached'; end if;
@@ -390,11 +397,16 @@ begin
           on s.id=x and s.event_id=p_event_id where s.id is null) then
         raise exception 'One or more Time Slots do not belong to this Event'; end if;
     end if;
-    delete from public.event_time_slot_officers where event_id=p_event_id
-      and officer_id=target_id and slot_id=any(slot_ids);
-    get diagnostics selected_count=row_count;
+    if not preserve_slot_history then
+      delete from public.event_time_slot_officers where event_id=p_event_id
+        and officer_id=target_id and slot_id=any(slot_ids);
+      get diagnostics selected_count=row_count;
+    else
+      selected_count:=cardinality(slot_ids);
+    end if;
     removed_slots:=slot_ids;
-    if not exists(select 1 from public.event_time_slot_officers where event_id=p_event_id and officer_id=target_id) then
+    if preserve_slot_history or not exists(select 1 from public.event_time_slot_officers
+        where event_id=p_event_id and officer_id=target_id) then
       update public.event_officers set removed_at=pg_catalog.clock_timestamp()
         where event_id=p_event_id and officer_id=target_id and removed_at is null;
     end if;
@@ -438,6 +450,12 @@ begin
   if exists(select 1 from unnest(selected_slots) x left join public.event_time_slots s
       on s.id=x and s.event_id=p_event_id where s.id is null) then
     raise exception 'One or more Time Slots do not belong to this Event'; end if;
+  if exists(select 1 from public.event_officers inactive
+      where inactive.event_id=p_event_id and inactive.officer_id=any(target_ids)
+        and inactive.removed_at is not null
+        and exists(select 1 from public.event_time_slot_officers prior
+          where prior.event_id=p_event_id and prior.officer_id=inactive.officer_id)) then
+    raise exception 'This removed Time Slot signup cannot be restored'; end if;
   perform 1 from public.officers where id=any(target_ids) order by id for share;
   confirmed_count:=(select count(*) from public.event_officers where event_id=p_event_id and removed_at is null);
   new_count:=(select count(*) from unnest(target_ids) x where not exists(
@@ -624,11 +642,7 @@ begin
     raise exception 'Cannot manage another officer signup for this event'; end if;
   if (current_event.participation_points_per_hour_at_end is not null or current_event.ends_at<=pg_catalog.now())
       and not manager then raise exception 'Signups are closed for this event'; end if;
-  if not p_remove and exists(select 1 from public.event_time_slots where event_id=p_event_id)
-     and not exists(select 1 from public.event_officers where event_id=p_event_id
-       and officer_id=p_officer_id and removed_at is not null and exists(
-         select 1 from public.event_time_slot_officers so where so.event_id=p_event_id
-           and so.officer_id=p_officer_id)) then
+  if not p_remove and exists(select 1 from public.event_time_slots where event_id=p_event_id) then
     raise exception 'Select one or more Time Slots to sign up for this Event'; end if;
   if not p_remove then
     perform 1 from public.officers where id=p_officer_id and status='active' for share;
@@ -641,21 +655,23 @@ begin
         coalesce(jsonb_agg(to_jsonb(so) order by slot_id),'[]'::jsonb)
         into slot_ids,slot_selections
         from public.event_time_slot_officers so where event_id=p_event_id and officer_id=p_officer_id;
-      for award in select p.* from public.point_transactions p where p.event_id=p_event_id
-        and p.officer_id=p_officer_id and p.award_type='participation'
-        and (p.removed_at is null or p.participation_schedule_suspended)
-        and p.participation_superseded_at is null order by p.id for update
-      loop
-        update private.event_participation_basis set schedule_suspended=false
-          where transaction_id=award.id;
-        update public.point_transactions set removed_at=pg_catalog.clock_timestamp(),removed_by=auth.uid(),
-          removed_by_officer_id=actor_id,participation_schedule_suspended=false,
-          participation_superseded_at=pg_catalog.clock_timestamp() where id=award.id;
-        affected_awards:=array_append(affected_awards,award.id);
-        perform private.write_audit_log('points.participation_removed','point_transaction',award.id::text,
-          jsonb_build_object('transaction_id',award.id,'officer_id',p_officer_id,'event_id',p_event_id,
-            'before',to_jsonb(award),'removed_by',auth.uid(),'removal_source','event_signup'));
-      end loop;
+      if not exists(select 1 from public.event_time_slots where event_id=p_event_id) then
+        for award in select p.* from public.point_transactions p where p.event_id=p_event_id
+          and p.officer_id=p_officer_id and p.award_type='participation'
+          and (p.removed_at is null or p.participation_schedule_suspended)
+          and p.participation_superseded_at is null order by p.id for update
+        loop
+          update private.event_participation_basis set schedule_suspended=false
+            where transaction_id=award.id;
+          update public.point_transactions set removed_at=pg_catalog.clock_timestamp(),removed_by=auth.uid(),
+            removed_by_officer_id=actor_id,participation_schedule_suspended=false,
+            participation_superseded_at=pg_catalog.clock_timestamp() where id=award.id;
+          affected_awards:=array_append(affected_awards,award.id);
+          perform private.write_audit_log('points.participation_removed','point_transaction',award.id::text,
+            jsonb_build_object('transaction_id',award.id,'officer_id',p_officer_id,'event_id',p_event_id,
+              'before',to_jsonb(award),'removed_by',auth.uid(),'removal_source','event_signup'));
+        end loop;
+      end if;
       update public.event_officers set removed_at=pg_catalog.clock_timestamp()
         where event_id=p_event_id and officer_id=p_officer_id and removed_at is null;
       get diagnostics changed_rows=row_count;
@@ -675,7 +691,12 @@ begin
               and active_eo.officer_id=active_x.officer_id and active_eo.removed_at is null
             where active_x.slot_id=x.slot_id and active_x.officer_id<>p_officer_id)>=s.capacity) then
         raise exception 'A selected Time Slot is full'; end if;
-      perform private.reconcile_event_participation_for_roster(p_event_id,false,array[p_officer_id]);
+      if current_event.ends_at<=pg_catalog.now()
+          and current_event.participation_points_per_hour_at_end is null then
+        perform private.reconcile_event_participation(p_event_id,false);
+      else
+        perform private.reconcile_event_participation_for_roster(p_event_id,false,array[p_officer_id]);
+      end if;
     end if;
   else
     insert into public.event_officers(event_id,officer_id) values(p_event_id,p_officer_id)

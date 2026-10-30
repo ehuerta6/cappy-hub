@@ -35,6 +35,8 @@ values
   '2020-01-04 09:00-07','2020-01-04 11:00-07','past',null,null),
  (-32911,'Historical single signup processing','Synthetic','Campus',(select id from event_types where name='Meeting'),
   '2020-01-05 09:00-07','2020-01-05 11:00-07','past',null,null),
+ (-32913,'Historical restore first processing','Synthetic','Campus',(select id from event_types where name='Meeting'),
+  '2020-01-06 09:00-07','2020-01-06 11:00-07','past',null,null),
  (-32912,'Full roster retry capacity','Synthetic','Campus',(select id from event_types where name='Meeting'),
   '2099-01-06 09:00-07','2099-01-06 11:00-07','upcoming',null,1);
 insert into event_branches(event_id,branch_id)
@@ -42,11 +44,12 @@ select -32901,id from branches where name='intro'
 union all select -32902,id from branches where name='intro'
 union all select -32903,id from branches where name='icpc';
 insert into event_branches(event_id,branch_id)
-select event_id,id from (values (-32910::bigint),(-32911::bigint),(-32912::bigint)) events(event_id)
+select event_id,id from (values (-32910::bigint),(-32911::bigint),(-32912::bigint),(-32913::bigint)) events(event_id)
 cross join branches where branches.name='intro';
 insert into event_officers(event_id,officer_id) values
  (-32901,-32903),(-32901,-32904),(-32901,-32908),(-32902,-32903),
- (-32910,-32903),(-32910,-32907),(-32911,-32903),(-32911,-32907),(-32912,-32903);
+ (-32910,-32903),(-32910,-32907),(-32911,-32903),(-32911,-32907),
+ (-32912,-32903),(-32913,-32903),(-32913,-32907),(-32913,-32908);
 insert into event_time_slots(id,event_id,starts_at,ends_at,capacity)
 values(-329201,-32902,'2020-01-02 09:00-07','2020-01-02 10:00-07',null);
 insert into event_time_slot_officers(event_id,slot_id,officer_id,created_by)
@@ -151,6 +154,18 @@ select is((select participation_points_per_hour_at_end from public.events where 
 select is((select count(*) from public.point_transactions where event_id=-32911
   and award_type='participation' and removed_at is null),3::bigint,
  'single signup first processing awards existing as well as newly added roster members');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032902',true);
+set local role authenticated;
+select lives_ok($$select public.change_event_signup(-32913,-32908,true)$$,
+ 'manager can remove an ordinary signup before its first processing snapshot');
+select lives_ok($$select public.change_event_signup(-32913,-32908,false)$$,
+ 'restoring an ordinary signup can establish its first processing snapshot');
+reset role;
+select is((select participation_points_per_hour_at_end from public.events where id=-32913),1::numeric,
+ 'ordinary restore establishes the first participation snapshot');
+select is((select count(*) from public.point_transactions where event_id=-32913
+  and award_type='participation' and removed_at is null),3::bigint,
+ 'ordinary restore first processing awards every active signup, not only the restored Officer');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032902',true);
 set local role authenticated;
@@ -193,8 +208,8 @@ select is((select removed_at is not null from public.event_officers where event_
  'historical slot-linked signup row is preserved and marked inactive');
 select is((select count(*) from public.event_time_slot_officers where event_id=-32902 and slot_id=-329201
   and officer_id=-32903),1::bigint,'signup removal preserves its historical slot selection row');
-select is((select event_id=-32902 and event_time_slot_id=-329201 and removed_at is not null
-  and removed_by='00000000-0000-4000-8000-000000032901' and participation_superseded_at is not null
+select is((select event_id=-32902 and event_time_slot_id=-329201 and removed_at is null
+  and participation_superseded_at is null
   from public.point_transactions where id=-329201),true,
  'slot-linked Point history and its original event and slot identity survive signup removal');
 select ok(exists(select 1 from public.audit_logs l
@@ -206,16 +221,20 @@ select ok(exists(select 1 from public.audit_logs l
  'removal audit retains full legacy slot-selection evidence including actor and timestamp');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032901',true);
 set local role authenticated;
-select lives_ok($$select public.change_event_signup(-32902,-32903,false)$$,
- 'manager can restore a slot-linked signup using its preserved selection');
+select throws_ok($$select public.change_event_signup(-32902,-32903,false)$$,
+ 'P0001','Select one or more Time Slots to sign up for this Event',
+ 'roster correction does not reactivate or reassign a historical slot-linked signup');
+select throws_ok($$select public.bulk_add_event_officers_to_slots(-32902,array[-32903]::bigint[],array[-329201]::bigint[])$$,
+ 'P0001','This removed Time Slot signup cannot be restored',
+ 'explicit slot assignment cannot implicitly restore a removed historical signup');
 reset role;
-select is((select removed_at from public.event_officers where event_id=-32902 and officer_id=-32903),null::timestamptz,
- 'restoring a slot-linked signup clears the removal marker on its stable row');
+select is((select removed_at is not null from public.event_officers where event_id=-32902 and officer_id=-32903),true,
+ 'a rejected slot-linked re-add leaves its stable signup row inactive');
 select is((select count(*) from public.event_time_slot_officers where event_id=-32902 and slot_id=-329201
-  and officer_id=-32903),1::bigint,'restoring a signup retains its original slot selection');
+  and officer_id=-32903),1::bigint,'rejected re-add retains its original slot selection');
 select is((select count(*) from public.point_transactions where event_id=-32902 and officer_id=-32903
   and event_time_slot_id=-329201 and removed_at is null and participation_superseded_at is null),1::bigint,
- 'restoring the slot-linked signup reconciles one eligible award while preserving the removed transaction');
+ 'rejected re-add leaves the slot-linked Point transaction unchanged');
 
 select set_config('request.jwt.claim.sub','',true);
 select * from finish();

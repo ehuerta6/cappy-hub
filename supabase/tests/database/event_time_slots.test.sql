@@ -128,8 +128,11 @@ select is((select count(*) from event_time_slot_officers where event_id=-2953 an
   'failed join all adds no partial slot selection');
 select lives_ok($$select public.change_event_time_slot_signup(-2953,-2952,array[-295301]::bigint[],'leave_selected')$$,
   'manager can remove one selected slot');
-select is((select count(*) from event_officers where event_id=-2953 and officer_id=-2952),0::bigint,
+select is((select count(*) from event_officers where event_id=-2953 and officer_id=-2952
+  and removed_at is null),0::bigint,
   'leaving the final slot also removes the canonical Event signup');
+select ok((select removed_at is not null from event_officers where event_id=-2953 and officer_id=-2952),
+  'leaving the final slot preserves the signup identity as inactive history');
 select ok((select count(*)=2 from event_time_slots where event_id=-2953),
   'authenticated roster readers can see the slot rows');
 reset role;
@@ -203,5 +206,26 @@ select is((select count(*) from event_time_slot_officers so join events e on e.i
 
 select is((select count(*) from point_transactions where event_id=-2952 and award_type='participation'),2::bigint,
   'a repeated processor run does not replace manager-created slot awards');
+
+-- A manager correction on a historical slotted Event preserves the legacy slot
+-- relationship and Point transaction. Active self-service leave above retains
+-- its established behavior.
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000002951',true);
+select lives_ok($$select public.change_event_time_slot_signup(-2952,-2952,'{}'::bigint[],'leave_all')$$,
+  'manager can remove a historical slotted roster member through the existing leave-all action');
+reset role;
+select ok((select removed_at is not null from event_officers where event_id=-2952 and officer_id=-2952),
+  'historical leave-all correction marks the canonical signup inactive');
+select is((select count(*) from event_time_slot_officers where event_id=-2952 and officer_id=-2952),1::bigint,
+  'historical leave-all correction preserves the slot relationship');
+select is((select removed_at from point_transactions where event_id=-2952 and officer_id=-2952
+  and event_time_slot_id=-295201 and award_type='participation'),null::timestamptz,
+  'historical leave-all correction leaves the slot-linked Point transaction unchanged');
+set local role authenticated;
+select throws_ok($$select public.change_event_time_slot_signup(-2952,-2952,array[-295201]::bigint[],'join_selected')$$,
+  'P0001','This removed Time Slot signup cannot be restored',
+  'retained historical slot selections cannot implicitly reactivate a removed roster row');
+reset role;
 select * from finish();
 rollback;
