@@ -9,7 +9,11 @@ import {
 import { ActionFeedback, FieldError } from "@/components/ui";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
-import { editPointTransaction, removePointTransaction } from "./actions";
+import {
+  editPointTransaction,
+  removePointTransaction,
+  confirmPrematureParticipation,
+} from "./actions";
 import {
   usePointHistoryAmount,
   useSetPointHistoryAmount,
@@ -158,6 +162,40 @@ function EditPointForm({
         Cancel
       </button>
       <ActionFeedback state={editState} />
+    </form>
+  );
+}
+
+export function PrematureParticipationConfirmation({
+  transactionId,
+}: {
+  transactionId: number;
+}) {
+  const [state, action, pending] = useActionState(
+    confirmPrematureParticipation,
+    initialFormActionState,
+  );
+  return (
+    <form action={action} className="space-y-2">
+      <input type="hidden" name="transaction_id" value={transactionId} />
+      <ConfirmationDialog
+        title="Confirm this award was premature?"
+        description="Confirm this removed award was issued before the Event actually happened. Its removal and history stay intact. Eligible participation may be awarded once after the corrected Event ends. Use only after verifying the original award was premature."
+        triggerLabel="Confirm premature award"
+        confirmLabel="Confirm verified premature award"
+        pending={pending}
+        triggerClassName="button-secondary"
+      >
+        <label>
+          Verification reason
+          <input
+            name="reason"
+            required
+            defaultValue={submittedValue(state.values, "reason", "")}
+          />
+        </label>
+      </ConfirmationDialog>
+      <ActionFeedback state={state} />
     </form>
   );
 }

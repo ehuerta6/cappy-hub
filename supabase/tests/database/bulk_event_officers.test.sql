@@ -125,7 +125,7 @@ select throws_ok($$select bulk_add_event_officers(-331,array[-338]::bigint[])$$,
   'P0001','Unauthorized','inactive actor cannot bulk manage Events');
 reset role;
 
--- This event's saved historical rate remains authoritative after a config change.
+-- Historical snapshots remain stored; new awards use approved1/hour.
 update application_config set participation_points_per_hour=99 where id=1;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000331',true);
 insert into event_officers(event_id,officer_id) values(-334,-338);
@@ -137,8 +137,8 @@ select is((select count(*) from event_officers where event_id=-334),2::bigint,
   'past attendees are linked to the event');
 select is((select count(*) from point_transactions where event_id=-334
   and award_type='participation'),2::bigint,'past bulk creates Event participation awards');
-select is((select min(points) from point_transactions where event_id=-334),6::numeric,
-  '90 minute duration uses saved 4 point/hour snapshot');
+select is((select min(points) from point_transactions where event_id=-334),1.5::numeric,
+  '90 minute new award uses1/hour while historical4 snapshot stays stored');
 select is((select count(*) from point_transactions where event_id=-334
   and award_type='participation' and event_id=-334 and reason='Event participation'),
   2::bigint,'awards retain participation type, event link and standard reason');
@@ -165,9 +165,9 @@ reset role;
 select is((select count(*) from event_officers where event_id=-335),2::bigint,
   'first processing pass keeps earlier signups and adds selected attendee');
 select is((select participation_points_per_hour_at_end from events where id=-335),
-  99::numeric,'first bulk operation snapshots the current configured rate');
-select is((select min(points) from point_transactions where event_id=-335),198::numeric,
-  'two hour Event duration times current saved rate');
+  1::numeric,'first bulk operation records approved rate1');
+select is((select min(points) from point_transactions where event_id=-335),2::numeric,
+  'two hour Event earns exactly two Points');
 select is(private.process_finished_events(),0,
   'automatic processor does not duplicate bulk generated past awards');
 select is((select count(*) from point_transactions where event_id=-335
@@ -179,17 +179,17 @@ select lives_ok($$select bulk_add_event_officers(-335,array[-338]::bigint[])$$,
   'repeated unprocessed Event request preserves its first snapshot');
 reset role;
 select is((select participation_points_per_hour_at_end from events where id=-335),
-  99::numeric,'repeat does not resnapshot after the global rate changes');
+  1::numeric,'repeat does not resnapshot after legacy config changes');
 select is((select count(*) from point_transactions where event_id=-335
   and award_type='participation'),2::bigint,'unprocessed Event repeat does not duplicate awards');
 select ok(exists(select 1 from audit_logs where action='event.officers_bulk_added'
-  and entity_id='-335' and (details->>'participation_rate')::numeric=99
-  and (details->>'points_per_officer')::numeric=198
+  and entity_id='-335' and (details->>'participation_rate')::numeric=1
+  and (details->>'points_per_officer')::numeric=2
   and details->'participation_awards_created' @> '[-338,-339]'::jsonb),
   'past operation audit records rate, points and generated awards');
 select ok(exists(select 1 from audit_logs where action='points.participation_created'
-  and details->>'event_id'='-335' and (details->>'rate')::numeric=99
-  and (details->>'points')::numeric=198),
+  and details->>'event_id'='-335' and (details->>'rate')::numeric=1
+  and (details->>'points')::numeric=2),
   'each award keeps its standard point creation audit');
 
 with denver_today as (
@@ -214,8 +214,8 @@ select is((select count(*) from event_officers where event_id=-338),1::bigint,
   'manual credit never blocks the canonical signup');
 select is((select count(*) from point_transactions where event_id=-338
   and award_type='participation'),1::bigint,'bulk retry preserves unique automatic credit');
-select is((select sum(points) from point_transactions where event_id=-338),79::numeric,
-  'one hour at the configured 77 rate adds to existing two manual Points');
+select is((select sum(points) from point_transactions where event_id=-338),3::numeric,
+  'one automatic Point adds to existing two manual Points despite config77');
 -- Reset only these synthetic rows to keep the independent atomicity probe below.
 delete from point_transactions where event_id=-338;
 delete from event_officers where event_id=-338;

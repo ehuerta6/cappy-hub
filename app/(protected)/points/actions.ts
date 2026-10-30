@@ -164,6 +164,40 @@ export async function removePointTransaction(
       : "Point transaction already removed",
   };
 }
+export async function confirmPrematureParticipation(
+  _previous: FormActionState,
+  formData: FormData,
+) {
+  const actor = await getAuthorizationContext();
+  if (!canManagePoints(actor))
+    return formFailure("Admin required", formData, ["reason"]);
+  const validation = pointTransactionInputSchema.safeParse({
+    transaction_id: formData.get("transaction_id") ?? "",
+  });
+  const rawReason = formData.get("reason");
+  const reason = typeof rawReason === "string" ? rawReason.trim() : "";
+  if (!validation.success)
+    return formFailure("Point transaction not found", formData, ["reason"]);
+  if (!reason) return formFailure("Reason required", formData, ["reason"]);
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc(
+    "confirm_premature_participation",
+    {
+      p_transaction_id: validation.data.transaction_id,
+      p_reason: reason,
+    },
+  );
+  if (error)
+    return formFailure(mutationError(error.message), formData, ["reason"]);
+  revalidatePath("/", "layout");
+  return {
+    error: "",
+    success: data
+      ? "Premature award confirmed; participation follows the corrected schedule"
+      : "Premature award was already confirmed",
+  };
+}
+
 export async function searchEvents(term: string) {
   const actor = await getAuthorizationContext();
   if (!canManagePoints(actor)) return { events: [], error: true as const };

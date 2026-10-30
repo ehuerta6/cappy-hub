@@ -128,6 +128,15 @@ const actionPresentations: Record<string, ActionPresentation> = {
     kind: "points",
     pointVerb: "Added points",
   },
+  "points.participation_suspended": {
+    label: "Suspended premature participation",
+  },
+  "points.participation_reconciled": {
+    label: "Reconciled Event participation",
+  },
+  "points.premature_participation_confirmed": {
+    label: "Confirmed premature participation award",
+  },
   "points.participation_created": {
     label: "Awarded event participation points",
     kind: "points",

@@ -7,7 +7,6 @@ import TransactionForm from "./transaction-form";
 import HistoryTable from "./history-table";
 import { ListPagination } from "@/components/list-pagination";
 import PointHistoryFilterControls from "./history-filters";
-import RateForm from "./rate-form";
 import { listPageUrl } from "@/lib/list-url";
 import { literalSearchPattern } from "@/lib/list-search";
 import {
@@ -99,17 +98,12 @@ export default async function PointsPage({
   const historyData = view === "history" ? await loadHistoryData() : null;
 
   async function loadOverviewData() {
-    const [activeOfficers, configuration, recentEvents] = await Promise.all([
+    const [activeOfficers, recentEvents] = await Promise.all([
       supabase
         .from("officers")
         .select("id,name")
         .eq("status", "active")
         .order("name"),
-      supabase
-        .from("application_config")
-        .select("participation_points_per_hour")
-        .eq("id", 1)
-        .single(),
       admin
         ? supabase
             .from("events")
@@ -119,7 +113,7 @@ export default async function PointsPage({
             .limit(5)
         : Promise.resolve(null),
     ]);
-    if (activeOfficers.error || configuration.error || recentEvents?.error)
+    if (activeOfficers.error || recentEvents?.error)
       throw new Error("Failed to load points");
 
     const totals = await supabase
@@ -152,7 +146,6 @@ export default async function PointsPage({
 
     return {
       activeOfficers,
-      configuration,
       recentEvents,
       totals,
       rankingTotalPages,
@@ -304,22 +297,10 @@ export default async function PointsPage({
         <div className="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.42fr)]">
           {officerTotals}
           <section className="min-w-0 space-y-3">
-            <SectionHeading
-              title={admin ? "Point configuration" : "Participation rate"}
-            />
-            <p>
-              Current participation rate:{" "}
-              {overviewData!.configuration.data.participation_points_per_hour}{" "}
-              points/hour
-            </p>
+            <SectionHeading title="Participation Points" />
+            <p>Event participation earns exactly 1 Point per eligible hour.</p>
             {admin && (
               <>
-                <RateForm
-                  rate={
-                    overviewData!.configuration.data
-                      .participation_points_per_hour
-                  }
-                />
                 <TransactionForm
                   officers={overviewData!.activeOfficers.data}
                   events={overviewData!.recentEvents!.data}
