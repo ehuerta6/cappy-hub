@@ -54,12 +54,21 @@ select results_eq($$select officer_id,branch_id from officer_branches order by o
  'recoverable catalogs preserve all Officer Branch memberships');
 
 -- Direct Admin management changes new writes only, never legacy history.
-select results_eq($$select id,to_jsonb(w) from officer_warnings w order by id$$,
+select results_eq($$select id,to_jsonb(w)-'deleted_at'-'deleted_by' from officer_warnings w order by id$$,
  $$select id,original from upgrade_fixture.pre_direct_admin_warnings order by id$$,
  'direct Admin migration preserves every Warning including pending/rejected/voided states');
 select results_eq($$select warning_id,approver_id,to_jsonb(a) from warning_approvals a order by warning_id,approver_id$$,
  $$select warning_id,approver_id,original from upgrade_fixture.pre_direct_admin_approvals order by warning_id,approver_id$$,
  'direct Admin migration preserves approval snapshots, actor IDs, decisions and timestamps');
+
+select results_eq($$select id,officer_id,reason,status,created_at,voided_at,voided_by from officer_warnings order by id$$,
+ $$select id,officer_id,reason,status,created_at,voided_at,voided_by from upgrade_fixture.pre_recoverable_warning_rows order by id$$,
+ 'recoverable Warning migration preserves legacy identity, status, reason and Void history');
+select is((select count(*) from officer_warnings where deleted_at is not null),0::bigint,
+ 'historical Warnings are not inferred to be deleted');
+select results_eq($$select warning_id,approver_id,to_jsonb(a) from warning_approvals a order by warning_id,approver_id$$,
+ $$select warning_id,approver_id,original from upgrade_fixture.pre_recoverable_warning_approvals order by warning_id,approver_id$$,
+ 'recoverable Warning migration preserves every approval record');
 
 -- New Event and Task lifecycle fields do not rewrite rows snapshotted earlier.
 select results_eq($$select p.id,to_jsonb(p)-'participation_superseded_at'-'participation_schedule_suspended'-'task_reconciliation_suspended'
@@ -73,7 +82,7 @@ select results_eq($$select id,to_jsonb(e) from events e order by id$$,
  $$select id,original from upgrade_fixture.pre_independent_manual_events order by id$$,
  'independent manual migration preserves rates, processing markers and lifecycle combinations');
 select results_eq($$select to_jsonb(eo) from event_officers eo order by event_id,officer_id$$,
- $$select original from upgrade_fixture.pre_independent_manual_signups order by (original->>'event_id')::bigint,(original->>'officer_id')::bigint$$,
+ $$select original || jsonb_build_object('removed_at',null) from upgrade_fixture.pre_independent_manual_signups order by (original->>'event_id')::bigint,(original->>'officer_id')::bigint$$,
  'independent manual migration preserves canonical signups');
 select results_eq($$select to_jsonb(s) from event_time_slot_officers s order by slot_id,officer_id$$,
  $$select original from upgrade_fixture.pre_independent_manual_slots order by (original->>'slot_id')::bigint,(original->>'officer_id')::bigint$$,
@@ -161,10 +170,11 @@ select results_eq($$select * from event_branches where event_id=90001 order by b
 select results_eq($$select * from event_branches where event_id between 90004 and 90006 order by event_id,branch_id$$,
   $$select * from upgrade_fixture.event_branches where event_id between 90004 and 90006 order by event_id,branch_id$$,
   'timed legacy Event branch links survive');
-select results_eq($$select * from event_officers where event_id=90001$$,
-  $$select * from upgrade_fixture.event_officers where event_id=90001$$,'historical signups survive');
-select results_eq($$select * from event_officers where event_id between 90004 and 90006 order by event_id,officer_id$$,
-  $$select * from upgrade_fixture.event_officers where event_id between 90004 and 90006 order by event_id,officer_id$$,
+select results_eq($$select event_id,officer_id,removed_at from event_officers where event_id=90001$$,
+  $$select event_id,officer_id,null::timestamptz from upgrade_fixture.event_officers where event_id=90001$$,
+  'historical signups survive with a null removal marker');
+select results_eq($$select event_id,officer_id,removed_at from event_officers where event_id between 90004 and 90006 order by event_id,officer_id$$,
+  $$select event_id,officer_id,null::timestamptz from upgrade_fixture.event_officers where event_id between 90004 and 90006 order by event_id,officer_id$$,
   'timed legacy Event officer participation survives');
 select results_eq(
   $$select to_jsonb(p)-'participation_superseded_at'-'participation_schedule_suspended'-'task_reconciliation_suspended'-'removed_at'-'removed_by'-'updated_at'-'updated_by'-'task_id'-'created_by_officer_id'-'updated_by_officer_id'-'removed_by_officer_id'-'event_time_slot_id'-'slot_selection_removed' from point_transactions p where id between 90001 and 90002 order by id$$,

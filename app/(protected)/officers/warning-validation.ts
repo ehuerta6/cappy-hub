@@ -17,7 +17,7 @@ export const updateWarningInputSchema = createWarningInputSchema
     warning_id: positiveSafeIntegerStringSchema("Warning not found"),
   });
 
-export const voidWarningInputSchema = zod.object({
+export const warningLifecycleInputSchema = zod.object({
   warning_id: positiveSafeIntegerStringSchema("Warning not found"),
   officer_id: zod
     .string()

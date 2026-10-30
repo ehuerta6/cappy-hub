@@ -85,8 +85,10 @@ reset role;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001780',true);
 update officers set status='inactive' where id=-1782;
 select lives_ok($$select change_event_signup(-1780,-1781,true)$$,'confirmed Officer can leave an Event');
-select is((select count(*) from event_officers where event_id=-1780),0::bigint,
+select is((select count(*) from event_officers where event_id=-1780 and removed_at is null),0::bigint,
   'leaving a confirmed signup does not promote anyone');
+select ok((select removed_at is not null from event_officers where event_id=-1780 and officer_id=-1781),
+  'leaving preserves the stable signup row as historical evidence');
 select is((select count(*) from point_transactions where event_id=-1780),0::bigint,
   'leaving a future Event does not create participation Points');
 select lives_ok($$select private.set_event_capacity(-1785,2)$$,'capacity can increase');
@@ -115,10 +117,14 @@ select lives_ok($$select private.set_event_capacity(-1788,null)$$,
 select is((select count(*) from event_officers where event_id=-1788),1::bigint,
   'ended Event capacity edit does not change its historical roster');
 
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001781',true);
 set local role authenticated;
-select throws_ok($$select change_event_signup(-1788,-1784,false)$$,'P0001','Signups are closed for this event','closed Event rejects signup');
-select throws_ok($$select change_event_signup(-1789,-1784,false)$$,'P0001','Signups are closed for this event','cancelled Event rejects signup');
-select throws_ok($$select change_event_signup(-1790,-1784,false)$$,'P0001','Signups are closed for this event','archived Event rejects signup');
+select throws_ok($$select change_event_signup(-1788,-1792,false)$$,'P0001','Signups are closed for this event','ordinary Officer self-signup is closed after an Event ends');
+select throws_ok($$select change_event_signup(-1789,-1792,false)$$,'P0001','Signups are closed for this event','ordinary Officer self-signup is closed for a cancelled Event');
+select throws_ok($$select change_event_signup(-1790,-1792,false)$$,'P0001','Signups are closed for this event','ordinary Officer self-signup is closed for an archived Event');
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001780',true);
+set local role authenticated;
 select throws_ok($$select change_event_signup(-1780,-1782,false)$$,'P0001','Target officer is not active','inactive Officers cannot sign up');
 reset role;
 select is((select count(*) from event_officers where event_id=-1787),1::bigint,'past Event starts with its confirmed roster');
