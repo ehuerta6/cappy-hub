@@ -766,9 +766,9 @@ export default async function EventDetailPage({
                               officer.id === actor.id ? undefined : officer.id
                             }
                           />
-                        ) : signupOpen &&
-                          timeSlots.length === 0 &&
-                          (canManage || officer.id === actor.id) ? (
+                        ) : timeSlots.length === 0 &&
+                          (canManage ||
+                            (signupOpen && officer.id === actor.id)) ? (
                           <SignupForm
                             eventId={event.id}
                             officerId={officer.id}

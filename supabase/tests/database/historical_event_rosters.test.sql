@@ -15,7 +15,8 @@ insert into officers(id,name,utep_email,position_id,status,application_role,auth
  (-32903,'Roster Officer','roster-officer@example.test',(select id from positions where code='officer'),'active','officer','00000000-0000-4000-8000-000000032903'),
  (-32904,'Inactive Roster Officer','roster-inactive@example.test',(select id from positions where code='officer'),'inactive','officer','00000000-0000-4000-8000-000000032904'),
  (-32905,'Other Branch Lead','roster-other-lead@example.test',(select id from positions where code='lead'),'active','officer','00000000-0000-4000-8000-000000032905'),
- (-32906,'New Roster Officer','roster-new@example.test',(select id from positions where code='officer'),'active','officer',null);
+ (-32906,'New Roster Officer','roster-new@example.test',(select id from positions where code='officer'),'active','officer',null),
+ (-32907,'Preexisting Roster Officer','roster-existing@example.test',(select id from positions where code='officer'),'active','officer',null);
 insert into officer_branches(officer_id,branch_id)
 select -32902,id from branches where name='intro'
 union all select -32905,id from branches where name='icpc';
@@ -28,13 +29,17 @@ values
  (-32902,'Historical slot compatibility','Synthetic','Campus',(select id from event_types where name='Meeting'),
   '2020-01-02 09:00-07','2020-01-02 11:00-07','past',1,null),
  (-32903,'Other branch roster','Synthetic','Campus',(select id from event_types where name='Meeting'),
-  '2020-01-03 09:00-07','2020-01-03 11:00-07','past',1,null);
+  '2020-01-03 09:00-07','2020-01-03 11:00-07','past',1,null),
+ (-32910,'Historical first processing','Synthetic','Campus',(select id from event_types where name='Meeting'),
+  '2020-01-04 09:00-07','2020-01-04 11:00-07','past',null,null);
 insert into event_branches(event_id,branch_id)
 select -32901,id from branches where name='intro'
 union all select -32902,id from branches where name='intro'
 union all select -32903,id from branches where name='icpc';
+insert into event_branches(event_id,branch_id)
+select -32910,id from branches where name='intro';
 insert into event_officers(event_id,officer_id) values
- (-32901,-32903),(-32901,-32904),(-32902,-32903);
+ (-32901,-32903),(-32901,-32904),(-32902,-32903),(-32910,-32903),(-32910,-32907);
 insert into event_time_slots(id,event_id,starts_at,ends_at,capacity)
 values(-329201,-32902,'2020-01-02 09:00-07','2020-01-02 10:00-07',null);
 insert into event_time_slot_officers(event_id,slot_id,officer_id,created_by)
@@ -42,9 +47,9 @@ values(-32902,-329201,-32903,'00000000-0000-4000-8000-000000032901');
 insert into point_transactions(id,officer_id,event_id,points,reason,award_type,created_by,
  removed_at,participation_schedule_suspended)
 values
- (-329101,-32903,-32901,7.5,'Event participation','participation',null),
+ (-329101,-32903,-32901,7.5,'Event participation','participation',null,null,false),
  (-329102,-32904,-32901,2,'Event participation','participation',null,pg_catalog.now(),true),
- (-329103,-32903,-32901,3,'Independent manual adjustment','manual','00000000-0000-4000-8000-000000032901');
+ (-329103,-32903,-32901,3,'Independent manual adjustment','manual','00000000-0000-4000-8000-000000032901',null,false);
 insert into private.event_participation_basis(transaction_id,starts_at,ends_at,schedule_suspended)
 values(-329102,'2020-01-01 09:00-07','2020-01-01 11:00-07',true);
 insert into point_transactions(id,officer_id,event_id,event_time_slot_id,points,reason,award_type,created_by)
@@ -80,6 +85,8 @@ select is((select count(*) from public.point_transactions where id=-329102),1::b
  'historical automatic Point transaction is not hard-deleted');
 select is((select removed_at from public.point_transactions where id=-329103),null::timestamptz,
  'independent manual Point is untouched by roster correction');
+select is((select participation_superseded_at is not null from public.point_transactions where id=-329102),true,
+ 'signup removal marks only its affected automatic Point as superseded for future reconciliation');
 select ok(exists(select 1 from public.audit_logs where action='event.officer_removed'
   and entity_id='-32901' and actor_id='00000000-0000-4000-8000-000000032902'
   and details->>'officer_id'='-32904'),
@@ -102,6 +109,27 @@ select is((select points from public.point_transactions where id=-329101),7.5::n
  'adding another attendee does not reprice an unrelated edited automatic Point');
 select is((select removed_at from public.point_transactions where id=-329102) is not null,true,
  'adding another attendee does not restore a removed automatic Point');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032902',true);
+set local role authenticated;
+select lives_ok($$select public.change_event_signup(-32901,-32904,false)$$,
+ 'manager can restore a roster signup after its prior removal');
+reset role;
+select is((select count(*) from public.point_transactions where event_id=-32901 and officer_id=-32904
+  and award_type='participation' and removed_at is null and participation_superseded_at is null),1::bigint,
+ 'readding the removed signup creates one eligible automatic award without erasing its old history');
+select is((select count(*) from public.point_transactions where id=-329102),1::bigint,
+ 'readding a signup retains its original removed Point transaction');
+
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032902',true);
+set local role authenticated;
+select lives_ok($$select public.bulk_add_event_officers(-32910,array[-32906]::bigint[])$$,
+ 'first processing of an ended Event accepts a manager roster addition');
+reset role;
+select is((select participation_points_per_hour_at_end from public.events where id=-32910),1::numeric,
+ 'first processing establishes the Event participation snapshot');
+select is((select count(*) from public.point_transactions where event_id=-32910 and award_type='participation'
+  and removed_at is null),3::bigint,
+ 'first snapshot processing awards all preexisting and newly added eligible roster members');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032901',true);
 set local role authenticated;
@@ -121,6 +149,26 @@ select is((select points from public.point_transactions where id=-329201),1::num
  'unrelated legacy slot-linked Point row is preserved');
 select is((select removed_at from public.point_transactions where id=-329201),null::timestamptz,
  'unrelated legacy slot-linked Point remains active');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032901',true);
+set local role authenticated;
+select lives_ok($$select public.change_event_signup(-32902,-32903,true)$$,
+ 'manager can remove a historical slot-linked signup without managing slots');
+reset role;
+select is((select count(*) from public.event_officers where event_id=-32902 and officer_id=-32903),0::bigint,
+ 'historical slot-linked signup is removed');
+select is((select count(*) from public.event_time_slot_officers where event_id=-32902 and slot_id=-329201
+  and officer_id=-32903),0::bigint,'signup removal cascades only the live slot relationship');
+select is((select event_id=-32902 and event_time_slot_id=-329201 and removed_at is not null
+  and removed_by='00000000-0000-4000-8000-000000032901' and participation_superseded_at is not null
+  from public.point_transactions where id=-329201),true,
+ 'slot-linked Point history and its original event and slot identity survive signup removal');
+select ok(exists(select 1 from public.audit_logs l
+  cross join lateral jsonb_array_elements(l.details->'removed_slot_selections') as selection(value)
+  where l.action='event.officer_removed' and l.entity_id='-32902'
+    and value->>'event_id'='-32902' and value->>'slot_id'='-329201'
+    and value->>'officer_id'='-32903' and value ? 'created_at'
+    and value->>'created_by'='00000000-0000-4000-8000-000000032901'),
+ 'removal audit retains full legacy slot-selection evidence including actor and timestamp');
 
 select set_config('request.jwt.claim.sub','',true);
 select * from finish();

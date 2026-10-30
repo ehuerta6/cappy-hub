@@ -1,11 +1,9 @@
--- Roster edits reconcile only the affected Officer. In particular, adding a
--- signup must not reactivate another Officer's suspended or removed award.
-drop function private.reconcile_event_participation(bigint,boolean);
-
-create function private.reconcile_event_participation(
+-- Roster edits reconcile only selected Officers. Keep the existing full-Event
+-- reconciler signature intact for schedule corrections and processing.
+create function private.reconcile_event_participation_for_roster(
   p_event_id bigint,
-  p_source_changed boolean default false,
-  p_officer_ids bigint[] default null
+  p_source_changed boolean,
+  p_officer_ids bigint[]
 ) returns bigint[] language plpgsql security definer set search_path='' as $$
 declare e public.events%rowtype; target record; award public.point_transactions%rowtype;
  basis private.event_participation_basis%rowtype; amount numeric; award_id bigint;
@@ -93,14 +91,14 @@ begin
  return changed;
 end;
 $$;
-revoke all on function private.reconcile_event_participation(bigint,boolean,bigint[]) from public,anon,authenticated;
+revoke all on function private.reconcile_event_participation_for_roster(bigint,boolean,bigint[]) from public,anon,authenticated;
 
 create or replace function private.change_event_signup(
   p_event_id bigint,p_officer_id bigint,p_remove boolean
 ) returns void language plpgsql security definer set search_path='' as $$
 declare current_event public.events%rowtype; actor_id bigint:=private.current_active_officer_id();
   manager boolean; changed_rows integer; award public.point_transactions%rowtype;
-  slot_ids bigint[]; affected_awards bigint[]:='{}'::bigint[];
+  slot_ids bigint[]; slot_selections jsonb; affected_awards bigint[]:='{}'::bigint[];
 begin
   if actor_id is null then raise exception 'Unauthorized'; end if;
   select * into current_event from public.events where id=p_event_id for update;
@@ -120,8 +118,10 @@ begin
   end if;
   if p_remove then
     if exists(select 1 from public.event_officers where event_id=p_event_id and officer_id=p_officer_id) then
-      select coalesce(array_agg(slot_id order by slot_id),'{}'::bigint[]) into slot_ids
-        from public.event_time_slot_officers where event_id=p_event_id and officer_id=p_officer_id;
+      select coalesce(array_agg(slot_id order by slot_id),'{}'::bigint[]),
+        coalesce(jsonb_agg(to_jsonb(so) order by slot_id),'[]'::jsonb)
+        into slot_ids,slot_selections
+        from public.event_time_slot_officers so where event_id=p_event_id and officer_id=p_officer_id;
       for award in select p.* from public.point_transactions p where p.event_id=p_event_id
         and p.officer_id=p_officer_id and p.award_type='participation'
         and (p.removed_at is null or p.participation_schedule_suspended)
@@ -130,7 +130,8 @@ begin
         update private.event_participation_basis set schedule_suspended=false
           where transaction_id=award.id;
         update public.point_transactions set removed_at=pg_catalog.clock_timestamp(),removed_by=auth.uid(),
-          removed_by_officer_id=actor_id,participation_schedule_suspended=false where id=award.id;
+          removed_by_officer_id=actor_id,participation_schedule_suspended=false,
+          participation_superseded_at=pg_catalog.clock_timestamp() where id=award.id;
         affected_awards:=array_append(affected_awards,award.id);
         perform private.write_audit_log('points.participation_removed','point_transaction',award.id::text,
           jsonb_build_object('transaction_id',award.id,'officer_id',p_officer_id,'event_id',p_event_id,
@@ -148,7 +149,7 @@ begin
       on conflict(event_id,officer_id) do nothing;
     get diagnostics changed_rows=row_count;
     if changed_rows>0 then
-      perform private.reconcile_event_participation(p_event_id,false,array[p_officer_id]);
+      perform private.reconcile_event_participation_for_roster(p_event_id,false,array[p_officer_id]);
     end if;
   end if;
   if changed_rows>0 then
@@ -157,6 +158,7 @@ begin
       else 'event.officer_assigned' end,'event',p_event_id::text,
       jsonb_build_object('officer_id',p_officer_id,'actor_id',actor_id,'removed',p_remove,
         'time_slot_ids',case when p_remove then slot_ids else null end,
+        'removed_slot_selections',case when p_remove then slot_selections else null end,
         'participation_transaction_ids',case when p_remove then affected_awards else null end));
   end if;
 end;
@@ -207,8 +209,10 @@ begin
     award_points:=private.event_participation_points(current_event.starts_at,current_event.ends_at,current_rate);
   end if;
   if current_event.ends_at<=pg_catalog.now() then
-    award_transaction_ids:=private.reconcile_event_participation(p_event_id,false,
-      case when snapshot_created then null else requested_ids end);
+    award_transaction_ids:=case when snapshot_created
+      then private.reconcile_event_participation(p_event_id,false)
+      else private.reconcile_event_participation_for_roster(p_event_id,false,requested_ids)
+    end;
     select coalesce(array_agg(distinct p.officer_id order by p.officer_id),'{}'::bigint[]),
       coalesce(array_agg(distinct p.points order by p.points),'{}'::numeric[])
       into awarded_ids,point_values from public.point_transactions p
