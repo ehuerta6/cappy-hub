@@ -1421,6 +1421,14 @@ export type Database = {
         Args: { p_reason: string; p_transaction_id: number };
         Returns: boolean;
       };
+      correct_historical_event_time_slots: {
+        Args: {
+          p_event_id: number;
+          p_officer_id: number;
+          p_slot_ids: number[];
+        };
+        Returns: Json;
+      };
       create_branch: { Args: { p_name: string }; Returns: number };
       create_event_location: { Args: { p_name: string }; Returns: number };
       create_event_type: { Args: { p_name: string }; Returns: number };

@@ -20,7 +20,10 @@ import {
 import { personalSignupState } from "../personal-signup-state";
 import PresenterSlotsSection from "../presenter-slots-section";
 import TimeSlotsSection from "../time-slots-section";
-import { LeaveAllTimeSlotsForm } from "../time-slot-controls";
+import {
+  CorrectHistoricalTimeSlotAssignmentsForm,
+  LeaveAllTimeSlotsForm,
+} from "../time-slot-controls";
 import {
   formatCalendarDate,
   formatDateTime,
@@ -727,7 +730,9 @@ export default async function EventDetailPage({
                             }))
                             .filter(({ slot }) =>
                               slot.event_time_slot_officers.some(
-                                ({ officer_id }) => officer_id === officer.id,
+                                ({ officer_id, event_officers: signup }) =>
+                                  officer_id === officer.id &&
+                                  signup?.removed_at == null,
                               ),
                             )
                             .map(
@@ -735,6 +740,23 @@ export default async function EventDetailPage({
                                 `Slot ${index + 1} (${formatEventSchedule(slot.starts_at, slot.ends_at)})`,
                             )
                             .join(", ") || "None"}
+                          {canManage && past && !event.deleted_at && (
+                            <CorrectHistoricalTimeSlotAssignmentsForm
+                              eventId={event.id}
+                              officerId={officer.id}
+                              officerName={officer.name}
+                              slots={timeSlots}
+                              selectedSlotIds={timeSlots
+                                .filter((slot) =>
+                                  slot.event_time_slot_officers.some(
+                                    ({ officer_id, event_officers: signup }) =>
+                                      officer_id === officer.id &&
+                                      signup?.removed_at == null,
+                                  ),
+                                )
+                                .map(({ id }) => id)}
+                            />
+                          )}
                         </td>
                       )}
                       <td>

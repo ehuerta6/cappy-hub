@@ -8,6 +8,7 @@ import type { Tables } from "@/lib/database.types";
 import {
   assignBulkOfficersToTimeSlots,
   changeTimeSlotSignup,
+  correctHistoricalTimeSlotAssignments,
 } from "./time-slot-actions";
 
 type SelectionMode =
@@ -290,5 +291,69 @@ export function BulkAssignOfficersToSlotsForm({
         {pending ? "Adding…" : "Add Officers to selected slots"}
       </button>
     </form>
+  );
+}
+
+export function CorrectHistoricalTimeSlotAssignmentsForm({
+  eventId,
+  officerId,
+  officerName,
+  slots,
+  selectedSlotIds,
+}: {
+  eventId: number;
+  officerId: number;
+  officerName: string;
+  slots: Pick<Tables<"event_time_slots">, "id" | "starts_at" | "ends_at">[];
+  selectedSlotIds: number[];
+}) {
+  const [state, action, pending] = useActionState(
+    correctHistoricalTimeSlotAssignments,
+    { ...initialFormActionState },
+  );
+  const selected = state.values?.slot_ids ?? selectedSlotIds.map(String);
+  const fieldError = state.fieldErrors?.slot_ids;
+
+  return (
+    <details className="mt-2">
+      <summary className="cursor-pointer text-sm underline underline-offset-4">
+        Correct selected Time Slots
+      </summary>
+      <form action={action} className="mt-2 space-y-2">
+        <input type="hidden" name="event_id" value={eventId} />
+        <input type="hidden" name="officer_id" value={officerId} />
+        <fieldset
+          aria-invalid={Boolean(fieldError)}
+          aria-describedby={
+            fieldError ? `slot-correction-${officerId}` : undefined
+          }
+        >
+          <legend className="text-sm">
+            {officerName}: select eligible slots
+          </legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {slots.map((slot, index) => (
+              <label key={slot.id} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  name="slot_ids"
+                  value={slot.id}
+                  defaultChecked={selected.includes(String(slot.id))}
+                />
+                Slot {index + 1}: {denverParts(slot.starts_at).time}–
+                {denverParts(slot.ends_at).time}
+              </label>
+            ))}
+          </div>
+          <FieldError id={`slot-correction-${officerId}`}>
+            {fieldError}
+          </FieldError>
+        </fieldset>
+        <ActionFeedback state={state} />
+        <button disabled={pending} className="button-secondary px-3 py-1.5">
+          {pending ? "Saving…" : "Save Time Slots"}
+        </button>
+      </form>
+    </details>
   );
 }

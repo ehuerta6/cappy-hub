@@ -330,6 +330,107 @@ it("serializes concurrent Time Slot registrations so per-slot capacity is not ex
   }
 }, 30_000);
 
+it("serializes concurrent historical Time Slot corrections for one signup", async () => {
+  const eventId = -981750;
+  const firstSlotId = -981751;
+  const secondSlotId = -981752;
+  const managerId = "00000000-0000-4000-8000-000000009750";
+  const managerOfficerId = -981753;
+  const targetOfficerId = -981754;
+  const originalAwardId = -981755;
+
+  runSql(`
+    delete from public.audit_logs where entity_id='${eventId}' or actor_officer_id=${managerOfficerId};
+    delete from public.point_transactions where event_id=${eventId};
+    delete from public.event_time_slot_officers where event_id=${eventId};
+    delete from public.event_officers where event_id=${eventId};
+    delete from public.event_time_slots where event_id=${eventId};
+    delete from public.events where id=${eventId};
+    delete from public.officers where id in (${managerOfficerId},${targetOfficerId});
+    delete from auth.users where id='${managerId}';
+    insert into auth.users(id,email) values ('${managerId}','historical-slot-race@example.test');
+    insert into public.officers(id,name,utep_email,position_id,status,application_role,auth_user_id)
+      values (${managerOfficerId},'Historical slot race manager','historical-slot-race@example.test',
+        (select id from public.positions where name='Officer'),'active','admin','${managerId}');
+    insert into public.officers(id,name,utep_email,position_id,status)
+      values (${targetOfficerId},'Historical slot race target','historical-slot-target@example.test',
+        (select id from public.positions where name='Officer'),'active');
+    insert into public.events(id,name,description,location,event_type_id,event_date,starts_at,ends_at,status,
+      participation_points_per_hour_at_end)
+      values (${eventId},'Historical slot race','Synthetic','TBA',
+        (select id from public.event_types where name='Meeting'),'2020-01-01',
+        '2020-01-01 09:00-07','2020-01-01 11:00-07','past',1);
+    insert into public.event_officers(event_id,officer_id) values (${eventId},${targetOfficerId});
+    insert into public.event_time_slots(id,event_id,starts_at,ends_at) values
+      (${firstSlotId},${eventId},'2020-01-01 09:00-07','2020-01-01 10:00-07'),
+      (${secondSlotId},${eventId},'2020-01-01 10:00-07','2020-01-01 11:00-07');
+    insert into public.event_time_slot_officers(event_id,slot_id,officer_id)
+      values (${eventId},${firstSlotId},${targetOfficerId});
+    insert into public.point_transactions(id,officer_id,event_id,event_time_slot_id,points,reason,award_type)
+      values (${originalAwardId},${targetOfficerId},${eventId},${firstSlotId},1,
+        'Event time slot participation','participation');
+  `);
+
+  try {
+    const firstCorrection = startSql(`
+      begin;
+      select set_config('request.jwt.claim.sub','${managerId}',true);
+      select id from public.events where id=${eventId} for update;
+      \\echo HISTORICAL_SLOT_EVENT_LOCKED
+      select pg_catalog.pg_sleep(1.5);
+      select public.correct_historical_event_time_slots(${eventId},${targetOfficerId},array[${secondSlotId}]::bigint[]);
+      commit;
+    `);
+    await firstCorrection.waitFor("HISTORICAL_SLOT_EVENT_LOCKED");
+    const competingCorrectionStartedAt = Date.now();
+    const secondCorrection = startSql(`
+      begin;
+      select set_config('request.jwt.claim.sub','${managerId}',true);
+      select public.correct_historical_event_time_slots(${eventId},${targetOfficerId},array[${firstSlotId}]::bigint[]);
+      commit;
+    `);
+    const [firstResult, secondResult] = await Promise.all([
+      firstCorrection.closed,
+      secondCorrection.closed,
+    ]);
+
+    expect(firstResult.code).toBe(0);
+    expect(secondResult.code).toBe(0);
+    expect(Date.now() - competingCorrectionStartedAt).toBeGreaterThan(500);
+    expect(
+      runSql(
+        `select array_agg(slot_id order by slot_id) from public.event_time_slot_officers where event_id=${eventId} and officer_id=${targetOfficerId};`,
+      ).trim(),
+    ).toBe(`{${firstSlotId}}`);
+    expect(
+      runSql(
+        `select removed_at is null from public.point_transactions where id=${originalAwardId};`,
+      ).trim(),
+    ).toBe("t");
+    expect(
+      runSql(
+        `select count(*) from public.point_transactions where event_id=${eventId} and officer_id=${targetOfficerId} and award_type='participation' and removed_at is null;`,
+      ).trim(),
+    ).toBe("1");
+    expect(
+      runSql(
+        `select count(*) from public.event_officers where event_id=${eventId} and officer_id=${targetOfficerId} and removed_at is null;`,
+      ).trim(),
+    ).toBe("1");
+  } finally {
+    runSql(`
+      delete from public.audit_logs where entity_id='${eventId}' or actor_officer_id=${managerOfficerId};
+      delete from public.point_transactions where event_id=${eventId};
+      delete from public.event_time_slot_officers where event_id=${eventId};
+      delete from public.event_officers where event_id=${eventId};
+      delete from public.event_time_slots where event_id=${eventId};
+      delete from public.events where id=${eventId};
+      delete from public.officers where id in (${managerOfficerId},${targetOfficerId});
+      delete from auth.users where id='${managerId}';
+    `);
+  }
+}, 30_000);
+
 it("preserves independent manual credit during concurrent processing and intentional manual submissions", async () => {
   const id = -327900;
   const admin = "00000000-0000-4000-8000-000000327900";
