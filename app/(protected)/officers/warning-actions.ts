@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import {
   createWarningInputSchema,
-  decideWarningInputSchema,
+  updateWarningInputSchema,
   voidWarningInputSchema,
 } from "./warning-validation";
 
@@ -41,35 +41,32 @@ export async function createWarning(
     return formFailure(mutationError(error.message), formData, ["reason"]);
   revalidatePath(`/officers/${validatedWarningInput.officer_id}`);
   revalidatePath("/officers");
-  return { error: "", success: "Warning created for leadership approval" };
+  return { error: "", success: "Warning created" };
 }
 
-export async function decideWarning(
+export async function updateWarning(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await getAuthorizationContext();
-  const rawWarningDecisionInput = {
+  const actor = await getAuthorizationContext();
+  if (!isAdmin(actor))
+    return formFailure("Admin required", formData, ["reason"]);
+  const result = updateWarningInputSchema.safeParse({
     warning_id: formData.get("warning_id") ?? "",
-    decision: formData.get("decision") ?? "",
-  };
-  const validationResult = decideWarningInputSchema.safeParse(
-    rawWarningDecisionInput,
-  );
-  if (!validationResult.success)
-    return { error: validationResult.error.issues[0].message, success: "" };
-  const validatedWarningDecision = validationResult.data;
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("decide_warning", {
-    p_warning_id: validatedWarningDecision.warning_id,
-    p_decision: validatedWarningDecision.decision,
+    reason: formData.get("reason") ?? "",
   });
-  if (error) return { error: mutationError(error.message), success: "" };
-  revalidatePath("/officers", "layout");
-  return {
-    error: "",
-    success: `Warning ${validatedWarningDecision.decision}`,
-  };
+  if (!result.success)
+    return validationFailure(result.error, formData, ["reason"]);
+  const supabase = await createClient();
+  const { data: officerId, error } = await supabase.rpc("update_warning", {
+    p_warning_id: result.data.warning_id,
+    p_reason: result.data.reason,
+  });
+  if (error)
+    return formFailure(mutationError(error.message), formData, ["reason"]);
+  revalidatePath(`/officers/${officerId}`);
+  revalidatePath("/officers");
+  return { error: "", success: "Warning updated" };
 }
 
 export async function voidWarning(

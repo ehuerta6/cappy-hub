@@ -15,28 +15,20 @@ type ActionTask = Pick<Tables<"tasks">, "id" | "title" | "due_date"> & {
     "officer_id" | "completed_at"
   >[];
 };
-type ActionWarning = Pick<Tables<"officer_warnings">, "id" | "created_at"> & {
-  officers: { name: string } | null;
-  warning_approvals: Pick<
-    Tables<"warning_approvals">,
-    "approver_officer_id" | "decision"
-  >[];
-};
 export type ActionItem = {
   key: string;
   title: string;
-  href: `/tasks/${number}` | `/officers?view=warnings#warning-${number}`;
+  href: `/tasks/${number}`;
   status: string;
   dueDate?: string;
 };
 export type DashboardActionItems = ReturnType<typeof dashboardActionItems> & {
-  unavailableSources: { tasks: boolean; warnings: boolean };
+  unavailableSources: { tasks: boolean };
 };
 
 export function dashboardActionItems(
   actor: AuthorizationContext,
   personalTasks: ActionTask[],
-  warnings: ActionWarning[],
 ) {
   const byDueDate = (a: ActionTask, b: ActionTask) =>
     a.due_date.localeCompare(b.due_date) || a.id - b.id;
@@ -47,23 +39,6 @@ export function dashboardActionItems(
     status: "Not completed",
     dueDate: task.due_date,
   });
-  const pendingWarnings = warnings
-    .filter((warning) =>
-      warning.warning_approvals.some(
-        (approval) =>
-          approval.approver_officer_id === actor.id &&
-          approval.decision === "pending",
-      ),
-    )
-    .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id)
-    .map((warning): ActionItem => ({
-      key: `warning-${warning.id}`,
-      title: warning.officers
-        ? `Warning for ${warning.officers.name}`
-        : "Warning decision",
-      href: `/officers?view=warnings#warning-${warning.id}`,
-      status: "Needs decision",
-    }));
   const pendingTasks = personalTasks
     .filter((task) =>
       task.task_officer_assignments.some(
@@ -74,12 +49,10 @@ export function dashboardActionItems(
     )
     .sort(byDueDate)
     .map(taskItem);
-  // Leadership decisions need attention before ordinary future Tasks.
-  const items = [...pendingWarnings, ...pendingTasks];
+  const items = pendingTasks;
   return {
     items: items.slice(0, DASHBOARD_PREVIEW_LIMIT),
     hasMore: items.length > DASHBOARD_PREVIEW_LIMIT,
-    hasPendingWarnings: pendingWarnings.length > 0,
   };
 }
 
@@ -95,35 +68,14 @@ export async function loadDashboardActionItems(
       .order("due_date")
       .order("id")
       .limit(queryLimit);
-  const [assigned, warnings] = await Promise.all([
-    taskQuery()
-      .eq("task_officer_assignments.officer_id", actor.id)
-      .is("task_officer_assignments.completed_at", null),
-    // Inner join, caller filters and existing RLS match the Officers workflow.
-    // No reason or other warning details are fetched for this summary.
-    supabase
-      .from("officer_warnings")
-      .select(
-        "id,created_at,officers!officer_warnings_officer_id_fkey(name),warning_approvals!inner(approver_officer_id,decision)",
-      )
-      .eq("status", "pending")
-      .eq("warning_approvals.approver_officer_id", actor.id)
-      .eq("warning_approvals.decision", "pending")
-      .order("created_at")
-      .order("id")
-      .limit(queryLimit),
-  ]);
+  const assigned = await taskQuery()
+    .eq("task_officer_assignments.officer_id", actor.id)
+    .is("task_officer_assignments.completed_at", null);
   const tasksUnavailable = assigned.error !== null || assigned.data === null;
-  const warningsUnavailable = warnings.error !== null || warnings.data === null;
   return {
-    ...dashboardActionItems(
-      actor,
-      tasksUnavailable ? [] : assigned.data,
-      warningsUnavailable ? [] : warnings.data,
-    ),
+    ...dashboardActionItems(actor, tasksUnavailable ? [] : assigned.data),
     unavailableSources: {
       tasks: tasksUnavailable,
-      warnings: warningsUnavailable,
     },
   };
 }

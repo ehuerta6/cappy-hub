@@ -28,7 +28,7 @@ The external design reference named in the changelog is only an influence on gen
 | Task detail         | `/tasks/[id]`                          | Task details, per-Officer completion management, and recurring-task actions where applicable.               |
 | Create/edit task    | `/tasks/new`, `/tasks/[id]/edit`       | New tasks can repeat; authorized managers edit standalone and recurring Tasks.                              |
 | Calendar            | `/calendar`                            | FullCalendar month grid with Event/Task visibility toggles.                                                 |
-| Officers            | `/officers`                            | Directory filters, officer table, and warning decisions awaiting the current user.                          |
+| Officers            | `/officers`                            | Directory filters, officer table, and read-only historical Warning approval assignments.                    |
 | Officer detail      | `/officers/[id]`                       | Profile, application access, warnings when visible, associated events, and points.                          |
 | Add/edit officer    | `/officers/new`, `/officers/[id]/edit` | Officer record fields; application role is managed separately.                                              |
 | Officer catalogs    | `/officers/catalogs`                   | Admin-only positions, branches, and reusable event locations.                                               |
@@ -223,7 +223,7 @@ Do not turn every action into a filled button. Keep control text specific to the
 
 - Events: Upcoming, Happening, Past, and Cancelled are schedule/workflow states. Authorized managers also have an Archived Events view; Archived is a separate archive state, not a schedule-derived Event status.
 - Officers: Active and Inactive.
-- Warnings: Pending, Approved, and Rejected are decision states. Admins can also filter Voided or All history; Void is terminal and voided Warnings do not count toward active totals.
+- Warnings: New Admin Warnings are immediately Approved. Pending and Rejected remain historical decision states. Admins can also filter Voided or All history; Void is terminal and voided Warnings do not count toward active totals.
 - Tasks: Open (no assignments), In progress (at least one assignment and at least one not completed), and Complete (at least one assignment and all completed). Officer counts also show progress such as `2/3 completed`.
 - Points history: Active, Removed, or All is an admin filter state; award types are Participation, Task, Manual, and Correction, not statuses.
 - Calendar: Events and Task due dates are entry categories, not workflow statuses.
@@ -263,7 +263,7 @@ Tables are a core pattern for directory, event, point, and audit work. **CURRENT
 
 ## 16. Forms and dialogs
 
-Long workflows belong on dedicated pages, with a contextual return link. Small, focused actions can stay inline beside the record they affect. **CURRENT:** Event cancellation/archive, standalone and recurring Task archive, Point transaction removal, and warning approval/rejection use the shared in-app `ConfirmationDialog`, built on native HTML `<dialog>`. Recurring Event/Task actions show the selected occurrence scope from the existing form state. Other operations should be described according to their actual behavior, not assumed to share that confirmation pattern.
+Long workflows belong on dedicated pages, with a contextual return link. Small, focused actions can stay inline beside the record they affect. **CURRENT:** Event cancellation/archive, standalone and recurring Task archive, Point transaction removal, and Warning Void use the shared in-app `ConfirmationDialog`, built on native HTML `<dialog>`. Recurring Event/Task actions show the selected occurrence scope from the existing form state. Other operations should be described according to their actual behavior, not assumed to share that confirmation pattern.
 
 **DESIGN DECISION:** Group long forms into clear sections using the field names and relationships already present. Use two columns at supported desktop widths for natural pairs; collapse to one column only when desktop resizing or zoom leaves insufficient room. Prefer existing constrained choices over unnecessary free typing. Keep labels explicit and optional/required status faithful to current validation. Validate close to the relevant field or action. Do not infer required fields or change validation rules for a proposed layout. Any dialog used for a future focused action must have a clear name and exit, work by keyboard, and avoid stacking with another dialog.
 
@@ -332,12 +332,12 @@ The following sections describe the actual product workflows and the design dire
 ### Dashboard
 
 - **Purpose:** Give each signed-in officer a useful current view and direct access to work that needs attention.
-- **Existing functionality that MUST be preserved — CURRENT:** Shows the current officer's name, club position, personal total points, and View profile link; three club summary metrics (active officers, upcoming events, points this half-year); a note defining January–June/July–December in America/Denver and that points include signed corrections; prioritized personal action items from the current officer's incomplete Task assignments and pending warning decisions; upcoming non-cancelled/non-removed Events with schedule and signup state; and recent active Point transactions with Officer, related Event/Task or reason, signed Points, and date. Links lead to the full owning area. A pending Warning decision keeps priority ahead of incomplete assigned Tasks.
-- **Approved preview limits:** Show up to 5 eligible prioritized action items, 5 upcoming Events, and 5 newest Point transactions; show fewer when fewer eligible records exist. Keep each source query bounded, with stable chronological Event ordering and a deterministic ID tie-break. Unshown records remain accessible through the full Tasks, Warning decisions, Events, and Points destinations; show the action-item overflow notice when more items exist.
+- **Existing functionality that MUST be preserved — CURRENT:** Shows the current officer's name, club position, personal total points, and View profile link; three club summary metrics (active officers, upcoming events, points this half-year); a note defining January–June/July–December in America/Denver and that points include signed corrections; personal action items from the current officer's incomplete Task assignments; upcoming non-cancelled/non-removed Events with schedule and signup state; and recent active Point transactions with Officer, related Event/Task or reason, signed Points, and date. Links lead to the full owning area. Warning decisions are no longer prompted on the Dashboard.
+- **Approved preview limits:** Show up to 5 eligible prioritized action items, 5 upcoming Events, and 5 newest Point transactions; show fewer when fewer eligible records exist. Keep each source query bounded, with stable chronological Event ordering and a deterministic ID tie-break. Unshown records remain accessible through the full Tasks, Events, and Points destinations; show the action-item overflow notice when more items exist.
 - **Information hierarchy:** Page title/profile access; compact summary metrics and their explanation; action items; then upcoming events and recent point activity.
 - **Recommended layout:** Keep the metrics in one modest row, action items as a simple divided list, and the two recent-activity sections side by side at desktop widths. Let them stack when desktop window resizing or zoom leaves insufficient room.
-- **Primary action:** No single global action; each action-item row is a direct link to its task or warning decision.
-- **Secondary actions:** View profile; View all Tasks; View warning decisions; View all Events; View all Points.
+- **Primary action:** No single global action; each action-item row is a direct link to its Task.
+- **Secondary actions:** View profile; View all Tasks; View all Events; View all Points.
 - **Data presentation:** Small metric blocks, divided action rows, compact Event list, compact Point activity list. Use existing schedule and point formatters; describe the Event and transaction previews accurately.
 - **Minimalism notes:** Keep the current sections but distinguish metrics from actionable work; do not turn each section into a KPI card. Keep profile access small and the explanatory half-year note close to the metrics.
 - **Do not add:** Attendance percentages, charts, notifications, unsupported KPIs, action items beyond the real workflow, or an analytics dashboard.
@@ -431,25 +431,25 @@ The following sections describe the actual product workflows and the design dire
 ### Officers list
 
 - **Purpose:** Find and review club officers and branch memberships.
-- **Existing functionality that MUST be preserved — CURRENT:** Search name, UTEP email, or personal email; filter active/inactive status, position, and branch. The directory table contains Name, both labeled email addresses, Position, Classification, Branches, and Status. Opening an officer preserves the current filtered page for the contextual return link. Admins can add officers and open Manage positions and branches. Eligible approvers can reach their pending Warning decisions from a compact count on this route.
-- **Information hierarchy:** Title and authorized management actions; pending decision count/entry when applicable; filters; directory results and pager. The Warning review view replaces the directory body while keeping a return link.
-- **Recommended layout:** Group both email addresses in one contact cell so the compact six-column table remains readable at desktop widths. Show eight fully filtered Officers per URL-backed page, an exact filtered count, and Previous/Next links. Applying or clearing filters returns to the first directory page. The same route's URL-backed Warning review view shows five eligible decisions per page with full reason, date, and existing actions.
+- **Existing functionality that MUST be preserved — CURRENT:** Search name, UTEP email, or personal email; filter active/inactive status, position, and branch. The directory table contains Name, both labeled email addresses, Position, Classification, Branches, and Status. Opening an officer preserves the current filtered page for the contextual return link. Admins can add officers and open Manage positions and branches. Legacy approvers can inspect their historical pending assignments from a compact count on this route.
+- **Information hierarchy:** Title and authorized management actions; historical approval assignment count/entry when applicable; filters; directory results and pager. The Warning review view replaces the directory body while keeping a return link.
+- **Recommended layout:** Group both email addresses in one contact cell so the compact six-column table remains readable at desktop widths. Show eight fully filtered Officers per URL-backed page, an exact filtered count, and Previous/Next links. Applying or clearing filters returns to the first directory page. The same route's URL-backed Warning review view shows five historical pending assignments per page with full reason and date, without voting controls.
 - **Primary action:** Add officer for admins; otherwise opening a name is the main navigation action.
-- **Secondary actions:** Manage positions and branches; approve/reject a warning assigned to the current user; apply/clear filters.
-- **Data presentation:** Directory table with labeled UTEP/personal contacts, neutral branch badges, plain-text position/classification, semantic Active/Inactive status; bounded warning decision articles in review view.
+- **Secondary actions:** Manage positions and branches; inspect historical approval assignments; apply/clear filters.
+- **Data presentation:** Directory table with labeled UTEP/personal contacts, neutral branch badges, plain-text position/classification, semantic Active/Inactive status; bounded historical Warning articles in the legacy review view.
 - **Minimalism notes:** Keep both email values directly visible without expanding a row. Long identity/contact text wraps, and natural page scrolling remains available.
-- **Do not add:** A participation metric, position/classification badges, filters absent from the current list, or warning details/actions for users who cannot see or decide them.
+- **Do not add:** A participation metric, position/classification badges, filters absent from the current list, or Warning details for users outside existing read permissions.
 
 ### Officer detail
 
 - **Purpose:** Review one officer's record, access, warnings, event association, and point history.
-- **Existing functionality that MUST be preserved — CURRENT:** Contextual Officers link that returns to the originating filtered directory when opened from one; edit action for admins; UTEP/personal email, position, application role, classification, status, branches, and total points. Admins can change another officer's application role separately from club position. The officer and admins can see that officer's warning section; admins see all warning states and approval details, can filter by warning status, create and void Warnings, and see the three-approved-warning Admin Review message. The officer and admins can see associated Events that are not cancelled or archived, plus active point transactions and full point history; historical Event references remain in Point history and System Log.
+- **Existing functionality that MUST be preserved — CURRENT:** Contextual Officers link that returns to the originating filtered directory when opened from one; edit action for admins; UTEP/personal email, position, application role, classification, status, branches, and total points. Admins can change another officer's application role separately from club position. The officer and admins can see that officer's warning section; admins see all warning states and approval details, can filter by warning status, create immediately effective Warnings, correct current/historical reasons with audit history, void Warnings, and see the three-approved-warning Admin Review message. The officer and admins can see associated Events that are not cancelled or archived, plus active point transactions and full point history; historical Event references remain in Point history and System Log.
 - **Information hierarchy:** Name/edit action; identity and status/branches; role and warning controls by permission; associated events; point history.
 - **Recommended layout:** Keep an Overview with identity/contact, position and application role, status/branches, points, and permission-appropriate actions. Use URL-backed same-route navigation for Overview, authorized Warnings, Events, and Points. Limit Overview previews to two visible Warnings, four associated active Events, and three recent Point transactions, with counts and links to full sections. Full sections use five records per page and preserve Warning status filters, event associations, point history ordering, and contextual return links. Keep long content in natural document flow; do not add nested scroll panels.
 - **Primary action:** Edit officer when admin; otherwise no global mutation action.
-- **Secondary actions:** Save another officer's application role, open Create warning on demand, void an active warning with confirmation, open associated events, and view all points.
+- **Secondary actions:** Save another officer's application role, open Create/Edit warning on demand, void an active Warning with confirmation, open associated events, and view all points.
 - **Data presentation:** Plain-text profile fields, status badge, neutral branch badges, warning status/date/reason/approval details, event list, point transaction table.
-- **Minimalism notes:** Keep application role visibly separate from position. Create warning opens a focused dialog with the immutable-reason and leadership-approval consequences. Preserve the explanatory note that deactivation is a separate manual decision after the warning threshold.
+- **Minimalism notes:** Keep application role visibly separate from position. Create warning explains immediate effect; Edit warning explains audited corrections and preserved historical status/approvals. Preserve the explanatory note that deactivation is a separate manual decision after the warning threshold.
 - **Do not add:** An automatic deactivation, a combined role/position selector, warnings for users who are not the officer or an admin, or duplicate point totals.
 
 ### Add/edit Officer
@@ -478,15 +478,15 @@ The following sections describe the actual product workflows and the design dire
 
 ### Officer warnings (embedded workflows)
 
-- **Purpose:** Let assigned officers make warning decisions and admins manage warning records.
-- **Existing functionality that MUST be preserved — CURRENT:** The Officers list may show pending decisions assigned to the signed-in user, including officer, reason, created time, Approve, and Reject. Officer detail shows warnings to the officer and admins; admins can filter active statuses, inspect Voided or All history, create a pending warning through an on-demand dialog, inspect approval decisions, and void an active warning. The dialog explains that the reason is immutable and approval is required from the current President and Vice Presidents; errors retain entered values, while success closes the dialog and refreshes warning history. Void retains the warning and its approvals, removes it from active totals, and is terminal. Warning reasons cannot be edited after creation. The approved-warning threshold message does not itself deactivate an officer.
-- **Information hierarchy:** Decision target/officer and reason; current status and date; required approval controls/details.
-- **Recommended layout:** Use restrained, bordered articles and compact approve/reject actions. Keep decision buttons visually equal in priority; Void remains a secondary action with confirmation.
-- **Primary action:** Approve or Reject a pending decision assigned to the current user.
-- **Secondary actions:** Admin Create warning dialog, Void confirmation, and warning-history navigation.
+- **Purpose:** Let Admins directly manage Warnings while preserving historical approval visibility.
+- **Existing functionality that MUST be preserved — CURRENT:** The Officers list retains a read-only legacy assignment view with Officer, reason and creation time. Officer detail shows warnings to the officer and admins; admins can filter active statuses, inspect Voided or All history, create an immediately effective Warning, edit current/historical reasons through the existing focused dialog, inspect historical approval decisions/timestamps, and void an active Warning. The create dialog explains immediate effect; the edit dialog explains audited corrections and preservation of historical status and approval history; errors retain entered values, while success closes the dialog and refreshes warning history. Void retains the warning and its approvals, removes it from active totals, and is terminal. Reason edits retain before/after audit attribution without approving legacy pending/rejected records. The approved-warning threshold message does not itself deactivate an officer.
+- **Information hierarchy:** Warning recipient and reason; current status and date; authorized corrections and historical approval details.
+- **Recommended layout:** Use restrained articles and focused Create/Edit dialogs with clear pending/error feedback. Void remains a secondary action with confirmation.
+- **Primary action:** Admin Create warning; Edit warning beside an existing record.
+- **Secondary actions:** Admin Create/Edit warning dialogs, Void confirmation, and Warning-history navigation.
 - **Data presentation:** Plain text reason, status label, readable date, approval count and decision list for admins.
-- **Minimalism notes:** Keep warning decision content separate from the directory table and visible only where access permits.
-- **Do not add:** Editable warning reasons, automatic consequences, warning analytics, or invented approval roles.
+- **Minimalism notes:** Keep historical approval content separate from the directory table and visible only where access permits.
+- **Do not add:** Status promotion through reason edits, automatic consequences, Warning analytics, or invented approval roles.
 
 ### Points
 

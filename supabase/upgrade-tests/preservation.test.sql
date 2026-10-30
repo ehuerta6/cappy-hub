@@ -3,6 +3,14 @@ create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 select no_plan();
 
+-- Direct Admin management changes new writes only, never legacy history.
+select results_eq($$select id,to_jsonb(w) from officer_warnings w order by id$$,
+ $$select id,original from upgrade_fixture.pre_direct_admin_warnings order by id$$,
+ 'direct Admin migration preserves every Warning including pending/rejected/voided states');
+select results_eq($$select warning_id,approver_id,to_jsonb(a) from warning_approvals a order by warning_id,approver_id$$,
+ $$select warning_id,approver_id,original from upgrade_fixture.pre_direct_admin_approvals order by warning_id,approver_id$$,
+ 'direct Admin migration preserves approval snapshots, actor IDs, decisions and timestamps');
+
 -- #327 removes only manual precedence; every pre-existing field stays intact.
 select results_eq($$select id,to_jsonb(p) from point_transactions p order by id$$,
  $$select id,original from upgrade_fixture.pre_independent_manual_points order by id$$,

@@ -20,6 +20,7 @@ import { eventStatus } from "@/lib/event-status";
 import {
   formatCalendarDate,
   formatDate,
+  formatDateTime,
   formatLabel,
 } from "@/lib/presentation";
 import { createClient } from "@/lib/supabase/server";
@@ -32,7 +33,11 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Route } from "next";
 import RoleForm from "./role-form";
-import { CreateWarningForm, VoidWarningForm } from "../warning-forms";
+import {
+  CreateWarningForm,
+  EditWarningForm,
+  VoidWarningForm,
+} from "../warning-forms";
 import type { Tables } from "@/lib/database.types";
 
 const SECTION_PAGE_SIZE = 5;
@@ -568,13 +573,19 @@ export default async function OfficerDetailPage({
             {isAdmin(actor) && (
               <>
                 <p className="text-sm">
-                  Approvals:{" "}
-                  {
-                    warning.warning_approvals.filter(
-                      (approval) => approval.decision === "approved",
-                    ).length
-                  }
-                  /{warning.warning_approvals.length}
+                  {warning.warning_approvals.length ? (
+                    <>
+                      Historical approvals:{" "}
+                      {
+                        warning.warning_approvals.filter(
+                          (approval) => approval.decision === "approved",
+                        ).length
+                      }
+                      /{warning.warning_approvals.length}
+                    </>
+                  ) : (
+                    "No leadership approvals recorded."
+                  )}
                 </p>
                 <ul className="text-sm text-muted">
                   {warning.warning_approvals.map((approval) => (
@@ -587,9 +598,20 @@ export default async function OfficerDetailPage({
                           ? "name unavailable"
                           : approval.approver_id)}
                       ): {approval.decision}
+                      {approval.decided_at && (
+                        <time dateTime={approval.decided_at}>
+                          {" "}
+                          · {formatDateTime(approval.decided_at)}
+                        </time>
+                      )}
                     </li>
                   ))}
                 </ul>
+                <EditWarningForm
+                  warningId={warning.id}
+                  officerId={officer.id}
+                  reason={warning.reason}
+                />
                 {warning.voided_at === null && (
                   <VoidWarningForm
                     warningId={warning.id}
@@ -777,13 +799,20 @@ export default async function OfficerDetailPage({
                       {isAdmin(actor) && (
                         <>
                           <p className="text-sm">
-                            Approvals:{" "}
-                            {
-                              warning.warning_approvals.filter(
-                                (approval) => approval.decision === "approved",
-                              ).length
-                            }
-                            /{warning.warning_approvals.length}
+                            {warning.warning_approvals.length ? (
+                              <>
+                                Historical approvals:{" "}
+                                {
+                                  warning.warning_approvals.filter(
+                                    (approval) =>
+                                      approval.decision === "approved",
+                                  ).length
+                                }
+                                /{warning.warning_approvals.length}
+                              </>
+                            ) : (
+                              "No leadership approvals recorded."
+                            )}
                           </p>
                           <ul className="text-sm text-muted">
                             {warning.warning_approvals.map((approval) => (
@@ -797,9 +826,20 @@ export default async function OfficerDetailPage({
                                     ? "name unavailable"
                                     : approval.approver_id)}
                                 ): {approval.decision}
+                                {approval.decided_at && (
+                                  <time dateTime={approval.decided_at}>
+                                    {" "}
+                                    · {formatDateTime(approval.decided_at)}
+                                  </time>
+                                )}
                               </li>
                             ))}
                           </ul>
+                          <EditWarningForm
+                            warningId={warning.id}
+                            officerId={officer.id}
+                            reason={warning.reason}
+                          />
                           {warning.voided_at === null && (
                             <VoidWarningForm
                               warningId={warning.id}

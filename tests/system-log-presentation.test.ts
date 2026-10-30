@@ -482,3 +482,20 @@ it.each([
     expect(result.detailSummary).toBe(summary);
   },
 );
+
+it("presents Warning corrections with readable before/after reasons", () => {
+  const result = presentAuditEntry({
+    action: "warning.updated",
+    entity_type: "warning",
+    entity_id: 900,
+    details: {
+      officer_id: 42,
+      before: { reason: "Original reason" },
+      after: { reason: "Corrected historical reason" },
+    },
+  });
+  expect(result.activity).toContain("Updated a warning");
+  expect(result.changes).toEqual([
+    { label: "Reason", value: "Original reason → Corrected historical reason" },
+  ]);
+});

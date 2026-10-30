@@ -43,10 +43,7 @@ import {
   RemoveEventForm,
 } from "@/app/(protected)/events/event-controls";
 import { TaskRemoveForm } from "@/app/(protected)/tasks/task-remove-form";
-import {
-  VoidWarningForm,
-  WarningDecisionForm,
-} from "@/app/(protected)/officers/warning-forms";
+import { VoidWarningForm } from "@/app/(protected)/officers/warning-forms";
 import PointActions from "@/app/(protected)/points/point-actions";
 import { PointHistoryState } from "@/app/(protected)/points/point-history-state";
 
@@ -200,21 +197,12 @@ it("shows scope and protected-history consequences for recurring Task removal", 
   expect(html).toContain("All occurrences");
 });
 
-it("preserves warning decision submit values inside the dialogs", () => {
-  const decisionHtml = renderToStaticMarkup(
-    createElement(WarningDecisionForm, { warningId: 7 }),
-  );
-  const voidHtml = renderToStaticMarkup(
+it("preserves the existing Warning Void confirmation until reversible removal lands", () => {
+  const html = renderToStaticMarkup(
     createElement(VoidWarningForm, { warningId: 7, officerId: 3 }),
   );
-
-  expect(decisionHtml).toContain("Approve warning?");
-  expect(decisionHtml).toContain("Reject warning?");
-  expect(decisionHtml).toContain('name="decision"');
-  expect(decisionHtml).toContain('value="approved"');
-  expect(decisionHtml).toContain('value="rejected"');
-  expect(voidHtml).toContain("Void warning?");
-  expect(voidHtml).toContain("cannot be undone");
+  expect(html).toContain("Void warning?");
+  expect(html).toContain("cannot be undone");
 });
 
 it("explains that Point transaction removal is logical and retains feedback", () => {

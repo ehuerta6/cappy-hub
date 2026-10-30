@@ -84,6 +84,9 @@ try {
     )
     .sort();
   for (const migration of followupMigrations) {
+    if (migration.endsWith("_direct_admin_warnings.sql")) {
+      psql(readFileSync("supabase/fixtures/pre-direct-admin-warnings.sql"));
+    }
     if (migration.endsWith("_independent_manual_points.sql")) {
       psql(readFileSync("supabase/fixtures/pre-independent-manual-points.sql"));
     }

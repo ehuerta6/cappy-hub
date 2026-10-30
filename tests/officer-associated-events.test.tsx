@@ -115,6 +115,7 @@ vi.mock("@/lib/supabase/server", () => ({
                           approver_role: "president",
                           approver_officer_id: 2,
                           decision: "approved",
+                          decided_at: "2026-10-06T23:53:11Z",
                         },
                       ],
                     }))
@@ -234,6 +235,7 @@ it("allows a Lead to see their own permitted warnings but not another Officer's"
   );
   expect(ownProfile).toContain('aria-label="Warnings"');
   expect(ownProfile).not.toContain('aria-label="Warning status"');
+  expect(ownProfile).not.toContain("Edit warning");
 
   state.actor = { id: 9, applicationRole: "officer", positionCode: "lead" };
   const anotherProfile = renderToStaticMarkup(
@@ -264,6 +266,10 @@ it("shows the requested Warning status as active and preserves the legacy URL", 
   );
   expect(html).toContain("Warning reason 1");
   expect(html).toContain("Warning reason 3");
+  expect(html).toContain("Edit warning");
+  expect(html).toContain("Historical approvals:");
+  expect(html).toContain("Oct 6, 2026, 5:53 PM");
+  expect(html).not.toContain("Approve warning?");
 });
 
 it("uses server-side five-row paging for the full Point section", async () => {
