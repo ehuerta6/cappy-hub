@@ -190,7 +190,7 @@ reset role;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032901',true);
 set local role authenticated;
 select throws_ok($$select public.bulk_add_event_officers(-32902,array[-32906]::bigint[])$$,
- 'P0001','Select one or more Time Slots to sign up for this Event',
+ 'P0001','Select Time Slots when adding Officers to this Event',
  'legacy slotted Event addition retains the trusted slot-selection requirement');
 reset role;
 select is((select count(*) from public.event_time_slot_officers where event_id=-32902 and slot_id=-329201
