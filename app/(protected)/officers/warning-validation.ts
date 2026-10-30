@@ -11,12 +11,11 @@ export const createWarningInputSchema = zod.object({
   ),
 });
 
-export const decideWarningInputSchema = zod.object({
-  warning_id: positiveSafeIntegerStringSchema("Warning not found"),
-  decision: zod.enum(["approved", "rejected"], {
-    error: "Invalid warning decision",
-  }),
-});
+export const updateWarningInputSchema = createWarningInputSchema
+  .pick({ reason: true })
+  .extend({
+    warning_id: positiveSafeIntegerStringSchema("Warning not found"),
+  });
 
 export const voidWarningInputSchema = zod.object({
   warning_id: positiveSafeIntegerStringSchema("Warning not found"),
