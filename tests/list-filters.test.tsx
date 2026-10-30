@@ -547,7 +547,7 @@ it("preserves an explicit Past filter in Event return context", async () => {
   expect(html).not.toContain("Upcoming events");
 });
 
-it("does not offer Archived Event browsing and keeps forged archive URLs active-only", async () => {
+it("does not offer Deleted Event browsing and keeps forged deleted URLs active-only", async () => {
   admin = false;
   rows.events = [
     {
@@ -565,11 +565,11 @@ it("does not offer Archived Event browsing and keeps forged archive URLs active-
     },
   ];
   const html = await render(EventsPage, {
-    status: "archived",
+    status: "deleted",
     branch: "2",
   });
   has(forTable("events")[0], "is", "deleted_at", null);
-  expect(html).not.toContain('value="archived"');
+  expect(html).not.toContain('value="deleted"');
   expect(html).toContain('value="upcoming"');
   expect(html).toContain('value="happening"');
   expect(html).toContain('value="past"');
@@ -578,11 +578,11 @@ it("does not offer Archived Event browsing and keeps forged archive URLs active-
   expect(html).toContain("returnTo=%2Fevents%3Fbranch%3D2");
 });
 
-it("offers authorized managers Archived Event and Deleted Task views", async () => {
-  const eventHtml = await render(EventsPage, { status: "archived" });
+it("offers authorized managers Deleted Event and Task views", async () => {
+  const eventHtml = await render(EventsPage, { status: "deleted" });
   const eventQuery = forTable("events")[0];
   has(eventQuery, "not", "deleted_at", "is", null);
-  expect(eventHtml).toContain('value="archived"');
+  expect(eventHtml).toContain('value="deleted"');
 
   queries = [];
   const taskHtml = await render(TasksPage, { view: "deleted" });
@@ -727,7 +727,7 @@ it("groups only the eight Events on this page by confirmed participation", async
   );
 });
 
-it.each(["past", "cancelled", "archived"])(
+it.each(["past", "cancelled", "deleted"])(
   "groups %s Events with the same Your/Other hierarchy",
   async (status) => {
     rows.events = [
@@ -738,7 +738,7 @@ it.each(["past", "cancelled", "archived"])(
         starts_at: "2020-10-08T18:00:00Z",
         ends_at: "2020-10-08T20:00:00Z",
         status: status === "cancelled" ? "cancelled" : "scheduled",
-        deleted_at: status === "archived" ? "2020-10-09T00:00:00Z" : null,
+        deleted_at: status === "deleted" ? "2020-10-09T00:00:00Z" : null,
         max_volunteers: null,
         participation_points_per_hour_at_end: null,
         event_types: { name: "Workshop" },
@@ -752,7 +752,7 @@ it.each(["past", "cancelled", "archived"])(
         starts_at: "2020-10-09T18:00:00Z",
         ends_at: "2020-10-09T20:00:00Z",
         status: status === "cancelled" ? "cancelled" : "scheduled",
-        deleted_at: status === "archived" ? "2020-10-10T00:00:00Z" : null,
+        deleted_at: status === "deleted" ? "2020-10-10T00:00:00Z" : null,
         max_volunteers: null,
         participation_points_per_hour_at_end: null,
         event_types: { name: "Workshop" },
@@ -881,17 +881,17 @@ it("offers direct Task page selection and preserves all filters", async () => {
   );
 });
 
-it("scopes the Lead Archived view to assigned branches before paging", async () => {
+it("scopes the Lead Deleted view to assigned branches before paging", async () => {
   admin = false;
   lead = true;
   actorBranches = [2, 3];
-  const html = await render(EventsPage, { status: "archived" });
+  const html = await render(EventsPage, { status: "deleted" });
   for (const query of forTable("events")) {
     has(query, "not", "deleted_at", "is", null);
     has(query, "in", "scope_branch.branch_id", [2, 3]);
     has(query, "not", "scope_branch", "is", null);
   }
-  expect(html).toContain('value="archived" selected=""');
+  expect(html).toContain('value="deleted" selected=""');
   expect(html).toContain('href="/events/new"');
 });
 

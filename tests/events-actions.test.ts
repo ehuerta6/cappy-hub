@@ -25,10 +25,9 @@ import { revalidatePath } from "next/cache";
 import { syncGoogleCalendarEvents } from "@/lib/google-calendar-sync";
 import {
   bulkAddEventOfficers,
-  cancelEvent,
-  removeEvent,
+  deleteEvent,
   restoreEvent,
-  restoreEventArchive,
+  restoreDeletedEvent,
   saveEvent,
   selfSignup,
 } from "@/app/(protected)/events/actions";
@@ -132,44 +131,29 @@ it("rejects malformed Event IDs before calling the restore RPC", async () => {
   expect(rpc).not.toHaveBeenCalled();
 });
 
-it("restores an archived Event through the archive restore RPC", async () => {
+it("restores a deleted or legacy archived Event through the restore RPC", async () => {
   const data = new FormData();
   data.set("event_id", "12");
-  expect(await restoreEventArchive({ error: "", success: "" }, data)).toEqual({
+  expect(await restoreDeletedEvent({ error: "", success: "" }, data)).toEqual({
     error: "",
     success: "Event restored",
   });
-  expect(rpc).toHaveBeenCalledWith("restore_event_archive", { p_event_id: 12 });
+  expect(rpc).toHaveBeenCalledWith("restore_deleted_event", { p_event_id: 12 });
   expect(syncGoogleCalendarEvents).toHaveBeenCalledWith(
     [12],
     expect.anything(),
   );
 });
 
-it("cancels an Event before mirroring its canonical state", async () => {
+it("deletes an Event before removing its Google representation", async () => {
   const data = new FormData();
   data.set("event_id", "12");
 
-  expect(await cancelEvent({ error: "", success: "" }, data)).toEqual({
+  expect(await deleteEvent({ error: "", success: "" }, data)).toEqual({
     error: "",
-    success: "Event cancelled",
+    success: "Event deleted",
   });
-  expect(rpc).toHaveBeenCalledWith("cancel_event", { p_event_id: 12 });
-  expect(syncGoogleCalendarEvents).toHaveBeenCalledWith(
-    [12],
-    expect.anything(),
-  );
-});
-
-it("archives an Event before deleting its Google representation", async () => {
-  const data = new FormData();
-  data.set("event_id", "12");
-
-  expect(await removeEvent({ error: "", success: "" }, data)).toEqual({
-    error: "",
-    success: "Event archived",
-  });
-  expect(rpc).toHaveBeenCalledWith("remove_event", { p_event_id: 12 });
+  expect(rpc).toHaveBeenCalledWith("delete_event", { p_event_id: 12 });
   expect(syncGoogleCalendarEvents).toHaveBeenCalledWith(
     [12],
     expect.anything(),

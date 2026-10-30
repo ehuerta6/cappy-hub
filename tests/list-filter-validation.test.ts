@@ -47,8 +47,11 @@ it("parses each page's domain filters", () => {
   expect(
     eventListFiltersSchema.parse({ status: "removed", type: "2", branch: "3" }),
   ).toMatchObject({ status: undefined, type: 2, branch: 3 });
+  expect(eventListFiltersSchema.parse({ status: "deleted" }).status).toBe(
+    "deleted",
+  );
   expect(eventListFiltersSchema.parse({ status: "archived" }).status).toBe(
-    "archived",
+    "deleted",
   );
   expect(
     taskListFiltersSchema.parse({

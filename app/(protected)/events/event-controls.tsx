@@ -5,11 +5,6 @@ import {
   submittedValue,
   submittedValues,
 } from "@/lib/form-feedback";
-import {
-  RecurrenceScope,
-  recurrenceScopeLabels,
-  type RecurrenceSeries,
-} from "@/components/recurrence-scope";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { useActionState } from "react";
 import type { Tables } from "@/lib/database.types";
@@ -17,10 +12,9 @@ import {
   bulkAddEventOfficers,
   changeSignup,
   selfSignup,
-  cancelEvent,
   restoreEvent,
-  restoreEventArchive,
-  removeEvent,
+  restoreDeletedEvent,
+  deleteEvent,
 } from "./actions";
 import { BulkAssignOfficersToSlotsForm } from "./time-slot-controls";
 export function SelfSignupForm({
@@ -199,58 +193,8 @@ export function BulkAddOfficersForm({
     </form>
   );
 }
-export function CancelForm({
-  eventId,
-  series,
-  requestKey,
-}: {
-  eventId: number;
-  series?: RecurrenceSeries;
-  requestKey?: string;
-}) {
-  const [state, action, pending] = useActionState(cancelEvent, {
-    ...initialFormActionState,
-  });
-  return (
-    <form action={action}>
-      <input type="hidden" name="event_id" value={eventId} />
-      {series && requestKey && (
-        <RecurrenceScope
-          series={series}
-          requestKey={requestKey}
-          recordType="Event"
-        />
-      )}
-      <ActionFeedback state={state} />
-      <ConfirmationDialog
-        title="Cancel Event?"
-        description={
-          series
-            ? "This applies cancellation to the selected recurrence scope. Existing workflow history remains governed by the current Event rules."
-            : "This changes the Event’s status to cancelled. Existing Event history and eligibility rules stay in effect."
-        }
-        triggerLabel={pending ? "Cancelling…" : "Cancel event"}
-        confirmLabel="Cancel Event"
-        destructive
-        pending={pending}
-        triggerClassName="button-secondary"
-        context={
-          series
-            ? {
-                label: "Scope",
-                fieldName: "scope",
-                values: recurrenceScopeLabels,
-                defaultValue: "occurrence",
-              }
-            : undefined
-        }
-      />
-    </form>
-  );
-}
-
-export function RestoreArchivedEventForm({ eventId }: { eventId: number }) {
-  const [state, action, pending] = useActionState(restoreEventArchive, {
+export function RestoreDeletedEventForm({ eventId }: { eventId: number }) {
+  const [state, action, pending] = useActionState(restoreDeletedEvent, {
     ...initialFormActionState,
   });
   return (
@@ -279,51 +223,22 @@ export function RestoreCancelledEventForm({ eventId }: { eventId: number }) {
   );
 }
 
-export function RemoveEventForm({
-  eventId,
-  series,
-  requestKey,
-}: {
-  eventId: number;
-  series?: RecurrenceSeries;
-  requestKey?: string;
-}) {
-  const [state, action, pending] = useActionState(removeEvent, {
+export function DeleteEventForm({ eventId }: { eventId: number }) {
+  const [state, action, pending] = useActionState(deleteEvent, {
     ...initialFormActionState,
   });
   return (
     <form action={action}>
       <input type="hidden" name="event_id" value={eventId} />
-      {series && requestKey && (
-        <RecurrenceScope
-          series={series}
-          requestKey={requestKey}
-          recordType="Event"
-        />
-      )}
       <ActionFeedback state={state} />
       <ConfirmationDialog
-        title="Archive Event?"
-        description={
-          series
-            ? "This archives the Event in the selected scope. Existing workflow history is preserved."
-            : "This archives the Event from routine browsing. Its signups, Points, and history are preserved."
-        }
-        triggerLabel={pending ? "Archiving…" : "Archive Event"}
-        confirmLabel="Archive Event"
+        title="Delete Event?"
+        description="The Event will leave active lists and operations. Signups, Volunteer Time Slots, recurrence identity, and history are preserved. Event linked Points stop counting in active totals until you restore the Event."
+        triggerLabel={pending ? "Deleting…" : "Delete Event"}
+        confirmLabel="Delete Event"
         destructive
         pending={pending}
         triggerClassName="button-secondary"
-        context={
-          series
-            ? {
-                label: "Scope",
-                fieldName: "scope",
-                values: recurrenceScopeLabels,
-                defaultValue: "occurrence",
-              }
-            : undefined
-        }
       />
     </form>
   );

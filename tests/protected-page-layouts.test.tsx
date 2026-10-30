@@ -692,8 +692,7 @@ it("groups Event details, files and participation while retaining management con
     "Links and files",
     "Open slides",
     "Open notes",
-    "Cancel event",
-    "Archive Event",
+    "Delete Event",
   ])
     expect(details).toContain(text);
   expect(details).toContain('rel="noopener noreferrer"');
@@ -751,7 +750,7 @@ it("shows historical presentations after an Event type edit without active contr
     expect(sessionHtml).toContain("Historical Presenter");
     expect(sessionHtml).toContain("Historical preparation notes.");
     for (const activeControl of [
-      "Volunteer",
+      'aria-label="Time Slots"',
       "Step down",
       "Assign presenter",
       "Move up",

@@ -369,6 +369,7 @@ export type Database = {
       events: {
         Row: {
           created_at: string;
+          delete_points_suspended: boolean;
           deleted_at: string | null;
           deleted_by: string | null;
           deleted_by_officer_id: number | null;
@@ -392,6 +393,7 @@ export type Database = {
         };
         Insert: {
           created_at?: string;
+          delete_points_suspended?: boolean;
           deleted_at?: string | null;
           deleted_by?: string | null;
           deleted_by_officer_id?: number | null;
@@ -415,6 +417,7 @@ export type Database = {
         };
         Update: {
           created_at?: string;
+          delete_points_suspended?: boolean;
           deleted_at?: string | null;
           deleted_by?: string | null;
           deleted_by_officer_id?: number | null;
@@ -643,6 +646,7 @@ export type Database = {
           created_at: string;
           created_by: string | null;
           created_by_officer_id: number | null;
+          event_delete_suspended: boolean;
           event_id: number | null;
           event_time_slot_id: number | null;
           id: number;
@@ -666,6 +670,7 @@ export type Database = {
           created_at?: string;
           created_by?: string | null;
           created_by_officer_id?: number | null;
+          event_delete_suspended?: boolean;
           event_id?: number | null;
           event_time_slot_id?: number | null;
           id?: number;
@@ -689,6 +694,7 @@ export type Database = {
           created_at?: string;
           created_by?: string | null;
           created_by_officer_id?: number | null;
+          event_delete_suspended?: boolean;
           event_id?: number | null;
           event_time_slot_id?: number | null;
           id?: number;
@@ -1533,6 +1539,7 @@ export type Database = {
         Returns: undefined;
       };
       delete_branch: { Args: { p_id: number }; Returns: undefined };
+      delete_event: { Args: { p_event_id: number }; Returns: boolean };
       delete_event_location: { Args: { p_id: number }; Returns: undefined };
       delete_event_type: { Args: { p_id: number }; Returns: undefined };
       delete_position: { Args: { p_id: number }; Returns: undefined };
@@ -1663,6 +1670,10 @@ export type Database = {
         Returns: undefined;
       };
       restore_branch: { Args: { p_id: number }; Returns: undefined };
+      restore_deleted_event: {
+        Args: { p_event_id: number };
+        Returns: undefined;
+      };
       restore_event: { Args: { p_event_id: number }; Returns: undefined };
       restore_event_archive: {
         Args: { p_event_id: number };

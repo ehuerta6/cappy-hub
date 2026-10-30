@@ -470,72 +470,7 @@ export async function bulkAddEventOfficers(
           : "No changes were needed; selected officers were already added.",
   };
 }
-export async function cancelEvent(
-  _previous: FormActionState,
-  formData: FormData,
-) {
-  await getAuthorizationContext();
-  const validationResult = eventRecordInputSchema.safeParse({
-    event_id: formData.get("event_id") ?? "",
-  });
-  if (!validationResult.success)
-    return { error: validationResult.error.issues[0].message, success: "" };
-  const supabase = await createClient();
-  const beforeIds = formData.has("recurrence_series_id")
-    ? await recurringEventIdsForScope(
-        supabase,
-        formData,
-        validationResult.data.event_id,
-        false,
-      )
-    : [validationResult.data.event_id];
-  let response;
-  try {
-    response = formData.has("recurrence_series_id")
-      ? await supabase.rpc(
-          "mutate_recurring_event",
-          await recurrenceMutation(
-            "event",
-            validationResult.data.event_id,
-            formData,
-            "cancel",
-          ),
-        )
-      : await supabase.rpc("cancel_event", {
-          p_event_id: validationResult.data.event_id,
-        });
-  } catch (error) {
-    return { error: recurrenceMutationError(error), success: "" };
-  }
-  const { error } = response;
-  if (error) return { error: mutationError(error.message), success: "" };
-  revalidatePath("/", "layout");
-  const afterIds = formData.has("recurrence_series_id")
-    ? await recurringEventIdsForScope(
-        supabase,
-        formData,
-        validationResult.data.event_id,
-        true,
-      )
-    : [validationResult.data.event_id];
-  const eventIds = formData.has("recurrence_series_id")
-    ? [
-        ...new Set([
-          ...(beforeIds ?? [validationResult.data.event_id]),
-          ...(afterIds ?? [validationResult.data.event_id]),
-        ]),
-      ]
-    : [validationResult.data.event_id];
-  if (
-    !(await syncGoogleCalendarEvents(eventIds, supabase)) ||
-    !beforeIds ||
-    !afterIds
-  )
-    return { error: calendarSyncWarning, success: "" };
-  return { error: "", success: "Event cancelled" };
-}
-
-export async function restoreEventArchive(
+export async function restoreDeletedEvent(
   _previous: FormActionState,
   formData: FormData,
 ) {
@@ -549,7 +484,7 @@ export async function restoreEventArchive(
       success: "",
     };
   const supabase = await createClient();
-  const { error } = await supabase.rpc("restore_event_archive", {
+  const { error } = await supabase.rpc("restore_deleted_event", {
     p_event_id: restoreEventValidationResult.data.event_id,
   });
   if (error) return { error: mutationError(error.message), success: "" };
@@ -564,6 +499,37 @@ export async function restoreEventArchive(
   )
     return { error: calendarSyncWarning, success: "" };
   return { error: "", success: "Event restored" };
+}
+
+export async function deleteEvent(
+  _previous: FormActionState,
+  formData: FormData,
+) {
+  await getAuthorizationContext();
+  const validationResult = eventRecordInputSchema.safeParse({
+    event_id: formData.get("event_id") ?? "",
+  });
+  if (!validationResult.success)
+    return { error: validationResult.error.issues[0].message, success: "" };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("delete_event", {
+    p_event_id: validationResult.data.event_id,
+  });
+  if (error) return { error: mutationError(error.message), success: "" };
+  revalidatePath("/", "layout");
+  revalidatePath("/events");
+  revalidatePath("/system-log");
+  if (
+    !(await syncGoogleCalendarEvents(
+      [validationResult.data.event_id],
+      supabase,
+    ))
+  )
+    return { error: calendarSyncWarning, success: "" };
+  return {
+    error: "",
+    success: data ? "Event deleted" : "Event was already deleted",
+  };
 }
 
 export async function restoreEvent(
@@ -585,74 +551,6 @@ export async function restoreEvent(
   if (!(await syncGoogleCalendarEvents([validation.data.event_id], supabase)))
     return { error: calendarSyncWarning, success: "" };
   return { error: "", success: "Event restored" };
-}
-
-export async function removeEvent(
-  _previous: FormActionState,
-  formData: FormData,
-) {
-  await getAuthorizationContext();
-  const validationResult = eventRecordInputSchema.safeParse({
-    event_id: formData.get("event_id") ?? "",
-  });
-  if (!validationResult.success)
-    return { error: validationResult.error.issues[0].message, success: "" };
-  const supabase = await createClient();
-  const beforeIds = formData.has("recurrence_series_id")
-    ? await recurringEventIdsForScope(
-        supabase,
-        formData,
-        validationResult.data.event_id,
-        false,
-      )
-    : [validationResult.data.event_id];
-  let response;
-  try {
-    response = formData.has("recurrence_series_id")
-      ? await supabase.rpc(
-          "mutate_recurring_event",
-          await recurrenceMutation(
-            "event",
-            validationResult.data.event_id,
-            formData,
-            "remove",
-          ),
-        )
-      : await supabase.rpc("remove_event", {
-          p_event_id: validationResult.data.event_id,
-        });
-  } catch (error) {
-    return { error: recurrenceMutationError(error), success: "" };
-  }
-  const { data, error } = response;
-  if (error) return { error: mutationError(error.message), success: "" };
-  revalidatePath("/", "layout");
-  const afterIds = formData.has("recurrence_series_id")
-    ? await recurringEventIdsForScope(
-        supabase,
-        formData,
-        validationResult.data.event_id,
-        true,
-      )
-    : [validationResult.data.event_id];
-  const eventIds = formData.has("recurrence_series_id")
-    ? [
-        ...new Set([
-          ...(beforeIds ?? [validationResult.data.event_id]),
-          ...(afterIds ?? [validationResult.data.event_id]),
-        ]),
-      ]
-    : [validationResult.data.event_id];
-  if (
-    !(await syncGoogleCalendarEvents(eventIds, supabase)) ||
-    !beforeIds ||
-    !afterIds
-  )
-    return { error: calendarSyncWarning, success: "" };
-  return {
-    error: "",
-    success: data ? "Event archived" : "Event was already archived",
-  };
 }
 
 async function recurringEventIdsForScope(

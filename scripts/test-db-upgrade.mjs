@@ -107,6 +107,7 @@ try {
       psql(readFileSync("supabase/fixtures/pre-recoverable-catalogs.sql"));
     }
     if (migration.endsWith("_independent_manual_points.sql")) {
+      psql(readFileSync("supabase/fixtures/pre-event-delete-restore.sql"));
       psql(readFileSync("supabase/fixtures/pre-independent-manual-points.sql"));
     }
     if (migration.endsWith("_stable_officer_actor_attribution.sql")) {
@@ -128,6 +129,12 @@ try {
     }
     if (migration === "20261019150000_disable_event_waitlists.sql") {
       psql(readFileSync("supabase/fixtures/pre-event-waitlist-transition.sql"));
+    }
+    if (migration === "20261031000000_event_delete_restore.sql") {
+      psql(`create table upgrade_fixture.pre_event_delete_events as
+        select id,to_jsonb(e) original from public.events e where id in (93301,93302);
+        create table upgrade_fixture.pre_event_delete_points as
+        select id,to_jsonb(p) original from public.point_transactions p where id in (93301,93302,93303);`);
     }
     if (migration.endsWith("_harden_catalogs_lifecycle_and_rls.sql")) {
       psql(`create table upgrade_fixture.pre_hardening_events as select to_jsonb(e) row from public.events e;
