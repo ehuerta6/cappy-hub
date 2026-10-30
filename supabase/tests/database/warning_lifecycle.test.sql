@@ -9,7 +9,8 @@ insert into auth.users(id,email) values
  ('00000000-0000-4000-8000-000000033503','warning-lead@example.test'),
  ('00000000-0000-4000-8000-000000033504','warning-outsider@example.test'),
  ('00000000-0000-4000-8000-000000033505','warning-inactive@example.test'),
- ('00000000-0000-4000-8000-000000033506','warning-unlinked@example.test');
+ ('00000000-0000-4000-8000-000000033506','warning-unlinked@example.test'),
+ ('00000000-0000-4000-8000-000000033507','warning-relinked-lead@example.test');
 insert into officers(id,name,utep_email,position_id,application_role,status,auth_user_id) values
  (-33501,'Warning Admin','warning-admin@example.test',(select id from positions where code='officer'),'admin','active','00000000-0000-4000-8000-000000033501'),
  (-33502,'Warning Target','warning-target@example.test',(select id from positions where code='officer'),'officer','active','00000000-0000-4000-8000-000000033502'),
@@ -22,11 +23,17 @@ insert into officer_warnings(id,officer_id,reason,status,created_at,voided_at,vo
  (-33511,-33502,'Legacy pending','pending','2020-01-01',null,null),
  (-33512,-33502,'Legacy rejected','rejected','2020-01-02',null,null),
  (-33513,-33502,'Legacy approved','approved','2020-01-03',null,null),
- (-33514,-33502,'Legacy voided','approved','2020-01-04','2020-01-05',-33501);
+ (-33514,-33502,'Legacy voided','approved','2020-01-04','2020-01-05',-33501),
+ (-33515,-33502,'Legacy voided pending','pending','2020-01-06','2020-01-07',-33501),
+ (-33516,-33502,'Legacy pending for relink','pending','2020-01-08',null,null);
 insert into warning_approvals(warning_id,approver_id,approver_officer_id,approver_role,decision,decided_at)
  select id,'00000000-0000-4000-8000-000000033503',-33503,'President',status,
  case when status='pending' then null else '2020-01-04'::timestamptz end
  from officer_warnings where id between -33514 and -33511;
+insert into warning_approvals(warning_id,approver_id,approver_officer_id,approver_role,decision,decided_at)
+ values(-33515,'00000000-0000-4000-8000-000000033503',-33503,'President','pending',null);
+insert into warning_approvals(warning_id,approver_id,approver_officer_id,approver_role,decision,decided_at)
+ values(-33516,'00000000-0000-4000-8000-000000033503',-33503,'President','pending',null);
 create temp table original_approvals as select to_jsonb(a) original from warning_approvals a;
 create temp table original_warnings as select id,to_jsonb(w) original from officer_warnings w;
 
@@ -43,6 +50,13 @@ select is((select count(*) from audit_logs where action='warning.created' and ac
 select set_config('test.direct_warning_id',(select id::text from officer_warnings where reason='Direct Admin warning'),true);
 set local role authenticated;
 select throws_ok($$select decide_warning(current_setting('test.direct_warning_id')::bigint,'rejected')$$,'P0001','This warning is already closed','legacy decision RPC cannot alter a new effective Warning');
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033503',true);
+set local role authenticated;
+select throws_ok($$select decide_warning(-33515,'rejected')$$,'P0001','This warning is voided','assigned legacy approver cannot decide a voided pending Warning');
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033501',true);
+set local role authenticated;
 select is(update_warning(-33511,'Corrected pending reason'),-33502::bigint,'update returns the canonical recipient');
 select lives_ok($$select update_warning(-33512,'Corrected rejected reason')$$,'Admin corrects historical rejected Warning');
 select lives_ok($$select update_warning(-33514,'Corrected voided reason')$$,'Admin corrects historical voided Warning');
@@ -124,6 +138,18 @@ select lives_ok($$select decide_warning(-33511,'rejected')$$,'legacy snapshotted
 select throws_ok($$select decide_warning(-33511,'approved')$$,'P0001','This warning is already closed','closed legacy decision cannot be changed');
 select throws_ok($$select decide_warning(-33514,'approved')$$,'P0001','This warning is voided','voided legacy Warning cannot receive decisions');
 reset role;
+update officers set auth_user_id='00000000-0000-4000-8000-000000033507' where id=-33503;
+update officers set auth_user_id='00000000-0000-4000-8000-000000033503' where id=-33504;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033503',true);
+set local role authenticated;
+select throws_ok($$select decide_warning(-33516,'rejected')$$,'P0001','You are not an approver for this warning','old Auth identity linked to another Officer cannot act on the snapshot');
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033507',true);
+set local role authenticated;
+select lives_ok($$select decide_warning(-33516,'rejected')$$,'relinked snapshotted approver can decide by stable Officer ID');
+reset role;
+select is((select details->>'approver_officer_id' from audit_logs where action='warning.rejected_by_approver' and entity_id='-33516' order by created_at desc limit 1),'-33503','decision audit retains stable assigned Officer ID');
+select is((select details->>'approver_id' from audit_logs where action='warning.rejected_by_approver' and entity_id='-33516' order by created_at desc limit 1),'00000000-0000-4000-8000-000000033507','decision audit records the current Auth identity');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033502',true);
 set local role authenticated;
 select is((select count(*) from officer_warnings),2::bigint,'recipient sees only own nonvoided effective Warnings');

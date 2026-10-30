@@ -95,23 +95,25 @@ returns void language plpgsql security definer set search_path = '' as $$
 declare
   warning public.officer_warnings;
   approval public.warning_approvals;
+  actor_id bigint := private.current_active_officer_id();
   resulting_status text;
 begin
-  if private.current_active_officer_id() is null then raise exception 'Unauthorized'; end if;
+  if actor_id is null then raise exception 'Unauthorized'; end if;
   if p_decision is null or p_decision not in ('approved','rejected') then
     raise exception 'Invalid warning decision';
   end if;
   select * into warning from public.officer_warnings where id=p_warning_id for update;
   if not found then raise exception 'Warning not found'; end if;
+  if warning.voided_at is not null then raise exception 'This warning is voided'; end if;
   if warning.deleted_at is not null then raise exception 'This warning is deleted'; end if;
   if warning.status<>'pending' then raise exception 'This warning is already closed'; end if;
   select * into approval from public.warning_approvals
-    where warning_id=p_warning_id and approver_id=auth.uid() for update;
+    where warning_id=p_warning_id and approver_officer_id=actor_id for update;
   if not found then raise exception 'You are not an approver for this warning'; end if;
   if approval.decision<>'pending' then
     raise exception 'This approval has already been decided'; end if;
   update public.warning_approvals set decision=p_decision,decided_at=now()
-    where warning_id=p_warning_id and approver_id=auth.uid();
+    where warning_id=p_warning_id and approver_officer_id=actor_id;
   if exists(select 1 from public.warning_approvals
       where warning_id=p_warning_id and decision='rejected') then
     resulting_status := 'rejected';
@@ -128,6 +130,7 @@ begin
     'warning',p_warning_id::text,
     pg_catalog.jsonb_build_object('warning_id',p_warning_id,
       'officer_id',warning.officer_id,'approver_id',auth.uid(),
+      'approver_officer_id',actor_id,
       'decision',p_decision,'status',resulting_status));
 end;
 $$;
