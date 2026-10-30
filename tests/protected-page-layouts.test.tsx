@@ -64,7 +64,7 @@ const event = {
   event_date: "2099-10-08",
   starts_at: "2099-10-08T23:00:00Z",
   ends_at: "2099-10-09T01:00:00Z",
-  participation_points_per_hour_at_end: null,
+  participation_points_per_hour_at_end: null as number | null,
 };
 const task = {
   id: 7,
@@ -105,6 +105,9 @@ let eventRosterOrderCalls: string[];
 let eventRelatedOrderCalls: [string, string][];
 const queryLog: { table: string; method: string; args: unknown[] }[] = [];
 beforeEach(() => {
+  event.starts_at = "2099-10-08T23:00:00Z";
+  event.ends_at = "2099-10-09T01:00:00Z";
+  event.participation_points_per_hour_at_end = null;
   officersForList = [];
   eventRosterRows = [];
   eventRosterCount = 0;
@@ -823,6 +826,42 @@ it("paginates the complete roster in database name order with signup removal ava
   ]);
 });
 
+it("keeps historical ordinary roster removal available only to managers", async () => {
+  event.ends_at = "2020-10-09T01:00:00Z";
+  event.starts_at = "2020-10-08T23:00:00Z";
+  event.participation_points_per_hour_at_end = 1;
+  eventRosterCount = 1;
+  eventRosterRows = [
+    { officer_id: 7, officers: { id: 7, name: "Synthetic Officer" } },
+  ];
+  vi.mocked(getAuthorizationContext).mockResolvedValue({ id: 1 } as never);
+
+  const managerHtml = renderToStaticMarkup(
+    await EventDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({ section: "roster" }),
+    }),
+  );
+  expect(managerHtml.split('aria-label="Confirmed roster"')[1]).toContain(
+    "Remove signup",
+  );
+
+  vi.mocked(canManageEvent).mockReturnValue(false);
+  vi.mocked(getAuthorizationContext).mockResolvedValue({ id: 7 } as never);
+  const officerHtml = renderToStaticMarkup(
+    await EventDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({ section: "roster" }),
+    }),
+  );
+  expect(officerHtml.split('aria-label="Confirmed roster"')[1]).toContain(
+    "Closed",
+  );
+  expect(officerHtml.split('aria-label="Confirmed roster"')[1]).not.toContain(
+    "Remove signup",
+  );
+});
+
 it("shows the current Officer's signup removal in Overview outside the roster preview", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({ id: 99 } as never);
   eventRosterCount = 8;
@@ -1055,7 +1094,7 @@ it("retains list context while changing the Officer warning filter", async () =>
     }),
   );
   expect(html).toContain(
-    'href="/officers/7?warningStatus=approved&amp;returnTo=%2Fofficers%3Fq%3Dsynthetic"',
+    'href="/officers/7?section=warnings&amp;returnTo=%2Fofficers%3Fq%3Dsynthetic"',
   );
 });
 

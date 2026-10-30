@@ -18,7 +18,7 @@ export type EventListItem = Pick<
 > & {
   event_types: { name: string };
   event_branches: { branches: { name: string } }[];
-  event_officers: { officer_id: number }[];
+  event_officers: { officer_id: number; removed_at?: string | null }[];
   confirmed_count?: number;
 };
 
@@ -121,7 +121,8 @@ export function groupEventPage(
   const groups: { label: string; events: EventListItem[] }[] = [];
   for (const event of events) {
     const yourEvent = event.event_officers.some(
-      ({ officer_id }) => officer_id === officerId,
+      ({ officer_id, removed_at }) =>
+        officer_id === officerId && removed_at == null,
     );
     const period =
       status === undefined

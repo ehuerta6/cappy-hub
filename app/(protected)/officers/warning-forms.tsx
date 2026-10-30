@@ -21,7 +21,12 @@ import {
 } from "@/components/ui";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
-import { createWarning, updateWarning, voidWarning } from "./warning-actions";
+import {
+  createWarning,
+  deleteWarning,
+  restoreWarning,
+  updateWarning,
+} from "./warning-actions";
 
 const initial = initialFormActionState;
 
@@ -210,24 +215,49 @@ function WarningFields({
   );
 }
 
-export function VoidWarningForm({
+export function DeleteWarningForm({
   warningId,
   officerId,
 }: {
   warningId: number;
   officerId: number;
 }) {
-  const [state, action, pending] = useActionState(voidWarning, initial);
+  const [state, action, pending] = useActionState(deleteWarning, initial);
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="warning_id" value={warningId} />
       <input type="hidden" name="officer_id" value={officerId} />
       <ConfirmationDialog
-        title="Void warning?"
-        description="This keeps the warning and its approval history, removes it from active warning totals, and cannot be undone."
-        triggerLabel={pending ? "Voiding…" : "Void"}
-        confirmLabel="Void warning"
+        title="Delete warning?"
+        description="This removes the warning from active totals. Its status and approval history are preserved, and an Admin can restore it later."
+        triggerLabel={pending ? "Deleting…" : "Delete"}
+        confirmLabel="Delete warning"
         destructive
+        pending={pending}
+        triggerClassName="button-secondary"
+      />
+      <ActionFeedback state={state} />
+    </form>
+  );
+}
+
+export function RestoreWarningForm({
+  warningId,
+  officerId,
+}: {
+  warningId: number;
+  officerId: number;
+}) {
+  const [state, action, pending] = useActionState(restoreWarning, initial);
+  return (
+    <form action={action} className="flex flex-wrap items-center gap-2">
+      <input type="hidden" name="warning_id" value={warningId} />
+      <input type="hidden" name="officer_id" value={officerId} />
+      <ConfirmationDialog
+        title="Restore warning?"
+        description="This returns the warning to its previous status. Rejected and pending Warnings remain inactive."
+        triggerLabel={pending ? "Restoring…" : "Restore"}
+        confirmLabel="Restore warning"
         pending={pending}
         triggerClassName="button-secondary"
       />

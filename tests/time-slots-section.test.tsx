@@ -81,6 +81,25 @@ it("keeps original labels and IDs when the first full slot is filtered", () => {
   expect(html).not.toContain('type="checkbox" name="slot_ids" value="101"');
 });
 
+it("does not count preserved slot links for a removed signup as current occupancy", () => {
+  const html = renderSection([
+    {
+      ...slots[0],
+      event_time_slot_officers: [
+        {
+          officer_id: 8,
+          officers: { id: 8, name: "Removed Officer" },
+          event_officers: { removed_at: "2026-10-30T12:00:00Z" },
+        },
+      ],
+    },
+  ]);
+
+  expect(html).toContain("0 / 1 registered");
+  expect(html).toContain('type="checkbox" name="slot_ids" value="101"');
+  expect(html).not.toContain("Removed Officer");
+});
+
 it("keeps original labels when an earlier slot is already selected", () => {
   const joinedSlots = [
     {

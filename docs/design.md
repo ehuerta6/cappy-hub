@@ -473,14 +473,14 @@ The following sections describe the actual product workflows and the design dire
 
 ### Officer warnings (embedded workflows)
 
-- **Purpose:** Let Admins directly manage Warnings while preserving historical approval visibility.
-- **Existing functionality that MUST be preserved — CURRENT:** The Officers list retains a read-only legacy assignment view with Officer, reason and creation time. Officer detail shows warnings to the officer and admins; admins can filter active statuses, inspect Voided or All history, create an immediately effective Warning, edit current/historical reasons through the existing focused dialog, inspect historical approval decisions/timestamps, and void an active Warning. The create dialog explains immediate effect; the edit dialog explains audited corrections and preservation of historical status and approval history; errors retain entered values, while success closes the dialog and refreshes warning history. Void retains the warning and its approvals, removes it from active totals, and is terminal. Reason edits retain before/after audit attribution without approving legacy pending/rejected records. The approved-warning threshold message does not itself deactivate an officer.
-- **Information hierarchy:** Warning recipient and reason; current status and date; authorized corrections and historical approval details.
-- **Recommended layout:** Use restrained articles and focused Create/Edit dialogs with clear pending/error feedback. Void remains a secondary action with confirmation.
+- **Purpose:** Let Admins directly manage Warnings while preserving historical decisions and audit evidence.
+- **Existing functionality that MUST be preserved — CURRENT:** Officer detail shows active Warnings to the Officer and Admins. Admins can view Active, Deleted, or All history; create an immediately effective Warning; edit current or historical reasons through the existing focused dialog; and Delete or Restore with confirmation. Deleted warnings leave active totals and retain their status, approvals, and audit history. Restore does not change prior approval or Void state. Legacy pending and rejected Warnings remain inactive. The everyday legacy approval view is removed from the Officers directory; historical approval rows and decisions remain stored. The approved-warning threshold message does not itself deactivate an Officer.
+- **Information hierarchy:** Warning recipient and reason; active, deleted, or historical status; authorized corrections and lifecycle actions.
+- **Recommended layout:** Use restrained articles and focused Create/Edit dialogs with clear pending/error feedback. Delete remains a secondary action with consequence confirmation; Deleted history exposes Restore.
 - **Primary action:** Admin Create warning; Edit warning beside an existing record.
-- **Secondary actions:** Admin Create/Edit warning dialogs, Void confirmation, and Warning-history navigation.
-- **Data presentation:** Plain text reason, status label, readable date, approval count and decision list for admins.
-- **Minimalism notes:** Keep historical approval content separate from the directory table and visible only where access permits.
+- **Secondary actions:** Admin Create/Edit dialogs, Delete/Restore confirmations, and Active/Deleted/All history navigation.
+- **Data presentation:** Plain text reason, status label, and readable date. Do not put legacy approval details in routine Warning views.
+- **Minimalism notes:** Keep historical approval records in the database and audit history without exposing a routine approval/review surface.
 - **Do not add:** Status promotion through reason edits, automatic consequences, Warning analytics, or invented approval roles.
 
 ### Points

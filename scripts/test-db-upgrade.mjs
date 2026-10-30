@@ -95,6 +95,11 @@ try {
     if (migration.endsWith("_direct_admin_warnings.sql")) {
       psql(readFileSync("supabase/fixtures/pre-direct-admin-warnings.sql"));
     }
+    if (migration.endsWith("_recoverable_warning_deletion.sql")) {
+      psql(
+        readFileSync("supabase/fixtures/pre-recoverable-warning-deletion.sql"),
+      );
+    }
     if (migration.endsWith("_recoverable_catalogs.sql")) {
       psql(readFileSync("supabase/fixtures/pre-recoverable-catalogs.sql"));
     }

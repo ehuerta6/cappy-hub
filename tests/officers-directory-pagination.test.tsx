@@ -7,11 +7,6 @@ vi.mock("@/lib/authorization", async (original) => ({
   getAuthorizationContext: vi.fn(),
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
-vi.mock("@/app/(protected)/officers/warning-forms", () => ({
-  WarningDecisionForm: ({ warningId }: { warningId: number }) => (
-    <span>Decide warning {warningId}</span>
-  ),
-}));
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`redirect:${url}`);
@@ -35,34 +30,12 @@ const officers = Array.from({ length: 11 }, (_, index) => ({
   positions: { name: "Technical Officer" },
   officer_branches: [{ branch_id: 3, branches: { name: "operations" } }],
 }));
-const warnings = Array.from({ length: 8 }, (_, index) => ({
-  id: index + 1,
-  officer_id: index + 1,
-  reason: `Complete reason ${index + 1}`,
-  created_at: `2026-10-${String(index + 1).padStart(2, "0")}T18:00:00Z`,
-  status: "pending",
-  voided_at: null as string | null,
-  officers: { id: index + 1, name: `Alex ${index + 1}` },
-  warning_approvals: [
-    {
-      approver_officer_id: index === 7 ? 99 : 50,
-      decision: "pending",
-      approver_role: "President",
-    },
-  ],
-}));
 let queries: Query[];
 let role: "admin" | "lead" | "officer";
-let warningRows: typeof warnings;
 
 beforeEach(() => {
   queries = [];
   role = "officer";
-  warningRows = [
-    ...warnings,
-    { ...warnings[0], id: 9, status: "approved" },
-    { ...warnings[0], id: 10, voided_at: "2026-10-12T00:00:00Z" },
-  ];
   vi.mocked(getAuthorizationContext).mockImplementation(
     async () =>
       ({
@@ -118,27 +91,6 @@ beforeEach(() => {
               (!record.calls.some((call) => call[0] === "or") ||
                 officer.name.toLowerCase().includes("alex")),
           );
-        } else if (table === "officer_warnings") {
-          data = warningRows.filter(
-            (warning) =>
-              has("eq", "status", warning.status) &&
-              has("is", "voided_at", warning.voided_at) &&
-              warning.warning_approvals.some(
-                (approval) =>
-                  (has(
-                    "eq",
-                    "warning_approvals.approver_officer_id",
-                    approval.approver_officer_id,
-                  ) ||
-                    has(
-                      "eq",
-                      "eligible.approver_officer_id",
-                      approval.approver_officer_id,
-                    )) &&
-                  (has("eq", "warning_approvals.decision", approval.decision) ||
-                    has("eq", "eligible.decision", approval.decision)),
-              ),
-          );
         } else if (table === "positions")
           data = [{ id: 2, name: "Technical Officer" }];
         else if (table === "branches") data = [{ id: 3, name: "operations" }];
@@ -181,9 +133,6 @@ it("paginates eight fully filtered officers with exact count and return context"
   expect(html).toContain(
     "returnTo=%2Fofficers%3Fq%3Dalex%26status%3Dall%26position%3D2%26branch%3D3%26page%3D2",
   );
-  expect(html).toContain(
-    'href="/officers?q=alex&amp;status=all&amp;position=2&amp;branch=3&amp;page=2&amp;view=warnings"',
-  );
   const query = queries.find(
     ({ table, calls }) =>
       table === "officers" && calls.some((call) => call[0] === "range"),
@@ -214,14 +163,12 @@ it("shows a clear zero-result state for a filtered directory", async () => {
 });
 
 it.each(["admin", "lead", "officer"] as const)(
-  "bounds eligible %s warning review and gates management links",
+  "removes legacy approval navigation for %s while keeping directory access controls",
   async (actorRole) => {
     role = actorRole;
     const directory = await render();
-    expect(directory).toContain(
-      "7 warnings with a historical approval assignment",
-    );
-    expect(directory).toContain('href="/officers?view=warnings"');
+    expect(directory).not.toContain("historical approval assignment");
+    expect(directory).not.toContain("View historical approvals");
     expect(directory.includes('href="/officers/new"')).toBe(
       actorRole === "admin",
     );
@@ -238,57 +185,15 @@ it.each(["admin", "lead", "officer"] as const)(
         ),
     ).toBe(false);
 
-    queries = [];
-    const review = await render({ view: "warnings", reviewPage: "2" });
-    expect(review).toContain('aria-label="Historical warning approval pages"');
-    expect(review).toContain('option value="2" selected=""');
-    expect(review).toContain("of 2");
-    expect(review).toContain("7 pending");
-    expect(review).toContain("Complete reason 6");
-    expect(review).toContain("Complete reason 7");
-    expect(review).not.toContain("Complete reason 5");
-    expect(review).not.toContain("Complete reason 8");
-    expect(review).not.toContain("Decide warning");
-    expect(review).toContain("Created Oct 6, 2026");
-    expect(review).toContain("Historical approval: Pending");
-    expect(review).not.toContain("Approval decisions");
-    expect(review).toContain(
-      "returnTo=%2Fofficers%3Fview%3Dwarnings%26reviewPage%3D2",
+    expect(queries.some(({ table }) => table === "officer_warnings")).toBe(
+      false,
     );
-    const countQuery = queries.find(
-      ({ table, calls }) =>
-        table === "officer_warnings" &&
-        calls.some(
-          (call) =>
-            call[0] === "select" && (call[2] as { head?: boolean })?.head,
-        ),
-    )!;
-    expect(countQuery.calls).toContainEqual([
-      "eq",
-      "warning_approvals.approver_officer_id",
-      50,
-    ]);
-    expect(countQuery.calls).toContainEqual(["is", "voided_at", null]);
-    const pageQuery = queries.find(
-      ({ table, calls }) =>
-        table === "officer_warnings" &&
-        calls.some((call) => call[0] === "range"),
-    )!;
-    expect(pageQuery.calls).toContainEqual(["range", 5, 9]);
-    expect(pageQuery.calls).toContainEqual([
-      "eq",
-      "eligible.approver_officer_id",
-      50,
-    ]);
-    expect(
-      pageQuery.calls.find((call) => call[0] === "select")?.[1],
-    ).not.toContain(",warning_approvals(");
   },
 );
 
-it("hides the warning entry when no pending decision is eligible", async () => {
-  warningRows = [];
-  const html = await render();
-  expect(html).not.toContain("Review decisions");
+it("routes the retired approval view URL back to the Officer directory", async () => {
+  const html = await render({ view: "warnings", reviewPage: "2" });
+  expect(html).toContain('aria-label="Officer filters"');
   expect(html).toContain("Showing 1–8 of 11 officers");
+  expect(html).not.toContain("Historical warning approvals");
 });

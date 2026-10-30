@@ -26,7 +26,7 @@ export default async function DashboardPage() {
       supabase
         .from("events")
         .select(
-          "*,event_types(name),event_officers(officer_id),presentation_slots(officer_id)",
+          "*,event_types(name),event_officers(officer_id,removed_at),presentation_slots(officer_id)",
         )
         .neq("status", "cancelled")
         .is("deleted_at", null)
@@ -274,7 +274,9 @@ export default async function DashboardPage() {
                     <span
                       className={
                         event.event_officers.some(
-                          (signup) => signup.officer_id === officer.id,
+                          (signup) =>
+                            signup.officer_id === officer.id &&
+                            signup.removed_at == null,
                         )
                           ? "text-info"
                           : "text-muted"
@@ -282,7 +284,9 @@ export default async function DashboardPage() {
                     >
                       {participationLabel(
                         event.event_officers.some(
-                          (signup) => signup.officer_id === officer.id,
+                          (signup) =>
+                            signup.officer_id === officer.id &&
+                            signup.removed_at == null,
                         ),
                       )}
                     </span>
