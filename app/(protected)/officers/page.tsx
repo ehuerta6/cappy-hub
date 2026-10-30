@@ -103,7 +103,7 @@ export default async function OfficersPage({
       />
       {canManageOfficers(actor) && (
         <Link href="/officers/catalogs" className="text-sm underline">
-          Manage positions and branches
+          Manage catalogs
         </Link>
       )}
       <>

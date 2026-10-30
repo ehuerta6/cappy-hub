@@ -150,6 +150,10 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       ,'public.create_event_location(text)'::regprocedure
       ,'public.rename_event_location(bigint,text)'::regprocedure
       ,'public.delete_event_location(bigint)'::regprocedure
+      ,'public.create_task_type(text)'::regprocedure
+      ,'public.rename_task_type(bigint,text)'::regprocedure
+      ,'public.delete_task_type(bigint)'::regprocedure
+      ,'public.restore_task_type(bigint)'::regprocedure
       ,'public.confirm_premature_participation(bigint,text)'::regprocedure
       ,'public.add_presenter_slot(bigint)'::regprocedure
       ,'public.reorder_presenter_slots(bigint,bigint[])'::regprocedure

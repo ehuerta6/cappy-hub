@@ -1070,6 +1070,24 @@ export type Database = {
           },
         ];
       };
+      task_types: {
+        Row: {
+          available_for_new_tasks: boolean;
+          id: number;
+          name: string;
+        };
+        Insert: {
+          available_for_new_tasks?: boolean;
+          id?: number;
+          name: string;
+        };
+        Update: {
+          available_for_new_tasks?: boolean;
+          id?: number;
+          name?: string;
+        };
+        Relationships: [];
+      };
       tasks: {
         Row: {
           approval_required: boolean;
@@ -1161,6 +1179,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "officers";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_task_type_fkey";
+            columns: ["task_type"];
+            isOneToOne: false;
+            referencedRelation: "task_types";
+            referencedColumns: ["name"];
           },
         ];
       };
@@ -1498,6 +1523,7 @@ export type Database = {
         };
         Returns: number;
       };
+      create_task_type: { Args: { p_name: string }; Returns: number };
       create_warning: {
         Args: { p_officer_id: number; p_reason: string };
         Returns: number;
@@ -1510,6 +1536,7 @@ export type Database = {
       delete_event_location: { Args: { p_id: number }; Returns: undefined };
       delete_event_type: { Args: { p_id: number }; Returns: undefined };
       delete_position: { Args: { p_id: number }; Returns: undefined };
+      delete_task_type: { Args: { p_id: number }; Returns: undefined };
       delete_warning: { Args: { p_warning_id: number }; Returns: undefined };
       event_signup_counts: {
         Args: Record<PropertyKey, never>;
@@ -1627,6 +1654,10 @@ export type Database = {
         Args: { p_id: number; p_name: string };
         Returns: undefined;
       };
+      rename_task_type: {
+        Args: { p_id: number; p_name: string };
+        Returns: undefined;
+      };
       reorder_presenter_slots: {
         Args: { p_event_id: number; p_slot_ids: number[] };
         Returns: undefined;
@@ -1641,6 +1672,7 @@ export type Database = {
       restore_event_type: { Args: { p_id: number }; Returns: undefined };
       restore_position: { Args: { p_id: number }; Returns: undefined };
       restore_task: { Args: { p_task_id: number }; Returns: undefined };
+      restore_task_type: { Args: { p_id: number }; Returns: undefined };
       restore_warning: { Args: { p_warning_id: number }; Returns: undefined };
       save_event_with_capacity: {
         Args: {

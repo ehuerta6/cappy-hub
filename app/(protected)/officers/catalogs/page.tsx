@@ -38,10 +38,15 @@ export default async function OfficerCatalogsPage({
           .from("event_types")
           .select("id", { count: "exact", head: true })
           .eq("available_for_new_events", status === "active")
-      : await supabase
-          .from(table)
-          .select("id", { count: "exact", head: true })
-          .eq("is_active", status === "active");
+      : table === "task_types"
+        ? await supabase
+            .from("task_types")
+            .select("id", { count: "exact", head: true })
+            .eq("available_for_new_tasks", status === "active")
+        : await supabase
+            .from(table)
+            .select("id", { count: "exact", head: true })
+            .eq("is_active", status === "active");
   if (countResult.error) throw new Error("Could not load catalog count");
   const totalCount = countResult.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / CATALOGS_PER_PAGE));
@@ -92,6 +97,16 @@ export default async function OfficerCatalogsPage({
       .range(start, end);
     records = result.data;
     hasRecordsError = result.error !== null;
+  } else if (categoryDefinition.catalog === "task_type") {
+    const result = await supabase
+      .from("task_types")
+      .select("id,name,available_for_new_tasks")
+      .eq("available_for_new_tasks", status === "active")
+      .order("name")
+      .order("id")
+      .range(start, end);
+    records = result.data;
+    hasRecordsError = result.error !== null;
   } else {
     const result = await supabase
       .from("event_locations")
@@ -112,7 +127,7 @@ export default async function OfficerCatalogsPage({
     <div className="space-y-5">
       <PageHeader
         title="Officer catalogs"
-        description="Manage positions, branches, Event Types and reusable Event locations."
+        description="Manage Positions, Branches, Event Types, Task Types and reusable Event locations."
       />
       <p className="text-sm text-muted">
         Required system Positions are protected. Deleted values stay readable on

@@ -13,11 +13,11 @@ const adminAreas = [
     link: "Manage officers",
   },
   {
-    title: "Positions and branches",
+    title: "Catalogs",
     description:
-      "Manage the club structure used by officer records and branch-scoped work.",
+      "Manage the club values used by Officers, Events, Tasks and branch-scoped work.",
     href: "/officers/catalogs",
-    link: "Manage positions and branches",
+    link: "Manage catalogs",
   },
   {
     title: "Points configuration and corrections",

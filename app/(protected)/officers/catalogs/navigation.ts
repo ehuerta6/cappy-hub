@@ -23,6 +23,12 @@ export const CATALOG_CATEGORIES = [
     catalog: "event_type",
     table: "event_types",
   },
+  {
+    value: "task-types",
+    label: "Task Types",
+    catalog: "task_type",
+    table: "task_types",
+  },
 ] as const;
 
 export type CatalogCategory = (typeof CATALOG_CATEGORIES)[number]["value"];

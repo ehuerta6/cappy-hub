@@ -6,12 +6,19 @@ import { beforeEach, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   actor: { applicationRole: "admin" },
-  counts: { positions: 0, branches: 0, event_locations: 0, event_types: 0 },
+  counts: {
+    positions: 0,
+    branches: 0,
+    event_locations: 0,
+    event_types: 0,
+    task_types: 0,
+  },
   data: {
     positions: [],
     branches: [],
     event_locations: [],
     event_types: [],
+    task_types: [],
   } as Record<string, Array<Record<string, unknown>>>,
   tables: [] as string[],
   filters: [] as Array<[string, string, boolean]>,
@@ -103,12 +110,14 @@ beforeEach(() => {
     branches: 0,
     event_locations: 0,
     event_types: 0,
+    task_types: 0,
   };
   mocks.data = {
     positions: [],
     branches: [],
     event_locations: [],
     event_types: [],
+    task_types: [],
   };
   mocks.tables.length = 0;
   mocks.filters.length = 0;
@@ -130,6 +139,7 @@ it.each([
   ["branches", "branches"],
   ["locations", "event_locations"],
   ["types", "event_types"],
+  ["task-types", "task_types"],
 ] as const)("loads only the selected %s category", async (category, table) => {
   mocks.counts[table] = 1;
   mocks.data[table] = [{ id: 1, name: "Selected record" }];
@@ -138,7 +148,13 @@ it.each([
   expect(mocks.tables).toEqual([table, table]);
   expect(html).toContain("Catalog categories");
   expect(html).toContain('aria-current="page"');
-  for (const category of ["positions", "branches", "locations", "types"])
+  for (const category of [
+    "positions",
+    "branches",
+    "locations",
+    "types",
+    "task-types",
+  ])
     expect(html).toContain(`href="/officers/catalogs?category=${category}"`);
   expect(html).toContain("Selected record");
 });
@@ -213,6 +229,22 @@ it("keeps empty and single-page categories valid without a pager", async () => {
   const single = await renderPage({ category: "positions" });
   expect(single).toContain("1 record");
   expect(single).not.toContain("Positions pages");
+});
+
+it("shows Task Type rows in active and deleted catalog views", async () => {
+  mocks.counts.task_types = 1;
+  mocks.data.task_types = [
+    { id: 12, name: "Flyer", available_for_new_tasks: false },
+  ];
+  const html = await renderPage({ category: "task-types", status: "deleted" });
+
+  expect(mocks.filters).toEqual([
+    ["task_types", "available_for_new_tasks", false],
+    ["task_types", "available_for_new_tasks", false],
+  ]);
+  expect(html).toContain("Task Types");
+  expect(html).toContain("Flyer");
+  expect(html).toContain('name="operation" value="restore"');
 });
 
 it.each(["lead", "officer"])(

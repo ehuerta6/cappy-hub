@@ -4,9 +4,12 @@ import {
   requiredTrimmedStringSchema,
 } from "@/lib/validation";
 
-const catalogNameSchema = zod.enum(["position", "branch", "event_type"], {
-  error: "Invalid catalog operation",
-});
+const catalogNameSchema = zod.enum(
+  ["position", "branch", "event_type", "task_type"],
+  {
+    error: "Invalid catalog operation",
+  },
+);
 
 export const catalogMutationInputSchema = zod.discriminatedUnion(
   "operation",

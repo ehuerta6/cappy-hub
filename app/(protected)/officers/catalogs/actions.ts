@@ -77,6 +77,31 @@ export async function changeCatalog(
         { p_id: validatedLocationMutation.id },
       ));
     }
+  } else if (validatedCatalogMutation?.catalog === "task_type") {
+    if (validatedCatalogMutation.operation === "create") {
+      ({ error: mutationErrorResponse } = await supabase.rpc(
+        "create_task_type",
+        { p_name: validatedCatalogMutation.name },
+      ));
+    } else if (validatedCatalogMutation.operation === "rename") {
+      ({ error: mutationErrorResponse } = await supabase.rpc(
+        "rename_task_type",
+        {
+          p_id: validatedCatalogMutation.id,
+          p_name: validatedCatalogMutation.name,
+        },
+      ));
+    } else if (validatedCatalogMutation.operation === "restore") {
+      ({ error: mutationErrorResponse } = await supabase.rpc(
+        "restore_task_type",
+        { p_id: validatedCatalogMutation.id },
+      ));
+    } else {
+      ({ error: mutationErrorResponse } = await supabase.rpc(
+        "delete_task_type",
+        { p_id: validatedCatalogMutation.id },
+      ));
+    }
   } else if (validatedCatalogMutation?.catalog === "event_type") {
     if (validatedCatalogMutation.operation === "create") {
       ({ error: mutationErrorResponse } = await supabase.rpc(
@@ -186,7 +211,9 @@ export async function changeCatalog(
       ? "Branch"
       : validatedCatalogMutation?.catalog === "event_type"
         ? "Event type"
-        : "Position";
+        : validatedCatalogMutation?.catalog === "task_type"
+          ? "Task type"
+          : "Position";
   const operation =
     validatedLocationMutation?.operation ?? validatedCatalogMutation?.operation;
   const verb =

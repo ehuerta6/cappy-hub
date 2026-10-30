@@ -26,7 +26,7 @@ it("surfaces existing administration areas and their current destinations", asyn
 
   expect(html).toContain("Officer access");
   expect(html).toContain('href="/officers"');
-  expect(html).toContain("Positions and branches");
+  expect(html).toContain("Catalogs");
   expect(html).toContain('href="/officers/catalogs"');
   expect(html).toContain("Points configuration and corrections");
   expect(html).toContain('href="/points"');

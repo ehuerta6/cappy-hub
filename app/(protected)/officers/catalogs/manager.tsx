@@ -6,13 +6,15 @@ import { ActionFeedback, FieldError } from "@/components/ui";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { changeCatalog } from "./actions";
 
-type Catalog = "position" | "branch" | "event_location" | "event_type";
+type Catalog =
+  "position" | "branch" | "event_location" | "event_type" | "task_type";
 export type CatalogRecord = {
   id: number;
   name: string;
   code?: string | null;
   is_active?: boolean;
   available_for_new_events?: boolean;
+  available_for_new_tasks?: boolean;
 };
 
 function CatalogForm({
@@ -38,7 +40,9 @@ function CatalogForm({
         ? "Branch"
         : catalog === "event_type"
           ? "Event type"
-          : "Position";
+          : catalog === "task_type"
+            ? "Task type"
+            : "Position";
   const formClassName =
     operation === "create" ? "catalog-create-form" : "catalog-action-form";
   return (
@@ -125,7 +129,9 @@ function CatalogRename({
         ? "Branch"
         : catalog === "event_type"
           ? "Event type"
-          : "Position";
+          : catalog === "task_type"
+            ? "Task type"
+            : "Position";
 
   useEffect(() => {
     if (editing) inputRef.current?.focus();
@@ -233,7 +239,8 @@ export default function CatalogManager({
           const required = catalog === "position" && record.code != null;
           const deleted =
             record.is_active === false ||
-            record.available_for_new_events === false;
+            record.available_for_new_events === false ||
+            record.available_for_new_tasks === false;
           return (
             <li key={record.id} className="catalog-record-row">
               {required ? (

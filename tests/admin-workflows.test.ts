@@ -219,6 +219,35 @@ it("routes approved Event Type deletion through the trusted RPC", async () => {
   expect(rpc).toHaveBeenCalledWith("delete_event_type", { p_id: 7 });
 });
 
+it("routes Task Type CRUD through its own trusted RPCs", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 601,
+    applicationRole: "admin",
+  } as never);
+  const form = (operation: string, name = "New Task Type") => {
+    const data = new FormData();
+    data.set("catalog", "task_type");
+    data.set("operation", operation);
+    data.set("id", "17");
+    data.set("name", name);
+    return data;
+  };
+
+  expect((await changeCatalog(previous, form("create"))).success).toBe(
+    "Task type added",
+  );
+  expect(rpc).toHaveBeenLastCalledWith("create_task_type", {
+    p_name: "New Task Type",
+  });
+  await changeCatalog(previous, form("rename", "Renamed Task Type"));
+  expect(rpc).toHaveBeenLastCalledWith("rename_task_type", {
+    p_id: 17,
+    p_name: "Renamed Task Type",
+  });
+  await changeCatalog(previous, form("delete"));
+  expect(rpc).toHaveBeenLastCalledWith("delete_task_type", { p_id: 17 });
+});
+
 it("routes a valid catalog create through the existing branch RPC", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 601,
@@ -383,7 +412,7 @@ it("denies an assigned Lead direct access to Officer mutation", async () => {
   expect(redirect).not.toHaveBeenCalled();
 });
 
-it.each(["position", "branch", "event_type", "event_location"])(
+it.each(["position", "branch", "event_type", "event_location", "task_type"])(
   "restores %s through its specific trusted RPC",
   async (catalog) => {
     vi.mocked(getAuthorizationContext).mockResolvedValue({
