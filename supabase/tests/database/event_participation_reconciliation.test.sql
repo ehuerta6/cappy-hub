@@ -139,6 +139,9 @@ select is((select count(*) from audit_logs where action='points.participation_re
  and entity_id=(select id::text from point_transactions where event_id=-32801 and award_type='participation')
  and (details->>'before_points')::numeric=7 and (details->>'after_points')::numeric=2),1::bigint,
  'directly edited amount replacement has an attributable before/after reconciliation audit');
+select results_eq($$select to_jsonb(p) from point_transactions p where event_id=-32801 and award_type='manual'$$,
+ $$select original from retained_manual$$,
+ 'source-derived automatic recalculation leaves independent manual credit and its history intact');
 -- Missing legacy basis is unknown, not evidence of an unedited amount.
 insert into events(id,name,description,location,event_type_id,starts_at,ends_at,participation_points_per_hour_at_end)
  values(-32806,'Unknown legacy basis','Synthetic','Campus',(select id from event_types where name='Meeting'),
