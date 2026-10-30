@@ -7,12 +7,6 @@ drop trigger if exists event_officers_release_presenter_slots on public.event_of
 drop trigger if exists event_officers_release_presenter_slots_on_removal on public.event_officers;
 drop trigger if exists officers_release_presenter_slots on public.officers;
 
-drop function if exists private.prevent_event_type_change_with_presenter_slots();
-drop function if exists private.prevent_session_type_rename_with_slots();
-drop function if exists private.release_presenter_slots_on_signup_delete();
-drop function if exists private.release_inactive_officer_presenter_slots();
-drop function if exists private.release_presenter_slots_on_signup_removal();
-
 revoke all on function private.add_presenter_slot(bigint),
   private.reorder_presenter_slots(bigint,bigint[]),
   private.remove_presenter_slot(bigint),
