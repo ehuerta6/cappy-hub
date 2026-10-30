@@ -19,12 +19,12 @@ import {
 } from "@/components/recurrence-scope";
 import { createTask, editRecurringTask, editStandaloneTask } from "./actions";
 import { RecurrenceFields } from "@/components/recurrence-fields";
-import { TASK_TYPES } from "@/lib/task-types";
 import { TaskEventCombobox } from "@/components/task-event-combobox";
 
 export default function TaskCreateForm({
   returnTo,
   branches,
+  taskTypes = [],
   events = [],
   taskEventIds = [],
   recurrenceRequestKey,
@@ -33,6 +33,7 @@ export default function TaskCreateForm({
 }: {
   returnTo?: string;
   branches: { id: number; name: string }[];
+  taskTypes?: { name: string }[];
   events?: {
     id: number;
     name: string;
@@ -185,8 +186,11 @@ export default function TaskCreateForm({
           <option value="" disabled>
             Select task type
           </option>
-          {TASK_TYPES.map((type) => (
-            <option key={type}>{type}</option>
+          {task && !taskTypes.some((type) => type.name === task.task_type) && (
+            <option value={task.task_type}>{task.task_type} (Deleted)</option>
+          )}
+          {taskTypes.map(({ name }) => (
+            <option key={name}>{name}</option>
           ))}
         </select>
         <FieldError id="task-type-error">{fieldErrors.task_type}</FieldError>

@@ -11,6 +11,13 @@ it("models only valid catalog operation combinations", () => {
   ).toBe(true);
   expect(
     catalogMutationInputSchema.safeParse({
+      catalog: "task_type",
+      operation: "create",
+      name: "New Task Type",
+    }).success,
+  ).toBe(true);
+  expect(
+    catalogMutationInputSchema.safeParse({
       catalog: "position",
       operation: "rename",
       id: "4",

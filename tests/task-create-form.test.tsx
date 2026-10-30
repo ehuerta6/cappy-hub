@@ -31,6 +31,7 @@ it("offers searchable Event links and retains a historical linked Event", () => 
   const html = renderToStaticMarkup(
     <TaskCreateForm
       branches={[]}
+      taskTypes={[{ name: "Flyer" }, { name: "New Type" }]}
       events={events}
       taskEventIds={[22]}
       recurrenceRequestKey="00000000-0000-4000-8000-000000000001"
@@ -50,6 +51,7 @@ it("keeps the task title compact and describes recurrence as optional", () => {
   const html = renderToStaticMarkup(
     <TaskCreateForm
       branches={[]}
+      taskTypes={[{ name: "Flyer" }]}
       recurrenceRequestKey="00000000-0000-4000-8000-000000000001"
     />,
   );
@@ -80,6 +82,7 @@ it("submits an empty event_ids selection without adding a placeholder value", ()
   const html = renderToStaticMarkup(
     <TaskCreateForm
       branches={[]}
+      taskTypes={[{ name: "Flyer" }]}
       events={events}
       recurrenceRequestKey="00000000-0000-4000-8000-000000000001"
     />,
@@ -109,6 +112,7 @@ it("prefills an existing historical Event link when editing a Task", () => {
   const html = renderToStaticMarkup(
     <TaskCreateForm
       task={task}
+      taskTypes={[{ name: "Post" }]}
       taskEventIds={[22]}
       branches={[]}
       events={events}
@@ -118,4 +122,37 @@ it("prefills an existing historical Event link when editing a Task", () => {
 
   expect(html).toContain("Historical meeting — Sep 20, 2026 (Cancelled)");
   expect(html).toContain('type="hidden" name="event_ids" value="22"');
+});
+
+it("keeps a deleted type selected while offering only available choices", () => {
+  const task: Tables<"tasks"> = {
+    id: -9,
+    title: "Existing task",
+    description: "Task description",
+    task_type: "Legacy type",
+    branch_id: -1,
+    due_date: "2026-10-20",
+    points: 1,
+    approval_required: false,
+    created_by: -2,
+    created_at: "2026-10-01T00:00:00Z",
+    recurrence_key: null,
+    recurrence_series_id: null,
+    removed_at: null,
+    removed_by: null,
+  };
+  const html = renderToStaticMarkup(
+    <TaskCreateForm
+      task={task}
+      taskTypes={[{ name: "Flyer" }]}
+      branches={[]}
+      recurrenceRequestKey="00000000-0000-4000-8000-000000000001"
+    />,
+  );
+
+  expect(html).toContain(
+    '<option value="Legacy type" selected="">Legacy type (Deleted)</option>',
+  );
+  expect(html).toContain("<option>Flyer</option>");
+  expect(html).not.toContain("<option>Legacy type</option>");
 });

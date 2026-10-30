@@ -1,15 +1,8 @@
 import * as zod from "zod";
 
-export const TASK_TYPES = [
-  "Flyer",
-  "LinkedIn",
-  "Airtable",
-  "Story",
-  "Post",
-] as const;
+// The available values live in the Task Types catalog. Trusted SQL mutations
+// validate that new selections are active and let an unchanged historical
+// value remain on an existing Task.
+export const taskTypeSchema = zod.string().trim().min(1, "Select a Task type");
 
-export const taskTypeSchema = zod.enum(TASK_TYPES, {
-  error: "Select a Task type",
-});
-
-export type TaskType = (typeof TASK_TYPES)[number];
+export type TaskType = string;

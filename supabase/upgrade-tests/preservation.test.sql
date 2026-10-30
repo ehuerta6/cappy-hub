@@ -474,6 +474,16 @@ select is((select participation_points_per_hour_at_end from events where id=9230
 select ok(exists(select 1 from audit_logs where action='points.premature_participation_confirmed'
  and entity_id='92302' and details->>'previous_basis_known'='false' and actor_officer_id=92301),
  'reviewed unknown legacy basis and confirming Admin are explicit audit evidence');
+select is((select jsonb_build_object('id', id, 'task_type', task_type, 'title', title,
+    'branch_id', branch_id, 'due_date', due_date, 'points', points, 'created_by', created_by)
+  from tasks where id = 92347),
+  (select to_jsonb(f) from upgrade_fixture.pre_task_type_catalog f),
+  'Task Type catalog migration preserves existing Task values and references');
+select ok(exists(select 1 from task_types where name='Post' and available_for_new_tasks),
+  'existing Task types are backfilled as available');
+select ok((select convalidated from pg_catalog.pg_constraint
+  where conrelid='public.tasks'::regclass and conname='tasks_task_type_fkey'),
+  'Task type foreign key validates after historical rows are backfilled');
 
 select * from finish();
 rollback;

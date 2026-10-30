@@ -5,9 +5,8 @@ import {
   bulkTaskAssignmentInputSchema,
   setTaskCompletionInputSchema,
 } from "@/app/(protected)/tasks/validation";
-import { TASK_TYPES } from "@/lib/task-types";
 
-it("accepts every supported Task type for create and edit", () => {
+it("validates nonempty Task type names and leaves availability to trusted SQL", () => {
   const baseTask = {
     title: "Task",
     description: "Prepare the content",
@@ -16,20 +15,16 @@ it("accepts every supported Task type for create and edit", () => {
     points: "1.5",
   };
 
-  for (const taskType of TASK_TYPES) {
-    expect(
-      createTaskInputSchema.safeParse({ ...baseTask, task_type: taskType })
-        .success,
-    ).toBe(true);
-    expect(
-      taskDetailsInputSchema.safeParse({ ...baseTask, task_type: taskType })
-        .success,
-    ).toBe(true);
-  }
-
   expect(
     createTaskInputSchema.safeParse({ ...baseTask, task_type: "Other" })
       .success,
+  ).toBe(true);
+  expect(
+    taskDetailsInputSchema.safeParse({ ...baseTask, task_type: "Retired" })
+      .success,
+  ).toBe(true);
+  expect(
+    createTaskInputSchema.safeParse({ ...baseTask, task_type: " " }).success,
   ).toBe(false);
 });
 

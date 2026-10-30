@@ -68,6 +68,8 @@ select isnt((select removed_at from tasks where id=-33201),null::timestamptz,
 select is((select to_jsonb(t)-'removed_at'-'removed_by' from tasks t where id=-33201),
   (select row-'removed_at'-'removed_by' from task_before_delete where id=-33201),
   'delete preserves the Task row and recurrence identity');
+select is((select task_type from tasks where id=-33201), 'Flyer',
+  'Task delete preserves its catalog-backed type');
 select is((select to_jsonb(a)-'removed_at'-'removed_by' from task_officer_assignments a
   where task_id=-33201 and officer_id=-33203),
   (select row-'removed_at'-'removed_by' from assignment_before_delete where task_id=-33201 and officer_id=-33203),
@@ -89,6 +91,8 @@ select is((select removed_at from tasks where id=-33201),null::timestamptz,
 select is((select recurrence_key from tasks where id=-33201),
   current_setting('test.denver_today')::date-1,
   'restore preserves the original recurrence occurrence identity');
+select is((select task_type from tasks where id=-33201), 'Flyer',
+  'Task restore preserves its catalog-backed type');
 select is((select removed_at from point_transactions where task_id=-33201 and award_type='task'),null::timestamptz,
   'restore reactivates an eligible mechanically suspended award');
 select is((select task_reconciliation_suspended from point_transactions

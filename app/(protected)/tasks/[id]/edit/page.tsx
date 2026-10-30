@@ -29,7 +29,7 @@ export default async function EditTaskPage({
     .single();
   if (task.error || !task.data || task.data.removed_at) notFound();
   if (!canManageEvent(actor, [task.data.branch_id])) redirect("/access-denied");
-  const [series, branches, links, eventOptions] = await Promise.all([
+  const [series, branches, links, eventOptions, taskTypes] = await Promise.all([
     task.data.recurrence_series_id === null
       ? Promise.resolve({ data: null, error: null })
       : supabase
@@ -43,8 +43,19 @@ export default async function EditTaskPage({
       .from("events")
       .select("id,name,event_date,status,deleted_at")
       .order("event_date", { ascending: false }),
+    supabase
+      .from("task_types")
+      .select("name")
+      .eq("available_for_new_tasks", true)
+      .order("name"),
   ]);
-  if (series.error || branches.error || links.error || eventOptions.error)
+  if (
+    series.error ||
+    branches.error ||
+    links.error ||
+    eventOptions.error ||
+    taskTypes.error
+  )
     throw new Error("Failed to load Task edit form");
   const linkedIds = links.data.map(({ event_id }) => event_id);
   const events = eventOptions.data.filter(
@@ -60,6 +71,7 @@ export default async function EditTaskPage({
       <PageHeader title={series.data ? "Edit recurring task" : "Edit task"} />
       <TaskCreateForm
         returnTo={returnTo}
+        taskTypes={taskTypes.data}
         task={task.data}
         series={series.data ?? undefined}
         branches={branches.data.filter(

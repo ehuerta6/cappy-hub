@@ -63,6 +63,30 @@ it("shows deleted catalog state and a Restore action", () => {
   expect(html).toContain('name="operation" value="restore"');
 });
 
+it("manages Task Types using the recoverable catalog actions", () => {
+  const activeHtml = renderToStaticMarkup(
+    createElement(CatalogManager, {
+      catalog: "task_type",
+      title: "Task Types",
+      records: [{ id: 10, name: "Flyer", available_for_new_tasks: true }],
+    }),
+  );
+  const deletedHtml = renderToStaticMarkup(
+    createElement(CatalogManager, {
+      catalog: "task_type",
+      title: "Task Types",
+      records: [{ id: 10, name: "Flyer", available_for_new_tasks: false }],
+    }),
+  );
+
+  expect(activeHtml).toContain('name="catalog" value="task_type"');
+  expect(activeHtml).toContain('name="operation" value="create"');
+  expect(activeHtml).toContain('name="operation" value="delete"');
+  expect(deletedHtml).toContain("Flyer");
+  expect(deletedHtml).toContain("Deleted");
+  expect(deletedHtml).toContain('name="operation" value="restore"');
+});
+
 it("renders compact editable management rows with recoverable removal", () => {
   const branchHtml = renderToStaticMarkup(
     createElement(CatalogManager, {
