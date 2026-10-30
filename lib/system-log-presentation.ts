@@ -59,6 +59,10 @@ type ActionPresentation = {
 };
 
 const actionPresentations: Record<string, ActionPresentation> = {
+  "branch.restored": { label: "Restored a branch" },
+  "position.restored": { label: "Restored a position" },
+  "event_type.restored": { label: "Restored an Event type" },
+  "event_location.restored": { label: "Restored an Event location" },
   "branch.created": { label: "Created a branch" },
   "branch.deleted": { label: "Deleted a branch" },
   "branch.renamed": { label: "Renamed a branch" },
@@ -127,6 +131,15 @@ const actionPresentations: Record<string, ActionPresentation> = {
     label: "Added a points transaction",
     kind: "points",
     pointVerb: "Added points",
+  },
+  "points.participation_suspended": {
+    label: "Suspended premature participation",
+  },
+  "points.participation_reconciled": {
+    label: "Reconciled Event participation",
+  },
+  "points.premature_participation_confirmed": {
+    label: "Confirmed premature participation award",
   },
   "points.participation_created": {
     label: "Awarded event participation points",
@@ -238,6 +251,7 @@ const actionPresentations: Record<string, ActionPresentation> = {
     label: "Recorded a warning",
     kind: "warning",
   },
+  "warning.updated": { label: "Updated a warning", kind: "warning" },
   "warning.voided": { label: "Voided a warning", kind: "warning" },
   "warning.deleted": { label: "Deleted a warning" },
   "warning.rejected_by_approver": {

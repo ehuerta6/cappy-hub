@@ -72,11 +72,11 @@ select is((select count(*) from point_transactions where event_id=-2951 and offi
   and event_time_slot_id is not null and award_type='participation'),2::bigint,
   'automatic processing creates a separate participation transaction for each selected slot');
 select is((select points from point_transactions where event_id=-2951 and officer_id=-2952
-  and event_time_slot_id=-295101 and award_type='participation'),20::numeric,
-  'first slot award equals its two hour duration times the captured rate');
+  and event_time_slot_id=-295101 and award_type='participation'),2::numeric,
+  'first slot earns exactly two Points at1/hour');
 select is((select points from point_transactions where event_id=-2951 and officer_id=-2952
-  and event_time_slot_id=-295102 and award_type='participation'),25::numeric,
-  'second slot award equals its 2.5 hour duration times the captured rate');
+  and event_time_slot_id=-295102 and award_type='participation'),2.5::numeric,
+  'second slot earns exactly2.5 Points at1/hour');
 select is((select count(*) from point_transactions where event_id=-2951 and officer_id=-2953
   and award_type='participation'),2::bigint,'independent manual credit does not suppress either slot award');
 select is(private.process_finished_events(),0,'automatic slot processing is idempotent');
@@ -96,8 +96,8 @@ set local role authenticated;
 select lives_ok($$select public.bulk_add_event_officers_to_slots(-2952,array[-2952]::bigint[],array[-295201]::bigint[])$$,
   'manager can bulk add a historical signup with an explicit selected slot');
 select is((select points from point_transactions where event_id=-2952 and officer_id=-2952
-  and event_time_slot_id=-295201 and award_type='participation'),20::numeric,
-  'historical bulk award uses selected slot duration and captures the configured rate');
+  and event_time_slot_id=-295201 and award_type='participation'),2::numeric,
+  'historical bulk addition uses selected slot duration at1/hour');
 select is((select count(*) from event_officers where event_id=-2952 and officer_id=-2952),1::bigint,
   'multiple slot awards use one canonical Event signup');
 reset role;
@@ -108,7 +108,7 @@ select lives_ok($$select public.bulk_add_event_officers_to_slots(-2952,array[-29
 select is((select count(*) from point_transactions where event_id=-2952 and award_type='participation'),2::bigint,
   'bulk processing preserves one transaction per newly selected Officer and slot');
 select is((select points from point_transactions where event_id=-2952 and officer_id=-2953
-  and event_time_slot_id=-295202 and award_type='participation'),25::numeric,
+  and event_time_slot_id=-295202 and award_type='participation'),2.5::numeric,
   'bulk award uses the selected 2.5 hour slot duration');
 select throws_ok($$select public.bulk_add_event_officers_to_slots(-2952,array[-2954]::bigint[],array[-295201]::bigint[])$$,
   'P0001','The selected Officers exceed a Time Slot capacity','bulk additions enforce per-slot capacity atomically');

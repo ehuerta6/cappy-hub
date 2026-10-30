@@ -258,8 +258,8 @@ returns trigger language plpgsql security definer set search_path = '' as $$
 declare a record; award public.point_transactions%rowtype;
 begin
   if new.due_date is not distinct from old.due_date and new.points is not distinct from old.points then return new; end if;
-  -- A deliberate correction of the Task fixed value updates dependent awards.
-  -- Routine processing/descriptive edits never overwrite historical direct edits.
+  -- A source fixed-value correction replaces directly edited automatic amounts.
+  -- Descriptive edits and routine processing do not recalculate award values.
   if new.points is distinct from old.points then
     for award in select * from public.point_transactions
       where task_id=new.id and award_type='task'
@@ -449,21 +449,44 @@ $$;
 -- this intent separate prevents due-date/completion recovery from reviving it.
 create or replace function private.remove_point_transaction(p_transaction_id bigint)
 returns boolean language plpgsql security definer set search_path = '' as $$
-declare old_row public.point_transactions; task_id_to_lock bigint;
+declare
+  old_row public.point_transactions%rowtype;
+  event_id_to_lock bigint;
+  task_id_to_lock bigint;
+  event_was_suspended boolean := false;
 begin
   if not private.current_is_admin() then raise exception 'Admin required'; end if;
-  select task_id into task_id_to_lock from public.point_transactions where id=p_transaction_id;
+  select event_id,task_id into event_id_to_lock,task_id_to_lock
+    from public.point_transactions where id=p_transaction_id;
+  if not found then raise exception 'Point transaction not found'; end if;
+  -- An automatic transaction belongs to one source domain. Lock its source
+  -- before the transaction, matching each reconciler's lock order.
+  if event_id_to_lock is not null then
+    perform 1 from public.events where id=event_id_to_lock for update;
+  end if;
   if task_id_to_lock is not null then
     perform 1 from public.tasks where id=task_id_to_lock for update;
   end if;
   select * into old_row from public.point_transactions where id=p_transaction_id for update;
   if not found then raise exception 'Point transaction not found'; end if;
-  if old_row.removed_at is not null and not old_row.task_reconciliation_suspended then return false; end if;
+  if old_row.event_id is not null and old_row.award_type='participation' then
+    select schedule_suspended into event_was_suspended
+      from private.event_participation_basis where transaction_id=p_transaction_id for update;
+  end if;
+  if old_row.removed_at is not null
+      and not old_row.task_reconciliation_suspended
+      and not coalesce(event_was_suspended,false) then return false; end if;
+  update private.event_participation_basis set schedule_suspended=false
+    where transaction_id=p_transaction_id;
   update public.point_transactions set removed_at=pg_catalog.clock_timestamp(),
-    removed_by=auth.uid(),task_reconciliation_suspended=false where id=p_transaction_id;
+    removed_by=auth.uid(),removed_by_officer_id=private.current_active_officer_id(),
+    participation_schedule_suspended=false,task_reconciliation_suspended=false
+    where id=p_transaction_id;
   perform private.write_audit_log('points.transaction_removed','point_transaction',
     p_transaction_id::text,pg_catalog.jsonb_build_object(
-      'before',pg_catalog.to_jsonb(old_row),'removed_by',auth.uid()));
+      'before',pg_catalog.to_jsonb(old_row),
+      'after',(select pg_catalog.to_jsonb(p) from public.point_transactions p where id=p_transaction_id),
+      'removed_by',auth.uid()));
   return true;
 end;
 $$;

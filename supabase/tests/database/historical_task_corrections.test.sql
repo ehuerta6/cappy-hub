@@ -84,7 +84,7 @@ select update_point_transaction((select id from point_transactions where task_id
 reset role;
 select private.process_due_tasks();
 select is((select points from point_transactions where task_id=-33101 and officer_id=-33101),11::numeric,
- 'routine processing preserves independently edited amount without deciding editing policy');
+ 'routine processing preserves a direct edit until the Task source value changes');
 select isnt((select removed_at from point_transactions where task_id=-33101 and officer_id=-33103),null::timestamptz,
  'routine processing preserves independent Admin removal');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033102',true);
@@ -121,11 +121,22 @@ select isnt((select removed_at from point_transactions where task_id=-33101 and 
 -- Prepare a distinct active award for the rollback probe, without changing suppression.
 insert into tasks(id,title,description,task_type,branch_id,due_date,points,created_by)
  values(-33102,'Rollback Task','Synthetic','Flyer',(select id from branches where name='intro'),
- (statement_timestamp() at time zone 'America/Denver')::date-2,7.5,-33101);
+ (statement_timestamp() at time zone 'America/Denver')::date-2,5,-33101);
 select bulk_assign_task_officers(-33102,array[-33102]::bigint[]);
 select set_task_assignment_completion(-33102,-33102,true);
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033101',true);
-select update_point_transaction((select id from point_transactions where task_id=-33102 and officer_id=-33102),11);
+select update_point_transaction((select id from point_transactions where task_id=-33102 and officer_id=-33102),8);
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033102',true);
+set local role authenticated;
+select update_task_details(-33102,'Rollback Task','Synthetic','Flyer',
+ (select id from branches where name='intro'),(statement_timestamp() at time zone 'America/Denver')::date-2,10);
+select is((select points from point_transactions where task_id=-33102 and officer_id=-33102),10::numeric,
+ 'source fixed value replaces a directly edited automatic Task amount');
+reset role;
+select is((select details->'before'->>'points' from audit_logs where action='points.task_updated' and details->>'task_id'='-33102' order by id desc limit 1),'8',
+ 'source reconciliation audit retains the edited before amount');
+select is((select details->'after'->>'points' from audit_logs where action='points.task_updated' and details->>'task_id'='-33102' order by id desc limit 1),'10',
+ 'source reconciliation audit records the source-derived after amount');
 -- Audit failure must roll back the source correction and dependent credit.
 create function pg_temp.fail_task_audit() returns trigger language plpgsql as $$begin
  if new.action='points.task_updated' then raise exception 'Synthetic Task audit failure'; end if;
@@ -136,8 +147,8 @@ set local role authenticated;
 select throws_ok($$select update_task_details(-33102,'Rollback','Synthetic','Flyer',
  (select id from branches where name='intro'),(statement_timestamp() at time zone 'America/Denver')::date-1,20)$$,
  'P0001','Synthetic Task audit failure','audit failure rolls back source and reconciliation');
-select is((select points from tasks where id=-33102),7.5::numeric,'failed correction preserves source value');
-select is((select points from point_transactions where task_id=-33102 and officer_id=-33102),11::numeric,'failed correction preserves edited award');
+select is((select points from tasks where id=-33102),10::numeric,'failed correction preserves source value');
+select is((select points from point_transactions where task_id=-33102 and officer_id=-33102),10::numeric,'failed correction preserves the reconciled award');
 reset role;
 select * from finish();
 rollback;

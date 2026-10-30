@@ -1,5 +1,5 @@
--- Issue #326: synthetic historical fixtures and CURRENT behavior evidence.
--- The after-end missing credit below is a known gap for #328, not a policy.
+-- Issue #326 synthetic fixtures extended by #328: explicit premature provenance
+-- and corrected eligibility, without guessing the intent of legacy removals.
 -- No production IDs/data; all rows, snapshots and test constraints roll back.
 begin;
 create extension if not exists pgtap with schema extensions;
@@ -19,6 +19,9 @@ insert into officers(id,name,utep_email,position_id,status,application_role,auth
 insert into officers(id,name,utep_email,position_id,status)
  select -32610-n,'Synthetic participant '||n,'compat-participant-'||n||'@example.test',
    (select id from positions where code='officer'),'active' from generate_series(1,5) n;
+insert into officers(id,name,utep_email,position_id,status) values
+ (-32616,'Synthetic independent correction recipient','compat-participant-6@example.test',
+  (select id from positions where code='officer'),'active');
 insert into officer_branches(officer_id,branch_id)
  select -32602,id from branches where name='intro';
 
@@ -88,7 +91,22 @@ select is(private.process_finished_events(),0,'corrected future schedule does no
 select is((select coalesce(sum(points),0) from point_transactions where event_id=-32601 and removed_at is null),
  0::numeric,'premature removed awards do not count before corrected end');
 select is((select participation_points_per_hour_at_end from events where id=-32601),1::numeric,
- 'CURRENT GAP: correction retains the permanent processing marker');
+ 'original processing snapshot remains historical evidence');
+
+-- An Admin supplies explicit verified intent for each removed award. No
+-- timestamps, Event IDs or names are used to infer that these were premature.
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032601',true);
+set local role authenticated;
+select results_eq($$select confirm_premature_participation(id,'Verified synthetic incorrect original Event date')
+ from point_transactions where event_id=-32601 order by id$$,
+ $$select * from (values(true),(true),(true),(true),(true)) as expected(confirmed)$$,
+ 'Admin explicitly confirms five premature removals');
+select results_eq($$select confirm_premature_participation(id,'Verified retry') from point_transactions where event_id=-32601 order by id$$,
+ $$select * from (values(false),(false),(false),(false),(false)) as expected(confirmed)$$,
+ 'confirmation retry cannot duplicate replacement eligibility or audit');
+select is((select count(*) from audit_logs where action='points.premature_participation_confirmed' and details->>'event_id'='-32601'),5::bigint,
+ 'exact confirmation retries retain one attributed verification audit per old award');
+reset role;
 
 -- Deterministically model the corrected Event having ended, without changing
 -- the database clock or clearing its real processing/removal evidence.
@@ -100,12 +118,12 @@ select lives_ok($$select save_event_with_links('Synthetic premature processing',
  'fixture advances to an ended corrected schedule via the same RPC');
 reset role;
 select set_config('request.jwt.claim.sub','',true);
-select is(private.process_finished_events(),0,'CURRENT GAP: corrected ended Event is skipped');
-select is(private.process_finished_events(),0,'CURRENT behavior is stable on retry');
-select is((select count(*) from point_transactions where event_id=-32601 and removed_at is null),0::bigint,
- 'CURRENT GAP: missing five legitimate awards; #328 must assert five awards of two points instead');
-select results_eq($$select to_jsonb(p) from point_transactions p where event_id=-32601 order by id$$,
- $$select row from premature_history order by (row->>'id')::bigint$$,
+select is(private.process_finished_events(),0,'schedule correction already reconciled ended Event atomically');
+select is(private.process_finished_events(),0,'reconciled processing is stable on retry');
+select is((select count(*) from point_transactions where event_id=-32601 and removed_at is null and points=2),5::bigint,
+ 'all five retained signups earn exactly two legitimate Points after corrected end');
+select results_eq($$select to_jsonb(p)-'participation_superseded_at' from point_transactions p where event_id=-32601 and participation_superseded_at is not null order by id$$,
+ $$select row-'participation_superseded_at' from premature_history order by (row->>'id')::bigint$$,
  'old transaction IDs, amounts, timestamps and removal attribution remain intact');
 select is((select count(*) from premature_audit old join audit_logs a on a.id=old.id
  where to_jsonb(a)=old.row),(select count(*) from premature_audit),'original audit rows remain byte-for-byte equivalent as JSON');
@@ -124,14 +142,19 @@ set local role authenticated;
 select set_participation_rate(1.25);
 reset role;
 select set_config('request.jwt.claim.sub','',true);
-select is(private.process_finished_events(),1,'control snapshots a fractional configured rate');
+-- Model a legacy non-1 snapshot explicitly; new calculation is always1.
+update events set participation_points_per_hour_at_end=1.25 where id=-32602;
+insert into point_transactions(officer_id,event_id,points,reason,award_type)
+ values(-32611,-32602,1.875,'Synthetic legacy non-1 participation','participation'),
+ (-32612,-32602,1.875,'Synthetic legacy non-1 participation','participation');
+select is(private.process_finished_events(),0,'legacy fractional snapshot is not repriced by a retry');
 select is((select points from point_transactions where event_id=-32602 and officer_id=-32611),1.875::numeric,
  'historical 90-minute award retains fractional rate precision');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032601',true);
 set local role authenticated;
 select remove_participation_award(id) from point_transactions where event_id=-32602 and officer_id=-32611;
 select update_point_transaction(id,7) from point_transactions where event_id=-32602 and officer_id=-32612;
-select add_manual_transaction(p_officer_id => -32613,p_event_id => null,p_points => -2,
+select add_manual_transaction(p_officer_id => -32616,p_event_id => null,p_points => -2,
  p_reason => 'Synthetic independent deduction',p_award_type => 'correction');
 reset role;
 select is((select count(*) from point_transactions where event_id=-32602 and removed_at is not null
@@ -146,7 +169,7 @@ select is((select count(*) from audit_logs where action='points.transaction_upda
  'direct edit audit preserves original and edited amounts');
 select set_config('request.jwt.claim.sub','',true);
 select is(private.process_finished_events(),0,'retry neither revives legitimate suppression nor overwrites direct edit');
-select is((select total_points from officer_point_totals where id=-32613),-2::numeric,
+select is((select total_points from officer_point_totals where id=-32616),-2::numeric,
  'independent negative correction contributes to totals');
 
 -- Legacy combinations: Cancel and Archive are independent, and currently
@@ -161,8 +184,10 @@ select add_manual_transaction(p_officer_id => -32614,p_event_id => -32603,p_poin
  p_reason => 'Synthetic legacy linked credit',p_award_type => 'manual');
 select remove_event(-32603);
 reset role;
-select is((select total_points from officer_point_totals where id=-32614),3::numeric,
- 'CURRENT GAP: cancelled AND archived Event-linked manual Points still count');
+select is((select count(*) from point_transactions where event_id=-32603 and award_type='manual' and removed_at is null),
+ 1::bigint,'cancelled and archived Event-linked manual transaction remains active in history');
+select is((select total_points from officer_point_totals where id=-32614),5::numeric,
+ 'cancelled and archived Event-linked manual credit sums with independent automatic participation');
 select set_config('request.jwt.claim.sub','',true);
 select is(private.process_finished_events(),0,'legacy cancelled/archived Event is not processed');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032601',true);

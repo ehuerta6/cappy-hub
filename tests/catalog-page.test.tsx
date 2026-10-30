@@ -6,12 +6,15 @@ import { beforeEach, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   actor: { applicationRole: "admin" },
-  counts: { positions: 0, branches: 0, event_locations: 0 },
-  data: { positions: [], branches: [], event_locations: [] } as Record<
-    string,
-    Array<Record<string, unknown>>
-  >,
+  counts: { positions: 0, branches: 0, event_locations: 0, event_types: 0 },
+  data: {
+    positions: [],
+    branches: [],
+    event_locations: [],
+    event_types: [],
+  } as Record<string, Array<Record<string, unknown>>>,
   tables: [] as string[],
+  filters: [] as Array<[string, string, boolean]>,
   orders: [] as Array<[string, string]>,
   ranges: [] as Array<[string, number, number]>,
 }));
@@ -32,6 +35,10 @@ vi.mock("@/lib/supabase/server", () => ({
       const query = {
         select: (_fields: string, options?: { head?: boolean }) => {
           isCountQuery = options?.head === true;
+          return query;
+        },
+        eq: (column: string, value: boolean) => {
+          mocks.filters.push([table, column, value]);
           return query;
         },
         order: (column: string, options?: { ascending?: boolean }) => {
@@ -91,9 +98,20 @@ import OfficerCatalogsPage from "@/app/(protected)/officers/catalogs/page";
 
 beforeEach(() => {
   mocks.actor.applicationRole = "admin";
-  mocks.counts = { positions: 0, branches: 0, event_locations: 0 };
-  mocks.data = { positions: [], branches: [], event_locations: [] };
+  mocks.counts = {
+    positions: 0,
+    branches: 0,
+    event_locations: 0,
+    event_types: 0,
+  };
+  mocks.data = {
+    positions: [],
+    branches: [],
+    event_locations: [],
+    event_types: [],
+  };
   mocks.tables.length = 0;
+  mocks.filters.length = 0;
   mocks.orders.length = 0;
   mocks.ranges.length = 0;
 });
@@ -111,6 +129,7 @@ it.each([
   ["positions", "positions"],
   ["branches", "branches"],
   ["locations", "event_locations"],
+  ["types", "event_types"],
 ] as const)("loads only the selected %s category", async (category, table) => {
   mocks.counts[table] = 1;
   mocks.data[table] = [{ id: 1, name: "Selected record" }];
@@ -119,7 +138,7 @@ it.each([
   expect(mocks.tables).toEqual([table, table]);
   expect(html).toContain("Catalog categories");
   expect(html).toContain('aria-current="page"');
-  for (const category of ["positions", "branches", "locations"])
+  for (const category of ["positions", "branches", "locations", "types"])
     expect(html).toContain(`href="/officers/catalogs?category=${category}"`);
   expect(html).toContain("Selected record");
 });
@@ -206,3 +225,23 @@ it.each(["lead", "officer"])(
     expect(mocks.tables).toEqual([]);
   },
 );
+
+it("filters deleted values and preserves status through pagination", async () => {
+  mocks.counts.event_types = 10;
+  mocks.data.event_types = Array.from({ length: 10 }, (_, i) => ({
+    id: i + 1,
+    name: `Historical type ${i}`,
+    available_for_new_events: false,
+  }));
+  const html = await renderPage({ category: "types", status: "deleted" });
+  expect(mocks.filters).toEqual([
+    ["event_types", "available_for_new_events", false],
+    ["event_types", "available_for_new_events", false],
+  ]);
+  expect(html).toContain(
+    'href="/officers/catalogs?category=types&amp;status=deleted&amp;page=2"',
+  );
+  expect(html).toContain('name="operation" value="restore"');
+  expect(html).not.toContain('name="operation" value="create"');
+  expect(html).not.toContain('name="operation" value="delete"');
+});

@@ -21,11 +21,37 @@ import {
 } from "@/components/ui";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
-import { createWarning, decideWarning, voidWarning } from "./warning-actions";
+import { createWarning, updateWarning, voidWarning } from "./warning-actions";
 
 const initial = initialFormActionState;
 
 export function CreateWarningForm({ officerId }: { officerId: number }) {
+  return <WarningForm officerId={officerId} />;
+}
+
+export function EditWarningForm({
+  officerId,
+  warningId,
+  reason,
+}: {
+  officerId: number;
+  warningId: number;
+  reason: string;
+}) {
+  return (
+    <WarningForm officerId={officerId} warning={{ id: warningId, reason }} />
+  );
+}
+
+function WarningForm({
+  officerId,
+  warning,
+}: {
+  officerId: number;
+  warning?: { id: number; reason: string };
+}) {
+  const title = warning ? "Edit warning" : "Create warning";
+  const formId = warning ? `edit-warning-${warning.id}` : "create-warning";
   const router = useRouter();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -70,13 +96,13 @@ export function CreateWarningForm({ officerId }: { officerId: number }) {
           setOpen(true);
         }}
       >
-        Create warning
+        {title}
       </button>
       {success && <FormMessage kind="success">{success}</FormMessage>}
       <dialog
         ref={dialogRef}
-        aria-labelledby="create-warning-title"
-        aria-describedby="create-warning-description"
+        aria-labelledby={`${formId}-title`}
+        aria-describedby={`${formId}-description`}
         onClose={() => setOpen(false)}
         onCancel={(event) => {
           if (
@@ -88,21 +114,24 @@ export function CreateWarningForm({ officerId }: { officerId: number }) {
       >
         <div className={dialogContentClassName}>
           <header className={dialogHeaderClassName}>
-            <h2 id="create-warning-title" className={dialogTitleClassName}>
-              Create warning
+            <h2 id={`${formId}-title`} className={dialogTitleClassName}>
+              {title}
             </h2>
             <p
-              id="create-warning-description"
+              id={`${formId}-description`}
               className={dialogDescriptionClassName}
             >
-              The reason is permanent. A new warning starts pending and requires
-              approval from the current President and Vice Presidents.
+              {warning
+                ? "Corrections are recorded in the System Log. Historical status and approval history are preserved."
+                : "This warning takes effect immediately. Admins can correct its reason later, with a record in the System Log."}
             </p>
           </header>
-          <CreateWarningFields
+          <WarningFields
             key={formKey}
             officerId={officerId}
             onSuccess={handleSuccess}
+            warning={warning}
+            formId={formId}
           />
         </div>
       </dialog>
@@ -110,14 +139,21 @@ export function CreateWarningForm({ officerId }: { officerId: number }) {
   );
 }
 
-function CreateWarningFields({
+function WarningFields({
   officerId,
   onSuccess,
+  warning,
+  formId,
 }: {
   officerId: number;
   onSuccess: (message: string) => void;
+  warning?: { id: number; reason: string };
+  formId: string;
 }) {
-  const [state, action, pending] = useActionState(createWarning, initial);
+  const [state, action, pending] = useActionState(
+    warning ? updateWarning : createWarning,
+    initial,
+  );
   const fieldErrors = state.fieldErrors ?? {};
 
   useEffect(() => {
@@ -133,6 +169,7 @@ function CreateWarningFields({
       onReset={(event) => event.preventDefault()}
     >
       <input type="hidden" name="officer_id" value={officerId} />
+      {warning && <input type="hidden" name="warning_id" value={warning.id} />}
       <label>
         Reason
         <textarea
@@ -143,11 +180,17 @@ function CreateWarningFields({
           disabled={pending}
           aria-invalid={Boolean(fieldErrors.reason)}
           aria-describedby={
-            fieldErrors.reason ? "warning-reason-error" : undefined
+            fieldErrors.reason ? `${formId}-reason-error` : undefined
           }
-          defaultValue={submittedValue(state.values, "reason")}
+          defaultValue={submittedValue(
+            state.values,
+            "reason",
+            warning?.reason ?? "",
+          )}
         />
-        <FieldError id="warning-reason-error">{fieldErrors.reason}</FieldError>
+        <FieldError id={`${formId}-reason-error`}>
+          {fieldErrors.reason}
+        </FieldError>
       </label>
       {state.error && <ActionFeedback state={state} />}
       <div className={dialogFooterClassName}>
@@ -160,49 +203,9 @@ function CreateWarningFields({
           Cancel
         </button>
         <button disabled={pending}>
-          {pending ? "Creating…" : "Create warning"}
+          {pending ? "Saving…" : warning ? "Save changes" : "Create warning"}
         </button>
       </div>
-    </form>
-  );
-}
-
-export function WarningDecisionForm({ warningId }: { warningId: number }) {
-  const [state, action, pending] = useActionState(decideWarning, initial);
-  const [pendingDecision, setPendingDecision] = useState<
-    "approved" | "rejected" | null
-  >(null);
-  return (
-    <form action={action} className="flex flex-wrap items-center gap-2">
-      <input type="hidden" name="warning_id" value={warningId} />
-      <ConfirmationDialog
-        title="Approve warning?"
-        description="This records your approval for the warning under the existing leadership approval rules."
-        triggerLabel={
-          pending && pendingDecision === "approved" ? "Approving…" : "Approve"
-        }
-        confirmLabel="Approve"
-        pending={pending}
-        triggerClassName=""
-        confirmName="decision"
-        confirmValue="approved"
-        onConfirm={() => setPendingDecision("approved")}
-      />
-      <ConfirmationDialog
-        title="Reject warning?"
-        description="This records your rejection for the warning under the existing leadership decision rules."
-        triggerLabel={
-          pending && pendingDecision === "rejected" ? "Rejecting…" : "Reject"
-        }
-        confirmLabel="Reject"
-        destructive
-        pending={pending}
-        triggerClassName=""
-        confirmName="decision"
-        confirmValue="rejected"
-        onConfirm={() => setPendingDecision("rejected")}
-      />
-      <ActionFeedback state={state} />
     </form>
   );
 }

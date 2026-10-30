@@ -55,6 +55,7 @@ select ok(not has_function_privilege('authenticated','private.process_finished_e
   and has_function_privilege('authenticated','public.create_event_location(text)','EXECUTE')
   and has_function_privilege('authenticated','public.rename_event_location(bigint,text)','EXECUTE')
   and has_function_privilege('authenticated','public.delete_event_location(bigint)','EXECUTE')
+  and has_function_privilege('authenticated','public.confirm_premature_participation(bigint,text)','EXECUTE')
   and has_function_privilege('authenticated','public.change_event_signup(bigint,bigint,boolean)','EXECUTE')
   and has_function_privilege('authenticated','public.bulk_add_event_officers(bigint,bigint[])','EXECUTE'),
   'essential checked RPCs remain callable and private processing stays closed');
@@ -105,9 +106,14 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       'public.create_event_type(text)'::regprocedure,
       'public.rename_event_type(bigint,text)'::regprocedure,
       'public.delete_event_type(bigint)'::regprocedure,
+      'public.restore_event_type(bigint)'::regprocedure,
+      'public.restore_branch(bigint)'::regprocedure,
+      'public.restore_position(bigint)'::regprocedure,
+      'public.restore_event_location(bigint)'::regprocedure,
       'public.set_participation_rate(numeric)'::regprocedure,
       'public.remove_participation_award(bigint)'::regprocedure,
       'public.create_warning(bigint,text)'::regprocedure,
+      'public.update_warning(bigint,text)'::regprocedure,
       'public.decide_warning(bigint,text)'::regprocedure,
       'public.delete_warning(bigint)'::regprocedure,
       'public.void_warning(bigint)'::regprocedure,
@@ -141,6 +147,7 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       ,'public.create_event_location(text)'::regprocedure
       ,'public.rename_event_location(bigint,text)'::regprocedure
       ,'public.delete_event_location(bigint)'::regprocedure
+      ,'public.confirm_premature_participation(bigint,text)'::regprocedure
       ,'public.add_presenter_slot(bigint)'::regprocedure
       ,'public.reorder_presenter_slots(bigint,bigint[])'::regprocedure
       ,'public.remove_presenter_slot(bigint)'::regprocedure

@@ -66,10 +66,43 @@ export async function changeCatalog(
           p_name: validatedLocationMutation.name,
         },
       ));
+    } else if (validatedLocationMutation.operation === "restore") {
+      ({ error: mutationErrorResponse } = await supabase.rpc(
+        "restore_event_location",
+        { p_id: validatedLocationMutation.id },
+      ));
     } else {
       ({ error: mutationErrorResponse } = await supabase.rpc(
         "delete_event_location",
         { p_id: validatedLocationMutation.id },
+      ));
+    }
+  } else if (validatedCatalogMutation?.catalog === "event_type") {
+    if (validatedCatalogMutation.operation === "create") {
+      ({ error: mutationErrorResponse } = await supabase.rpc(
+        "create_event_type",
+        { p_name: validatedCatalogMutation.name },
+      ));
+    } else if (validatedCatalogMutation.operation === "rename") {
+      ({ error: mutationErrorResponse } = await supabase.rpc(
+        "rename_event_type",
+        {
+          p_id: validatedCatalogMutation.id,
+          p_name: validatedCatalogMutation.name,
+        },
+      ));
+    } else if (
+      validatedCatalogMutation.operation === "restore" ||
+      validatedCatalogMutation.operation === "reactivate"
+    ) {
+      ({ error: mutationErrorResponse } = await supabase.rpc(
+        "restore_event_type",
+        { p_id: validatedCatalogMutation.id },
+      ));
+    } else {
+      ({ error: mutationErrorResponse } = await supabase.rpc(
+        "delete_event_type",
+        { p_id: validatedCatalogMutation.id },
       ));
     }
   } else if (validatedCatalogMutation?.catalog === "position") {
@@ -95,6 +128,11 @@ export async function changeCatalog(
           p_id: validatedCatalogMutation.id,
         },
       ));
+    } else if (validatedCatalogMutation.operation === "restore") {
+      ({ error: mutationErrorResponse } = await supabase.rpc(
+        "restore_position",
+        { p_id: validatedCatalogMutation.id },
+      ));
     } else {
       ({ error: mutationErrorResponse } = await supabase.rpc(
         "set_position_active",
@@ -117,6 +155,10 @@ export async function changeCatalog(
       }));
     } else if (branchMutation.operation === "delete") {
       ({ error: mutationErrorResponse } = await supabase.rpc("delete_branch", {
+        p_id: branchMutation.id,
+      }));
+    } else if (branchMutation.operation === "restore") {
+      ({ error: mutationErrorResponse } = await supabase.rpc("restore_branch", {
         p_id: branchMutation.id,
       }));
     } else {
@@ -142,7 +184,9 @@ export async function changeCatalog(
     ? "Event location"
     : validatedCatalogMutation?.catalog === "branch"
       ? "Branch"
-      : "Position";
+      : validatedCatalogMutation?.catalog === "event_type"
+        ? "Event type"
+        : "Position";
   const operation =
     validatedLocationMutation?.operation ?? validatedCatalogMutation?.operation;
   const verb =
@@ -152,8 +196,10 @@ export async function changeCatalog(
         ? "updated"
         : operation === "delete"
           ? "removed"
-          : operation === "retire"
-            ? "retired"
-            : "reactivated";
+          : operation === "restore"
+            ? "restored"
+            : operation === "retire"
+              ? "retired"
+              : "reactivated";
   return { error: "", success: `${subject} ${verb}` };
 }

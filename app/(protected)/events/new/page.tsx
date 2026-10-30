@@ -27,7 +27,11 @@ export default async function NewEventPage() {
       .select("id,name")
       .eq("available_for_new_events", true)
       .order("name"),
-    supabase.from("event_locations").select("id,name").order("name"),
+    supabase
+      .from("event_locations")
+      .select("id,name")
+      .eq("is_active", true)
+      .order("name"),
   ]);
   if (branches.error || eventTypes.error || locations.error)
     throw new Error("Failed to load event form");

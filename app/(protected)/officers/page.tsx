@@ -20,7 +20,6 @@ import { formatDateTime, formatLabel } from "@/lib/presentation";
 import { searchOrFilter } from "@/lib/list-search";
 import { listPageUrl } from "@/lib/list-url";
 import { officerListFiltersSchema } from "./filter-validation";
-import { WarningDecisionForm } from "./warning-forms";
 
 type OfficerListSearchParams = Record<string, string | string[] | undefined>;
 const OFFICERS_PER_PAGE = 8;
@@ -158,7 +157,7 @@ export default async function OfficersPage({
         title="Officers"
         description={
           view === "warnings"
-            ? "Review warning decisions assigned to you."
+            ? "Historical pending warnings and your original approval assignments."
             : "Club directory and branch memberships."
         }
         action={
@@ -175,18 +174,21 @@ export default async function OfficersPage({
       {view === "directory" && warningCount > 0 && (
         <p className="flex flex-wrap items-center gap-2 text-sm">
           <span className="font-medium text-foreground">
-            {warningCount} {warningCount === 1 ? "warning" : "warnings"}{" "}
-            awaiting your decision
+            {warningCount} {warningCount === 1 ? "warning" : "warnings"} with a
+            historical approval assignment
           </span>
           <Link href={reviewHref(1)} className="underline underline-offset-4">
-            Review decisions
+            View historical approvals
           </Link>
         </p>
       )}
       {view === "warnings" ? (
-        <section className="space-y-3" aria-label="Warning decisions">
+        <section
+          className="space-y-3"
+          aria-label="Historical warning approvals"
+        >
           <SectionHeading
-            title="Warnings awaiting your decision"
+            title="Warnings with a historical approval assignment"
             action={
               <Link href={directoryHref} className="text-sm underline">
                 Back to directory
@@ -194,7 +196,7 @@ export default async function OfficersPage({
             }
           />
           {(pendingWarnings?.data ?? []).length === 0 ? (
-            <p>No warning decisions are awaiting you.</p>
+            <p>No historical pending warnings in this view.</p>
           ) : (
             pendingWarnings?.data.map((warning) => (
               <article
@@ -216,16 +218,15 @@ export default async function OfficersPage({
                   {warning.reason}
                 </p>
                 <p className="text-sm text-muted">
-                  Created {formatDateTime(warning.created_at)} · Your decision:
-                  Pending
+                  Created {formatDateTime(warning.created_at)} · Historical
+                  approval: Pending
                 </p>
-                <WarningDecisionForm warningId={warning.id} />
               </article>
             ))
           )}
           <ListPagination
             pathname="/officers"
-            label="Warning decision"
+            label="Historical warning approval"
             filters={warningFilterSearch}
             page={reviewPage}
             totalPages={reviewTotalPages}

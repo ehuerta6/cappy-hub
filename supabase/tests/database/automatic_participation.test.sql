@@ -52,7 +52,7 @@ reset role;
 select is(private.process_finished_events(),3,
   'only scheduled-ended noncancelled events process together');
 select is((select participation_points_per_hour_at_end from events where id=-801),
-  1.25::numeric,'ended event snapshots configured fractional rate');
+  1::numeric,'new processing snapshots approved rate1 despite legacy configuration');
 select is((select participation_points_per_hour_at_end from events where id=-803),
   null::numeric,'cancelled event is not snapshotted');
 select is((select participation_points_per_hour_at_end from events where id=-804),
@@ -61,7 +61,7 @@ select is((select count(*) from point_transactions where event_id=-801
   and award_type='participation'),2::bigint,
   'one award is made for each of two signups, including an inactive officer');
 select is((select points from point_transactions where event_id=-801 and officer_id=-801),
-  1.875::numeric,'90 scheduled minutes times fractional rate preserves precision');
+  1.5::numeric,'90 scheduled minutes earn exactly1.5 Points');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000807',true);
 select set_config('request.jwt.claim.sub','',true);
 select is((select count(*) from point_transactions where event_id=-806),

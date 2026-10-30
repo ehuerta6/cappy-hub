@@ -130,18 +130,21 @@ export type Database = {
         Row: {
           created_at: string;
           id: number;
+          is_active: boolean;
           name: string;
           normalized_name: string | null;
         };
         Insert: {
           created_at?: string;
           id?: number;
+          is_active?: boolean;
           name: string;
           normalized_name?: never;
         };
         Update: {
           created_at?: string;
           id?: number;
+          is_active?: boolean;
           name?: string;
           normalized_name?: never;
         };
@@ -621,6 +624,8 @@ export type Database = {
           event_time_slot_id: number | null;
           id: number;
           officer_id: number;
+          participation_schedule_suspended: boolean;
+          participation_superseded_at: string | null;
           points: number;
           reason: string;
           removed_at: string | null;
@@ -642,6 +647,8 @@ export type Database = {
           event_time_slot_id?: number | null;
           id?: number;
           officer_id: number;
+          participation_schedule_suspended?: boolean;
+          participation_superseded_at?: string | null;
           points: number;
           reason: string;
           removed_at?: string | null;
@@ -663,6 +670,8 @@ export type Database = {
           event_time_slot_id?: number | null;
           id?: number;
           officer_id?: number;
+          participation_schedule_suspended?: boolean;
+          participation_superseded_at?: string | null;
           points?: number;
           reason?: string;
           removed_at?: string | null;
@@ -1213,7 +1222,10 @@ export type Database = {
           id: number | null;
           officer_id: number | null;
           officer_name: string | null;
+          participation_schedule_suspended: boolean | null;
+          participation_superseded_at: string | null;
           points: number | null;
+          premature_confirmation_available: boolean | null;
           reason: string | null;
           removed_at: string | null;
           removed_by: string | null;
@@ -1350,6 +1362,10 @@ export type Database = {
       claim_current_officer_identity: {
         Args: Record<PropertyKey, never>;
         Returns: number;
+      };
+      confirm_premature_participation: {
+        Args: { p_reason: string; p_transaction_id: number };
+        Returns: boolean;
       };
       create_branch: { Args: { p_name: string }; Returns: number };
       create_event_location: { Args: { p_name: string }; Returns: number };
@@ -1592,11 +1608,15 @@ export type Database = {
         Args: { p_event_id: number; p_slot_ids: number[] };
         Returns: undefined;
       };
+      restore_branch: { Args: { p_id: number }; Returns: undefined };
       restore_event: { Args: { p_event_id: number }; Returns: undefined };
       restore_event_archive: {
         Args: { p_event_id: number };
         Returns: undefined;
       };
+      restore_event_location: { Args: { p_id: number }; Returns: undefined };
+      restore_event_type: { Args: { p_id: number }; Returns: undefined };
+      restore_position: { Args: { p_id: number }; Returns: undefined };
       restore_task: { Args: { p_task_id: number }; Returns: undefined };
       save_event_with_capacity: {
         Args: {
@@ -1766,6 +1786,10 @@ export type Database = {
           p_title: string;
         };
         Returns: undefined;
+      };
+      update_warning: {
+        Args: { p_reason: string; p_warning_id: number };
+        Returns: number;
       };
       void_warning: { Args: { p_warning_id: number }; Returns: undefined };
     };
