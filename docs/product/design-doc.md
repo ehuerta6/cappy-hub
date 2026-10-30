@@ -236,11 +236,13 @@ Use consistent Delete confirmations explaining consequences, discoverable Delete
 
 **Presenter Slots are postponed.** Preserve existing behavior and necessary compatibility; do not redesign, expand or remove them under this effort. Existing notification proposals do not become dependencies of this roadmap.
 
-#### Pending detail and compatibility gates
+#### Confirmed automatic Point editing behavior — Option C (2026-10-30)
 
-Direct editing of automatically calculated Point transaction amounts was recommended against but **has not been finalized**. Do not silently disable or endorse it as the target policy. Source-based reconciliation and separate manual Points are approved; isolate work requiring this narrow choice until explicitly resolved. Assess existing direct edits and preserve evidence before changing their treatment.
+Direct Point transaction editing remains available for CRUD. Automatic Event participation and Task awards are derived from their source records. A relevant source change replaces a directly edited automatic amount with the source-derived value and records meaningful before/after audit evidence; unrelated descriptive edits do not trigger recalculation. Independent manual Points and corrections remain separate and are never overwritten. Existing protections for intentional removals, historical provenance, eligibility, authorization and audit history remain in force. No edit-protection flag, override, approval workflow or blocking rule is introduced for direct edits.
 
-Historical rate verification is an evidence gate, not a pending choice about the new 1-point/hour rule. Database representation and migration handling of ambiguous removal/lifecycle states must be assessed before affected implementation; do not invent historical intent. Production access/deployment/repair requires its own authorization. Development and tests use synthetic data only.
+#### Compatibility gates
+
+Historical Event-rate verification is an evidence gate, not a pending choice about the new 1-point/hour rule. Database representation and migration handling of ambiguous removal/lifecycle states must be assessed before affected implementation; do not invent historical intent. Production access/deployment/repair requires its own authorization. Development and tests use synthetic data only.
 
 #### Verification and delivery
 
