@@ -8,11 +8,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { displayPoints } from "@/lib/participation";
 import { participationLabel } from "@/lib/event-status";
-import {
-  eventSignupCountLabel,
-  openPresenterSlotCount,
-  openPresenterSlotLabel,
-} from "@/lib/event-list";
+import { eventSignupCountLabel } from "@/lib/event-list";
 import { SectionHeading, PointValue } from "@/components/ui";
 import { loadDashboardActionItems } from "./dashboard-action-items";
 import { DASHBOARD_PREVIEW_LIMIT } from "./dashboard-limits";
@@ -25,9 +21,7 @@ export default async function DashboardPage() {
       supabase.from("dashboard_summary").select("*").single(),
       supabase
         .from("events")
-        .select(
-          "*,event_types(name),event_officers(officer_id,removed_at),presentation_slots(officer_id)",
-        )
+        .select("*,event_types(name),event_officers(officer_id,removed_at)")
         .neq("status", "cancelled")
         .is("deleted_at", null)
         .gt("starts_at", new Date().toISOString())
@@ -59,12 +53,6 @@ export default async function DashboardPage() {
     : { data: [], error: null };
   const signupCounts = new Map(
     (countsResult.data ?? []).map((row) => [row.event_id, row]),
-  );
-  const openSlotCounts = new Map(
-    (events.data ?? []).map((event) => [
-      event.id,
-      openPresenterSlotCount(event),
-    ]),
   );
   return (
     <div data-page-width="wide" className="space-y-4">
@@ -290,17 +278,6 @@ export default async function DashboardPage() {
                         ),
                       )}
                     </span>
-                    {(openSlotCounts.get(event.id) ?? 0) > 0 && (
-                      <Link
-                        href={`/events/${event.id}`}
-                        aria-label={`${openPresenterSlotLabel(openSlotCounts.get(event.id) ?? 0)} for ${event.name}`}
-                        className="underline underline-offset-4"
-                      >
-                        {openPresenterSlotLabel(
-                          openSlotCounts.get(event.id) ?? 0,
-                        )}
-                      </Link>
-                    )}
                   </div>
                 </li>
               ))}

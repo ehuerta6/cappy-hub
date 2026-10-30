@@ -222,84 +222,25 @@ it("serializes concurrent signup requests so capacity cannot be overfilled", asy
   }
 }, 30_000);
 
-it("serializes concurrent presenter claims so only one Officer acquires a slot", async () => {
-  const eventId = -981770;
-  const slotId = -981771;
-  const firstAuthId = "00000000-0000-4000-8000-000000009770";
-  const secondAuthId = "00000000-0000-4000-8000-000000009772";
-  const firstOfficerId = -981772;
-  const secondOfficerId = -981773;
-
-  runSql(`
-    delete from public.audit_logs where entity_id='${eventId}';
-    delete from public.presentation_slots where event_id=${eventId};
-    delete from public.event_officers where event_id=${eventId};
-    delete from public.events where id=${eventId};
-    delete from public.officers where id in (${firstOfficerId},${secondOfficerId});
-    delete from auth.users where id in ('${firstAuthId}','${secondAuthId}');
-    insert into auth.users(id,email) values
-      ('${firstAuthId}','presenter-first-concurrency@example.test'),
-      ('${secondAuthId}','presenter-second-concurrency@example.test');
-    insert into public.officers(id,name,utep_email,position_id,status,application_role,auth_user_id)
-      values
-        (${firstOfficerId},'Presenter concurrency first','presenter-first@example.test',
-          (select id from public.positions where name='Officer'),'active','officer','${firstAuthId}'),
-        (${secondOfficerId},'Presenter concurrency second','presenter-second@example.test',
-          (select id from public.positions where name='Officer'),'active','officer','${secondAuthId}');
-    insert into public.events(id,name,description,location,event_type_id,event_date,starts_at,ends_at,status,max_volunteers)
-      values (${eventId},'Presenter concurrency','Test Session','TBA',
-        (select id from public.event_types where lower(trim(name))='session'),date '2099-01-01',
-        timestamptz '2099-01-01 10:00-07',timestamptz '2099-01-01 11:00-07','upcoming',1);
-    insert into public.presentation_slots(id,event_id,position) values (${slotId},${eventId},1);
-  `);
-
-  try {
-    const firstClaim = startSql(`
-      begin;
-      select set_config('request.jwt.claim.sub','${firstAuthId}',true);
-      select public.change_presenter_slot(${slotId},${firstOfficerId});
-      \\echo PRESENTER_SLOT_CLAIMED
-      select pg_catalog.pg_sleep(1.5);
-      commit;
-    `);
-    await firstClaim.waitFor("PRESENTER_SLOT_CLAIMED");
-    const competingClaimStartedAt = Date.now();
-    const secondClaim = startSql(`
-      begin;
-      select set_config('request.jwt.claim.sub','${secondAuthId}',true);
-      select public.change_presenter_slot(${slotId},${secondOfficerId});
-      commit;
-    `);
-    const [firstResult, secondResult] = await Promise.all([
-      firstClaim.closed,
-      secondClaim.closed,
-    ]);
-
-    expect(firstResult.code).toBe(0);
-    expect(secondResult.code).not.toBe(0);
-    expect(secondResult.errors).toContain("Presenter slot is already taken");
-    expect(Date.now() - competingClaimStartedAt).toBeGreaterThan(500);
-    expect(
-      runSql(
-        `select officer_id from public.presentation_slots where id=${slotId};`,
-      ).trim(),
-    ).toBe(String(firstOfficerId));
-    expect(
-      runSql(
-        `select count(*) from public.event_officers where event_id=${eventId};`,
-      ).trim(),
-    ).toBe("1");
-  } finally {
+it("revokes authenticated execution of Presenter Slot mutations", () => {
+  expect(
     runSql(`
-      delete from public.audit_logs where entity_id='${eventId}';
-      delete from public.presentation_slots where event_id=${eventId};
-      delete from public.event_officers where event_id=${eventId};
-      delete from public.events where id=${eventId};
-      delete from public.officers where id in (${firstOfficerId},${secondOfficerId});
-      delete from auth.users where id in ('${firstAuthId}','${secondAuthId}');
-    `);
-  }
-}, 30_000);
+      select bool_and(not has_function_privilege('authenticated', function_name, 'execute'))
+      from unnest(array[
+        'public.add_presenter_slot(bigint)',
+        'public.reorder_presenter_slots(bigint,bigint[])',
+        'public.remove_presenter_slot(bigint)',
+        'public.change_presenter_slot(bigint,bigint,boolean)',
+        'public.update_presenter_slot_details(bigint,text,text,text,text)',
+        'private.add_presenter_slot(bigint)',
+        'private.reorder_presenter_slots(bigint,bigint[])',
+        'private.remove_presenter_slot(bigint)',
+        'private.change_presenter_slot(bigint,bigint,boolean)',
+        'private.update_presenter_slot_details(bigint,text,text,text,text)'
+      ]) as functions(function_name);
+    `).trim(),
+  ).toBe("t");
+});
 
 it("serializes concurrent Time Slot registrations so per-slot capacity is not exceeded", async () => {
   const eventId = -981760;
