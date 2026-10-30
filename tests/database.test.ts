@@ -824,3 +824,87 @@ it("serializes concurrent Task delete and restore without duplicate awards or au
     `);
   }
 }, 30_000);
+
+it("serializes concurrent recurring lifecycle requests using the series revision", async () => {
+  const id = -333290;
+  const actor = "00000000-0000-4000-8000-000000333290";
+  const firstRequest = "00000000-0000-4000-8000-000000333291";
+  const secondRequest = "00000000-0000-4000-8000-000000333292";
+  const restoreRequest = "00000000-0000-4000-8000-000000333293";
+  runSql(`
+    insert into auth.users(id,email) values('${actor}','recurring-lifecycle-concurrency@example.test');
+    insert into public.officers(id,name,utep_email,position_id,status,application_role,auth_user_id)
+      values(${id},'Recurring lifecycle Admin','recurring-lifecycle-concurrency@example.test',
+        (select id from public.positions where name='Officer'),'active','admin','${actor}');
+    insert into public.event_series(id,request_key,recurrence_rule,created_by,starts_on,ends_on)
+      values(${id},'${firstRequest}','RRULE:FREQ=DAILY;INTERVAL=1;COUNT=2',${id},
+        current_date-2,current_date-1);
+    insert into public.events(id,name,description,location,event_type_id,event_date,starts_at,ends_at,status,
+      recurrence_series_id,recurrence_key)
+      select ${id}-n,'Concurrent recurring lifecycle','Synthetic','Campus',
+        (select id from public.event_types where name='Meeting'),current_date-2+n,
+        ((current_date-2+n)+time '10:00') at time zone 'America/Denver',
+        ((current_date-2+n)+time '11:00') at time zone 'America/Denver','past',${id},current_date-2+n
+      from generate_series(0,1) n;
+  `);
+  try {
+    const firstMutation = startSql(`
+      begin;
+      select id from public.event_series where id=${id} for update;
+      \\echo RECURRING_LIFECYCLE_LOCKED
+      select pg_catalog.pg_sleep(1.5);
+      set local role authenticated;
+      select set_config('request.jwt.claim.sub','${actor}',true);
+      select public.mutate_recurring_event_lifecycle(${id},'following','delete','${firstRequest}',${id},0);
+      commit;
+    `);
+    await firstMutation.waitFor("RECURRING_LIFECYCLE_LOCKED");
+    const staleMutation = startSql(`
+      begin;
+      set local role authenticated;
+      select set_config('request.jwt.claim.sub','${actor}',true);
+      select public.mutate_recurring_event_lifecycle(${id},'series','delete','${secondRequest}',${id},0);
+      commit;
+    `);
+    const [firstResult, staleResult] = await Promise.all([
+      firstMutation.closed,
+      staleMutation.closed,
+    ]);
+    expect(firstResult.code, firstResult.errors).toBe(0);
+    expect(staleResult.code).not.toBe(0);
+    expect(staleResult.errors).toContain(
+      "Series changed; reload and try again",
+    );
+    expect(
+      runSql(
+        `select count(*) from public.events where recurrence_series_id=${id} and deleted_at is not null;`,
+      ).trim(),
+    ).toBe("2");
+    expect(
+      runSql(`select revision from public.event_series where id=${id};`).trim(),
+    ).toBe("1");
+    expect(
+      runSql(`set role authenticated; select set_config('request.jwt.claim.sub','${actor}',false);
+        select public.mutate_recurring_event_lifecycle(${id},'series','restore','${restoreRequest}',${id},1);`),
+    ).toContain("{-333290,-333291}");
+    expect(
+      runSql(
+        `select count(*) from public.events where recurrence_series_id=${id} and deleted_at is null;`,
+      ).trim(),
+    ).toBe("2");
+  } finally {
+    runSql(`
+      delete from private.recurrence_lifecycle_occurrences
+        where delete_request_key in ('${firstRequest}','${restoreRequest}');
+      delete from private.recurrence_lifecycle_mutations
+        where request_key in ('${firstRequest}','${restoreRequest}');
+      delete from public.audit_logs where entity_id in ('${id}','${id - 1}')
+        or details->>'event_id' in ('${id}','${id - 1}');
+      delete from public.point_transactions where event_id in (${id},${id - 1});
+      delete from public.events where recurrence_series_id=${id};
+      delete from public.event_series where id=${id};
+      delete from public.officers where id=${id};
+      delete from auth.users where id='${actor}';
+    `);
+  }
+}, 30_000);

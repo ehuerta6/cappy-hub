@@ -12,6 +12,7 @@ vi.mock("@/app/(protected)/events/time-slot-actions", () => ({
 }));
 vi.mock("@/app/(protected)/tasks/actions", () => ({
   removeTask: vi.fn(),
+  restoreTask: vi.fn(),
 }));
 vi.mock("@/app/(protected)/officers/warning-actions", () => ({
   createWarning: vi.fn(),
@@ -39,8 +40,14 @@ import {
   dialogTitleClassName,
 } from "@/components/ui";
 import { recurrenceScopeLabels } from "@/components/recurrence-scope";
-import { DeleteEventForm } from "@/app/(protected)/events/event-controls";
-import { TaskDeleteForm } from "@/app/(protected)/tasks/task-remove-form";
+import {
+  DeleteEventForm,
+  RestoreDeletedEventForm,
+} from "@/app/(protected)/events/event-controls";
+import {
+  TaskDeleteForm,
+  TaskRestoreForm,
+} from "@/app/(protected)/tasks/task-remove-form";
 import {
   DeleteWarningForm,
   RestoreWarningForm,
@@ -163,7 +170,33 @@ it("confirms Event deletion and explains its retained history", () => {
   expect(removeHtml).toContain("Event linked Points stop counting");
 });
 
-it("confirms reversible Task deletion and keeps recurrence scope out of this action", () => {
+it("confirms recurring Event Delete and scoped Restore consequences", () => {
+  const props = {
+    eventId: 9,
+    seriesId: 2,
+    revision: 3,
+    requestKey: "00000000-0000-4000-8000-000000000001",
+  };
+  const deleteHtml = renderToStaticMarkup(
+    createElement(DeleteEventForm, props),
+  );
+  const restoreHtml = renderToStaticMarkup(
+    createElement(RestoreDeletedEventForm, props),
+  );
+  for (const html of [deleteHtml, restoreHtml]) {
+    expect(html).toContain("This occurrence");
+    expect(html).toContain("This and following occurrences");
+    expect(html).toContain("All occurrences");
+  }
+  expect(restoreHtml).toContain(
+    "Independently deleted occurrences remain deleted",
+  );
+  expect(restoreHtml).toContain(
+    "Only occurrences deleted by the same Delete action are eligible",
+  );
+});
+
+it("confirms reversible Task deletion and preserves recurrence history", () => {
   const html = renderToStaticMarkup(
     createElement(TaskDeleteForm, {
       taskId: 24,
@@ -172,9 +205,32 @@ it("confirms reversible Task deletion and keeps recurrence scope out of this act
 
   expect(html).toContain("Delete Task?");
   expect(html).toContain(
-    "assignments, completion, recurrence details, and history remain available if restored",
+    "Assignments, completion, recurrence identity, and history remain available if restored",
   );
   expect(html).not.toContain("All occurrences");
+});
+
+it("confirms recurring Task Delete and scoped Restore consequences", () => {
+  const props = {
+    taskId: 24,
+    series: { id: 2, revision: 3 },
+    requestKey: "00000000-0000-4000-8000-000000000002",
+  };
+  const deleteHtml = renderToStaticMarkup(createElement(TaskDeleteForm, props));
+  const restoreHtml = renderToStaticMarkup(
+    createElement(TaskRestoreForm, props),
+  );
+  for (const html of [deleteHtml, restoreHtml]) {
+    expect(html).toContain("This occurrence");
+    expect(html).toContain("This and following occurrences");
+    expect(html).toContain("All occurrences");
+  }
+  expect(restoreHtml).toContain(
+    "Independently deleted occurrences remain deleted",
+  );
+  expect(restoreHtml).toContain(
+    "Only occurrences deleted by the same Delete action are eligible",
+  );
 });
 
 it("confirms reversible Warning deletion and restoration", () => {

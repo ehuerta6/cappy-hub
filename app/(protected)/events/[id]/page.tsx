@@ -515,14 +515,24 @@ export default async function EventDetailPage({
                 signupSheetUrl={event.signup_sheet_url}
               />
               {canManage && event.deleted_at && (
-                <RestoreDeletedEventForm eventId={event.id} />
+                <RestoreDeletedEventForm
+                  eventId={event.id}
+                  seriesId={seriesData?.id}
+                  revision={seriesData?.revision}
+                  requestKey={crypto.randomUUID()}
+                />
               )}
               {canManage && !event.deleted_at && (
                 <div className="flex flex-wrap gap-3 [&>form]:w-auto">
                   {status === "cancelled" && (
                     <RestoreCancelledEventForm eventId={event.id} />
                   )}
-                  <DeleteEventForm eventId={event.id} />
+                  <DeleteEventForm
+                    eventId={event.id}
+                    seriesId={seriesData?.id}
+                    revision={seriesData?.revision}
+                    requestKey={crypto.randomUUID()}
+                  />
                 </div>
               )}
             </section>

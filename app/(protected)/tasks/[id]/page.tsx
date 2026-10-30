@@ -385,10 +385,18 @@ export default async function TaskDetailPage({
               <TaskSelfAssignForm taskId={task.id} />
             )}
             {canManageTask && task.removed_at && (
-              <TaskRestoreForm taskId={task.id} />
+              <TaskRestoreForm
+                taskId={task.id}
+                series={series?.data ?? undefined}
+                requestKey={crypto.randomUUID()}
+              />
             )}
             {canManageTask && !task.removed_at && (
-              <TaskDeleteForm taskId={task.id} />
+              <TaskDeleteForm
+                taskId={task.id}
+                series={series?.data ?? undefined}
+                requestKey={crypto.randomUUID()}
+              />
             )}
           </section>
           <div className="min-w-0 space-y-5">

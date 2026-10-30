@@ -160,6 +160,59 @@ it("deletes an Event before removing its Google representation", async () => {
   );
 });
 
+it("submits recurring Event lifecycle scope and syncs every affected occurrence", async () => {
+  const data = new FormData();
+  data.set("event_id", "12");
+  data.set("scope", "following");
+  data.set("recurrence_series_id", "3");
+  data.set("recurrence_revision", "4");
+  data.set("mutation_request_key", "00000000-0000-4000-8000-000000000401");
+  rpc.mockResolvedValueOnce({ data: [12, 13], error: null });
+
+  expect(await deleteEvent({ error: "", success: "" }, data)).toEqual({
+    error: "",
+    success: "Event deleted",
+  });
+  expect(rpc).toHaveBeenCalledWith("mutate_recurring_event_lifecycle", {
+    p_selected_id: 12,
+    p_scope: "following",
+    p_operation: "delete",
+    p_request_key: "00000000-0000-4000-8000-000000000401",
+    p_series_id: 3,
+    p_revision: 4,
+  });
+  expect(syncGoogleCalendarEvents).toHaveBeenCalledWith(
+    [12, 13],
+    expect.anything(),
+  );
+});
+
+it("restores a recurring Event batch with the explicit restore scope", async () => {
+  const data = new FormData();
+  data.set("event_id", "12");
+  data.set("scope", "series");
+  data.set("recurrence_series_id", "3");
+  data.set("recurrence_revision", "5");
+  data.set("mutation_request_key", "00000000-0000-4000-8000-000000000402");
+  rpc.mockResolvedValueOnce({ data: [12, 14], error: null });
+  expect(await restoreDeletedEvent({ error: "", success: "" }, data)).toEqual({
+    error: "",
+    success: "Event restored",
+  });
+  expect(rpc).toHaveBeenCalledWith("mutate_recurring_event_lifecycle", {
+    p_selected_id: 12,
+    p_scope: "series",
+    p_operation: "restore",
+    p_request_key: "00000000-0000-4000-8000-000000000402",
+    p_series_id: 3,
+    p_revision: 5,
+  });
+  expect(syncGoogleCalendarEvents).toHaveBeenCalledWith(
+    [12, 14],
+    expect.anything(),
+  );
+});
+
 it("rejects malformed Event input before calling the RPC", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 8,

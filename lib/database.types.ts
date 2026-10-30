@@ -1574,6 +1574,17 @@ export type Database = {
         };
         Returns: number;
       };
+      mutate_recurring_event_lifecycle: {
+        Args: {
+          p_operation: string;
+          p_request_key: string;
+          p_revision: number;
+          p_scope: string;
+          p_selected_id: number;
+          p_series_id: number;
+        };
+        Returns: number[];
+      };
       mutate_recurring_event_with_capacity: {
         Args: {
           p_capacity_changed?: boolean;
@@ -1619,6 +1630,17 @@ export type Database = {
           p_series_id: number;
         };
         Returns: number;
+      };
+      mutate_recurring_task_lifecycle: {
+        Args: {
+          p_operation: string;
+          p_request_key: string;
+          p_revision: number;
+          p_scope: string;
+          p_selected_id: number;
+          p_series_id: number;
+        };
+        Returns: number[];
       };
       mutate_recurring_task_with_events: {
         Args: {
