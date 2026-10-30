@@ -239,16 +239,25 @@ it("edits standalone Task details and preserves the filtered-list return path", 
   );
 });
 
-it("deletes only the selected Task through its trusted RPC", async () => {
+it("submits recurring Task delete scope through the trusted RPC", async () => {
   const form = new FormData();
   form.set("task_id", "9");
   form.set("recurrence_series_id", "3");
   form.set("scope", "series");
+  form.set("recurrence_revision", "2");
+  form.set("mutation_request_key", "00000000-0000-4000-8000-000000000501");
   expect(await removeTask({ error: "", success: "" }, form)).toEqual({
     error: "",
     success: "Task deleted",
   });
-  expect(rpc).toHaveBeenCalledWith("remove_task", { p_task_id: 9 });
+  expect(rpc).toHaveBeenCalledWith("mutate_recurring_task_lifecycle", {
+    p_selected_id: 9,
+    p_scope: "series",
+    p_operation: "delete",
+    p_request_key: "00000000-0000-4000-8000-000000000501",
+    p_series_id: 3,
+    p_revision: 2,
+  });
   expect(revalidatePath).toHaveBeenCalledWith("/calendar");
   expect(revalidatePath).toHaveBeenCalledWith("/system-log");
   expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
@@ -262,6 +271,27 @@ it("restores a deleted Task through the trusted RPC", async () => {
     success: "Task restored",
   });
   expect(rpc).toHaveBeenCalledWith("restore_task", { p_task_id: 9 });
+});
+
+it("restores only the selected recurring Task batch scope", async () => {
+  const form = new FormData();
+  form.set("task_id", "9");
+  form.set("scope", "following");
+  form.set("recurrence_series_id", "3");
+  form.set("recurrence_revision", "4");
+  form.set("mutation_request_key", "00000000-0000-4000-8000-000000000502");
+  expect(await restoreTask({ error: "", success: "" }, form)).toEqual({
+    error: "",
+    success: "Task restored",
+  });
+  expect(rpc).toHaveBeenCalledWith("mutate_recurring_task_lifecycle", {
+    p_selected_id: 9,
+    p_scope: "following",
+    p_operation: "restore",
+    p_request_key: "00000000-0000-4000-8000-000000000502",
+    p_series_id: 3,
+    p_revision: 4,
+  });
 });
 
 it("recurring Task editing submits only changed fields to its trusted RPC", async () => {

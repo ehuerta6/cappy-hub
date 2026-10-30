@@ -193,17 +193,95 @@ export function BulkAddOfficersForm({
     </form>
   );
 }
-export function RestoreDeletedEventForm({ eventId }: { eventId: number }) {
+const lifecycleScopeContext = {
+  label: "Scope",
+  fieldName: "scope",
+  values: {
+    occurrence: "This occurrence only. Other deleted occurrences stay deleted.",
+    following:
+      "This occurrence and following occurrences from the same Delete action only.",
+    series: "All occurrences from the same Delete action only.",
+  },
+  defaultValue: "occurrence",
+} as const;
+
+function RecurrenceLifecycleScope() {
+  return (
+    <fieldset className="space-y-2 text-sm">
+      <legend className="font-medium">Choose occurrences</legend>
+      {[
+        ["occurrence", "This occurrence"],
+        ["following", "This and following occurrences"],
+        ["series", "All occurrences"],
+      ].map(([value, label]) => (
+        <label key={value} className="flex items-center gap-2">
+          <input
+            type="radio"
+            name="scope"
+            value={value}
+            defaultChecked={value === "occurrence"}
+          />
+          {label}
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
+function lifecycleInputs({
+  seriesId,
+  revision,
+  requestKey,
+}: {
+  seriesId?: number;
+  revision?: number;
+  requestKey?: string;
+}) {
+  if (seriesId === undefined || revision === undefined) return null;
+  return (
+    <>
+      <input type="hidden" name="recurrence_series_id" value={seriesId} />
+      <input type="hidden" name="recurrence_revision" value={revision} />
+      <input type="hidden" name="mutation_request_key" value={requestKey} />
+    </>
+  );
+}
+
+export function RestoreDeletedEventForm({
+  eventId,
+  seriesId,
+  revision,
+  requestKey,
+}: {
+  eventId: number;
+  seriesId?: number;
+  revision?: number;
+  requestKey?: string;
+}) {
   const [state, action, pending] = useActionState(restoreDeletedEvent, {
     ...initialFormActionState,
   });
   return (
     <form action={action}>
       <input type="hidden" name="event_id" value={eventId} />
+      {lifecycleInputs({ seriesId, revision, requestKey })}
       <ActionFeedback state={state} />
-      <button disabled={pending} className="button-secondary">
-        {pending ? "Restoring…" : "Restore Event"}
-      </button>
+      {seriesId !== undefined ? (
+        <ConfirmationDialog
+          title="Restore recurring Event?"
+          description="Only occurrences deleted by the same Delete action are eligible. Independently deleted occurrences remain deleted, and signups, Volunteer Time Slots, Points, and occurrence history are preserved."
+          triggerLabel={pending ? "Restoring…" : "Restore Event"}
+          confirmLabel="Restore selected scope"
+          context={lifecycleScopeContext}
+          pending={pending}
+        >
+          <RecurrenceLifecycleScope />
+        </ConfirmationDialog>
+      ) : (
+        <button disabled={pending} className="button-secondary">
+          {pending ? "Restoring…" : "Restore Event"}
+        </button>
+      )}
     </form>
   );
 }
@@ -223,23 +301,39 @@ export function RestoreCancelledEventForm({ eventId }: { eventId: number }) {
   );
 }
 
-export function DeleteEventForm({ eventId }: { eventId: number }) {
+export function DeleteEventForm({
+  eventId,
+  seriesId,
+  revision,
+  requestKey,
+}: {
+  eventId: number;
+  seriesId?: number;
+  revision?: number;
+  requestKey?: string;
+}) {
   const [state, action, pending] = useActionState(deleteEvent, {
     ...initialFormActionState,
   });
   return (
     <form action={action}>
       <input type="hidden" name="event_id" value={eventId} />
+      {lifecycleInputs({ seriesId, revision, requestKey })}
       <ActionFeedback state={state} />
       <ConfirmationDialog
-        title="Delete Event?"
-        description="The Event will leave active lists and operations. Signups, Volunteer Time Slots, recurrence identity, and history are preserved. Event linked Points stop counting in active totals until you restore the Event."
+        title={
+          seriesId === undefined ? "Delete Event?" : "Delete recurring Events?"
+        }
+        description="The selected scope leaves active lists and operations. Signups, Volunteer Time Slots, recurrence identity, and history are preserved. Event linked Points stop counting in active totals until eligible occurrences are restored."
         triggerLabel={pending ? "Deleting…" : "Delete Event"}
         confirmLabel="Delete Event"
         destructive
+        context={seriesId !== undefined ? lifecycleScopeContext : undefined}
         pending={pending}
         triggerClassName="button-secondary"
-      />
+      >
+        {seriesId !== undefined && <RecurrenceLifecycleScope />}
+      </ConfirmationDialog>
     </form>
   );
 }

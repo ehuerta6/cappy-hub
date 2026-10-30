@@ -484,16 +484,29 @@ export async function restoreDeletedEvent(
       success: "",
     };
   const supabase = await createClient();
-  const { error } = await supabase.rpc("restore_deleted_event", {
-    p_event_id: restoreEventValidationResult.data.event_id,
-  });
+  const lifecycle = recurringLifecycleFields(formData);
+  const result = lifecycle
+    ? await supabase.rpc("mutate_recurring_event_lifecycle", {
+        p_selected_id: restoreEventValidationResult.data.event_id,
+        p_scope: lifecycle.scope,
+        p_operation: "restore",
+        p_request_key: lifecycle.requestKey,
+        p_series_id: lifecycle.seriesId,
+        p_revision: lifecycle.revision,
+      })
+    : await supabase.rpc("restore_deleted_event", {
+        p_event_id: restoreEventValidationResult.data.event_id,
+      });
+  const error = result.error;
   if (error) return { error: mutationError(error.message), success: "" };
   revalidatePath("/", "layout");
   revalidatePath("/events");
   revalidatePath("/system-log");
   if (
     !(await syncGoogleCalendarEvents(
-      [restoreEventValidationResult.data.event_id],
+      Array.isArray(result.data)
+        ? (result.data as number[])
+        : [restoreEventValidationResult.data.event_id],
       supabase,
     ))
   )
@@ -512,24 +525,56 @@ export async function deleteEvent(
   if (!validationResult.success)
     return { error: validationResult.error.issues[0].message, success: "" };
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("delete_event", {
-    p_event_id: validationResult.data.event_id,
-  });
+  const lifecycle = recurringLifecycleFields(formData);
+  const result = lifecycle
+    ? await supabase.rpc("mutate_recurring_event_lifecycle", {
+        p_selected_id: validationResult.data.event_id,
+        p_scope: lifecycle.scope,
+        p_operation: "delete",
+        p_request_key: lifecycle.requestKey,
+        p_series_id: lifecycle.seriesId,
+        p_revision: lifecycle.revision,
+      })
+    : await supabase.rpc("delete_event", {
+        p_event_id: validationResult.data.event_id,
+      });
+  const { data, error } = result;
   if (error) return { error: mutationError(error.message), success: "" };
   revalidatePath("/", "layout");
   revalidatePath("/events");
   revalidatePath("/system-log");
   if (
     !(await syncGoogleCalendarEvents(
-      [validationResult.data.event_id],
+      (data as number[] | boolean | null) instanceof Array
+        ? (data as number[])
+        : [validationResult.data.event_id],
       supabase,
     ))
   )
     return { error: calendarSyncWarning, success: "" };
   return {
     error: "",
-    success: data ? "Event deleted" : "Event was already deleted",
+    success: lifecycle || data ? "Event deleted" : "Event was already deleted",
   };
+}
+
+function recurringLifecycleFields(formData: FormData) {
+  const seriesId = Number(formData.get("recurrence_series_id"));
+  const revision = Number(formData.get("recurrence_revision"));
+  const requestKey = String(formData.get("mutation_request_key") ?? "");
+  const scope = String(formData.get("scope") ?? "occurrence");
+  if (
+    !Number.isSafeInteger(seriesId) ||
+    seriesId < 1 ||
+    !Number.isInteger(revision) ||
+    revision < 0 ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      requestKey,
+    ) ||
+    !["occurrence", "following", "series"].includes(scope)
+  )
+    return null;
+  return { seriesId, revision, requestKey, scope };
 }
 
 export async function restoreEvent(

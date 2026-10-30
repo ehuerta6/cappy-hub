@@ -172,6 +172,8 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       ,'public.save_event_with_capacity(text,text,bigint,text,date,timestamptz,timestamptz,bigint[],text,integer,bigint,text,text)'::regprocedure
       ,'public.create_recurring_event_with_capacity(text,text,bigint,text,bigint[],text,text,text,integer,uuid,text,date[],timestamptz[],timestamptz[])'::regprocedure
       ,'public.mutate_recurring_event_with_capacity(bigint,text,text,uuid,bigint,integer,jsonb,text,date[],boolean,integer)'::regprocedure
+      ,'public.mutate_recurring_event_lifecycle(bigint,text,text,uuid,bigint,integer)'::regprocedure
+      ,'public.mutate_recurring_task_lifecycle(bigint,text,text,uuid,bigint,integer)'::regprocedure
     )), 'authenticated has no unreviewed public RPC entry point');
 
 -- Fixtures are inserted as database owner. Every probe below changes to the

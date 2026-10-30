@@ -294,6 +294,25 @@ export async function removeTaskAssignment(
   return { error: "", success: "Officer removed from task" };
 }
 
+function recurringTaskLifecycleFields(form: FormData) {
+  const seriesId = Number(form.get("recurrence_series_id"));
+  const revision = Number(form.get("recurrence_revision"));
+  const requestKey = String(form.get("mutation_request_key") ?? "");
+  const scope = String(form.get("scope") ?? "occurrence");
+  if (
+    !Number.isSafeInteger(seriesId) ||
+    seriesId < 1 ||
+    !Number.isInteger(revision) ||
+    revision < 0 ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      requestKey,
+    ) ||
+    !["occurrence", "following", "series"].includes(scope)
+  )
+    return null;
+  return { seriesId, revision, requestKey, scope };
+}
+
 export async function removeTask(_previous: FormActionState, form: FormData) {
   await getAuthorizationContext();
   const validation = taskRecordInputSchema.safeParse({
@@ -302,9 +321,20 @@ export async function removeTask(_previous: FormActionState, form: FormData) {
   if (!validation.success)
     return { error: validation.error.issues[0].message, success: "" };
   const supabase = await createClient();
-  const { error } = await supabase.rpc("remove_task", {
-    p_task_id: validation.data.task_id,
-  });
+  const lifecycle = recurringTaskLifecycleFields(form);
+  const result = lifecycle
+    ? await supabase.rpc("mutate_recurring_task_lifecycle", {
+        p_selected_id: validation.data.task_id,
+        p_scope: lifecycle.scope,
+        p_operation: "delete",
+        p_request_key: lifecycle.requestKey,
+        p_series_id: lifecycle.seriesId,
+        p_revision: lifecycle.revision,
+      })
+    : await supabase.rpc("remove_task", {
+        p_task_id: validation.data.task_id,
+      });
+  const { error } = result;
   if (error) return { error: mutationError(error.message), success: "" };
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${validation.data.task_id}`);
@@ -322,9 +352,20 @@ export async function restoreTask(_previous: FormActionState, form: FormData) {
   if (!validation.success)
     return { error: validation.error.issues[0].message, success: "" };
   const supabase = await createClient();
-  const { error } = await supabase.rpc("restore_task", {
-    p_task_id: validation.data.task_id,
-  });
+  const lifecycle = recurringTaskLifecycleFields(form);
+  const result = lifecycle
+    ? await supabase.rpc("mutate_recurring_task_lifecycle", {
+        p_selected_id: validation.data.task_id,
+        p_scope: lifecycle.scope,
+        p_operation: "restore",
+        p_request_key: lifecycle.requestKey,
+        p_series_id: lifecycle.seriesId,
+        p_revision: lifecycle.revision,
+      })
+    : await supabase.rpc("restore_task", {
+        p_task_id: validation.data.task_id,
+      });
+  const { error } = result;
   if (error) return { error: mutationError(error.message), success: "" };
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${validation.data.task_id}`);

@@ -153,6 +153,16 @@ export function ConfirmationDialog({
           context ? `${descriptionId} ${contextId}` : descriptionId
         }
         onClose={handleClose}
+        onChange={(event) => {
+          const target = event.target;
+          if (
+            context &&
+            target instanceof HTMLInputElement &&
+            target.name === context.fieldName
+          ) {
+            setContextValue(context.values[target.value] ?? target.value);
+          }
+        }}
         className={dialogSurfaceClassName}
       >
         <div className={dialogContentClassName}>
