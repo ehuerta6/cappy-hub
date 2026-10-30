@@ -47,7 +47,7 @@ insert into event_branches(event_id,branch_id)
 select event_id,id from (values (-32910::bigint),(-32911::bigint),(-32912::bigint),(-32913::bigint)) events(event_id)
 cross join branches where branches.name='intro';
 insert into event_officers(event_id,officer_id) values
- (-32901,-32903),(-32901,-32904),(-32901,-32908),(-32902,-32903),
+ (-32901,-32903),(-32901,-32904),(-32901,-32908),(-32902,-32903),(-32902,-32904),
  (-32910,-32903),(-32910,-32907),(-32911,-32903),(-32911,-32907),
  (-32912,-32903),(-32913,-32903),(-32913,-32907),(-32913,-32908);
 insert into event_time_slots(id,event_id,starts_at,ends_at,capacity)
