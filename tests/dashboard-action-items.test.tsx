@@ -161,149 +161,66 @@ it("includes only this Officer's incomplete assignments", async () => {
 it("does not add manager approval tasks to the dashboard", async () => {
   actor.positionCode = "president";
   const managerTask = task(9, [assignment(7, "2026-10-03")]);
-  expect(dashboardActionItems(actor, [managerTask], []).items).toEqual([]);
+  expect(dashboardActionItems(actor, [managerTask]).items).toEqual([]);
 });
 
-it("includes only current pending snapshotted warning decisions, even for admins", async () => {
+it("does not query or prompt for leadership Warning decisions, including legacy pending records", async () => {
   actor.applicationRole = "admin";
   warnings = [
     warning(1),
-    warning(2, {
-      warning_approvals: [{ approver_officer_id: 9, decision: "pending" }],
-    }),
-    warning(3, {
-      warning_approvals: [{ approver_officer_id: 8, decision: "approved" }],
-    }),
-    warning(4, { status: "rejected" }),
-    warning(5, { status: "approved" }),
+    warning(2, { status: "approved" }),
+    warning(3, { status: "rejected" }),
   ];
   const html = await render();
-  expect(html).toContain('href="/officers?view=warnings#warning-1"');
-  expect(html).toContain("Warning for Alex");
-  for (const id of [2, 3, 4, 5]) expect(html).not.toContain(`warning-${id}`);
-  const url = urls.find((url) => url.pathname.endsWith("officer_warnings"))!;
-  expect(url.searchParams.get("warning_approvals.approver_officer_id")).toBe(
-    "eq.8",
+  expect(urls.some((url) => url.pathname.endsWith("officer_warnings"))).toBe(
+    false,
   );
-  expect(url.searchParams.get("warning_approvals.decision")).toBe("eq.pending");
-  expect(url.searchParams.get("status")).toBe("eq.pending");
-  expect(url.searchParams.get("select")).toContain("warning_approvals!inner");
-  expect(url.searchParams.get("select")).not.toContain("reason");
-});
-
-it("renders no unauthorized warning data when RLS returns no visible warnings", async () => {
-  const html = await render();
-  expect(html).not.toContain("Warning for");
+  expect(html).not.toContain("Warning for Alex");
   expect(html).not.toContain("Needs decision");
   expect(html).not.toContain("View warning decisions");
   expect(html).toContain("You&#x27;re all caught up.");
 });
 
-it("prioritizes pending warnings and keeps Tasks ordered by due date and ID", async () => {
+it("orders personal Tasks by due date and ID", async () => {
   tasks = [
     task(4, [assignment()], { due_date: "2026-10-06" }),
     task(2),
     task(1, [assignment()], { due_date: "2026-10-02" }),
   ];
-  warnings = [
-    warning(3),
-    warning(2),
-    warning(1, { created_at: "2026-10-01T00:00:00Z" }),
-  ];
-  expect((await load())!.items.map((item) => item.key)).toEqual([
-    "warning-1",
-    "warning-2",
-    "warning-3",
+  expect((await load()).items.map((item) => item.key)).toEqual([
     "task-1",
     "task-2",
-  ]);
-  tasks = [];
-  expect((await load())!.items.map((item) => item.key)).toEqual([
-    "warning-1",
-    "warning-2",
-    "warning-3",
-  ]);
-});
-
-it("keeps the warning priority when the five-item preview is full", async () => {
-  tasks = Array.from({ length: 5 }, (_, index) =>
-    task(index + 1, [assignment()], {
-      due_date: `2026-10-${String(index + 5).padStart(2, "0")}`,
-    }),
-  );
-  warnings = [warning(1)];
-
-  const result = await load();
-  expect(result!.items.map((item) => item.key)).toEqual([
-    "warning-1",
-    "task-1",
-    "task-2",
-    "task-3",
     "task-4",
   ]);
-  expect(result!.items).toHaveLength(5);
-  expect(result!.hasMore).toBe(true);
-  expect(result!.hasPendingWarnings).toBe(true);
 });
 
-it("caps the summary at five and bounds all source queries", async () => {
-  actor.applicationRole = "admin";
+it("caps the Task preview at five with a bounded source query", async () => {
   tasks = Array.from({ length: 20 }, (_, i) => task(i + 1));
-  warnings = Array.from({ length: 20 }, (_, i) => warning(i + 1));
   const html = await render();
   const section = html
     .split('aria-label="Your action items"')[1]
     .split("</section>")[0];
   expect(section.match(/<li>/g)).toHaveLength(5);
-  expect(section).toContain('href="/officers?view=warnings#warning-5"');
-  expect(section).not.toContain('href="/officers?view=warnings#warning-6"');
-  expect(section).toContain("Showing the first 5 items");
-  expect(section).toContain('href="/tasks"');
-  expect(section).toContain('href="/officers?view=warnings"');
-  expect(
-    [
-      ...section.matchAll(/href="\/officers\?view=warnings#warning-(\d+)"/g),
-    ].map((match) => match[1]),
-  ).toEqual(["1", "2", "3", "4", "5"]);
-  for (const url of urls.filter((url) =>
-    ["tasks", "officer_warnings"].includes(url.pathname.split("/").at(-1)!),
-  )) {
+  expect(section).toContain('href="/tasks/5"');
+  expect(section).not.toContain('href="/tasks/6"');
+  expect(section).toContain("Showing the first 5 items. View Tasks for more.");
+  for (const url of urls.filter((url) => url.pathname.endsWith("tasks"))) {
     expect(url.searchParams.get("limit")).toBe("6");
     expect(url.searchParams.get("order")).toMatch(/,id.asc$/);
   }
 });
 
-it("renders personal completion status and warning decisions with canonical links", async () => {
-  tasks = [task(8, [assignment()])];
-  warnings = [warning(2)];
-
+it("renders personal completion status with canonical links", async () => {
+  tasks = [task(8)];
   const html = await render();
   const section = html
     .split('aria-label="Your action items"')[1]
     .split("</section>")[0];
-
   expect(section).toContain("Task 8");
   expect(section).toContain('href="/tasks/8"');
   expect(section).toContain("Due Oct 5, 2026");
   expect(section).toContain("Not completed");
-  expect(section).not.toContain("Awaiting approval");
-  expect(section).toContain('href="/officers?view=warnings#warning-2"');
-  expect(section).toContain("Warning for Alex");
-  expect(section).toContain("Needs decision");
   expect(section).not.toContain("<form");
-});
-
-it("keeps View all Tasks available without a pending warning decision", async () => {
-  tasks = Array.from({ length: 6 }, (_, index) => task(index + 1));
-  const html = await render();
-  const section = html
-    .split('aria-label="Your action items"')[1]
-    .split("</section>")[0];
-
-  expect(section).toContain('href="/tasks"');
-  expect(section).not.toContain("View warning decisions");
-  expect(section).toContain("Showing the first 5 items. View Tasks for more.");
-  expect(section).not.toContain("warning decisions for more");
 });
 
 it("keeps the empty state lightweight and preserves profile, metrics and summary layout", async () => {
@@ -330,50 +247,25 @@ it("keeps the empty state lightweight and preserves profile, metrics and summary
 
 it("preserves other Dashboard content when recent point activity is unavailable", async () => {
   failingTables.add("point_transactions");
-
   const html = await render();
-
   expect(html).toContain('aria-label="Summary"');
   expect(html).toContain('aria-label="Upcoming events"');
   expect(html).toContain("Recent point activity unavailable");
   expect(html).not.toContain("No point transactions yet.");
 });
 
-it("keeps Task actions visible when Warning actions are unavailable", async () => {
+it("reports Task source failures without a false empty-state success", async () => {
   tasks = [task(12)];
-  warnings = [warning(13)];
-  failingTables.add("officer_warnings");
-
-  const result = await load();
-  const html = await render();
-  const section = html
-    .split('aria-label="Your action items"')[1]
-    .split("</section>")[0];
-
-  expect(result.items.map((item) => item.key)).toEqual(["task-12"]);
-  expect(result.unavailableSources).toEqual({ tasks: false, warnings: true });
-  expect(section).toContain("Task 12");
-  expect(section).not.toContain("You&#x27;re all caught up.");
-  expect(section).toContain("Warning decisions unavailable");
-  expect(section).toContain("This list may be incomplete.");
-  expect(section).toContain("View warning decisions");
-});
-
-it("keeps Warning actions visible when Task actions are unavailable", async () => {
-  tasks = [task(12)];
-  warnings = [warning(13)];
   failingTables.add("tasks");
-
   const result = await load();
   const html = await render();
   const section = html
     .split('aria-label="Your action items"')[1]
     .split("</section>")[0];
-
-  expect(result.items.map((item) => item.key)).toEqual(["warning-13"]);
-  expect(result.unavailableSources).toEqual({ tasks: true, warnings: false });
-  expect(section).toContain("Warning for Alex");
+  expect(result.items).toEqual([]);
+  expect(result.unavailableSources).toEqual({ tasks: true });
   expect(section).not.toContain("You&#x27;re all caught up.");
   expect(section).toContain("Task actions unavailable");
   expect(section).toContain("This list may be incomplete.");
+  expect(section).not.toContain("Warning decisions");
 });

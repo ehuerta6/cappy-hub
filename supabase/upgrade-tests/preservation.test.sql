@@ -24,8 +24,17 @@ select results_eq($$select officer_id,branch_id from officer_branches order by o
  'recoverable catalogs preserve all Officer Branch memberships');
 
 
--- #327 removes only manual precedence; every pre-existing field stays intact.
-select results_eq($$select id,to_jsonb(p) from point_transactions p order by id$$,
+-- Direct Admin management changes new writes only, never legacy history.
+select results_eq($$select id,to_jsonb(w) from officer_warnings w order by id$$,
+ $$select id,original from upgrade_fixture.pre_direct_admin_warnings order by id$$,
+ 'direct Admin migration preserves every Warning including pending/rejected/voided states');
+select results_eq($$select warning_id,approver_id,to_jsonb(a) from warning_approvals a order by warning_id,approver_id$$,
+ $$select warning_id,approver_id,original from upgrade_fixture.pre_direct_admin_approvals order by warning_id,approver_id$$,
+ 'direct Admin migration preserves approval snapshots, actor IDs, decisions and timestamps');
+
+-- #327/#328 preserve every historical field; new provenance/operational
+-- marker columns are excluded from predecessor JSON projections and checked below.
+select results_eq($$select id,to_jsonb(p)-'participation_superseded_at'-'participation_schedule_suspended' from point_transactions p order by id$$,
  $$select id,original from upgrade_fixture.pre_independent_manual_points order by id$$,
  'independent manual migration preserves every historical Point row including direct edits and removals');
 select results_eq($$select id,to_jsonb(a) from audit_logs a order by id$$,
@@ -40,6 +49,13 @@ select results_eq($$select to_jsonb(eo) from event_officers eo order by event_id
 select results_eq($$select to_jsonb(s) from event_time_slot_officers s order by slot_id,officer_id$$,
  $$select original from upgrade_fixture.pre_independent_manual_slots order by (original->>'slot_id')::bigint,(original->>'officer_id')::bigint$$,
  'independent manual migration preserves slot selections');
+
+select is((select count(*) from point_transactions where participation_superseded_at is not null),0::bigint,
+ 'participation upgrade never invents premature-removal intent');
+select is((select count(*) from point_transactions where participation_schedule_suspended),0::bigint,
+ 'participation upgrade never invents mechanical schedule suspension on historical rows');
+select is((select count(*) from private.event_participation_basis),0::bigint,
+ 'participation upgrade leaves historical eligibility basis explicitly unknown');
 
 select is(to_regclass('public.event_waitlist')::text,null::text,
   'operational Waitlist table is removed after the contract migration');
@@ -70,7 +86,7 @@ select results_eq(
   $$select event_id,officer_id from upgrade_fixture.pre_event_officers order by event_id,officer_id$$,
   'confirmed Event signups remain unchanged');
 select results_eq(
-  $$select to_jsonb(p)-'event_time_slot_id'-'slot_selection_removed' from point_transactions p where event_id=92201$$,
+  $$select to_jsonb(p)-'participation_superseded_at'-'participation_schedule_suspended'-'event_time_slot_id'-'slot_selection_removed' from point_transactions p where event_id=92201$$,
   $$select original from upgrade_fixture.pre_event_points$$,
   'existing Event Point transactions remain unchanged');
 select is((select max_volunteers from events where id=92201),2,
@@ -122,11 +138,11 @@ select results_eq($$select * from event_officers where event_id between 90004 an
   $$select * from upgrade_fixture.event_officers where event_id between 90004 and 90006 order by event_id,officer_id$$,
   'timed legacy Event officer participation survives');
 select results_eq(
-  $$select to_jsonb(p)-'removed_at'-'removed_by'-'updated_at'-'updated_by'-'task_id'-'created_by_officer_id'-'updated_by_officer_id'-'removed_by_officer_id'-'event_time_slot_id'-'slot_selection_removed' from point_transactions p where id between 90001 and 90002 order by id$$,
+  $$select to_jsonb(p)-'participation_superseded_at'-'participation_schedule_suspended'-'removed_at'-'removed_by'-'updated_at'-'updated_by'-'task_id'-'created_by_officer_id'-'updated_by_officer_id'-'removed_by_officer_id'-'event_time_slot_id'-'slot_selection_removed' from point_transactions p where id between 90001 and 90002 order by id$$,
   $$select original from upgrade_fixture.points where (original->>'id')::bigint between 90001 and 90002 order by (original->>'id')::bigint$$,
   'point transaction IDs, values, timestamps and actors survive');
 select results_eq(
-  $$select to_jsonb(p)-'task_id'-'created_by_officer_id'-'updated_by_officer_id'-'removed_by_officer_id'-'event_time_slot_id'-'slot_selection_removed' from point_transactions p where id in (90003,90004) order by id$$,
+  $$select to_jsonb(p)-'participation_superseded_at'-'participation_schedule_suspended'-'task_id'-'created_by_officer_id'-'updated_by_officer_id'-'removed_by_officer_id'-'event_time_slot_id'-'slot_selection_removed' from point_transactions p where id in (90003,90004) order by id$$,
   $$select original from upgrade_fixture.points where (original->>'id')::bigint in (90003,90004) order by (original->>'id')::bigint$$,
   'active and removed legacy Event transactions retain their IDs, associations, values, actors and timestamps');
 select is((select count(*) from point_transactions where id=90003),1::bigint,
@@ -248,7 +264,7 @@ select is((select jsonb_agg(to_jsonb(e)-'deleted_by_officer_id'-'signup_sheet_ur
   'upgrade preserves every historical Event row and lifecycle value');
 select is((select count(*) from events e join upgrade_fixture.pre_hardening_events f on (f.row->>'id')::bigint=e.id where e.signup_sheet_url is not null),
   0::bigint,'historical Events retain a null optional signup sheet');
-select is((select jsonb_agg(to_jsonb(p)-'created_by_officer_id'-'updated_by_officer_id'-'removed_by_officer_id'-'event_time_slot_id'-'slot_selection_removed' order by id)
+select is((select jsonb_agg(to_jsonb(p)-'participation_superseded_at'-'participation_schedule_suspended'-'created_by_officer_id'-'updated_by_officer_id'-'removed_by_officer_id'-'event_time_slot_id'-'slot_selection_removed' order by id)
   from point_transactions p where exists(select 1 from upgrade_fixture.pre_hardening_points f
     where (f.row->>'id')::bigint=p.id)),
   (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.pre_hardening_points),
@@ -346,12 +362,12 @@ select is((select jsonb_agg(to_jsonb(e)-'deleted_by_officer_id'-'signup_sheet_ur
 select is((select jsonb_agg(to_jsonb(t) order by id) from tasks t where id in (90680,90681)),
  (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.recurring_tasks),'scope migration preserves existing recurring Task rows');
 select is((select to_jsonb(a) from task_officer_assignments a where task_id=90680 and officer_id=90001),(select row from upgrade_fixture.recurring_assignment),'recurring assignment completion and approval history remains canonical');
-select is((select to_jsonb(p)-'created_by_officer_id'-'updated_by_officer_id'-'removed_by_officer_id'-'event_time_slot_id'-'slot_selection_removed' from point_transactions p where id=90680),(select row from upgrade_fixture.recurring_award),'scope migration preserves existing awarded Task points');
+select is((select to_jsonb(p)-'participation_superseded_at'-'participation_schedule_suspended'-'created_by_officer_id'-'updated_by_officer_id'-'removed_by_officer_id'-'event_time_slot_id'-'slot_selection_removed' from point_transactions p where id=90680),(select row from upgrade_fixture.recurring_award),'scope migration preserves existing awarded Task points');
 select is((select to_jsonb(t) from tasks t where id=90790),(select row from upgrade_fixture.pre_task_standalone),'Task transition preserves standalone Task fields and creator');
 select is((select to_jsonb(a) from task_officer_assignments a where task_id=90790 and officer_id=90001),(select row from upgrade_fixture.pre_task_assignment),'canonical Task assignment preserves its original completion and approval values');
 select is((select to_jsonb(a) from task_officer_assignments a where task_id=90790 and officer_id=90001),(select row from upgrade_fixture.pre_task_contract_assignment),'contract recovers any assignment history that remained only in the projection');
-select is((select to_jsonb(p)-'event_time_slot_id'-'slot_selection_removed' from point_transactions p where id=90790),(select row from upgrade_fixture.pre_task_award),'Task Point history and actor attribution survive the transition');
-select is((select to_jsonb(p)-'event_time_slot_id'-'slot_selection_removed' from point_transactions p where id=90790),(select row from upgrade_fixture.pre_task_contract_award),'Task Point transactions survive contract migration unchanged');
+select is((select to_jsonb(p)-'participation_superseded_at'-'participation_schedule_suspended'-'event_time_slot_id'-'slot_selection_removed' from point_transactions p where id=90790),(select row from upgrade_fixture.pre_task_award),'Task Point history and actor attribution survive the transition');
+select is((select to_jsonb(p)-'participation_superseded_at'-'participation_schedule_suspended'-'event_time_slot_id'-'slot_selection_removed' from point_transactions p where id=90790),(select row from upgrade_fixture.pre_task_contract_award),'Task Point transactions survive contract migration unchanged');
 select is((select to_jsonb(a) from audit_logs a where entity_type='task' and entity_id='90790' and action='task.completion_changed'),
   (select row from upgrade_fixture.pre_task_contract_audit),'Task audit/System Log history survives contract migration unchanged');
 select ok(to_regclass('public.task_assignments') is null,'legacy Task assignment table is removed');
@@ -367,5 +383,32 @@ select is((select to_jsonb(a) from task_officer_assignments a where task_id=9068
   'recurring assignment backfill retains completion and historical approval values');
 select is((select starts_on::text||'/'||ends_on::text from event_series where id=90680),'2099-10-01/2099-10-02','existing Event series bounds backfilled');
 select is((select starts_on::text||'/'||ends_on::text from task_series where id=90680),'2099-10-01/2099-10-02','existing Task series bounds backfilled');
+-- An explicit Admin confirmation can supersede a legacy unknown-basis
+-- premature removal after a reviewed schedule correction. Migration itself
+-- neither classifies nor activates this existing row.
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032701',true);
+set local role authenticated;
+select save_event_with_links('Removed automatic history','Synthetic reviewed correction',
+ (select id from event_types where name='Meeting'),'Campus','2099-01-02',
+ '2099-01-02 09:00-07','2099-01-02 11:00-07','{}'::bigint[],92302);
+select is(confirm_premature_participation(92302,'Synthetic source records explicitly confirm the original schedule was premature'),true,
+ 'legacy removed row requires explicit authorized confirmation');
+select is((select count(*) from point_transactions where event_id=92302 and award_type='participation' and removed_at is null),0::bigint,
+ 'legacy confirmation does not grant credit before corrected end');
+select save_event_with_links('Removed automatic history','Synthetic reviewed correction',
+ (select id from event_types where name='Meeting'),'Campus','2021-01-02',
+ '2021-01-02 09:00-07','2021-01-02 11:00-07','{}'::bigint[],92302);
+reset role;
+select is((select points from point_transactions where event_id=92302 and award_type='participation' and removed_at is null),2::numeric,
+ 'corrected historical Event awards legitimate participation once at1/hour');
+select is((select to_jsonb(p)-'participation_superseded_at'-'participation_schedule_suspended' from point_transactions p where id=92302),
+ (select original from upgrade_fixture.pre_independent_manual_points where id=92302),
+ 'legacy premature amount, transaction identity and removal attribution remain intact');
+select is((select participation_points_per_hour_at_end from events where id=92302),2.5::numeric,
+ 'new legitimate credit never erases legacy2.5 snapshot');
+select ok(exists(select 1 from audit_logs where action='points.premature_participation_confirmed'
+ and entity_id='92302' and details->>'previous_basis_known'='false' and actor_officer_id=92301),
+ 'reviewed unknown legacy basis and confirming Admin are explicit audit evidence');
+
 select * from finish();
 rollback;

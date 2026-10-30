@@ -957,7 +957,7 @@ it("retains Officer operational sections and full point history", async () => {
   expect(html).toContain('aria-label="Warnings"');
   expect(html).toContain("Create warning");
   expect(html).toContain('aria-labelledby="create-warning-title"');
-  expect(html).toContain("The reason is permanent");
+  expect(html).toContain("This warning takes effect immediately");
   expect(html).toContain('aria-label="Associated events"');
   expect(html).toContain('href="/points?officer=7"');
 });
@@ -1113,4 +1113,44 @@ it("keeps Point History values, source and admin context in table columns", () =
     "Remove",
   ])
     expect(html).toContain(value);
+});
+
+it("labels mechanically suspended participation as awaiting Event reconciliation", () => {
+  const html = renderToStaticMarkup(
+    <HistoryTable
+      transactions={
+        [
+          {
+            id: 34,
+            officer_id: 7,
+            officer_name: "Emi Huerta",
+            event_id: 8,
+            event_name: "Corrected Event",
+            task_id: null,
+            task_title: null,
+            reason: "Event participation",
+            points: 2,
+            award_type: "participation",
+            activity_date: "2026-10-02",
+            created_at: "2026-10-03T12:00:00.000Z",
+            created_by: null,
+            created_by_name: null,
+            removed_at: "2026-10-03T12:00:00.000Z",
+            removed_by: null,
+            removed_by_name: null,
+            participation_schedule_suspended: true,
+            premature_confirmation_available: false,
+          },
+        ] as unknown as Tables<"point_history">[]
+      }
+      isAdmin={true}
+      emptyMessage="Empty"
+    />,
+  );
+
+  expect(html).toContain("Suspended");
+  expect(html).toContain(
+    "Temporarily excluded from totals; eligible credit is reconciled after the corrected Event ends.",
+  );
+  expect(html).not.toContain("Removed by Unlinked account");
 });

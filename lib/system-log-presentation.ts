@@ -132,6 +132,15 @@ const actionPresentations: Record<string, ActionPresentation> = {
     kind: "points",
     pointVerb: "Added points",
   },
+  "points.participation_suspended": {
+    label: "Suspended premature participation",
+  },
+  "points.participation_reconciled": {
+    label: "Reconciled Event participation",
+  },
+  "points.premature_participation_confirmed": {
+    label: "Confirmed premature participation award",
+  },
   "points.participation_created": {
     label: "Awarded event participation points",
     kind: "points",
@@ -242,6 +251,7 @@ const actionPresentations: Record<string, ActionPresentation> = {
     label: "Recorded a warning",
     kind: "warning",
   },
+  "warning.updated": { label: "Updated a warning", kind: "warning" },
   "warning.voided": { label: "Voided a warning", kind: "warning" },
   "warning.deleted": { label: "Deleted a warning" },
   "warning.rejected_by_approver": {

@@ -183,7 +183,7 @@ export function StatusBadge({ status }: { status: string }) {
   const tone =
     status === "active" || status === "happening" || status === "approved"
       ? "green"
-      : status === "upcoming" || status === "pending"
+      : status === "upcoming" || status === "pending" || status === "suspended"
         ? "blue"
         : status === "cancelled" ||
             status === "rejected" ||

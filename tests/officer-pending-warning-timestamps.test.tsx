@@ -64,5 +64,6 @@ it("renders pending warning creation time in America/Denver", async () => {
 
   expect(html).toContain("Oct 6, 2026, 5:53 PM");
   expect(html).toContain("Missed a scheduled event");
-  expect(html).toContain("Decision controls");
+  expect(html).not.toContain("Decision controls");
+  expect(html).toContain("Historical approval: Pending");
 });

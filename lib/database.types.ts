@@ -624,6 +624,8 @@ export type Database = {
           event_time_slot_id: number | null;
           id: number;
           officer_id: number;
+          participation_schedule_suspended: boolean;
+          participation_superseded_at: string | null;
           points: number;
           reason: string;
           removed_at: string | null;
@@ -644,6 +646,8 @@ export type Database = {
           event_time_slot_id?: number | null;
           id?: number;
           officer_id: number;
+          participation_schedule_suspended?: boolean;
+          participation_superseded_at?: string | null;
           points: number;
           reason: string;
           removed_at?: string | null;
@@ -664,6 +668,8 @@ export type Database = {
           event_time_slot_id?: number | null;
           id?: number;
           officer_id?: number;
+          participation_schedule_suspended?: boolean;
+          participation_superseded_at?: string | null;
           points?: number;
           reason?: string;
           removed_at?: string | null;
@@ -1193,7 +1199,10 @@ export type Database = {
           id: number | null;
           officer_id: number | null;
           officer_name: string | null;
+          participation_schedule_suspended: boolean | null;
+          participation_superseded_at: string | null;
           points: number | null;
+          premature_confirmation_available: boolean | null;
           reason: string | null;
           removed_at: string | null;
           removed_by: string | null;
@@ -1330,6 +1339,10 @@ export type Database = {
       claim_current_officer_identity: {
         Args: Record<PropertyKey, never>;
         Returns: number;
+      };
+      confirm_premature_participation: {
+        Args: { p_reason: string; p_transaction_id: number };
+        Returns: boolean;
       };
       create_branch: { Args: { p_name: string }; Returns: number };
       create_event_location: { Args: { p_name: string }; Returns: number };
@@ -1750,6 +1763,10 @@ export type Database = {
           p_title: string;
         };
         Returns: undefined;
+      };
+      update_warning: {
+        Args: { p_reason: string; p_warning_id: number };
+        Returns: number;
       };
       void_warning: { Args: { p_warning_id: number }; Returns: undefined };
     };

@@ -98,10 +98,12 @@ select is((select status from events where recurrence_key='2099-03-07'),'upcomin
 reset role;
 insert into point_transactions(officer_id,event_id,points,reason,award_type)
   values(-982,(select id from events where recurrence_key='2099-03-07'),2,'Test participation','participation')
-  on conflict(officer_id,event_id) where award_type='participation' and event_time_slot_id is null do nothing;
+  on conflict(officer_id,event_id) where award_type='participation' and event_time_slot_id is null
+    and participation_superseded_at is null do nothing;
 insert into point_transactions(officer_id,event_id,points,reason,award_type)
   values(-982,(select id from events where recurrence_key='2099-03-07'),2,'Test participation','participation')
-  on conflict(officer_id,event_id) where award_type='participation' and event_time_slot_id is null do nothing;
+  on conflict(officer_id,event_id) where award_type='participation' and event_time_slot_id is null
+    and participation_superseded_at is null do nothing;
 select is((select count(*) from point_transactions p join events e on e.id=p.event_id
   where e.recurrence_key='2099-03-07' and p.officer_id=-982 and p.award_type='participation'),
   1::bigint,'participation point award stays idempotent per Event occurrence');

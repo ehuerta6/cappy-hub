@@ -6,10 +6,15 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 vi.mock("@/app/(protected)/points/actions", () => ({
   editPointTransaction: vi.fn().mockResolvedValue({ error: "", success: "" }),
+  confirmPrematureParticipation: vi
+    .fn()
+    .mockResolvedValue({ error: "", success: "" }),
   removePointTransaction: vi.fn().mockResolvedValue({ error: "", success: "" }),
 }));
 
-import PointActions from "@/app/(protected)/points/point-actions";
+import PointActions, {
+  PrematureParticipationConfirmation,
+} from "@/app/(protected)/points/point-actions";
 import {
   PointHistoryAmount,
   PointHistoryState,
@@ -25,6 +30,18 @@ let host: HTMLDivElement;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
+    configurable: true,
+    value() {
+      this.setAttribute("open", "");
+    },
+  });
+  Object.defineProperty(HTMLDialogElement.prototype, "close", {
+    configurable: true,
+    value() {
+      this.removeAttribute("open");
+    },
+  });
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -221,4 +238,29 @@ it("reopens editing with the latest amount after a successful save", async () =>
   expect(
     host.querySelector<HTMLInputElement>('input[name="points"]')?.value,
   ).toBe("4.75");
+});
+
+it("requires explicit evidence and consequence confirmation before superseding premature credit", async () => {
+  await act(async () =>
+    root.render(
+      createElement(PrematureParticipationConfirmation, { transactionId: 18 }),
+    ),
+  );
+  expect(
+    host.querySelector('input[name="reason"]')?.hasAttribute("required"),
+  ).toBe(true);
+  const trigger = [...host.querySelectorAll("button")].find(
+    (button) => button.textContent === "Confirm premature award",
+  );
+  if (!trigger) throw new Error("Confirmation trigger missing");
+  await act(async () => trigger.click());
+  expect(document.body.textContent).toContain(
+    "Its removal and history stay intact",
+  );
+  expect(document.body.textContent).toContain(
+    "Use only after verifying the original award was premature",
+  );
+  expect(document.body.textContent).toContain(
+    "Confirm verified premature award",
+  );
 });

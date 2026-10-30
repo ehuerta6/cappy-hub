@@ -218,7 +218,9 @@ it.each(["admin", "lead", "officer"] as const)(
   async (actorRole) => {
     role = actorRole;
     const directory = await render();
-    expect(directory).toContain("7 warnings awaiting your decision");
+    expect(directory).toContain(
+      "7 warnings with a historical approval assignment",
+    );
     expect(directory).toContain('href="/officers?view=warnings"');
     expect(directory.includes('href="/officers/new"')).toBe(
       actorRole === "admin",
@@ -238,7 +240,7 @@ it.each(["admin", "lead", "officer"] as const)(
 
     queries = [];
     const review = await render({ view: "warnings", reviewPage: "2" });
-    expect(review).toContain('aria-label="Warning decision pages"');
+    expect(review).toContain('aria-label="Historical warning approval pages"');
     expect(review).toContain('option value="2" selected=""');
     expect(review).toContain("of 2");
     expect(review).toContain("7 pending");
@@ -246,9 +248,9 @@ it.each(["admin", "lead", "officer"] as const)(
     expect(review).toContain("Complete reason 7");
     expect(review).not.toContain("Complete reason 5");
     expect(review).not.toContain("Complete reason 8");
-    expect(review).toContain("Decide warning 6");
+    expect(review).not.toContain("Decide warning");
     expect(review).toContain("Created Oct 6, 2026");
-    expect(review).toContain("Your decision: Pending");
+    expect(review).toContain("Historical approval: Pending");
     expect(review).not.toContain("Approval decisions");
     expect(review).toContain(
       "returnTo=%2Fofficers%3Fview%3Dwarnings%26reviewPage%3D2",

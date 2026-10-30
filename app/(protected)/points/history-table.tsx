@@ -7,7 +7,9 @@ import {
   formatLabel,
 } from "@/lib/presentation";
 import { PointValue, StatusBadge } from "@/components/ui";
-import PointActions from "./point-actions";
+import PointActions, {
+  PrematureParticipationConfirmation,
+} from "./point-actions";
 import { PointHistoryAmount, PointHistoryState } from "./point-history-state";
 
 function OfficerLink({
@@ -132,11 +134,23 @@ export default function HistoryTable({
                   <div>{actorName(transaction)}</div>
                   {transaction.removed_at && (
                     <div className="space-y-1">
-                      <StatusBadge status="removed" />
-                      <div>
-                        Removed by{" "}
-                        {transaction.removed_by_name ?? "Unlinked account"}
-                      </div>
+                      {transaction.participation_schedule_suspended ? (
+                        <>
+                          <StatusBadge status="suspended" />
+                          <div>
+                            Temporarily excluded from totals; eligible credit is
+                            reconciled after the corrected Event ends.
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <StatusBadge status="removed" />
+                          <div>
+                            Removed by{" "}
+                            {transaction.removed_by_name ?? "Unlinked account"}
+                          </div>
+                        </>
+                      )}
                       <div>{formatDate(transaction.removed_at)}</div>
                     </div>
                   )}
@@ -144,6 +158,15 @@ export default function HistoryTable({
               )}
               {isAdmin && (
                 <td className="min-w-0">
+                  {transaction.id &&
+                    transaction.premature_confirmation_available && (
+                      <PrematureParticipationConfirmation
+                        transactionId={transaction.id}
+                      />
+                    )}
+                  {transaction.participation_superseded_at && (
+                    <span>Confirmed premature; history preserved</span>
+                  )}
                   {transaction.id && !transaction.removed_at && (
                     <PointActions
                       transactionId={transaction.id}

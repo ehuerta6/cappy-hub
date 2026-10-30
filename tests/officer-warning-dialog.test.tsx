@@ -8,12 +8,18 @@ const refresh = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 vi.mock("@/app/(protected)/officers/warning-actions", () => ({
   createWarning: vi.fn(),
-  decideWarning: vi.fn(),
+  updateWarning: vi.fn(),
   voidWarning: vi.fn(),
 }));
 
-import { createWarning } from "@/app/(protected)/officers/warning-actions";
-import { CreateWarningForm } from "@/app/(protected)/officers/warning-forms";
+import {
+  createWarning,
+  updateWarning,
+} from "@/app/(protected)/officers/warning-actions";
+import {
+  CreateWarningForm,
+  EditWarningForm,
+} from "@/app/(protected)/officers/warning-forms";
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean | undefined;
@@ -89,15 +95,16 @@ async function submit(dialog: HTMLDialogElement) {
   });
 }
 
-it("keeps immutable reason guidance and preserves the existing confirmation dialogs", async () => {
+it("explains immediate effect and audited corrections", async () => {
   await renderForm();
   const { dialog } = openDialog();
   expect(dialog.getAttribute("aria-labelledby")).toBe("create-warning-title");
   expect(dialog.getAttribute("aria-describedby")).toBe(
     "create-warning-description",
   );
-  expect(dialog.textContent).toContain("reason is permanent");
-  expect(dialog.textContent).toContain("current President and Vice Presidents");
+  expect(dialog.textContent).toContain("takes effect immediately");
+  expect(dialog.textContent).not.toContain("President");
+  expect(dialog.textContent).toContain("correct its reason later");
   expect(
     dialog.querySelector('textarea[name="reason"]')?.getAttribute("required"),
   ).not.toBeNull();
@@ -122,7 +129,7 @@ it("retains values on cancel and validation failure, blocks pending dismissal, a
     )
     .mockResolvedValueOnce({
       error: "",
-      success: "Warning created for leadership approval",
+      success: "Warning created",
     });
 
   await renderForm();
@@ -177,10 +184,40 @@ it("retains values on cancel and validation failure, blocks pending dismissal, a
   expect(dialog.open).toBe(false);
   expect(trigger.ownerDocument.activeElement).toBe(trigger);
   expect(refresh).toHaveBeenCalledOnce();
-  expect(host.textContent).toContain("Warning created for leadership approval");
+  expect(host.textContent).toContain("Warning created");
 
   act(() => trigger.click());
   expect(
     dialog.querySelector<HTMLTextAreaElement>('textarea[name="reason"]')?.value,
   ).toBe("");
+});
+
+it("edits historical reasons through the existing dialog with retained values", async () => {
+  vi.mocked(updateWarning).mockResolvedValue({
+    error: "",
+    success: "Warning updated",
+  });
+  await act(async () =>
+    root.render(
+      createElement(EditWarningForm, {
+        officerId: 23,
+        warningId: 14,
+        reason: "Historical reason",
+      }),
+    ),
+  );
+  const { dialog } = openDialog();
+  expect(dialog.textContent).toContain(
+    "Historical status and approval history are preserved",
+  );
+  expect(dialog.querySelector<HTMLTextAreaElement>("textarea")?.value).toBe(
+    "Historical reason",
+  );
+  setReason(dialog, "Corrected historical reason");
+  await submit(dialog);
+  const submitted = vi.mocked(updateWarning).mock.calls[0][1];
+  expect(submitted.get("warning_id")).toBe("14");
+  expect(submitted.get("reason")).toBe("Corrected historical reason");
+  expect(refresh).toHaveBeenCalledOnce();
+  expect(dialog.open).toBe(false);
 });
