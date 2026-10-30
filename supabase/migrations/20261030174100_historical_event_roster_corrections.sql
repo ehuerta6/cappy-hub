@@ -195,13 +195,16 @@ begin
   if (select count(*) from public.officers o where o.id=any(requested_ids) and o.status='active')<>cardinality(requested_ids) then
     raise exception 'All target officers must be active'; end if;
   confirmed_count:=(select count(*) from public.event_officers where event_id=p_event_id);
-  new_count:=(select count(*) from unnest(requested_ids) id where not exists(
-    select 1 from public.event_officers eo where eo.event_id=p_event_id and eo.officer_id=id));
+  new_count:=(select count(*) from unnest(requested_ids) as requested(officer_id) where not exists(
+    select 1 from public.event_officers eo where eo.event_id=p_event_id
+      and eo.officer_id=requested.officer_id));
   if current_event.max_volunteers is not null and confirmed_count+new_count>current_event.max_volunteers then
     raise exception 'The selected Officers exceed the Event capacity'; end if;
   with inserted as (
     insert into public.event_officers(event_id,officer_id)
-    select p_event_id,id from unnest(requested_ids) submitted(id)
+    select p_event_id,requested.officer_id from unnest(requested_ids) as requested(officer_id)
+    where not exists(select 1 from public.event_officers eo where eo.event_id=p_event_id
+      and eo.officer_id=requested.officer_id)
     on conflict(event_id,officer_id) do nothing returning officer_id
   ) select coalesce(array_agg(officer_id order by officer_id),'{}'::bigint[]) into added_ids from inserted;
   if current_event.ends_at<=pg_catalog.now() and current_event.participation_points_per_hour_at_end is null then

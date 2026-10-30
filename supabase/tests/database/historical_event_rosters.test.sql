@@ -16,7 +16,8 @@ insert into officers(id,name,utep_email,position_id,status,application_role,auth
  (-32904,'Inactive Roster Officer','roster-inactive@example.test',(select id from positions where code='officer'),'inactive','officer','00000000-0000-4000-8000-000000032904'),
  (-32905,'Other Branch Lead','roster-other-lead@example.test',(select id from positions where code='lead'),'active','officer','00000000-0000-4000-8000-000000032905'),
  (-32906,'New Roster Officer','roster-new@example.test',(select id from positions where code='officer'),'active','officer',null),
- (-32907,'Preexisting Roster Officer','roster-existing@example.test',(select id from positions where code='officer'),'active','officer',null);
+ (-32907,'Preexisting Roster Officer','roster-existing@example.test',(select id from positions where code='officer'),'active','officer',null),
+ (-32908,'Active Readd Officer','roster-readd@example.test',(select id from positions where code='officer'),'active','officer',null);
 insert into officer_branches(officer_id,branch_id)
 select -32902,id from branches where name='intro'
 union all select -32905,id from branches where name='icpc';
@@ -33,17 +34,19 @@ values
  (-32910,'Historical first processing','Synthetic','Campus',(select id from event_types where name='Meeting'),
   '2020-01-04 09:00-07','2020-01-04 11:00-07','past',null,null),
  (-32911,'Historical single signup processing','Synthetic','Campus',(select id from event_types where name='Meeting'),
-  '2020-01-05 09:00-07','2020-01-05 11:00-07','past',null,null);
+  '2020-01-05 09:00-07','2020-01-05 11:00-07','past',null,null),
+ (-32912,'Full roster retry capacity','Synthetic','Campus',(select id from event_types where name='Meeting'),
+  '2099-01-06 09:00-07','2099-01-06 11:00-07','upcoming',null,1);
 insert into event_branches(event_id,branch_id)
 select -32901,id from branches where name='intro'
 union all select -32902,id from branches where name='intro'
 union all select -32903,id from branches where name='icpc';
 insert into event_branches(event_id,branch_id)
-select event_id,id from (values (-32910::bigint),(-32911::bigint)) events(event_id)
+select event_id,id from (values (-32910::bigint),(-32911::bigint),(-32912::bigint)) events(event_id)
 cross join branches where branches.name='intro';
 insert into event_officers(event_id,officer_id) values
- (-32901,-32903),(-32901,-32904),(-32902,-32903),
- (-32910,-32903),(-32910,-32907),(-32911,-32903),(-32911,-32907);
+ (-32901,-32903),(-32901,-32904),(-32901,-32908),(-32902,-32903),
+ (-32910,-32903),(-32910,-32907),(-32911,-32903),(-32911,-32907),(-32912,-32903);
 insert into event_time_slots(id,event_id,starts_at,ends_at,capacity)
 values(-329201,-32902,'2020-01-02 09:00-07','2020-01-02 10:00-07',null);
 insert into event_time_slot_officers(event_id,slot_id,officer_id,created_by)
@@ -53,7 +56,8 @@ insert into point_transactions(id,officer_id,event_id,points,reason,award_type,c
 values
  (-329101,-32903,-32901,7.5,'Event participation','participation',null,null,false),
  (-329102,-32904,-32901,2,'Event participation','participation',null,pg_catalog.now(),true),
- (-329103,-32903,-32901,3,'Independent manual adjustment','manual','00000000-0000-4000-8000-000000032901',null,false);
+ (-329103,-32903,-32901,3,'Independent manual adjustment','manual','00000000-0000-4000-8000-000000032901',null,false),
+ (-329104,-32908,-32901,4,'Event participation','participation',null,null,false);
 insert into private.event_participation_basis(transaction_id,starts_at,ends_at,schedule_suspended)
 values(-329102,'2020-01-01 09:00-07','2020-01-01 11:00-07',true);
 insert into point_transactions(id,officer_id,event_id,event_time_slot_id,points,reason,award_type,created_by)
@@ -115,14 +119,17 @@ select is((select removed_at from public.point_transactions where id=-329102) is
  'adding another attendee does not restore a removed automatic Point');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032902',true);
 set local role authenticated;
-select lives_ok($$select public.change_event_signup(-32901,-32904,false)$$,
- 'manager can restore a roster signup after its prior removal');
+select lives_ok($$select public.change_event_signup(-32901,-32908,true)$$,
+ 'manager can remove an active Officer for the re-add reconciliation case');
+select lives_ok($$select public.change_event_signup(-32901,-32908,false)$$,
+ 'manager can re-add an active Officer after roster removal');
 reset role;
-select is((select count(*) from public.point_transactions where event_id=-32901 and officer_id=-32904
+select is((select count(*) from public.point_transactions where event_id=-32901 and officer_id=-32908
   and award_type='participation' and removed_at is null and participation_superseded_at is null),1::bigint,
- 'readding the removed signup creates one eligible automatic award without erasing its old history');
-select is((select count(*) from public.point_transactions where id=-329102),1::bigint,
- 'readding a signup retains its original removed Point transaction');
+ 'readding an active Officer creates one eligible automatic award');
+select is((select removed_at is not null and removed_by='00000000-0000-4000-8000-000000032902'
+  and participation_superseded_at is not null from public.point_transactions where id=-329104),true,
+ 'readding preserves the original removed automatic Point transaction as history');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032902',true);
 set local role authenticated;
@@ -144,6 +151,14 @@ select is((select participation_points_per_hour_at_end from public.events where 
 select is((select count(*) from public.point_transactions where event_id=-32911
   and award_type='participation' and removed_at is null),3::bigint,
  'single signup first processing awards existing as well as newly added roster members');
+
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032902',true);
+set local role authenticated;
+select lives_ok($$select public.bulk_add_event_officers(-32912,array[-32903]::bigint[])$$,
+ 'retrying an existing signup succeeds when its roster is already at capacity');
+reset role;
+select is((select count(*) from public.event_officers where event_id=-32912),1::bigint,
+ 'full-capacity signup retry preserves the single existing roster row');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032901',true);
 set local role authenticated;
