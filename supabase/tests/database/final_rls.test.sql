@@ -85,6 +85,14 @@ select ok(to_regprocedure('public.delete_warning(bigint)') is not null
   and has_function_privilege('authenticated','public.delete_warning(bigint)','EXECUTE')
   and has_function_privilege('authenticated','public.restore_warning(bigint)','EXECUTE'),
   'trusted Warning Delete/Restore RPCs remain callable');
+select ok(to_regprocedure('public.correct_historical_event_time_slots(bigint,bigint,bigint[])') is not null
+  and has_function_privilege('authenticated',
+    'public.correct_historical_event_time_slots(bigint,bigint,bigint[])','EXECUTE')
+  and not has_function_privilege('anon',
+    'public.correct_historical_event_time_slots(bigint,bigint,bigint[])','EXECUTE')
+  and not has_function_privilege('authenticated',
+    'private.correct_historical_event_time_slots(bigint,bigint,bigint[])','EXECUTE'),
+  'historical Time Slot correction is exposed only through the authenticated trusted RPC');
 select ok(not exists(select 1 from pg_catalog.pg_proc p
   join pg_catalog.pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and has_function_privilege('authenticated',p.oid,'EXECUTE')
@@ -93,6 +101,7 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       'public.change_event_time_slot_signup(bigint,bigint,bigint[],text)'::regprocedure,
       'public.bulk_add_event_officers(bigint,bigint[])'::regprocedure,
       'public.bulk_add_event_officers_to_slots(bigint,bigint[],bigint[])'::regprocedure,
+      'public.correct_historical_event_time_slots(bigint,bigint,bigint[])'::regprocedure,
       'public.save_officer(text,bigint,text,bigint[],bigint,text,text,text)'::regprocedure,
       'public.claim_current_officer_identity()'::regprocedure,
       'public.set_officer_application_role(bigint,text)'::regprocedure,

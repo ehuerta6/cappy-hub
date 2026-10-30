@@ -20,12 +20,16 @@ vi.mock("react", async (importOriginal) => {
 vi.mock("@/app/(protected)/events/time-slot-actions", () => ({
   changeTimeSlotSignup: vi.fn(),
   assignBulkOfficersToTimeSlots: vi.fn(),
+  correctHistoricalTimeSlotAssignments: vi.fn(),
 }));
 
 import TimeSlotsSection, {
   type EventTimeSlotWithRoster,
 } from "@/app/(protected)/events/time-slots-section";
-import { JoinSelectedTimeSlotsForm } from "@/app/(protected)/events/time-slot-controls";
+import {
+  CorrectHistoricalTimeSlotAssignmentsForm,
+  JoinSelectedTimeSlotsForm,
+} from "@/app/(protected)/events/time-slot-controls";
 
 const actorId = 7;
 const slots: EventTimeSlotWithRoster[] = [
@@ -177,4 +181,23 @@ it("preserves a middle-slot gap and restores submitted IDs after a field error",
   expect(html).toContain("Slot 3: 10:00–10:30");
   expect(html).toContain("Choose an available slot");
   expect(html).toContain('name="mode" value="join_selected"');
+});
+
+it("shows a historical assignment form for one signup and its current selections", () => {
+  actionState.current = { error: "", success: "" };
+  const html = renderToStaticMarkup(
+    <CorrectHistoricalTimeSlotAssignmentsForm
+      eventId={42}
+      officerId={8}
+      officerName="Full Officer"
+      slots={slots.slice(0, 2)}
+      selectedSlotIds={[101]}
+    />,
+  );
+
+  expect(html).toContain("Correct selected Time Slots");
+  expect(html).toContain('name="officer_id" value="8"');
+  expect(html).toContain('checked="" value="101"');
+  expect(html).toContain('name="slot_ids" value="102"');
+  expect(html).toContain(">Save Time Slots</button>");
 });

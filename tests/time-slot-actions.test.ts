@@ -19,6 +19,7 @@ import { revalidatePath } from "next/cache";
 import {
   assignBulkOfficersToTimeSlots,
   changeTimeSlotSignup,
+  correctHistoricalTimeSlotAssignments,
 } from "@/app/(protected)/events/time-slot-actions";
 
 const initial = { error: "", success: "" };
@@ -121,6 +122,66 @@ it("keeps unauthorized bulk assignment from reaching the RPC", async () => {
   const result = await assignBulkOfficersToTimeSlots(
     initial,
     form({ event_id: "12", officer_ids: "9", slot_ids: "4" }),
+  );
+  expect(result.error).toBe("Event outside branch scope");
+  expect(rpc).not.toHaveBeenCalled();
+});
+
+it("replaces one Officer's historical slot selections through the scoped RPC", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 5,
+    positionCode: "lead",
+    branchIds: [1],
+  } as never);
+  const result = await correctHistoricalTimeSlotAssignments(
+    initial,
+    form({
+      event_id: "12",
+      officer_id: "9",
+      slot_ids: ["4", "6"],
+    }),
+  );
+
+  expect(result).toEqual({
+    error: "",
+    success: "Historical Time Slot assignments saved",
+  });
+  expect(rpc).toHaveBeenCalledWith("correct_historical_event_time_slots", {
+    p_event_id: 12,
+    p_officer_id: 9,
+    p_slot_ids: [4, 6],
+  });
+  expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+});
+
+it("keeps an empty historical selection so managers can remove all slots", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 5,
+    positionCode: "lead",
+    branchIds: [1],
+  } as never);
+  const result = await correctHistoricalTimeSlotAssignments(
+    initial,
+    form({ event_id: "12", officer_id: "9", slot_ids: [] }),
+  );
+
+  expect(result.error).toBe("");
+  expect(rpc).toHaveBeenCalledWith("correct_historical_event_time_slots", {
+    p_event_id: 12,
+    p_officer_id: 9,
+    p_slot_ids: [],
+  });
+});
+
+it("blocks out-of-scope historical assignment corrections before the RPC", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 5,
+    positionCode: "lead",
+    branchIds: [2],
+  } as never);
+  const result = await correctHistoricalTimeSlotAssignments(
+    initial,
+    form({ event_id: "12", officer_id: "9", slot_ids: ["4"] }),
   );
   expect(result.error).toBe("Event outside branch scope");
   expect(rpc).not.toHaveBeenCalled();

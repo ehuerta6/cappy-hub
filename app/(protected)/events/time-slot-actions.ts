@@ -167,3 +167,62 @@ export async function assignBulkOfficersToTimeSlots(
         : `Added ${count} officer${count === 1 ? "" : "s"} to the selected slots`,
   };
 }
+
+export async function correctHistoricalTimeSlotAssignments(
+  _previous: FormActionState,
+  formData: FormData,
+): Promise<FormActionState> {
+  const actor = await getAuthorizationContext();
+  const validation = zod
+    .object({
+      event_id: zod
+        .string()
+        .regex(/^-?[1-9]\d*$/)
+        .transform(Number),
+      officer_id: zod
+        .string()
+        .regex(/^-?[1-9]\d*$/)
+        .transform(Number),
+      slot_ids: zod
+        .array(
+          zod
+            .string()
+            .regex(/^-?[1-9]\d*$/)
+            .transform(Number),
+        )
+        .max(24),
+    })
+    .safeParse({
+      event_id: formData.get("event_id") ?? "",
+      officer_id: formData.get("officer_id") ?? "",
+      slot_ids: formData.getAll("slot_ids"),
+    });
+  if (!validation.success)
+    return validationFailure(validation.error, formData, ["slot_ids"]);
+
+  const { event_id, officer_id, slot_ids } = validation.data;
+  const supabase = await createClient();
+  const { data: branches, error: branchError } = await supabase
+    .from("event_branches")
+    .select("branch_id")
+    .eq("event_id", event_id);
+  if (branchError)
+    return formFailure("Failed to verify Event permissions", formData);
+  if (
+    !canManageEvent(
+      actor,
+      (branches ?? []).map(({ branch_id }) => branch_id),
+    )
+  )
+    return formFailure("Event outside branch scope", formData);
+
+  const { error } = await supabase.rpc("correct_historical_event_time_slots", {
+    p_event_id: event_id,
+    p_officer_id: officer_id,
+    p_slot_ids: slot_ids,
+  });
+  if (error)
+    return formFailure(mutationError(error.message), formData, ["slot_ids"]);
+  revalidatePath("/", "layout");
+  return { error: "", success: "Historical Time Slot assignments saved" };
+}
