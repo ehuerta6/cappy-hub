@@ -271,17 +271,17 @@ describePostgrest("Tasks status filtering against local PostgREST", () => {
         ),
       ).toEqual([`${marker} past-complete`]);
 
-      const archivedResult = await buildTaskListQuery(supabase, {
+      const deletedResult = await buildTaskListQuery(supabase, {
         ...baseFilters,
-        view: "archived",
+        view: "deleted",
         status: "complete",
         branchId: undefined,
         branchScope: [branch.data!.id],
       });
-      expect(archivedResult.error).toBeNull();
-      expect(archivedResult.count).toBe(1);
+      expect(deletedResult.error).toBeNull();
+      expect(deletedResult.count).toBe(1);
       expect(
-        (archivedResult.data as unknown as { title: string }[] | null)?.map(
+        (deletedResult.data as unknown as { title: string }[] | null)?.map(
           (task) => task.title,
         ),
       ).toEqual([`${marker} archived-complete`]);

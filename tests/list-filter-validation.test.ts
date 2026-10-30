@@ -65,8 +65,9 @@ it("parses each page's domain filters", () => {
   });
   expect(taskListFiltersSchema.parse({ view: "current" }).view).toBeUndefined();
   expect(taskListFiltersSchema.parse({ view: "next" }).view).toBeUndefined();
+  expect(taskListFiltersSchema.parse({ view: "deleted" }).view).toBe("deleted");
   expect(taskListFiltersSchema.parse({ view: "archived" }).view).toBe(
-    "archived",
+    "deleted",
   );
   expect(taskListFiltersSchema.parse({}).page).toBe(1);
   expect(taskListFiltersSchema.parse({ page: "2" }).page).toBe(2);

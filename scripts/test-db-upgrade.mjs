@@ -89,6 +89,9 @@ try {
         readFileSync("supabase/fixtures/pre-historical-task-corrections.sql"),
       );
     }
+    if (migration.endsWith("_task_delete_restore.sql")) {
+      psql(readFileSync("supabase/fixtures/pre-task-delete-restore.sql"));
+    }
     if (migration.endsWith("_direct_admin_warnings.sql")) {
       psql(readFileSync("supabase/fixtures/pre-direct-admin-warnings.sql"));
     }

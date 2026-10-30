@@ -50,8 +50,7 @@ export function buildTaskListQuery(
     .from("tasks")
     .select(taskSelection, { count: "exact" });
 
-  if (view === "archived")
-    tasksQuery = tasksQuery.not("removed_at", "is", null);
+  if (view === "deleted") tasksQuery = tasksQuery.not("removed_at", "is", null);
   else {
     tasksQuery = tasksQuery.is("removed_at", null);
     tasksQuery =
@@ -60,7 +59,7 @@ export function buildTaskListQuery(
         : tasksQuery.gte("due_date", today);
   }
 
-  if (view === "archived" && branchScope?.length)
+  if (view === "deleted" && branchScope?.length)
     tasksQuery = tasksQuery.in("branch_id", branchScope);
   if (search)
     tasksQuery = tasksQuery.or(

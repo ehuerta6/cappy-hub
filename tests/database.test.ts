@@ -707,3 +707,78 @@ it("serializes historical Task corrections with processor retries without duplic
     `);
   }
 }, 30_000);
+
+it("serializes concurrent Task delete and restore without duplicate awards or audits", async () => {
+  const id = -332900;
+  const admin = "00000000-0000-4000-8000-000000332900";
+  runSql(`
+    insert into auth.users(id,email) values('${admin}','task-delete-concurrency@example.test');
+    insert into public.officers(id,name,utep_email,position_id,status,application_role,auth_user_id)
+      values(${id},'Task delete concurrency Admin','task-delete-concurrency@example.test',
+        (select id from public.positions where name='Officer'),'active','admin','${admin}');
+    insert into public.tasks(id,title,description,task_type,branch_id,due_date,points,created_by)
+      values(${id},'Concurrent delete and restore','Synthetic','Flyer',
+        (select id from public.branches where name='intro'),
+        (statement_timestamp() at time zone 'America/Denver')::date-1,5,${id});
+    insert into public.task_officer_assignments(task_id,officer_id,assigned_by,completed_at)
+      values(${id},${id},${id},statement_timestamp()-interval '2 days');
+    insert into public.point_transactions(officer_id,task_id,points,reason,award_type,created_by)
+      values(${id},${id},5,'Task completion: Concurrent delete and restore','task','${admin}');
+  `);
+  try {
+    const deletion = startSql(`
+      begin;
+      select id from public.tasks where id=${id} for update;
+      \\echo TASK_DELETE_LOCKED
+      select pg_catalog.pg_sleep(1.5);
+      set local role authenticated;
+      select set_config('request.jwt.claim.sub','${admin}',true);
+      select public.remove_task(${id});
+      commit;
+    `);
+    await deletion.waitFor("TASK_DELETE_LOCKED");
+    const restoreStartedAt = Date.now();
+    const restoration = startSql(`
+      begin;
+      set local role authenticated;
+      select set_config('request.jwt.claim.sub','${admin}',true);
+      select public.restore_task(${id});
+      commit;
+    `);
+    const [deleteResult, restoreResult] = await Promise.all([
+      deletion.closed,
+      restoration.closed,
+    ]);
+
+    expect(deleteResult.code, deleteResult.errors).toBe(0);
+    expect(restoreResult.code, restoreResult.errors).toBe(0);
+    expect(Date.now() - restoreStartedAt).toBeGreaterThan(500);
+    expect(
+      runSql(
+        `select removed_at is null from public.tasks where id=${id};`,
+      ).trim(),
+    ).toBe("t");
+    expect(
+      runSql(`select count(*)||':'||sum(points) from public.point_transactions
+        where task_id=${id} and award_type='task' and removed_at is null;`).trim(),
+    ).toBe("1:5");
+    expect(
+      runSql(`select count(*) from public.audit_logs where action='task.deleted'
+        and entity_id='${id}';`).trim(),
+    ).toBe("1");
+    expect(
+      runSql(`select count(*) from public.audit_logs where action='task.restored'
+        and entity_id='${id}';`).trim(),
+    ).toBe("1");
+  } finally {
+    runSql(`
+      delete from public.audit_logs where actor_officer_id=${id} or entity_id='${id}'
+        or details->>'task_id'='${id}';
+      delete from public.point_transactions where task_id=${id};
+      delete from public.task_officer_assignments where task_id=${id};
+      delete from public.tasks where id=${id};
+      delete from public.officers where id=${id};
+      delete from auth.users where id='${admin}';
+    `);
+  }
+}, 30_000);

@@ -578,22 +578,23 @@ it("does not offer Archived Event browsing and keeps forged archive URLs active-
   expect(html).toContain("returnTo=%2Fevents%3Fbranch%3D2");
 });
 
-it("offers authorized managers Archived Event and Task views", async () => {
+it("offers authorized managers Archived Event and Deleted Task views", async () => {
   const eventHtml = await render(EventsPage, { status: "archived" });
   const eventQuery = forTable("events")[0];
   has(eventQuery, "not", "deleted_at", "is", null);
   expect(eventHtml).toContain('value="archived"');
 
   queries = [];
-  const taskHtml = await render(TasksPage, { view: "archived" });
+  const taskHtml = await render(TasksPage, { view: "deleted" });
   const taskQuery = forTable("tasks").find(({ calls }) =>
     calls.some(([method]) => method === "order"),
   )!;
   has(taskQuery, "not", "removed_at", "is", null);
-  expect(taskHtml).toContain('value="archived"');
+  expect(taskHtml).toContain('value="deleted"');
+  expect(taskHtml).toContain("No deleted Tasks.");
 });
 
-it("scopes Lead Archived Tasks to assigned branches and keeps Admin access global", async () => {
+it("scopes Lead Deleted Tasks to assigned branches and keeps Admin access global", async () => {
   rows.tasks = [
     {
       id: 2,
@@ -621,7 +622,7 @@ it("scopes Lead Archived Tasks to assigned branches and keeps Admin access globa
   admin = false;
   lead = true;
   actorBranches = [2];
-  const leadHtml = await render(TasksPage, { view: "archived" });
+  const leadHtml = await render(TasksPage, { view: "deleted" });
   for (const query of forTable("tasks")) has(query, "in", "branch_id", [2]);
   expect(leadHtml).toContain("Assigned branch archive");
   expect(leadHtml).not.toContain("Other branch archive");
@@ -630,7 +631,7 @@ it("scopes Lead Archived Tasks to assigned branches and keeps Admin access globa
   admin = true;
   lead = false;
   queries = [];
-  const adminHtml = await render(TasksPage, { view: "archived" });
+  const adminHtml = await render(TasksPage, { view: "deleted" });
   expect(
     forTable("tasks").some((query) =>
       query.calls.some(

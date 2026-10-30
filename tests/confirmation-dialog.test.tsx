@@ -43,7 +43,7 @@ import {
   CancelForm,
   RemoveEventForm,
 } from "@/app/(protected)/events/event-controls";
-import { TaskRemoveForm } from "@/app/(protected)/tasks/task-remove-form";
+import { TaskDeleteForm } from "@/app/(protected)/tasks/task-remove-form";
 import {
   DeleteWarningForm,
   RestoreWarningForm,
@@ -184,21 +184,18 @@ it("shows action-specific Event cancel and removal confirmations", () => {
   expect(removeHtml).toContain("This occurrence");
 });
 
-it("shows scope and protected-history consequences for recurring Task removal", () => {
+it("confirms reversible Task deletion and keeps recurrence scope out of this action", () => {
   const html = renderToStaticMarkup(
-    createElement(TaskRemoveForm, {
+    createElement(TaskDeleteForm, {
       taskId: 24,
-      series,
-      requestKey: "00000000-0000-4000-8000-000000000002",
     }),
   );
 
-  expect(html).toContain("Archive Task?");
+  expect(html).toContain("Delete Task?");
   expect(html).toContain(
-    "Assignments, completion, Points, and history are preserved",
+    "assignments, completion, recurrence details, and history remain available if restored",
   );
-  expect(html).toContain("This occurrence");
-  expect(html).toContain("All occurrences");
+  expect(html).not.toContain("All occurrences");
 });
 
 it("confirms reversible Warning deletion and restoration", () => {

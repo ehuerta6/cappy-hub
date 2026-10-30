@@ -3,18 +3,35 @@ create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 select no_plan();
 
-select results_eq($$select id,to_jsonb(t) from tasks t order by id$$,
+select results_eq($$select t.id,to_jsonb(t) from tasks t
+  join upgrade_fixture.pre_task_corrections_tasks original using(id) order by t.id$$,
  $$select id,original from upgrade_fixture.pre_task_corrections_tasks order by id$$,
  'historical Task correction migration preserves all existing Task fields and lifecycle');
-select results_eq($$select task_id,officer_id,to_jsonb(a)-'removed_at'-'removed_by' from task_officer_assignments a order by task_id,officer_id$$,
+select results_eq($$select a.task_id,a.officer_id,to_jsonb(a)-'removed_at'-'removed_by'
+  from task_officer_assignments a join upgrade_fixture.pre_task_corrections_assignments original
+    using(task_id,officer_id) order by a.task_id,a.officer_id$$,
  $$select task_id,officer_id,original from upgrade_fixture.pre_task_corrections_assignments order by task_id,officer_id$$,
  'historical Task correction migration preserves assignment, completion and approval history');
-select results_eq($$select id,to_jsonb(p)-'task_reconciliation_suspended' from point_transactions p order by id$$,
+select results_eq($$select p.id,to_jsonb(p)-'task_reconciliation_suspended' from point_transactions p
+  join upgrade_fixture.pre_task_corrections_points original using(id) order by p.id$$,
  $$select id,original from upgrade_fixture.pre_task_corrections_points order by id$$,
  'historical Task correction migration preserves every existing Point amount, removal and actor');
 select results_eq($$select id,to_jsonb(a) from audit_logs a order by id$$,
  $$select id,original from upgrade_fixture.pre_task_corrections_audit order by id$$,
  'historical Task correction migration preserves every existing audit');
+
+select results_eq($$select id,to_jsonb(t) from tasks t order by id$$,
+ $$select id,original from upgrade_fixture.pre_task_delete_restore_tasks order by id$$,
+ 'Task Delete/Restore migration preserves all historical Task lifecycle fields');
+select results_eq($$select task_id,officer_id,to_jsonb(a) from task_officer_assignments a order by task_id,officer_id$$,
+ $$select task_id,officer_id,original from upgrade_fixture.pre_task_delete_restore_assignments order by task_id,officer_id$$,
+ 'Task Delete/Restore migration preserves assignment and completion history');
+select results_eq($$select id,to_jsonb(p) from point_transactions p order by id$$,
+ $$select id,original from upgrade_fixture.pre_task_delete_restore_points order by id$$,
+ 'Task Delete/Restore migration does not reclassify historical Point removals');
+select results_eq($$select id,to_jsonb(a) from audit_logs a order by id$$,
+ $$select id,original from upgrade_fixture.pre_task_delete_restore_audit order by id$$,
+ 'Task Delete/Restore migration preserves existing audit evidence');
 
 -- Recoverable catalogs add availability only; all prior IDs/values/flags stay.
 select results_eq($$select id,to_jsonb(p) from positions p order by id$$,
@@ -54,7 +71,8 @@ select results_eq($$select warning_id,approver_id,to_jsonb(a) from warning_appro
  'recoverable Warning migration preserves every approval record');
 
 -- New Event and Task lifecycle fields do not rewrite rows snapshotted earlier.
-select results_eq($$select id,to_jsonb(p)-'participation_superseded_at'-'participation_schedule_suspended'-'task_reconciliation_suspended' from point_transactions p order by id$$,
+select results_eq($$select p.id,to_jsonb(p)-'participation_superseded_at'-'participation_schedule_suspended'-'task_reconciliation_suspended'
+  from point_transactions p join upgrade_fixture.pre_independent_manual_points original using(id) order by p.id$$,
  $$select id,original from upgrade_fixture.pre_independent_manual_points order by id$$,
  'independent manual migration preserves every historical Point row including direct edits and removals');
 select results_eq($$select id,to_jsonb(a) from audit_logs a order by id$$,
@@ -323,6 +341,9 @@ insert into officers(id,name,utep_email,position_id,status,application_role,auth
   (-90010,'Upgrade test admin','upgrade-admin@example.org',(select id from positions where name='Officer'),'active','admin',
     '20000000-0000-0000-0000-000000000002');
 update officers set auth_user_id='20000000-0000-0000-0000-000000000003' where id=90001;
+select set_config('test.upgrade_awarded_point_id',
+  (select (original->>'id') from upgrade_fixture.pre_task_delete_restore_points
+    where original->>'task_id'='90801'),true);
 set local role anon;
 select throws_ok($$select count(*) from event_locations$$,'42501',null,
   'anonymous account cannot read Event Locations after upgrade');
@@ -336,6 +357,29 @@ select is((select count(*) from event_locations),0::bigint,
 select set_config('request.jwt.claim.sub','20000000-0000-0000-0000-000000000002',true);
 select ok((select count(*) from event_locations)>0,
   'active linked Officer reads Event Locations after upgrade');
+select lives_ok($$select remove_task(90801)$$,
+  'upgraded delete RPC suspends a synthetic existing Task award');
+select ok((select task_reconciliation_suspended from point_transactions
+  where task_id=90801 and award_type='task'),
+  'upgraded delete distinguishes its suspension from historical removal');
+select lives_ok($$select restore_task(90801)$$,
+  'upgraded restore RPC reconciles a synthetic existing Task award');
+select is((select id from point_transactions where task_id=90801 and award_type='task'),
+  current_setting('test.upgrade_awarded_point_id')::bigint,
+  'upgraded recovery reuses the pre-existing award identity');
+select is((select removed_at from point_transactions where task_id=90801 and award_type='task'),
+  null::timestamptz,'upgraded recovery reactivates an eligible historical award');
+select lives_ok($$select remove_task(90802)$$,
+  'upgraded delete accepts a Task with an independent historical removal');
+select lives_ok($$select restore_task(90802)$$,
+  'upgraded restore preserves independent historical removal intent');
+select isnt((select removed_at from point_transactions where task_id=90802 and award_type='task'),
+  null::timestamptz,'upgraded restore does not reactivate the independently removed award');
+select ok(not (select task_reconciliation_suspended from point_transactions
+  where task_id=90802 and award_type='task'),
+  'upgraded restore does not relabel independent history as a Task-delete suspension');
+select is((select actor_officer_id from audit_logs where action='task.deleted' and entity_id='90801'),
+  -90010::bigint,'upgraded Task lifecycle audit uses the authenticated Admin identity');
 select throws_ok($$select save_event_with_links('Rejected General','Description',
   (select id from event_types where name='General'),'TBA','2099-09-20',
   '2099-09-20 09:00-06','2099-09-20 10:00-06','{}'::bigint[])$$,

@@ -923,6 +923,31 @@ it("paginates linked Tasks with a bounded database query", async () => {
   ]);
 });
 
+it("keeps deleted linked Tasks visible without linking viewers to inaccessible detail", async () => {
+  eventTaskCount = 1;
+  eventTaskRows = [
+    {
+      task_id: 19,
+      tasks: {
+        id: 19,
+        title: "Deleted linked Task",
+        removed_at: "2026-10-20T12:00:00Z",
+      },
+    },
+  ];
+
+  const html = renderToStaticMarkup(
+    await EventDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({ section: "tasks" }),
+    }),
+  );
+
+  expect(html).toContain("Deleted linked Task");
+  expect(html).toContain("Deleted</span>");
+  expect(html).not.toContain('href="/tasks/19"');
+});
+
 it("loads Event point history by URL page beyond the previous 100-row preview", async () => {
   eventPointCount = 125;
   const html = renderToStaticMarkup(
