@@ -60,9 +60,11 @@ select is((select available_for_new_tasks from task_types where name='Legacy Fly
   'renaming a deleted Task Type preserves its deleted state');
 select lives_ok($$select restore_task_type((select id from task_types where name='Legacy Flyer'))$$,
   'Admin restores the same renamed Task Type');
+select lives_ok($$select create_task_type('New Type')$$,
+  'Admin can create an available Task Type');
 select lives_ok($$select save_task('New typed Task','Use catalog','New Type',
     (select id from branches where name='intro'),'2099-10-02',1,false)$$,
-  'Admin can create an available Task Type and use it immediately');
+  'Admin can use a newly created Task Type immediately');
 create temporary table task_type_identity as
 select id from task_types where name='New Type';
 select lives_ok($$select rename_task_type((select id from task_types where name='New Type'),'Renamed Type')$$,

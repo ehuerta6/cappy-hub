@@ -414,7 +414,7 @@ select throws_ok($$insert into officers(name,position_id,personal_email) values
 select hasnt_column('positions','can_manage_branch_events','obsolete capability flag is gone');
 select hasnt_column('events','flyer_status','flyer event column is gone');
 select hasnt_column('application_config','flyer_completion_points','flyer configuration is gone');
-select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),22::bigint,
+select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),23::bigint,
   'final schema contains canonical Task and presenter data without the retired Waitlist table');
 select is((select count(*) from events where recurrence_series_id is not null and id not in (90680,90681)),0::bigint,
   'existing Events remain standalone after the additive recurrence migration');
@@ -477,7 +477,7 @@ select ok(exists(select 1 from audit_logs where action='points.premature_partici
 select is((select jsonb_build_object('id', id, 'task_type', task_type, 'title', title,
     'branch_id', branch_id, 'due_date', due_date, 'points', points, 'created_by', created_by)
   from tasks where id = 92347),
-  (select to_jsonb(f) from upgrade_fixture.pre_task_type_catalog f),
+  (select to_jsonb(f) from upgrade_fixture.pre_task_type_catalog_task f),
   'Task Type catalog migration preserves existing Task values and references');
 select ok(exists(select 1 from task_types where name='Post' and available_for_new_tasks),
   'existing Task types are backfilled as available');
