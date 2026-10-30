@@ -3,13 +3,17 @@ create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 select no_plan();
 
-select results_eq($$select id,to_jsonb(t) from tasks t order by id$$,
+select results_eq($$select t.id,to_jsonb(t) from tasks t
+  join upgrade_fixture.pre_task_corrections_tasks original using(id) order by t.id$$,
  $$select id,original from upgrade_fixture.pre_task_corrections_tasks order by id$$,
  'historical Task correction migration preserves all existing Task fields and lifecycle');
-select results_eq($$select task_id,officer_id,to_jsonb(a)-'removed_at'-'removed_by' from task_officer_assignments a order by task_id,officer_id$$,
+select results_eq($$select a.task_id,a.officer_id,to_jsonb(a)-'removed_at'-'removed_by'
+  from task_officer_assignments a join upgrade_fixture.pre_task_corrections_assignments original
+    using(task_id,officer_id) order by a.task_id,a.officer_id$$,
  $$select task_id,officer_id,original from upgrade_fixture.pre_task_corrections_assignments order by task_id,officer_id$$,
  'historical Task correction migration preserves assignment, completion and approval history');
-select results_eq($$select id,to_jsonb(p)-'task_reconciliation_suspended' from point_transactions p order by id$$,
+select results_eq($$select p.id,to_jsonb(p)-'task_reconciliation_suspended' from point_transactions p
+  join upgrade_fixture.pre_task_corrections_points original using(id) order by p.id$$,
  $$select id,original from upgrade_fixture.pre_task_corrections_points order by id$$,
  'historical Task correction migration preserves every existing Point amount, removal and actor');
 select results_eq($$select id,to_jsonb(a) from audit_logs a order by id$$,

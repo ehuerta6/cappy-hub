@@ -99,6 +99,32 @@ select is((select count(*) from audit_logs where action='task.deleted' and entit
 select is((select count(*) from audit_logs where action='task.restored' and entity_id='-33201'
   and actor_officer_id=-33202),1::bigint,'restore audit attributes the manager and retry adds no duplicate');
 
+create function pg_temp.fail_task_delete_audit() returns trigger language plpgsql as $$
+begin
+  if new.action='task.deleted' and new.entity_id='-33201' then
+    raise exception 'Synthetic Task audit failure';
+  end if;
+  return new;
+end;
+$$;
+create trigger fail_task_delete_audit before insert on audit_logs
+  for each row execute function pg_temp.fail_task_delete_audit();
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033202',true);
+set local role authenticated;
+select throws_ok($$select remove_task(-33201)$$,'P0001','Synthetic Task audit failure',
+  'audit failure aborts Task deletion');
+reset role;
+select is((select removed_at from tasks where id=-33201),null::timestamptz,
+  'audit failure rolls back the Task removal marker');
+select is((select removed_at from point_transactions where task_id=-33201 and award_type='task'),
+  null::timestamptz,'audit failure rolls back automatic Point suspension');
+select is((select task_reconciliation_suspended from point_transactions
+  where task_id=-33201 and award_type='task'),false,
+  'audit failure rolls back the mechanical suspension marker');
+select is((select count(*) from audit_logs where action='task.deleted' and entity_id='-33201'),1::bigint,
+  'audit failure leaves no partial Task delete audit');
+drop trigger fail_task_delete_audit on audit_logs;
+
 select lives_ok($$select remove_task(-33202)$$,
   'manager can delete an open or not-yet-due Task');
 select lives_ok($$select restore_task(-33202)$$,

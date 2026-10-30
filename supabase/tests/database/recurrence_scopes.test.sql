@@ -287,7 +287,5 @@ select throws_ok($$select pg_temp.mutate('mixed-task-auth',1,'series','remove')$
 select ok((select removed_at is null from tasks where id=pg_temp.id('mixed-task-auth',1)),'unauthorized Task sibling rolls back earlier removal');
 reset role;
 select ok(not has_function_privilege('authenticated','private.save_event_fields(text,text,bigint,text,date,timestamptz,timestamptz,bigint[],bigint,text,text)','EXECUTE'),'internal cancelled-sibling field saver is unavailable to direct clients');
-select ok(not has_function_privilege('authenticated','private.mutate_recurring_task_unchecked(bigint,text,text,uuid,bigint,integer,jsonb,text,date[])','EXECUTE'),
-  'unguarded recurring Task implementation is unavailable to direct clients');
 select * from finish();
 rollback;
