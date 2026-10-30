@@ -544,6 +544,20 @@ export type Database = {
         };
         Relationships: [
           {
+            foreignKeyName: "officer_warnings_deleted_by_fkey";
+            columns: ["deleted_by"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "officer_warnings_deleted_by_fkey";
+            columns: ["deleted_by"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "officer_warnings_officer_id_fkey";
             columns: ["officer_id"];
             isOneToOne: false;
@@ -567,20 +581,6 @@ export type Database = {
           {
             foreignKeyName: "officer_warnings_voided_by_fkey";
             columns: ["voided_by"];
-            isOneToOne: false;
-            referencedRelation: "officers";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "officer_warnings_deleted_by_fkey";
-            columns: ["deleted_by"];
-            isOneToOne: false;
-            referencedRelation: "officer_point_totals";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "officer_warnings_deleted_by_fkey";
-            columns: ["deleted_by"];
             isOneToOne: false;
             referencedRelation: "officers";
             referencedColumns: ["id"];
@@ -1508,7 +1508,6 @@ export type Database = {
       delete_event_type: { Args: { p_id: number }; Returns: undefined };
       delete_position: { Args: { p_id: number }; Returns: undefined };
       delete_warning: { Args: { p_warning_id: number }; Returns: undefined };
-      restore_warning: { Args: { p_warning_id: number }; Returns: undefined };
       event_signup_counts: {
         Args: Record<PropertyKey, never>;
         Returns: {
@@ -1639,6 +1638,7 @@ export type Database = {
       restore_event_type: { Args: { p_id: number }; Returns: undefined };
       restore_position: { Args: { p_id: number }; Returns: undefined };
       restore_task: { Args: { p_task_id: number }; Returns: undefined };
+      restore_warning: { Args: { p_warning_id: number }; Returns: undefined };
       save_event_with_capacity: {
         Args: {
           p_branch_ids: number[];
