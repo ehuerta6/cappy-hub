@@ -243,23 +243,6 @@ export default async function TaskDetailPage({
     .map(({ id, name }) => ({ id, name }));
   const assignments = assignmentsResult.data ?? [];
   const linkedEvents = eventsResult.data ?? [];
-  const assignmentPageAwardsResult =
-    canManageTask &&
-    !task.removed_at &&
-    activeSection === "assignments" &&
-    assignments.length > 0
-      ? await supabase
-          .from("point_transactions")
-          .select("officer_id")
-          .eq("task_id", taskId)
-          .eq("award_type", "task")
-          .in(
-            "officer_id",
-            assignments.map(({ officer_id }) => officer_id),
-          )
-      : { data: [], error: null };
-  if (assignmentPageAwardsResult.error)
-    throw new Error("Failed to load Task assignment history");
   const visibleAssignments = assignments;
   const visibleEvents = linkedEvents;
   const series =
@@ -570,10 +553,6 @@ export default async function TaskDetailPage({
                   {visibleAssignments.map((assignment) => {
                     const assignedOfficer = assignment.officers;
                     const completed = assignment.completed_at !== null;
-                    const hasAward = assignmentPageAwardsResult.data.some(
-                      (award) => award.officer_id === assignment.officer_id,
-                    );
-                    const canRemoveAssignment = !completed && !hasAward;
                     return (
                       <tr key={assignment.officer_id}>
                         <td>
@@ -597,17 +576,11 @@ export default async function TaskDetailPage({
                         </td>
                         {canManageTask && !task.removed_at && (
                           <td>
-                            {canRemoveAssignment ? (
-                              <RemoveTaskAssignmentForm
-                                taskId={task.id}
-                                officerId={assignment.officer_id}
-                                officerName={assignedOfficer.name}
-                              />
-                            ) : (
-                              <span className="text-sm text-muted">
-                                History protected
-                              </span>
-                            )}
+                            <RemoveTaskAssignmentForm
+                              taskId={task.id}
+                              officerId={assignment.officer_id}
+                              officerName={assignedOfficer.name}
+                            />
                           </td>
                         )}
                       </tr>

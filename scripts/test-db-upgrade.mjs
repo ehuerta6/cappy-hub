@@ -84,6 +84,11 @@ try {
     )
     .sort();
   for (const migration of followupMigrations) {
+    if (migration.endsWith("_historical_task_corrections.sql")) {
+      psql(
+        readFileSync("supabase/fixtures/pre-historical-task-corrections.sql"),
+      );
+    }
     if (migration.endsWith("_direct_admin_warnings.sql")) {
       psql(readFileSync("supabase/fixtures/pre-direct-admin-warnings.sql"));
     }

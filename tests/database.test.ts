@@ -622,3 +622,88 @@ it("serializes Warning corrections with complete before/after audit history", as
     `);
   }
 }, 30_000);
+
+it("serializes historical Task corrections with processor retries without duplicate awards", async () => {
+  const id = -331900;
+  const admin = "00000000-0000-4000-8000-000000331900";
+  runSql(`
+    insert into auth.users(id,email) values('${admin}','task-concurrency@example.test');
+    insert into public.officers(id,name,utep_email,position_id,status,application_role,auth_user_id)
+      values(${id},'Task concurrency Admin','task-concurrency@example.test',
+        (select id from public.positions where name='Officer'),'active','admin','${admin}');
+    insert into public.tasks(id,title,description,task_type,branch_id,due_date,points,created_by)
+      values(${id},'Concurrent Task','Synthetic','Flyer',
+        (select id from public.branches where name='intro'),
+        (statement_timestamp() at time zone 'America/Denver')::date-1,5,${id});
+    insert into public.task_officer_assignments(task_id,officer_id,assigned_by,completed_at)
+      values(${id},${id},${id},now());
+  `);
+  try {
+    const processing = startSql(`
+      begin;
+      select private.process_due_tasks();
+      \\echo TASK_PROCESSED
+      select pg_catalog.pg_sleep(1.5);
+      commit;
+    `);
+    await processing.waitFor("TASK_PROCESSED");
+    const correction = startSql(`
+      begin;
+      set local role authenticated;
+      select set_config('request.jwt.claim.sub','${admin}',true);
+      select public.update_task_details(${id},'Concurrent Task','Synthetic','Flyer',
+        (select id from public.branches where name='intro'),
+        (statement_timestamp() at time zone 'America/Denver')::date-1,9);
+      commit;
+    `);
+    expect(runSql("select private.process_due_tasks();").trim()).toBe("0");
+    for (const outcome of await Promise.all([
+      processing.closed,
+      correction.closed,
+    ]))
+      expect(outcome.code, outcome.errors).toBe(0);
+    runSql(
+      "select private.process_due_tasks(); select private.process_due_tasks();",
+    );
+    expect(
+      runSql(`select count(*)||':'||sum(points) from public.point_transactions
+      where task_id=${id} and award_type='task' and removed_at is null;`).trim(),
+    ).toBe("1:9");
+    expect(
+      runSql(`select count(*) from public.audit_logs where action='points.task_created'
+      and details->>'task_id'='${id}';`).trim(),
+    ).toBe("1");
+    const future = startSql(`
+      begin;
+      select set_config('request.jwt.claim.sub','${admin}',true);
+      select public.update_task_details(${id},'Concurrent Task','Synthetic','Flyer',
+        (select id from public.branches where name='intro'),
+        (statement_timestamp() at time zone 'America/Denver')::date+1,9);
+      \\echo TASK_CORRECTED_FUTURE
+      select pg_catalog.pg_sleep(1.5);
+      commit;
+    `);
+    await future.waitFor("TASK_CORRECTED_FUTURE");
+    expect(runSql("select private.process_due_tasks();").trim()).toBe("0");
+    expect((await future.closed).code).toBe(0);
+    runSql("select private.process_due_tasks();");
+    expect(
+      runSql(`select count(*) from public.point_transactions where task_id=${id}
+      and removed_at is null;`).trim(),
+    ).toBe("0");
+    expect(
+      runSql(
+        `select count(*) from public.point_transactions where task_id=${id};`,
+      ).trim(),
+    ).toBe("1");
+  } finally {
+    runSql(`
+      delete from public.audit_logs where actor_officer_id=${id} or details->>'task_id'='${id}';
+      delete from public.point_transactions where task_id=${id};
+      delete from public.task_officer_assignments where task_id=${id};
+      delete from public.tasks where id=${id};
+      delete from public.officers where id=${id};
+      delete from auth.users where id='${admin}';
+    `);
+  }
+}, 30_000);
