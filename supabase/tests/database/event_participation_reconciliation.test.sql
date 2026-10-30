@@ -129,12 +129,23 @@ select lives_ok($$update events set description='Historical description still ed
  'descriptive correction remains possible with edited award');
 select is((select points from point_transactions where event_id=-32801 and award_type='participation'),7::numeric,
  'descriptive edit does not recalculate an automatic amount');
-select lives_ok($$update events set ends_at='2021-01-01 11:00-07' where id=-32801$$,
- 'source schedule correction recalculates a directly edited automatic award');
+select lives_ok($$update events set event_date='2099-01-01',starts_at='2099-01-01 09:00-07',
+ ends_at='2099-01-01 11:00-07' where id=-32801$$,
+ 'correcting a directly edited automatic award to a future Event is accepted');
+select is((select participation_schedule_suspended from point_history where event_id=-32801 and award_type='participation'),
+ true,'future correction mechanically suspends the edited automatic award');
+select is((select points from point_transactions where event_id=-32801 and award_type='participation'),7::numeric,
+ 'future suspension preserves the transaction amount until eligible reconciliation');
+select is(private.process_finished_events(),0,'a future corrected Event earns no participation before its end');
+select lives_ok($$update events set event_date='2021-01-01',starts_at='2021-01-01 09:00-07',
+ ends_at='2021-01-01 11:00-07' where id=-32801$$,
+ 'eligible corrected schedule recalculates the directly edited automatic award');
 select is((select ends_at from events where id=-32801),'2021-01-01 11:00-07'::timestamptz,
  'corrected schedule is saved');
 select is((select points from point_transactions where event_id=-32801 and award_type='participation'),2::numeric,
  'corrected Event duration is the source of truth for automatic Points');
+select is((select removed_at from point_transactions where event_id=-32801 and award_type='participation'),null::timestamptz,
+ 'eligible reconciliation restores only the mechanically suspended transaction');
 select is((select count(*) from audit_logs where action='points.participation_reconciled'
  and entity_id=(select id::text from point_transactions where event_id=-32801 and award_type='participation')
  and (details->>'before_points')::numeric=7 and (details->>'after_points')::numeric=2),1::bigint,
