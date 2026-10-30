@@ -81,8 +81,8 @@ select throws_ok($$select public.bulk_add_event_officers(-32903,array[-32906]::b
 select lives_ok($$select public.change_event_signup(-32901,-32904,true)$$,
  'scoped Lead can remove an inactive Officer from a historical roster');
 reset role;
-select is((select count(*) from public.event_officers where event_id=-32901 and officer_id=-32904),0::bigint,
- 'historical roster correction removes the selected signup');
+select is((select removed_at is not null from public.event_officers where event_id=-32901 and officer_id=-32904),true,
+ 'historical roster correction preserves the signup row and marks it inactive');
 select is((select removed_at is not null and removed_by='00000000-0000-4000-8000-000000032902'
   and points=2 and not participation_schedule_suspended
   from public.point_transactions where id=-329102),true,
@@ -156,9 +156,15 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032902'
 set local role authenticated;
 select lives_ok($$select public.bulk_add_event_officers(-32912,array[-32903]::bigint[])$$,
  'retrying an existing signup succeeds when its roster is already at capacity');
+select lives_ok($$select public.change_event_signup(-32912,-32903,true)$$,
+ 'manager can remove a full-roster member without deleting signup history');
+select lives_ok($$select public.bulk_add_event_officers(-32912,array[-32906]::bigint[])$$,
+ 'a freed signup capacity can be assigned to the explicitly selected Officer');
 reset role;
-select is((select count(*) from public.event_officers where event_id=-32912),1::bigint,
- 'full-capacity signup retry preserves the single existing roster row');
+select is((select count(*) from public.event_officers where event_id=-32912 and removed_at is null),1::bigint,
+ 'only the replacement signup is active after capacity is freed');
+select ok((select removed_at is not null from public.event_officers where event_id=-32912 and officer_id=-32903),
+ 'full-capacity retry and removal preserve the original signup row');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032901',true);
 set local role authenticated;
@@ -183,10 +189,10 @@ set local role authenticated;
 select lives_ok($$select public.change_event_signup(-32902,-32903,true)$$,
  'manager can remove a historical slot-linked signup without managing slots');
 reset role;
-select is((select count(*) from public.event_officers where event_id=-32902 and officer_id=-32903),0::bigint,
- 'historical slot-linked signup is removed');
+select is((select removed_at is not null from public.event_officers where event_id=-32902 and officer_id=-32903),true,
+ 'historical slot-linked signup row is preserved and marked inactive');
 select is((select count(*) from public.event_time_slot_officers where event_id=-32902 and slot_id=-329201
-  and officer_id=-32903),0::bigint,'signup removal cascades only the live slot relationship');
+  and officer_id=-32903),1::bigint,'signup removal preserves its historical slot selection row');
 select is((select event_id=-32902 and event_time_slot_id=-329201 and removed_at is not null
   and removed_by='00000000-0000-4000-8000-000000032901' and participation_superseded_at is not null
   from public.point_transactions where id=-329201),true,
@@ -198,6 +204,18 @@ select ok(exists(select 1 from public.audit_logs l
     and value->>'officer_id'='-32903' and value ? 'created_at'
     and value->>'created_by'='00000000-0000-4000-8000-000000032901'),
  'removal audit retains full legacy slot-selection evidence including actor and timestamp');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032901',true);
+set local role authenticated;
+select lives_ok($$select public.change_event_signup(-32902,-32903,false)$$,
+ 'manager can restore a slot-linked signup using its preserved selection');
+reset role;
+select is((select removed_at from public.event_officers where event_id=-32902 and officer_id=-32903),null::timestamptz,
+ 'restoring a slot-linked signup clears the removal marker on its stable row');
+select is((select count(*) from public.event_time_slot_officers where event_id=-32902 and slot_id=-329201
+  and officer_id=-32903),1::bigint,'restoring a signup retains its original slot selection');
+select is((select count(*) from public.point_transactions where event_id=-32902 and officer_id=-32903
+  and event_time_slot_id=-329201 and removed_at is null and participation_superseded_at is null),1::bigint,
+ 'restoring the slot-linked signup reconciles one eligible award while preserving the removed transaction');
 
 select set_config('request.jwt.claim.sub','',true);
 select * from finish();

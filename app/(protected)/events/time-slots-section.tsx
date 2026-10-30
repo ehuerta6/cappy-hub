@@ -18,6 +18,7 @@ export type EventTimeSlotWithRoster = Pick<
   event_time_slot_officers: {
     officer_id: number;
     officers: Pick<Tables<"officers">, "id" | "name"> | null;
+    event_officers?: Pick<Tables<"event_officers">, "removed_at"> | null;
   }[];
 };
 
@@ -44,12 +45,18 @@ export default function TimeSlotsSection({
   officers: Pick<Tables<"officers">, "id" | "name">[];
   past: boolean;
 }) {
-  const selected = slots.filter((slot) =>
+  const activeSlots = slots.map((slot) => ({
+    ...slot,
+    event_time_slot_officers: slot.event_time_slot_officers.filter(
+      ({ event_officers }) => event_officers?.removed_at == null,
+    ),
+  }));
+  const selected = activeSlots.filter((slot) =>
     slot.event_time_slot_officers.some(
       ({ officer_id }) => officer_id === actorId,
     ),
   );
-  const availableToJoin = slots.flatMap((slot, index) =>
+  const availableToJoin = activeSlots.flatMap((slot, index) =>
     !slot.event_time_slot_officers.some(
       ({ officer_id }) => officer_id === actorId,
     ) &&
@@ -58,8 +65,8 @@ export default function TimeSlotsSection({
       ? [{ ...slot, position: index + 1 }]
       : [],
   );
-  const allSelected = selected.length === slots.length;
-  const fullUnselectedSlot = slots.find(
+  const allSelected = selected.length === activeSlots.length;
+  const fullUnselectedSlot = activeSlots.find(
     (slot) =>
       !slot.event_time_slot_officers.some(
         ({ officer_id }) => officer_id === actorId,
@@ -72,20 +79,20 @@ export default function TimeSlotsSection({
   const joinAllHint = eventCapacityBlocked
     ? "The Event has reached its confirmed signup capacity."
     : fullUnselectedSlot
-      ? `Slot ${slots.findIndex(({ id }) => id === fullUnselectedSlot.id) + 1} is full. Choose available slots instead.`
+      ? `Slot ${activeSlots.findIndex(({ id }) => id === fullUnselectedSlot.id) + 1} is full. Choose available slots instead.`
       : undefined;
 
   return (
     <section aria-label="Time Slots" className="min-w-0 space-y-3">
       <SectionHeading
-        title={`Time Slots (${slots.length})`}
+        title={`Time Slots (${activeSlots.length})`}
         description="Choose one or more slots. Each selected slot is counted and awarded separately."
       />
-      {slots.length === 0 ? (
+      {activeSlots.length === 0 ? (
         <p className="text-sm text-muted">No Time Slots are configured.</p>
       ) : (
         <ol className="space-y-3">
-          {slots.map((slot, index) => {
+          {activeSlots.map((slot, index) => {
             const registered = slot.event_time_slot_officers
               .map(({ officers: officer }) => officer)
               .filter(

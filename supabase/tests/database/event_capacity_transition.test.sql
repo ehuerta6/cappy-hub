@@ -85,8 +85,10 @@ reset role;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000001780',true);
 update officers set status='inactive' where id=-1782;
 select lives_ok($$select change_event_signup(-1780,-1781,true)$$,'confirmed Officer can leave an Event');
-select is((select count(*) from event_officers where event_id=-1780),0::bigint,
+select is((select count(*) from event_officers where event_id=-1780 and removed_at is null),0::bigint,
   'leaving a confirmed signup does not promote anyone');
+select ok((select removed_at is not null from event_officers where event_id=-1780 and officer_id=-1781),
+  'leaving preserves the stable signup row as historical evidence');
 select is((select count(*) from point_transactions where event_id=-1780),0::bigint,
   'leaving a future Event does not create participation Points');
 select lives_ok($$select private.set_event_capacity(-1785,2)$$,'capacity can increase');

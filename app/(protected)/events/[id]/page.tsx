@@ -217,7 +217,8 @@ export default async function EventDetailPage({
     supabase
       .from("event_officers")
       .select("officer_id", { count: "exact", head: true })
-      .eq("event_id", event.id),
+      .eq("event_id", event.id)
+      .is("removed_at", null),
     supabase
       .from("task_events")
       .select("task_id", { count: "exact", head: true })
@@ -231,7 +232,8 @@ export default async function EventDetailPage({
       .from("event_officers")
       .select("officer_id", { count: "exact", head: true })
       .eq("event_id", event.id)
-      .eq("officer_id", actor.id),
+      .eq("officer_id", actor.id)
+      .is("removed_at", null),
     supabase
       .from("officers")
       .select("id", { count: "exact", head: true })
@@ -311,6 +313,7 @@ export default async function EventDetailPage({
           )
           .eq("status", "active")
           .eq("event_officers.event_id", event.id)
+          .is("event_officers.removed_at", null)
           .is("event_officers", null)
           .order("name")
       : Promise.resolve(undefined),
@@ -341,7 +344,7 @@ export default async function EventDetailPage({
       ? supabase
           .from("event_time_slots")
           .select(
-            "id,starts_at,ends_at,capacity,event_time_slot_officers(officer_id,officers!event_time_slot_officers_officer_id_fkey(id,name))",
+            "id,starts_at,ends_at,capacity,event_time_slot_officers(officer_id,officers!event_time_slot_officers_officer_id_fkey(id,name),event_officers!event_time_slot_officers_signup_fkey(removed_at))",
           )
           .eq("event_id", event.id)
           .order("starts_at")
@@ -351,6 +354,7 @@ export default async function EventDetailPage({
           .from("event_officers")
           .select("officer_id,officers!event_officers_officer_id_fkey(id,name)")
           .eq("event_id", event.id)
+          .is("removed_at", null)
           .order("officers(name)")
           .order("officer_id")
           .range(0, 2)
@@ -361,6 +365,7 @@ export default async function EventDetailPage({
               "officer_id,officers!event_officers_officer_id_fkey(id,name)",
             )
             .eq("event_id", event.id)
+            .is("removed_at", null)
             .order("officers(name)")
             .order("officer_id")
             .range(start, start + RELATED_PAGE_SIZE - 1)
