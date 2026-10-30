@@ -231,9 +231,11 @@ select throws_ok($$select pg_temp.mutate('task-completed-only',1,'series','remov
 select is((select count(*) from tasks where id in (select unnest(ids) from pg_temp.fixtures where label='task-completed-only') and removed_at is null),3::bigint,
   'failed whole-series removal preserves every occurrence');
 select throws_ok($$select mutate_recurring_task(pg_temp.id('task-auth',1),'series','remove',gen_random_uuid(),(select series_id from pg_temp.fixtures where label='task-completed-only'),0)$$,'P0001','Occurrence does not belong to this series','trusted boundary verifies occurrence belongs to claimed series');
+reset role;
 select pg_temp.fixture('task-shortened-protected','task',3,'2099-05-01');
 insert into point_transactions(officer_id,task_id,points,reason,award_type,created_by)
 values(-683,pg_temp.id('task-shortened-protected',3),3,'Awarded shortened Task','task','00000000-0000-4000-8000-000000000681');
+set local role authenticated;
 select throws_ok($$select pg_temp.mutate('task-shortened-protected',1,'series','edit','{}','RRULE:FREQ=DAILY;INTERVAL=1;COUNT=2',array['2099-06-01'::date,'2099-06-02'])$$,
   'P0001','Completed or awarded Tasks must be deleted individually','award in shortened tail blocks schedule edit');
 select is((select count(*) from tasks where recurrence_series_id=(select series_id from pg_temp.fixtures where label='task-shortened-protected') and removed_at is null),3::bigint,

@@ -729,7 +729,7 @@ it("serializes concurrent Task delete and restore without duplicate awards or au
     const deletion = startSql(`
       begin;
       select id from public.tasks where id=${id} for update;
-      \echo TASK_DELETE_LOCKED
+      \\echo TASK_DELETE_LOCKED
       select pg_catalog.pg_sleep(1.5);
       set local role authenticated;
       select set_config('request.jwt.claim.sub','${admin}',true);
