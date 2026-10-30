@@ -55,6 +55,7 @@ select ok(not has_function_privilege('authenticated','private.process_finished_e
   and has_function_privilege('authenticated','public.create_event_location(text)','EXECUTE')
   and has_function_privilege('authenticated','public.rename_event_location(bigint,text)','EXECUTE')
   and has_function_privilege('authenticated','public.delete_event_location(bigint)','EXECUTE')
+  and has_function_privilege('authenticated','public.confirm_premature_participation(bigint,text)','EXECUTE')
   and has_function_privilege('authenticated','public.change_event_signup(bigint,bigint,boolean)','EXECUTE')
   and has_function_privilege('authenticated','public.bulk_add_event_officers(bigint,bigint[])','EXECUTE'),
   'essential checked RPCs remain callable and private processing stays closed');
@@ -141,6 +142,7 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       ,'public.create_event_location(text)'::regprocedure
       ,'public.rename_event_location(bigint,text)'::regprocedure
       ,'public.delete_event_location(bigint)'::regprocedure
+      ,'public.confirm_premature_participation(bigint,text)'::regprocedure
       ,'public.add_presenter_slot(bigint)'::regprocedure
       ,'public.reorder_presenter_slots(bigint,bigint[])'::regprocedure
       ,'public.remove_presenter_slot(bigint)'::regprocedure

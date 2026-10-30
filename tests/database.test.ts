@@ -126,7 +126,7 @@ it("enforces the MVP invariants and concurrent award uniqueness in local Postgre
     expect(firstResult.code).toBe(0);
     expect(secondResult.code).not.toBe(0);
     expect(secondResult.errors).toContain(
-      "one_ordinary_participation_award_per_officer_event",
+      "one_active_ordinary_participation_award_per_officer_event",
     );
     expect(Date.now() - competingInsertStartedAt).toBeGreaterThan(500);
     expect(
@@ -487,3 +487,78 @@ it("preserves independent manual credit during concurrent processing and intenti
     `);
   }
 }, 30_000);
+
+it("serializes schedule corrections with processing and retries without duplicate participation", async () => {
+  const id = -982328;
+  const actor = "00000000-0000-4000-8000-000009823280";
+  runSql(`
+    insert into auth.users(id,email) values('${actor}','schedule-concurrency@example.test');
+    insert into public.officers(id,name,utep_email,position_id,status,application_role,auth_user_id)
+      values(${id},'Schedule concurrency','schedule-concurrency@example.test',
+      (select id from public.positions where code='officer'),'active','admin','${actor}');
+    insert into public.events(id,name,description,location,event_type_id,starts_at,ends_at)
+      values(${id},'Schedule concurrency','Synthetic','Campus',
+      (select id from public.event_types where name='Meeting'),'2020-01-01 09:00-07','2020-01-01 11:00-07');
+    insert into public.event_officers(event_id,officer_id) values(${id},${id});
+  `);
+  try {
+    const processing = startSql(`begin;
+      select * from public.events where id=${id} for update;
+      select 'schedule-event-locked';
+      select pg_sleep(0.4);
+      select private.process_finished_events();
+      commit;`);
+    await processing.waitFor("schedule-event-locked");
+    const correcting = startSql(`begin;
+      select set_config('request.jwt.claim.sub','${actor}',true);
+      set local role authenticated;
+      select public.save_event_with_links('Schedule concurrency','Corrected',(select id from public.event_types where name='Meeting'),
+        'Campus','2099-01-01','2099-01-01 09:00-07','2099-01-01 11:00-07','{}'::bigint[],${id});
+      commit;`);
+    const [processor, correction] = await Promise.all([
+      processing.closed,
+      correcting.closed,
+    ]);
+    expect(processor.code, processor.errors).toBe(0);
+    expect(correction.code, correction.errors).toBe(0);
+    expect(
+      runSql(
+        `select count(*) from public.point_transactions where event_id=${id} and removed_at is null;`,
+      ).trim(),
+    ).toBe("0");
+    expect(
+      runSql(
+        `select count(*) from public.event_officers where event_id=${id};`,
+      ).trim(),
+    ).toBe("1");
+    runSql(`begin;
+      select set_config('request.jwt.claim.sub','${actor}',true);
+      set local role authenticated;
+      select public.save_event_with_links('Schedule concurrency','Corrected',
+        (select id from public.event_types where name='Meeting'),'Campus','2021-01-01',
+        '2021-01-01 09:00-07','2021-01-01 10:30-07','{}'::bigint[],${id});
+      commit;`);
+    const retries = await Promise.all([
+      startSql("select private.process_finished_events();").closed,
+      startSql("select private.process_finished_events();").closed,
+    ]);
+    for (const retry of retries) expect(retry.code, retry.errors).toBe(0);
+    expect(
+      runSql(
+        `select count(*),sum(points)::numeric(10,2) from public.point_transactions where event_id=${id} and removed_at is null;`,
+      ).trim(),
+    ).toBe("1|1.50");
+    expect(
+      runSql(
+        `select count(*) from public.point_transactions where event_id=${id};`,
+      ).trim(),
+    ).toBe("1");
+  } finally {
+    runSql(`delete from public.audit_logs where entity_id='${id}' or details->>'event_id'='${id}';
+      delete from public.point_transactions where event_id=${id};
+      delete from public.event_officers where event_id=${id};
+      delete from public.events where id=${id};
+      delete from public.officers where id=${id};
+      delete from auth.users where id='${actor}';`);
+  }
+});

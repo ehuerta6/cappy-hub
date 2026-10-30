@@ -151,9 +151,11 @@ it("defaults to the Overview view and shows read-only rate to non-admins", async
 
   expect(html).toMatch(/<a aria-current="page"[^>]*>Overview<\/a>/);
   expect(html).not.toContain("Point history filters");
-  expect(html).toContain("Current participation rate:");
+  expect(html).toContain(
+    "Event participation earns exactly 1 Point per eligible hour.",
+  );
   expect(html).toContain("Officer ranking");
-  expect(html).toContain("Participation rate");
+  expect(html).toContain("Participation Points");
   expect(html).not.toContain("Point configuration");
   expect(html).not.toContain("Add transaction");
   expect(queriedTables).not.toContain("point_history");
@@ -167,7 +169,7 @@ it("shows Admin configuration and Add transaction in Overview", async () => {
   );
 
   expect(html).toContain('aria-labelledby="add-transaction-title"');
-  expect(html).toContain("Point configuration");
+  expect(html).toContain("Participation Points");
   expect(queriedTables).not.toContain("point_history");
   expect(queriedTables).toContain("events");
   expect(queriedTables.filter((table) => table === "events")).toHaveLength(1);

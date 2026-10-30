@@ -7,7 +7,9 @@ import {
   formatLabel,
 } from "@/lib/presentation";
 import { PointValue, StatusBadge } from "@/components/ui";
-import PointActions from "./point-actions";
+import PointActions, {
+  PrematureParticipationConfirmation,
+} from "./point-actions";
 import { PointHistoryAmount, PointHistoryState } from "./point-history-state";
 
 function OfficerLink({
@@ -144,6 +146,15 @@ export default function HistoryTable({
               )}
               {isAdmin && (
                 <td className="min-w-0">
+                  {transaction.id &&
+                    transaction.premature_confirmation_available && (
+                      <PrematureParticipationConfirmation
+                        transactionId={transaction.id}
+                      />
+                    )}
+                  {transaction.participation_superseded_at && (
+                    <span>Confirmed premature; history preserved</span>
+                  )}
                   {transaction.id && !transaction.removed_at && (
                     <PointActions
                       transactionId={transaction.id}
