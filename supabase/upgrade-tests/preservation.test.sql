@@ -44,6 +44,15 @@ select results_eq($$select warning_id,approver_id,to_jsonb(a) from warning_appro
  $$select warning_id,approver_id,original from upgrade_fixture.pre_direct_admin_approvals order by warning_id,approver_id$$,
  'direct Admin migration preserves approval snapshots, actor IDs, decisions and timestamps');
 
+select results_eq($$select id,officer_id,reason,status,created_at,voided_at,voided_by from officer_warnings order by id$$,
+ $$select id,officer_id,reason,status,created_at,voided_at,voided_by from upgrade_fixture.pre_recoverable_warning_rows order by id$$,
+ 'recoverable Warning migration preserves legacy identity, status, reason and Void history');
+select is((select count(*) from officer_warnings where deleted_at is not null),0::bigint,
+ 'historical Warnings are not inferred to be deleted');
+select results_eq($$select warning_id,approver_id,to_jsonb(a) from warning_approvals a order by warning_id,approver_id$$,
+ $$select warning_id,approver_id,original from upgrade_fixture.pre_recoverable_warning_approvals order by warning_id,approver_id$$,
+ 'recoverable Warning migration preserves every approval record');
+
 -- New Event and Task lifecycle fields do not rewrite rows snapshotted earlier.
 select results_eq($$select id,to_jsonb(p)-'participation_superseded_at'-'participation_schedule_suspended'-'task_reconciliation_suspended' from point_transactions p order by id$$,
  $$select id,original from upgrade_fixture.pre_independent_manual_points order by id$$,

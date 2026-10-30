@@ -13,8 +13,9 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import {
   createWarning,
+  deleteWarning,
+  restoreWarning,
   updateWarning,
-  voidWarning,
 } from "@/app/(protected)/officers/warning-actions";
 
 const rpc = vi.fn();
@@ -119,25 +120,36 @@ it("preserves submitted corrections on database failure", async () => {
   expect(revalidatePath).not.toHaveBeenCalled();
 });
 
-it("rejects an invalid warning ID before voiding", async () => {
+it("rejects an invalid warning ID before deleting", async () => {
   const warningForm = new FormData();
   warningForm.set("warning_id", "oops");
   warningForm.set("officer_id", "3");
-  expect(await voidWarning({ error: "", success: "" }, warningForm)).toEqual({
+  expect(await deleteWarning({ error: "", success: "" }, warningForm)).toEqual({
     error: "Warning not found",
     success: "",
   });
   expect(rpc).not.toHaveBeenCalled();
 });
 
-it("voids a warning through the trusted RPC and revalidates its officer", async () => {
+it("deletes a warning through the trusted RPC and revalidates its officer", async () => {
   const warningForm = new FormData();
   warningForm.set("warning_id", "7");
   warningForm.set("officer_id", "3");
-  expect(await voidWarning({ error: "", success: "" }, warningForm)).toEqual({
+  expect(await deleteWarning({ error: "", success: "" }, warningForm)).toEqual({
     error: "",
-    success: "Warning voided",
+    success: "Warning deleted",
   });
-  expect(rpc).toHaveBeenCalledWith("void_warning", { p_warning_id: 7 });
+  expect(rpc).toHaveBeenCalledWith("delete_warning", { p_warning_id: 7 });
+  expect(revalidatePath).toHaveBeenCalledWith("/officers/3");
+});
+
+it("restores a warning through the trusted RPC and revalidates its officer", async () => {
+  const warningForm = new FormData();
+  warningForm.set("warning_id", "7");
+  warningForm.set("officer_id", "3");
+  expect(await restoreWarning({ error: "", success: "" }, warningForm)).toEqual(
+    { error: "", success: "Warning restored" },
+  );
+  expect(rpc).toHaveBeenCalledWith("restore_warning", { p_warning_id: 7 });
   expect(revalidatePath).toHaveBeenCalledWith("/officers/3");
 });

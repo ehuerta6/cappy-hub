@@ -16,7 +16,8 @@ vi.mock("@/app/(protected)/tasks/actions", () => ({
 vi.mock("@/app/(protected)/officers/warning-actions", () => ({
   createWarning: vi.fn(),
   decideWarning: vi.fn(),
-  voidWarning: vi.fn(),
+  deleteWarning: vi.fn(),
+  restoreWarning: vi.fn(),
 }));
 vi.mock("@/app/(protected)/points/actions", () => ({
   editPointTransaction: vi.fn(),
@@ -43,7 +44,10 @@ import {
   RemoveEventForm,
 } from "@/app/(protected)/events/event-controls";
 import { TaskRemoveForm } from "@/app/(protected)/tasks/task-remove-form";
-import { VoidWarningForm } from "@/app/(protected)/officers/warning-forms";
+import {
+  DeleteWarningForm,
+  RestoreWarningForm,
+} from "@/app/(protected)/officers/warning-forms";
 import PointActions from "@/app/(protected)/points/point-actions";
 import { PointHistoryState } from "@/app/(protected)/points/point-history-state";
 
@@ -197,12 +201,20 @@ it("shows scope and protected-history consequences for recurring Task removal", 
   expect(html).toContain("All occurrences");
 });
 
-it("preserves the existing Warning Void confirmation until reversible removal lands", () => {
-  const html = renderToStaticMarkup(
-    createElement(VoidWarningForm, { warningId: 7, officerId: 3 }),
+it("confirms reversible Warning deletion and restoration", () => {
+  const deleteHtml = renderToStaticMarkup(
+    createElement(DeleteWarningForm, { warningId: 7, officerId: 3 }),
   );
-  expect(html).toContain("Void warning?");
-  expect(html).toContain("cannot be undone");
+  expect(deleteHtml).toContain("Delete warning?");
+  expect(deleteHtml).toContain("an Admin can restore it later");
+
+  const restoreHtml = renderToStaticMarkup(
+    createElement(RestoreWarningForm, { warningId: 7, officerId: 3 }),
+  );
+  expect(restoreHtml).toContain("Restore warning?");
+  expect(restoreHtml).toContain(
+    "Rejected and pending Warnings remain inactive",
+  );
 });
 
 it("explains that Point transaction removal is logical and retains feedback", () => {

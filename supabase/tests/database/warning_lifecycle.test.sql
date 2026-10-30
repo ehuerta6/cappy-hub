@@ -54,22 +54,38 @@ select results_eq($$select to_jsonb(w)-'reason' from officer_warnings w where id
 select is((select count(*) from audit_logs where action='warning.updated'),4::bigint,'four material corrections audited once, exact retry creates no duplicate change');
 select is((select count(*) from audit_logs where action='warning.updated' and entity_id='-33511' and actor_officer_id=-33501 and details->'before'->>'reason'='Legacy pending' and details->'after'->>'reason'='Corrected pending reason'),1::bigint,'correction audit retains before and after reason with actor');
 
--- Two existing active effective records plus one new Warning yield review,
--- without changing Officer access. Voiding remains the prior lifecycle here.
+-- Active Warning counts use approved, non-voided, non-deleted records only.
 select is((select count(*) from officer_warnings where officer_id=-33502 and status='approved' and voided_at is null),2::bigint,'pending, rejected and voided records do not count');
 set local role authenticated;
 select create_warning(-33502,'Third active warning');
 reset role;
 select is((select count(*) from officer_warnings where officer_id=-33502 and status='approved' and voided_at is null),3::bigint,'third active Warning reaches Admin review threshold immediately');
 select is((select status from officers where id=-33502),'active','review threshold does not deactivate Officer');
+select set_config('test.third_warning_id',(select id::text from officer_warnings where reason='Third active warning'),true);
 set local role authenticated;
+select lives_ok($$select delete_warning(current_setting('test.third_warning_id')::bigint)$$,'Admin deletes an active Warning through the trusted RPC');
+select throws_ok($$select delete_warning(current_setting('test.third_warning_id')::bigint)$$,'P0001','Warning is already deleted','repeat Delete is rejected without changing history');
+select lives_ok($$select restore_warning(current_setting('test.third_warning_id')::bigint)$$,'Admin restores a deleted Warning through the trusted RPC');
+select throws_ok($$select restore_warning(current_setting('test.third_warning_id')::bigint)$$,'P0001','Warning is not deleted','repeat Restore is rejected');
+select lives_ok($$select delete_warning(-33511)$$,'Admin can reversibly delete a historical pending Warning');
+select lives_ok($$select restore_warning(-33511)$$,'Admin can restore a historical pending Warning');
+select lives_ok($$select delete_warning(-33514)$$,'Admin can reversibly delete a historically voided Warning');
+select lives_ok($$select restore_warning(-33514)$$,'Admin can restore a historically voided Warning');
 select void_warning(current_setting('test.direct_warning_id')::bigint);
 reset role;
 select is((select count(*) from officer_warnings where officer_id=-33502 and status='approved' and voided_at is null),2::bigint,'void removes effective Warning from active count');
 select is((select status from officer_warnings where id=current_setting('test.direct_warning_id')::bigint),'approved','void retains original effective status');
+select is((select count(*) from officer_warnings where officer_id=-33502 and status='approved' and voided_at is null and deleted_at is null),2::bigint,'Delete/Restore preserves the active count and the three-warning threshold');
+select is((select status from officer_warnings where id=-33511),'pending','restoring a pending legacy Warning does not make it effective');
+select is((select status from officer_warnings where id=-33514 and voided_at is not null),'approved','restoring a previously voided Warning retains its Void history');
+select is((select count(*) from warning_approvals where warning_id in (-33511,-33514)),2::bigint,'Delete/Restore preserves pending and voided Warning approval records');
+select is((select count(*) from audit_logs where action='warning.deleted' and actor_officer_id=-33501),3::bigint,'each Delete has an Admin-attributed audit record');
+select is((select count(*) from audit_logs where action='warning.restored' and actor_officer_id=-33501),3::bigint,'each Restore has an Admin-attributed audit record');
+select is((select count(*) from officer_warnings where id=current_setting('test.third_warning_id')::bigint and deleted_at is null and status='approved'),1::bigint,'restoring the active Warning returns its original status');
 set local role authenticated;
 select throws_ok($$select void_warning(current_setting('test.direct_warning_id')::bigint)$$,'P0001','Warning is already voided','repeat Void retains existing lifecycle rule');
-select throws_ok($$select delete_warning(-33511)$$,'P0001','Warning deletion is disabled; void instead','physical delete compatibility remains disabled until lifecycle Issue');
+select throws_ok($$select delete_warning(-999999)$$,'P0001','Warning not found','missing Warning fails clearly');
+select throws_ok($$select restore_warning(-999999)$$,'P0001','Warning not found','missing restore target fails clearly');
 select throws_ok($$delete from officer_warnings where id=-33511$$,'42501','permission denied for table officer_warnings','Admin cannot physically delete history');
 select throws_ok($$update officer_warnings set status='approved' where id=-33511$$,'42501','permission denied for table officer_warnings','direct table status bypass denied');
 reset role;
@@ -85,6 +101,8 @@ set local role authenticated;
 select is((select count(*) from officer_warnings),0::bigint,'unlinked account cannot read Warnings');
 select throws_ok($$select create_warning(-33502,'Unlinked')$$,'P0001','Admin required','unlinked account cannot create');
 select throws_ok($$select update_warning(-33511,'Unlinked')$$,'P0001','Admin required','unlinked account cannot edit');
+select throws_ok($$select delete_warning(-33513)$$,'P0001','Admin required','unlinked account cannot delete');
+select throws_ok($$select restore_warning(-33513)$$,'P0001','Admin required','unlinked account cannot restore');
 select throws_ok($$select decide_warning(-33511,'approved')$$,'P0001','Unauthorized','unlinked account cannot decide legacy Warning');
 reset role;
 
@@ -95,6 +113,8 @@ set local role authenticated;
 select is((select count(*) from officer_warnings),1::bigint,'legacy approver retains only assigned pending visibility');
 select throws_ok($$select create_warning(-33502,'Forged Lead warning')$$,'P0001','Admin required','Lead cannot create Warning');
 select throws_ok($$select update_warning(-33511,'Forged Lead correction')$$,'P0001','Admin required','Lead cannot correct Warning');
+select throws_ok($$select delete_warning(-33513)$$,'P0001','Admin required','Lead cannot delete a Warning');
+select throws_ok($$select restore_warning(-33513)$$,'P0001','Admin required','Lead cannot restore a Warning');
 select lives_ok($$select decide_warning(-33511,'rejected')$$,'legacy snapshotted approver can explicitly close old pending decision');
 select throws_ok($$select decide_warning(-33511,'approved')$$,'P0001','This warning is already closed','closed legacy decision cannot be changed');
 select throws_ok($$select decide_warning(-33514,'approved')$$,'P0001','This warning is voided','voided legacy Warning cannot receive decisions');
@@ -116,16 +136,20 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033505'
 set local role authenticated;
 select throws_ok($$select create_warning(-33502,'Inactive Admin')$$,'P0001','Admin required','inactive Admin cannot create');
 select throws_ok($$select update_warning(-33513,'Inactive Admin')$$,'P0001','Admin required','inactive Admin cannot edit');
+select throws_ok($$select delete_warning(-33513)$$,'P0001','Admin required','inactive Admin cannot delete');
+select throws_ok($$select restore_warning(-33513)$$,'P0001','Admin required','inactive Admin cannot restore');
 reset role;
 set local role anon;
 select throws_ok($$select create_warning(-33502,'Anonymous')$$,'42501','permission denied for function create_warning','anonymous cannot create');
 select throws_ok($$select update_warning(-33513,'Anonymous')$$,'42501','permission denied for function update_warning','anonymous cannot edit');
+select throws_ok($$select delete_warning(-33513)$$,'42501','permission denied for function delete_warning','anonymous cannot delete');
+select throws_ok($$select restore_warning(-33513)$$,'42501','permission denied for function restore_warning','anonymous cannot restore');
 reset role;
 
 -- Source mutations roll back with their audit if recording history fails.
 create function pg_temp.reject_warning_audit() returns trigger language plpgsql as $$
 begin
- if new.action in ('warning.created','warning.updated') then raise exception 'Synthetic audit failure'; end if;
+ if new.action in ('warning.created','warning.updated','warning.deleted','warning.restored') then raise exception 'Synthetic audit failure'; end if;
  return new;
 end;
 $$;
@@ -134,8 +158,11 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033501'
 set local role authenticated;
 select throws_ok($$select create_warning(-33502,'Should roll back')$$,'P0001','Synthetic audit failure','create and audit fail atomically');
 select throws_ok($$select update_warning(-33513,'Should roll back')$$,'P0001','Synthetic audit failure','historical correction and audit fail atomically');
+select throws_ok($$select delete_warning(current_setting('test.third_warning_id')::bigint)$$,'P0001','Synthetic audit failure','Warning deletion rolls back with its audit');
+select throws_ok($$select restore_warning(current_setting('test.third_warning_id')::bigint)$$,'P0001','Synthetic audit failure','Warning restoration rolls back with its audit');
 reset role;
 select is((select count(*) from officer_warnings where reason='Should roll back'),0::bigint,'no unaudited create or reason edit remains');
+select is((select deleted_at from officer_warnings where id=current_setting('test.third_warning_id')::bigint),null::timestamptz,'failed delete or restore preserves the prior Warning lifecycle');
 select is((select reason from officer_warnings where id=-33513),'Legacy approved','failed edit preserves original historical reason');
 
 select * from finish();

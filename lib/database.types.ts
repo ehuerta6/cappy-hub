@@ -511,6 +511,8 @@ export type Database = {
       officer_warnings: {
         Row: {
           created_at: string;
+          deleted_at: string | null;
+          deleted_by: number | null;
           id: number;
           officer_id: number;
           reason: string;
@@ -520,6 +522,8 @@ export type Database = {
         };
         Insert: {
           created_at?: string;
+          deleted_at?: string | null;
+          deleted_by?: number | null;
           id?: number;
           officer_id: number;
           reason: string;
@@ -529,6 +533,8 @@ export type Database = {
         };
         Update: {
           created_at?: string;
+          deleted_at?: string | null;
+          deleted_by?: number | null;
           id?: number;
           officer_id?: number;
           reason?: string;
@@ -561,6 +567,20 @@ export type Database = {
           {
             foreignKeyName: "officer_warnings_voided_by_fkey";
             columns: ["voided_by"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "officer_warnings_deleted_by_fkey";
+            columns: ["deleted_by"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "officer_warnings_deleted_by_fkey";
+            columns: ["deleted_by"];
             isOneToOne: false;
             referencedRelation: "officers";
             referencedColumns: ["id"];
@@ -1488,6 +1508,7 @@ export type Database = {
       delete_event_type: { Args: { p_id: number }; Returns: undefined };
       delete_position: { Args: { p_id: number }; Returns: undefined };
       delete_warning: { Args: { p_warning_id: number }; Returns: undefined };
+      restore_warning: { Args: { p_warning_id: number }; Returns: undefined };
       event_signup_counts: {
         Args: Record<PropertyKey, never>;
         Returns: {

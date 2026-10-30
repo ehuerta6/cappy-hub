@@ -12,7 +12,7 @@ import { revalidatePath } from "next/cache";
 import {
   createWarningInputSchema,
   updateWarningInputSchema,
-  voidWarningInputSchema,
+  warningLifecycleInputSchema,
 } from "./warning-validation";
 
 type ActionState = FormActionState;
@@ -69,28 +69,51 @@ export async function updateWarning(
   return { error: "", success: "Warning updated" };
 }
 
-export async function voidWarning(
+export async function deleteWarning(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   const actor = await getAuthorizationContext();
   if (!isAdmin(actor)) return { error: "Admin required", success: "" };
-  const rawWarningVoidInput = {
+  const rawWarningInput = {
     warning_id: formData.get("warning_id") ?? "",
     officer_id: formData.get("officer_id") ?? "",
   };
   const validationResult =
-    voidWarningInputSchema.safeParse(rawWarningVoidInput);
+    warningLifecycleInputSchema.safeParse(rawWarningInput);
   if (!validationResult.success)
     return { error: validationResult.error.issues[0].message, success: "" };
-  const validatedWarningVoid = validationResult.data;
+  const warning = validationResult.data;
   const supabase = await createClient();
-  const { error } = await supabase.rpc("void_warning", {
-    p_warning_id: validatedWarningVoid.warning_id,
+  const { error } = await supabase.rpc("delete_warning", {
+    p_warning_id: warning.warning_id,
   });
   if (error) return { error: mutationError(error.message), success: "" };
-  if (validatedWarningVoid.officer_id !== undefined)
-    revalidatePath(`/officers/${validatedWarningVoid.officer_id}`);
+  if (warning.officer_id !== undefined)
+    revalidatePath(`/officers/${warning.officer_id}`);
   revalidatePath("/officers");
-  return { error: "", success: "Warning voided" };
+  return { error: "", success: "Warning deleted" };
+}
+
+export async function restoreWarning(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const actor = await getAuthorizationContext();
+  if (!isAdmin(actor)) return { error: "Admin required", success: "" };
+  const result = warningLifecycleInputSchema.safeParse({
+    warning_id: formData.get("warning_id") ?? "",
+    officer_id: formData.get("officer_id") ?? "",
+  });
+  if (!result.success)
+    return { error: result.error.issues[0].message, success: "" };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("restore_warning", {
+    p_warning_id: result.data.warning_id,
+  });
+  if (error) return { error: mutationError(error.message), success: "" };
+  if (result.data.officer_id !== undefined)
+    revalidatePath(`/officers/${result.data.officer_id}`);
+  revalidatePath("/officers");
+  return { error: "", success: "Warning restored" };
 }
