@@ -167,15 +167,6 @@ export default async function DashboardPage() {
               >
                 View all Tasks
               </Link>
-              {(actionItems.hasPendingWarnings ||
-                actionItems.unavailableSources.warnings) && (
-                <Link
-                  href="/officers?view=warnings"
-                  className="inline-flex min-h-9 items-center underline underline-offset-4"
-                >
-                  View warning decisions
-                </Link>
-              )}
             </div>
           }
         />
@@ -184,20 +175,13 @@ export default async function DashboardPage() {
             Task actions unavailable. Reload this page to retry.
           </p>
         )}
-        {actionItems.unavailableSources.warnings && (
-          <p role="alert" className="text-sm">
-            Warning decisions unavailable. Reload this page to retry.
-          </p>
-        )}
-        {actionItems.unavailableSources.tasks ||
-        actionItems.unavailableSources.warnings ? (
+        {actionItems.unavailableSources.tasks ? (
           <p className="text-sm text-muted">
             Showing available action items. This list may be incomplete.
           </p>
         ) : null}
         {actionItems.items.length === 0 ? (
-          actionItems.unavailableSources.tasks ||
-          actionItems.unavailableSources.warnings ? null : (
+          actionItems.unavailableSources.tasks ? null : (
             <p className="text-sm">You&apos;re all caught up.</p>
           )
         ) : (
@@ -228,17 +212,12 @@ export default async function DashboardPage() {
         )}
         {actionItems.hasMore && (
           <p className="mt-2 text-xs">
-            {actionItems.unavailableSources.tasks ||
-            actionItems.unavailableSources.warnings
+            {actionItems.unavailableSources.tasks
               ? "Showing the first " +
                 DASHBOARD_PREVIEW_LIMIT +
                 " available items. "
               : "Showing the first " + DASHBOARD_PREVIEW_LIMIT + " items. "}
-            View Tasks
-            {(actionItems.hasPendingWarnings ||
-              actionItems.unavailableSources.warnings) &&
-              " or warning decisions"}{" "}
-            for more.
+            View Tasks for more.
           </p>
         )}
       </section>

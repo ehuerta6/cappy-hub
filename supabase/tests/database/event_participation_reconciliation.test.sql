@@ -120,16 +120,25 @@ select is((select count(*) from point_transactions where event_id=-32807 and rem
 select is((select removed_by_officer_id from point_transactions where event_id=-32807),-32801::bigint,
  'explicit removal retains current stable Admin attribution');
 
--- An independent automatic edit remains preserved; required source changes
--- are explicitly blocked until the narrow product policy is resolved.
+-- Direct editing remains available. Descriptive edits preserve the current
+-- amount; a relevant schedule correction recalculates from source and audits it.
 set local role authenticated;
 select update_point_transaction(id,7) from point_transactions where event_id=-32801 and award_type='participation';
 reset role;
-select throws_ok($$update events set ends_at='2021-01-01 11:00-07' where id=-32801$$,'P0001',
- 'Edited automatic Points need an explicit policy decision before schedule reconciliation','source correction cannot silently overwrite an independent automatic edit');
-select is((select ends_at from events where id=-32801),'2021-01-01 10:15-07'::timestamptz,'blocked correction rolls back schedule');
-select is((select points from point_transactions where event_id=-32801 and award_type='participation'),7::numeric,'edited amount stays intact');
-select lives_ok($$update events set description='Historical description still editable' where id=-32801$$,'descriptive correction remains possible with edited award');
+select lives_ok($$update events set description='Historical description still editable' where id=-32801$$,
+ 'descriptive correction remains possible with edited award');
+select is((select points from point_transactions where event_id=-32801 and award_type='participation'),7::numeric,
+ 'descriptive edit does not recalculate an automatic amount');
+select lives_ok($$update events set ends_at='2021-01-01 11:00-07' where id=-32801$$,
+ 'source schedule correction recalculates a directly edited automatic award');
+select is((select ends_at from events where id=-32801),'2021-01-01 11:00-07'::timestamptz,
+ 'corrected schedule is saved');
+select is((select points from point_transactions where event_id=-32801 and award_type='participation'),2::numeric,
+ 'corrected Event duration is the source of truth for automatic Points');
+select is((select count(*) from audit_logs where action='points.participation_reconciled'
+ and entity_id=(select id::text from point_transactions where event_id=-32801 and award_type='participation')
+ and (details->>'before_points')::numeric=7 and (details->>'after_points')::numeric=2),1::bigint,
+ 'directly edited amount replacement has an attributable before/after reconciliation audit');
 -- Missing legacy basis is unknown, not evidence of an unedited amount.
 insert into events(id,name,description,location,event_type_id,starts_at,ends_at,participation_points_per_hour_at_end)
  values(-32806,'Unknown legacy basis','Synthetic','Campus',(select id from event_types where name='Meeting'),

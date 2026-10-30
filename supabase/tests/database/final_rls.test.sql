@@ -109,6 +109,7 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       'public.set_participation_rate(numeric)'::regprocedure,
       'public.remove_participation_award(bigint)'::regprocedure,
       'public.create_warning(bigint,text)'::regprocedure,
+      'public.update_warning(bigint,text)'::regprocedure,
       'public.decide_warning(bigint,text)'::regprocedure,
       'public.delete_warning(bigint)'::regprocedure,
       'public.void_warning(bigint)'::regprocedure,

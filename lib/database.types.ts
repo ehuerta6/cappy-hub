@@ -1757,6 +1757,10 @@ export type Database = {
         };
         Returns: undefined;
       };
+      update_warning: {
+        Args: { p_reason: string; p_warning_id: number };
+        Returns: number;
+      };
       void_warning: { Args: { p_warning_id: number }; Returns: undefined };
     };
     Enums: {

@@ -1,7 +1,6 @@
 // Database constraint details are useful in logs, but not in form responses.
 const safeMessages = new Set([
   "Historical participation needs reviewed compatibility handling before schedule reconciliation",
-  "Edited automatic Points need an explicit policy decision before schedule reconciliation",
   "Only an independently removed participation award can be confirmed premature",
   "Correct the Event schedule before confirming a premature award",
   "Invalid recurrence scope or operation",

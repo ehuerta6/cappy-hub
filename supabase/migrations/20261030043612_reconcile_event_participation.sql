@@ -68,15 +68,6 @@ declare e public.events%rowtype; target record; award public.point_transactions%
 begin
  select * into e from public.events where id=p_event_id for update;
  if not found or e.deleted_at is not null or e.status='cancelled' then return changed; end if;
- -- Pending direct-edit policy: source changes involving independently edited
- -- credit fail atomically, rather than silently overwriting or endorsing it.
- if p_source_changed and exists(select 1 from public.point_transactions p
-   left join private.event_participation_basis b on b.transaction_id=p.id
-   where p.event_id=p_event_id and p.award_type='participation' and p.participation_superseded_at is null
-   and (p.removed_at is null or coalesce(b.schedule_suspended,false))
-   and (p.updated_by is not null or p.updated_by_officer_id is not null)) then
-  raise exception 'Edited automatic Points need an explicit policy decision before schedule reconciliation';
- end if;
  -- Marker-free legacy rows may contain undocumented direct edits. A missing
  -- basis is explicit unknown evidence, never proof that overwriting is safe.
  if p_source_changed and exists(select 1 from public.point_transactions p
@@ -132,12 +123,6 @@ begin
    select * into basis from private.event_participation_basis where transaction_id=award.id;
    if award.removed_at is not null and not coalesce(basis.schedule_suspended,false)
       and not award.slot_selection_removed then continue; end if;
-   if (award.updated_by is not null or award.updated_by_officer_id is not null) then
-    if coalesce(basis.schedule_suspended,false) then
-     raise exception 'Edited automatic Points need an explicit policy decision before schedule reconciliation';
-    end if;
-    continue;
-   end if;
    -- Existing historic rates are evidence, not an invitation to reprice all
    -- processed rows. Only an actual source correction changes existing credit.
    if p_source_changed or coalesce(basis.schedule_suspended,false) or award.slot_selection_removed then
@@ -426,9 +411,6 @@ begin
   raise exception 'Only an independently removed participation award can be confirmed premature';
  end if;
  if award.participation_superseded_at is not null then return false; end if;
- if award.updated_by is not null or award.updated_by_officer_id is not null then
-  raise exception 'Edited automatic Points need an explicit policy decision before schedule reconciliation';
- end if;
  if e.deleted_at is not null or e.status='cancelled' then raise exception 'Event unavailable'; end if;
  if basis.transaction_id is not null and basis.starts_at=coalesce((select starts_at from public.event_time_slots where id=award.event_time_slot_id),e.starts_at)
    and basis.ends_at=coalesce((select ends_at from public.event_time_slots where id=award.event_time_slot_id),e.ends_at) then

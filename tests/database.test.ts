@@ -562,3 +562,63 @@ it("serializes schedule corrections with processing and retries without duplicat
       delete from auth.users where id='${actor}';`);
   }
 });
+
+it("serializes Warning corrections with complete before/after audit history", async () => {
+  const id = -335900;
+  const admin = "00000000-0000-4000-8000-000000335900";
+  runSql(`
+    insert into auth.users(id,email) values('${admin}','warning-concurrency@example.test');
+    insert into public.officers(id,name,utep_email,position_id,status,application_role,auth_user_id)
+      values(${id},'Warning concurrency Admin','warning-concurrency@example.test',
+        (select id from public.positions where code='officer'),'active','admin','${admin}');
+    insert into public.officer_warnings(id,officer_id,reason,status)
+      values(${id},${id},'Original historical reason','pending');
+  `);
+  try {
+    const first = startSql(`
+      begin;
+      set local role authenticated;
+      select set_config('request.jwt.claim.sub','${admin}',true);
+      select public.update_warning(${id},'First correction');
+      \\echo WARNING_CORRECTED
+      select pg_catalog.pg_sleep(1);
+      commit;
+    `);
+    await first.waitFor("WARNING_CORRECTED");
+    const second = startSql(`
+      begin;
+      set local role authenticated;
+      select set_config('request.jwt.claim.sub','${admin}',true);
+      select public.update_warning(${id},'Second correction');
+      commit;
+    `);
+    for (const outcome of await Promise.all([first.closed, second.closed]))
+      expect(outcome.code, outcome.errors).toBe(0);
+    runSql(`
+      begin;
+      set local role authenticated;
+      select set_config('request.jwt.claim.sub','${admin}',true);
+      select public.update_warning(${id},'Second correction');
+      commit;
+    `);
+    expect(
+      runSql(
+        `select reason || ':' || status from public.officer_warnings where id=${id};`,
+      ).trim(),
+    ).toBe("Second correction:pending");
+    expect(
+      runSql(
+        `select string_agg((details->'before'->>'reason')||' -> '||(details->'after'->>'reason'),';' order by id) from public.audit_logs where entity_type='warning' and entity_id='${id}' and action='warning.updated' and actor_officer_id=${id};`,
+      ).trim(),
+    ).toBe(
+      "Original historical reason -> First correction;First correction -> Second correction",
+    );
+  } finally {
+    runSql(`
+      delete from public.audit_logs where actor_officer_id=${id};
+      delete from public.officer_warnings where id=${id};
+      delete from public.officers where id=${id};
+      delete from auth.users where id='${admin}';
+    `);
+  }
+}, 30_000);

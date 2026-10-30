@@ -957,7 +957,7 @@ it("retains Officer operational sections and full point history", async () => {
   expect(html).toContain('aria-label="Warnings"');
   expect(html).toContain("Create warning");
   expect(html).toContain('aria-labelledby="create-warning-title"');
-  expect(html).toContain("The reason is permanent");
+  expect(html).toContain("This warning takes effect immediately");
   expect(html).toContain('aria-label="Associated events"');
   expect(html).toContain('href="/points?officer=7"');
 });
