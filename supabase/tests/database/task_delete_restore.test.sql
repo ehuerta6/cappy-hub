@@ -6,11 +6,15 @@ select no_plan();
 insert into auth.users(id,email) values
  ('00000000-0000-4000-8000-000000033201','task-delete-admin@example.test'),
  ('00000000-0000-4000-8000-000000033202','task-delete-lead@example.test'),
- ('00000000-0000-4000-8000-000000033203','task-delete-officer@example.test');
+ ('00000000-0000-4000-8000-000000033203','task-delete-officer@example.test'),
+ ('00000000-0000-4000-8000-000000033204','task-delete-inactive@example.test'),
+ ('00000000-0000-4000-8000-000000033205','task-delete-unlinked@example.test');
 insert into officers(id,name,utep_email,position_id,status,application_role,auth_user_id) values
  (-33201,'Task Delete Admin','task-delete-admin@example.test',(select id from positions where name='Officer'),'active','admin','00000000-0000-4000-8000-000000033201'),
  (-33202,'Task Delete Lead','task-delete-lead@example.test',(select id from positions where name='Lead'),'active','officer','00000000-0000-4000-8000-000000033202'),
- (-33203,'Task Delete Officer','task-delete-officer@example.test',(select id from positions where name='Officer'),'active','officer','00000000-0000-4000-8000-000000033203');
+ (-33203,'Task Delete Officer','task-delete-officer@example.test',(select id from positions where name='Officer'),'active','officer','00000000-0000-4000-8000-000000033203'),
+ (-33204,'Task Delete Inactive','task-delete-inactive@example.test',(select id from positions where name='Officer'),'inactive','officer','00000000-0000-4000-8000-000000033204'),
+ (-33205,'Task Delete Unlinked','task-delete-unlinked@example.test',(select id from positions where name='Officer'),'active','officer',null);
 insert into officer_branches(officer_id,branch_id)
  select -33202,id from branches where name='intro';
 select set_config('test.denver_today',
@@ -29,7 +33,9 @@ values
   (-33203,'Previously removed award','Do not revive independent removals','Story',(select id from branches where name='intro'),
    current_setting('test.denver_today')::date-1,3,false,-33202,null,null),
   (-33204,'Removed while deleted','Respect a later deliberate removal','LinkedIn',(select id from branches where name='intro'),
-   current_setting('test.denver_today')::date-1,1,false,-33202,null,null);
+   current_setting('test.denver_today')::date-1,1,false,-33202,null,null),
+  (-33205,'Out-of-scope Task','Lead must not cross Branch scope','Post',(select id from branches where name='icpc'),
+   current_setting('test.denver_today')::date-1,2,false,-33202,null,null);
 insert into task_officer_assignments(task_id,officer_id,assigned_by,completed_at)
 values(-33201,-33203,-33202,now()-interval '2 days'),(-33202,-33203,-33202,now()-interval '1 day'),
   (-33203,-33203,-33202,now()-interval '2 days'),(-33204,-33203,-33202,now()-interval '2 days');
@@ -76,6 +82,8 @@ select is((select count(*) from audit_logs where action='task.deleted' and entit
 
 select lives_ok($$select restore_task(-33201)$$,
   'authorized branch manager restores a deleted Task');
+select lives_ok($$select restore_task(-33201)$$,
+  'retrying Task restore succeeds without duplicating reconciliation');
 select is((select removed_at from tasks where id=-33201),null::timestamptz,
   'restore returns the Task to active workflows');
 select is((select recurrence_key from tasks where id=-33201),
@@ -86,6 +94,10 @@ select is((select removed_at from point_transactions where task_id=-33201 and aw
 select is((select task_reconciliation_suspended from point_transactions
   where task_id=-33201 and award_type='task'),false,
   'restored award is no longer mechanically suspended');
+select is((select count(*) from audit_logs where action='task.deleted' and entity_id='-33201'
+  and actor_officer_id=-33202),1::bigint,'delete audit attributes the manager');
+select is((select count(*) from audit_logs where action='task.restored' and entity_id='-33201'
+  and actor_officer_id=-33202),1::bigint,'restore audit attributes the manager and retry adds no duplicate');
 
 select lives_ok($$select remove_task(-33202)$$,
   'manager can delete an open or not-yet-due Task');
@@ -127,6 +139,24 @@ select throws_ok($$select remove_task(-33201)$$,'P0001','Task outside branch sco
   'ordinary Officer cannot delete a Task');
 select throws_ok($$select restore_task(-33201)$$,'P0001','Task outside branch scope',
   'ordinary Officer cannot restore a Task');
+reset role;
+
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033202',true);
+set local role authenticated;
+select throws_ok($$select remove_task(-33205)$$,'P0001','Task outside branch scope',
+  'Lead cannot delete a Task outside assigned Branches');
+select throws_ok($$select restore_task(-33205)$$,'P0001','Task outside branch scope',
+  'Lead cannot restore a Task outside assigned Branches');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033204',true);
+select throws_ok($$select remove_task(-33201)$$,'P0001','Unauthorized',
+  'inactive linked Officer cannot delete Tasks');
+select throws_ok($$select restore_task(-33201)$$,'P0001','Unauthorized',
+  'inactive linked Officer cannot restore Tasks');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033205',true);
+select throws_ok($$select remove_task(-33201)$$,'P0001','Unauthorized',
+  'active but unlinked Officer identity cannot delete Tasks');
+select throws_ok($$select restore_task(-33201)$$,'P0001','Unauthorized',
+  'active but unlinked Officer identity cannot restore Tasks');
 reset role;
 
 select is((select count(*) from audit_logs where action='task.restored' and entity_id='-33201'),1::bigint,

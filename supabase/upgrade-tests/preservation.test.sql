@@ -339,6 +339,30 @@ select is((select count(*) from event_locations),0::bigint,
 select set_config('request.jwt.claim.sub','20000000-0000-0000-0000-000000000002',true);
 select ok((select count(*) from event_locations)>0,
   'active linked Officer reads Event Locations after upgrade');
+select lives_ok($$select remove_task(90801)$$,
+  'upgraded delete RPC suspends a synthetic existing Task award');
+select ok((select task_reconciliation_suspended from point_transactions
+  where task_id=90801 and award_type='task'),
+  'upgraded delete distinguishes its suspension from historical removal');
+select lives_ok($$select restore_task(90801)$$,
+  'upgraded restore RPC reconciles a synthetic existing Task award');
+select is((select id from point_transactions where task_id=90801 and award_type='task'),
+  (select (original->>'id')::bigint from upgrade_fixture.pre_task_delete_restore_points
+    where original->>'task_id'='90801'),
+  'upgraded recovery reuses the pre-existing award identity');
+select is((select removed_at from point_transactions where task_id=90801 and award_type='task'),
+  null::timestamptz,'upgraded recovery reactivates an eligible historical award');
+select lives_ok($$select remove_task(90802)$$,
+  'upgraded delete accepts a Task with an independent historical removal');
+select lives_ok($$select restore_task(90802)$$,
+  'upgraded restore preserves independent historical removal intent');
+select isnt((select removed_at from point_transactions where task_id=90802 and award_type='task'),
+  null::timestamptz,'upgraded restore does not reactivate the independently removed award');
+select ok(not (select task_reconciliation_suspended from point_transactions
+  where task_id=90802 and award_type='task'),
+  'upgraded restore does not relabel independent history as a Task-delete suspension');
+select is((select actor_officer_id from audit_logs where action='task.deleted' and entity_id='90801'),
+  -90010::bigint,'upgraded Task lifecycle audit uses the authenticated Admin identity');
 select throws_ok($$select save_event_with_links('Rejected General','Description',
   (select id from event_types where name='General'),'TBA','2099-09-20',
   '2099-09-20 09:00-06','2099-09-20 10:00-06','{}'::bigint[])$$,

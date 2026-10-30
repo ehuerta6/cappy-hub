@@ -14,6 +14,7 @@ const safeMessages = new Set([
   "Future schedule must remain after earlier occurrences",
   "Schedule would recreate a removed occurrence",
   "Completed or awarded Task point settings cannot be edited",
+  "Completed or awarded Tasks must be deleted individually",
   "Only recurring Task occurrences can be removed",
   "Task has been removed",
   "Idempotency key already used",

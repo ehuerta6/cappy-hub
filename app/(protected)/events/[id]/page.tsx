@@ -803,14 +803,18 @@ export default async function EventDetailPage({
             <ul className="list-disc space-y-2 pl-5">
               {linkedTasks.map((linkedTask) => (
                 <li key={linkedTask.id}>
-                  <Link
-                    href={`/tasks/${linkedTask.id}`}
-                    className="underline underline-offset-4"
-                  >
-                    {linkedTask.title}
-                  </Link>
-                  {linkedTask.removed_at && (
-                    <span className="ml-2 text-sm text-muted">Archived</span>
+                  {linkedTask.removed_at ? (
+                    <>
+                      {linkedTask.title}
+                      <span className="ml-2 text-sm text-muted">Deleted</span>
+                    </>
+                  ) : (
+                    <Link
+                      href={`/tasks/${linkedTask.id}`}
+                      className="underline underline-offset-4"
+                    >
+                      {linkedTask.title}
+                    </Link>
                   )}
                 </li>
               ))}

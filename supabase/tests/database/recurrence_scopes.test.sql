@@ -217,14 +217,29 @@ select is((select count(*) from events where id in (select unnest(ids) from pg_t
 reset role;
 select pg_temp.fixture('task-completed-only','task');
 insert into task_officer_assignments(task_id,officer_id,assigned_by,completed_at) values(pg_temp.id('task-completed-only',3),-683,-681,'2026-09-20 12:00Z');
+insert into point_transactions(officer_id,task_id,points,reason,award_type,created_by)
+values(-683,pg_temp.id('task-completed-only',2),3,'Recurring award','task','00000000-0000-4000-8000-000000000681');
 set local role authenticated;
-select lives_ok($$select pg_temp.mutate('task-completed-only',2,'following','remove')$$,
-  'a branch Lead deletes following Tasks including completed assignments');
-select isnt((select removed_at from tasks where id=pg_temp.id('task-completed-only',2)),null::timestamptz,
-  'following Task is deleted');
-select isnt((select removed_at from tasks where id=pg_temp.id('task-completed-only',3)),null::timestamptz,
-  'completed following Task is deleted without losing its assignment history');
+select throws_ok($$select pg_temp.mutate('task-completed-only',2,'following','remove')$$,'P0001','Completed or awarded Tasks must be deleted individually',
+  'awarded or completed Task blocks following removal');
+select is((select count(*) from tasks where id in (pg_temp.id('task-completed-only',2),pg_temp.id('task-completed-only',3)) and removed_at is null),2::bigint,
+  'failed following removal rolls back every Task delete');
+select is((select revision from task_series where id=(select series_id from pg_temp.fixtures where label='task-completed-only')),0,
+  'failed following removal leaves the series revision unchanged');
+select throws_ok($$select pg_temp.mutate('task-completed-only',1,'series','remove')$$,'P0001','Completed or awarded Tasks must be deleted individually',
+  'awarded or completed Task also blocks whole-series removal');
+select is((select count(*) from tasks where id in (select unnest(ids) from pg_temp.fixtures where label='task-completed-only') and removed_at is null),3::bigint,
+  'failed whole-series removal preserves every occurrence');
 select throws_ok($$select mutate_recurring_task(pg_temp.id('task-auth',1),'series','remove',gen_random_uuid(),(select series_id from pg_temp.fixtures where label='task-completed-only'),0)$$,'P0001','Occurrence does not belong to this series','trusted boundary verifies occurrence belongs to claimed series');
+select pg_temp.fixture('task-shortened-protected','task',3,'2099-05-01');
+insert into point_transactions(officer_id,task_id,points,reason,award_type,created_by)
+values(-683,pg_temp.id('task-shortened-protected',3),3,'Awarded shortened Task','task','00000000-0000-4000-8000-000000000681');
+select throws_ok($$select pg_temp.mutate('task-shortened-protected',1,'series','edit','{}','RRULE:FREQ=DAILY;INTERVAL=1;COUNT=2',array['2099-06-01'::date,'2099-06-02'])$$,
+  'P0001','Completed or awarded Tasks must be deleted individually','award in shortened tail blocks schedule edit');
+select is((select count(*) from tasks where recurrence_series_id=(select series_id from pg_temp.fixtures where label='task-shortened-protected') and removed_at is null),3::bigint,
+  'failed schedule shortening preserves all original occurrences');
+select is((select recurrence_rule from task_series where id=(select series_id from pg_temp.fixtures where label='task-shortened-protected')),
+  'RRULE:FREQ=DAILY;INTERVAL=1;COUNT=3','failed schedule shortening preserves the original recurrence rule');
 select set_config('test.standalone_scope_task_id',save_task('Standalone scope','Details','Post',(select id from branches where name='intro'),'2099-09-21',3,false)::text,true);
 select throws_ok($$select mutate_recurring_task(current_setting('test.standalone_scope_task_id')::bigint,'occurrence','edit',gen_random_uuid(),(select series_id from pg_temp.fixtures where label='task-auth'),(select revision from task_series where id=(select series_id from pg_temp.fixtures where label='task-auth')),'{"title":"Forbidden standalone edit"}')$$,'P0001','Occurrence does not belong to this series','new edit RPC never enables standalone Task editing');
 reset role;
@@ -272,5 +287,7 @@ select throws_ok($$select pg_temp.mutate('mixed-task-auth',1,'series','remove')$
 select ok((select removed_at is null from tasks where id=pg_temp.id('mixed-task-auth',1)),'unauthorized Task sibling rolls back earlier removal');
 reset role;
 select ok(not has_function_privilege('authenticated','private.save_event_fields(text,text,bigint,text,date,timestamptz,timestamptz,bigint[],bigint,text,text)','EXECUTE'),'internal cancelled-sibling field saver is unavailable to direct clients');
+select ok(not has_function_privilege('authenticated','private.mutate_recurring_task_unchecked(bigint,text,text,uuid,bigint,integer,jsonb,text,date[])','EXECUTE'),
+  'unguarded recurring Task implementation is unavailable to direct clients');
 select * from finish();
 rollback;

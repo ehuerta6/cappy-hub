@@ -59,6 +59,12 @@ it("explains when an archived or cancelled Event cannot be newly linked", () => 
   ).toBe("Archived or cancelled Events cannot be newly linked");
 });
 
+it("explains why protected recurring Tasks must be deleted individually", () => {
+  expect(
+    mutationError("Completed or awarded Tasks must be deleted individually"),
+  ).toBe("Completed or awarded Tasks must be deleted individually");
+});
+
 it("maps duplicate primary Event awards to a clear domain message", () => {
   expect(
     mutationError(
