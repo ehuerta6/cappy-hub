@@ -409,3 +409,51 @@ it.each(["", "   ", "\t\n"])(
     expect(rpc).not.toHaveBeenCalled();
   },
 );
+
+it("requires Admin authority and a verification reason for premature-award confirmation", async () => {
+  const { confirmPrematureParticipation } =
+    await import("@/app/(protected)/points/actions");
+  const data = new FormData();
+  data.set("transaction_id", "5");
+  data.set("reason", "Verified incorrect original schedule");
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    applicationRole: "officer",
+  } as never);
+  expect(
+    (await confirmPrematureParticipation({ error: "", success: "" }, data))
+      .error,
+  ).toBe("Admin required");
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    applicationRole: "admin",
+  } as never);
+  data.set("reason", " \n\t ");
+  expect(
+    (await confirmPrematureParticipation({ error: "", success: "" }, data))
+      .error,
+  ).toBe("Reason required");
+  expect(rpc).not.toHaveBeenCalled();
+});
+
+it("submits explicit premature-award evidence and revalidates dependent views", async () => {
+  const { confirmPrematureParticipation } =
+    await import("@/app/(protected)/points/actions");
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    applicationRole: "admin",
+  } as never);
+  rpc.mockResolvedValueOnce({ data: true, error: null });
+  const data = new FormData();
+  data.set("transaction_id", "5");
+  data.set("reason", "  Verified wrong original date from source records  ");
+  const result = await confirmPrematureParticipation(
+    { error: "", success: "" },
+    data,
+  );
+  expect(result.success).toContain(
+    "participation follows the corrected schedule",
+  );
+  expect(rpc).toHaveBeenCalledWith("confirm_premature_participation", {
+    p_transaction_id: 5,
+    p_reason: "Verified wrong original date from source records",
+  });
+  expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+});
