@@ -62,7 +62,8 @@ select results_eq($$select warning_id,approver_id,to_jsonb(a) from warning_appro
  'direct Admin migration preserves approval snapshots, actor IDs, decisions and timestamps');
 
 -- New Event and Task lifecycle fields do not rewrite rows snapshotted earlier.
-select results_eq($$select id,to_jsonb(p)-'participation_superseded_at'-'participation_schedule_suspended'-'task_reconciliation_suspended' from point_transactions p order by id$$,
+select results_eq($$select p.id,to_jsonb(p)-'participation_superseded_at'-'participation_schedule_suspended'-'task_reconciliation_suspended'
+  from point_transactions p join upgrade_fixture.pre_independent_manual_points original using(id) order by p.id$$,
  $$select id,original from upgrade_fixture.pre_independent_manual_points order by id$$,
  'independent manual migration preserves every historical Point row including direct edits and removals');
 select results_eq($$select id,to_jsonb(a) from audit_logs a order by id$$,
@@ -330,6 +331,9 @@ insert into officers(id,name,utep_email,position_id,status,application_role,auth
   (-90010,'Upgrade test admin','upgrade-admin@example.org',(select id from positions where name='Officer'),'active','admin',
     '20000000-0000-0000-0000-000000000002');
 update officers set auth_user_id='20000000-0000-0000-0000-000000000003' where id=90001;
+select set_config('test.upgrade_awarded_point_id',
+  (select (original->>'id') from upgrade_fixture.pre_task_delete_restore_points
+    where original->>'task_id'='90801'),true);
 set local role anon;
 select throws_ok($$select count(*) from event_locations$$,'42501',null,
   'anonymous account cannot read Event Locations after upgrade');
@@ -351,8 +355,7 @@ select ok((select task_reconciliation_suspended from point_transactions
 select lives_ok($$select restore_task(90801)$$,
   'upgraded restore RPC reconciles a synthetic existing Task award');
 select is((select id from point_transactions where task_id=90801 and award_type='task'),
-  (select (original->>'id')::bigint from upgrade_fixture.pre_task_delete_restore_points
-    where original->>'task_id'='90801'),
+  current_setting('test.upgrade_awarded_point_id')::bigint,
   'upgraded recovery reuses the pre-existing award identity');
 select is((select removed_at from point_transactions where task_id=90801 and award_type='task'),
   null::timestamptz,'upgraded recovery reactivates an eligible historical award');
