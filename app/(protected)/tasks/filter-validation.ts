@@ -23,7 +23,11 @@ const pageSchema = searchParamStringSchema.transform((value) => {
 export const taskListFiltersSchema = zod.object({
   q: searchParamStringSchema.transform((value) => value.trim().slice(0, 100)),
   view: searchParamStringSchema.transform((value) =>
-    value === "past" || value === "archived" ? value : undefined,
+    value === "past"
+      ? value
+      : value === "deleted" || value === "archived"
+        ? "deleted"
+        : undefined,
   ),
   status: taskListStatusSchema,
   branch: optionalListIdSchema,

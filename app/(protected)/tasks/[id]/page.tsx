@@ -28,7 +28,7 @@ import {
 import { taskStatusFromCounts } from "@/lib/task-status";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { TaskRemoveForm, TaskRestoreForm } from "../task-remove-form";
+import { TaskDeleteForm, TaskRestoreForm } from "../task-remove-form";
 import TaskSelfAssignForm from "../task-action-form";
 import {
   BulkTaskOfficersForm,
@@ -156,7 +156,6 @@ export default async function TaskDetailPage({
     eventsResult,
     incompleteAssignmentsResult,
     actorAssignmentResult,
-    awardsResult,
     assignedOfficerIdsResult,
     officersResult,
   ] = await Promise.all([
@@ -197,11 +196,6 @@ export default async function TaskDetailPage({
       .eq("task_id", taskId)
       .eq("officer_id", actor.id)
       .maybeSingle(),
-    supabase
-      .from("point_transactions")
-      .select("id", { count: "exact", head: true })
-      .eq("task_id", taskId)
-      .eq("award_type", "task"),
     canManageTask && !task.removed_at
       ? supabase
           .from("task_officer_assignments")
@@ -221,20 +215,16 @@ export default async function TaskDetailPage({
     eventsResult.error ||
     incompleteAssignmentsResult.error ||
     actorAssignmentResult.error ||
-    awardsResult.error ||
     assignedOfficerIdsResult.error ||
     officersResult.error ||
     assignmentsResult.count === null ||
     eventsResult.count === null ||
-    incompleteAssignmentsResult.count === null ||
-    awardsResult.count === null
+    incompleteAssignmentsResult.count === null
   )
     throw new Error("Failed to load task details");
   const assignmentCount = assignmentsResult.count;
   const eventCount = eventsResult.count;
   const incompleteAssignmentCount = incompleteAssignmentsResult.count;
-  const hasProtectedCompletion = incompleteAssignmentCount < assignmentCount;
-  const canArchiveTask = !hasProtectedCompletion && awardsResult.count === 0;
   const assignedOfficerIds = new Set(
     (assignedOfficerIdsResult.data ?? []).map(({ officer_id }) => officer_id),
   );
@@ -354,7 +344,7 @@ export default async function TaskDetailPage({
           <section aria-label="Task overview" className="min-w-0 space-y-3">
             <SectionHeading title="Task overview" />
             {task.removed_at && (
-              <p>Archived {formatDateTime(task.removed_at)}</p>
+              <p>Deleted {formatDateTime(task.removed_at)}</p>
             )}
             <p className="whitespace-pre-wrap break-words">
               {task.description || "No description"}
@@ -397,12 +387,8 @@ export default async function TaskDetailPage({
             {canManageTask && task.removed_at && (
               <TaskRestoreForm taskId={task.id} />
             )}
-            {canManageTask && !task.removed_at && canArchiveTask && (
-              <TaskRemoveForm
-                taskId={task.id}
-                series={series?.data ?? undefined}
-                requestKey={series?.data ? crypto.randomUUID() : undefined}
-              />
+            {canManageTask && !task.removed_at && (
+              <TaskDeleteForm taskId={task.id} />
             )}
           </section>
           <div className="min-w-0 space-y-5">

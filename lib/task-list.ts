@@ -1,4 +1,4 @@
-export type TaskListView = "current" | "past" | "archived";
+export type TaskListView = "current" | "past" | "deleted";
 
 export type TaskListItem = {
   id: number;
@@ -13,9 +13,9 @@ export function organizeTaskList<T extends TaskListItem>(
   sunday: string,
 ) {
   const visible = tasks.filter((task) =>
-    view === "archived" ? task.removed_at !== null : task.removed_at === null,
+    view === "deleted" ? task.removed_at !== null : task.removed_at === null,
   );
-  if (view === "archived")
+  if (view === "deleted")
     return {
       view,
       tasks: [...visible].sort(

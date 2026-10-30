@@ -48,15 +48,15 @@ it("shows only pre-today Tasks in Past, newest due first with deterministic ties
   expect(result.tasks.map(({ id }) => id)).toEqual([1, 4, 3]);
 });
 
-it("shows archived Tasks only in the explicit Archived view", () => {
+it("shows deleted Tasks only in the explicit Deleted view", () => {
   const result = organizeTaskList(
     [task(1, "2026-10-04", "2026-10-01T00:00:00Z"), task(2, "2026-10-05")],
-    "archived",
+    "deleted",
     "2026-10-05",
     "2026-10-11",
   );
-  expect(result.view).toBe("archived");
-  if (result.view === "archived")
+  expect(result.view).toBe("deleted");
+  if (result.view === "deleted")
     expect(result.tasks.map(({ id }) => id)).toEqual([1]);
 });
 

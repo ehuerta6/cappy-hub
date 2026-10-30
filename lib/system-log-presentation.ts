@@ -236,6 +236,7 @@ const actionPresentations: Record<string, ActionPresentation> = {
   },
   "task.removed": { label: "Removed a task" },
   "task.archived": { label: "Archived a Task" },
+  "task.deleted": { label: "Deleted a Task" },
   "task.restored": { label: "Restored a Task" },
   "task.series_created": { label: "Created a task series" },
   "task.series_cancel": { label: "Cancelled tasks in a series" },

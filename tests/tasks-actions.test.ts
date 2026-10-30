@@ -239,17 +239,22 @@ it("edits standalone Task details and preserves the filtered-list return path", 
   );
 });
 
-it("archives a standalone Task through its trusted RPC", async () => {
+it("deletes only the selected Task through its trusted RPC", async () => {
   const form = new FormData();
   form.set("task_id", "9");
+  form.set("recurrence_series_id", "3");
+  form.set("scope", "series");
   expect(await removeTask({ error: "", success: "" }, form)).toEqual({
     error: "",
-    success: "Task archived",
+    success: "Task deleted",
   });
   expect(rpc).toHaveBeenCalledWith("remove_task", { p_task_id: 9 });
+  expect(revalidatePath).toHaveBeenCalledWith("/calendar");
+  expect(revalidatePath).toHaveBeenCalledWith("/system-log");
+  expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
 });
 
-it("restores an archived Task through the trusted RPC", async () => {
+it("restores a deleted Task through the trusted RPC", async () => {
   const form = new FormData();
   form.set("task_id", "9");
   expect(await restoreTask({ error: "", success: "" }, form)).toEqual({

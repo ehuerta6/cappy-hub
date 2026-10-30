@@ -134,8 +134,6 @@ select lives_ok($$select remove_task_assignment(-9711,-973)$$,
  'manager can remove completed assignment preserving its history');
 select lives_ok($$select bulk_assign_task_officers(-9711,array[-973]::bigint[])$$,
  'manager can restore completed assignment before further corrections');
-select throws_ok($$select remove_task(-9711)$$,
- 'P0001','Completed or awarded Tasks cannot be archived','completed standalone Task cannot be archived');
 select lives_ok($$select set_task_assignment_completion(-9711,-973,false)$$,
  'manager can correct an unawarded completion to Not completed');
 select lives_ok($$select set_task_assignment_completion(-9711,-973,true)$$,
@@ -229,8 +227,8 @@ select is((select removed_by from tasks where id=-9713),-972::bigint,
 select lives_ok($$select remove_task(-9717)$$,
  'unassigned standalone Task is logically removable');
 reset role;
-select is((select count(*) from audit_logs where entity_type='task' and entity_id='-9713' and action='task.archived'),1::bigint,
- 'standalone archive is audited once');
+select is((select count(*) from audit_logs where entity_type='task' and entity_id='-9713' and action='task.deleted'),1::bigint,
+ 'standalone deletion is audited once');
 
 -- Current bulk assignment uses the canonical relation without a projection.
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000972',true);

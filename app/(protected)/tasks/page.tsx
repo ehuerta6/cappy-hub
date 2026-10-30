@@ -58,10 +58,10 @@ export default async function TasksPage({
     assignee: assigneeId,
     page: requestedPage,
   } = filters;
-  const mayBrowseArchived =
+  const mayBrowseDeleted =
     canSeeAllBranches(actor) || (isLead(actor) && actor.branchIds.length > 0);
   const view =
-    filters.view === "archived" && !mayBrowseArchived
+    filters.view === "deleted" && !mayBrowseDeleted
       ? "current"
       : (filters.view ?? "current");
   const { today, sunday } = currentDenverWeek(new Date());
@@ -82,7 +82,7 @@ export default async function TasksPage({
     branchId,
     assigneeId,
     branchScope:
-      view === "archived" && isLead(actor) && !canSeeAllBranches(actor)
+      view === "deleted" && isLead(actor) && !canSeeAllBranches(actor)
         ? actor.branchIds
         : undefined,
     page: requestedPage,
@@ -91,7 +91,7 @@ export default async function TasksPage({
   let taskCountQuery = supabase
     .from("tasks")
     .select("id", { count: "exact", head: true });
-  if (view === "archived")
+  if (view === "deleted")
     taskCountQuery = taskCountQuery.not("removed_at", "is", null);
   else {
     taskCountQuery = taskCountQuery.is("removed_at", null);
@@ -100,7 +100,7 @@ export default async function TasksPage({
         ? taskCountQuery.lt("due_date", today)
         : taskCountQuery.gte("due_date", today);
   }
-  if (view === "archived" && isLead(actor) && !canSeeAllBranches(actor))
+  if (view === "deleted" && isLead(actor) && !canSeeAllBranches(actor))
     taskCountQuery = taskCountQuery.in("branch_id", actor.branchIds);
 
   const [tasksResult, taskCountResult, branchesResult, officersResult] =
@@ -127,11 +127,8 @@ export default async function TasksPage({
     );
 
   const tasks = tasksResult.data as unknown as TaskListRow[];
-  const archivedTasks = view === "archived" ? tasks : [];
-  const organizedTasks =
-    view === "archived"
-      ? organizeTaskList(tasks, "current", today, sunday)
-      : organizeTaskList(tasks, view, today, sunday);
+  const deletedTasks = view === "deleted" ? tasks : [];
+  const organizedTasks = organizeTaskList(tasks, view, today, sunday);
   const splitTasks = (items: typeof tasks) =>
     splitTasksByOfficer(items, actor.id);
   const filteredToNothing =
@@ -265,7 +262,7 @@ export default async function TasksPage({
           <select name="view" defaultValue={view}>
             <option value="current">Current</option>
             <option value="past">Past</option>
-            {mayBrowseArchived && <option value="archived">Archived</option>}
+            {mayBrowseDeleted && <option value="deleted">Deleted</option>}
           </select>
         </label>
         <label className="min-w-44">
@@ -314,19 +311,14 @@ export default async function TasksPage({
         </div>
       </ListFilterBar>
 
-      {view === "archived" ? (
-        archivedTasks.length ? (
-          <section aria-label="Archived tasks" className="space-y-4">
-            <SectionHeading title="Archived tasks" />
-            {renderGroup(
-              "Archived tasks",
-              "Archived tasks",
-              archivedTasks,
-              false,
-            )}
+      {view === "deleted" ? (
+        deletedTasks.length ? (
+          <section aria-label="Deleted tasks" className="space-y-4">
+            <SectionHeading title="Deleted tasks" />
+            {renderGroup("Deleted tasks", "Deleted tasks", deletedTasks, false)}
           </section>
         ) : (
-          <p>No archived Tasks.</p>
+          <p>No deleted Tasks.</p>
         )
       ) : filteredToNothing ? (
         <p>No tasks match these filters.</p>

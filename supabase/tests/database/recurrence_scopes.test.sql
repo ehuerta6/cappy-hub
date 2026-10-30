@@ -168,19 +168,6 @@ select lives_ok($$select pg_temp.mutate('task-history',1,'series','edit','{"titl
 select lives_ok($$select pg_temp.mutate('task-history',1,'series','edit','{"points":8}')$$,'awarded Task fixed values can be corrected across series');
 select is((select points from tasks where id=pg_temp.id('task-history',1)),8::numeric,'series fixed value correction reaches earlier Task');
 reset role;
-create temporary table atomic_before as select
- (select jsonb_agg(to_jsonb(t) order by id) from tasks t where id in (select unnest(ids) from pg_temp.fixtures where label='task-history')) as rows,
- (select to_jsonb(s) from task_series s where id=(select recurrence_series_id from tasks where id=pg_temp.id('task-history',1))) as series,
- (select count(*) from audit_logs) as audits,
- (select count(*) from private.recurrence_mutations) as receipts;
-set local role authenticated;
-select throws_ok($$select pg_temp.mutate('task-history',1,'series','remove')$$,'P0001','Completed or awarded Tasks cannot be archived','protected Task at end rejects entire archival');
-select throws_ok($$select pg_temp.mutate('task-history',1,'series','edit','{}','RRULE:FREQ=DAILY;INTERVAL=1;COUNT=2',array['2099-03-06'::date,'2099-03-07'])$$,'P0001','Completed or awarded Tasks cannot be archived','protected Task at end rejects schedule shortening and split');
-reset role;
-select is((select jsonb_agg(to_jsonb(t) order by id) from tasks t where id in (select unnest(ids) from pg_temp.fixtures where label='task-history')),(select rows from atomic_before),'failed protected operations leave every occurrence unchanged');
-select is((select to_jsonb(s) from task_series s where id=(select recurrence_series_id from tasks where id=pg_temp.id('task-history',1))),(select series from atomic_before),'failed protected operations leave canonical metadata unchanged');
-select is((select count(*) from audit_logs),(select audits from atomic_before),'failed operations leave no partial audits');
-select is((select count(*) from private.recurrence_mutations),(select receipts from atomic_before),'failed operations leave no success receipt');
 select is((select to_jsonb(a) from task_officer_assignments a where task_id=pg_temp.id('task-history',3)),(select assignment from preserved_task_state),'Task assignee completion and approval preserved');
 select is((select id from point_transactions where task_id=pg_temp.id('task-history',3)),(select (points->>'id')::bigint from preserved_task_state),'Task transaction identity preserved through schedule and amount corrections');
 select is((select points from point_transactions where task_id=pg_temp.id('task-history',3)),8::numeric,'Task award reflects corrected fixed value');
@@ -231,8 +218,12 @@ reset role;
 select pg_temp.fixture('task-completed-only','task');
 insert into task_officer_assignments(task_id,officer_id,assigned_by,completed_at) values(pg_temp.id('task-completed-only',3),-683,-681,'2026-09-20 12:00Z');
 set local role authenticated;
-select throws_ok($$select pg_temp.mutate('task-completed-only',2,'following','remove')$$,'P0001','Completed or awarded Tasks cannot be archived','completed but unapproved Task blocks following removal');
-select ok((select removed_at is null from tasks where id=pg_temp.id('task-completed-only',2)),'failed following remove leaves boundary active');
+select lives_ok($$select pg_temp.mutate('task-completed-only',2,'following','remove')$$,
+  'a branch Lead deletes following Tasks including completed assignments');
+select isnt((select removed_at from tasks where id=pg_temp.id('task-completed-only',2)),null::timestamptz,
+  'following Task is deleted');
+select isnt((select removed_at from tasks where id=pg_temp.id('task-completed-only',3)),null::timestamptz,
+  'completed following Task is deleted without losing its assignment history');
 select throws_ok($$select mutate_recurring_task(pg_temp.id('task-auth',1),'series','remove',gen_random_uuid(),(select series_id from pg_temp.fixtures where label='task-completed-only'),0)$$,'P0001','Occurrence does not belong to this series','trusted boundary verifies occurrence belongs to claimed series');
 select set_config('test.standalone_scope_task_id',save_task('Standalone scope','Details','Post',(select id from branches where name='intro'),'2099-09-21',3,false)::text,true);
 select throws_ok($$select mutate_recurring_task(current_setting('test.standalone_scope_task_id')::bigint,'occurrence','edit',gen_random_uuid(),(select series_id from pg_temp.fixtures where label='task-auth'),(select revision from task_series where id=(select series_id from pg_temp.fixtures where label='task-auth')),'{"title":"Forbidden standalone edit"}')$$,'P0001','Occurrence does not belong to this series','new edit RPC never enables standalone Task editing');

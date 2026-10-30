@@ -16,6 +16,19 @@ select results_eq($$select id,to_jsonb(a) from audit_logs a order by id$$,
  $$select id,original from upgrade_fixture.pre_task_corrections_audit order by id$$,
  'historical Task correction migration preserves every existing audit');
 
+select results_eq($$select id,to_jsonb(t) from tasks t order by id$$,
+ $$select id,original from upgrade_fixture.pre_task_delete_restore_tasks order by id$$,
+ 'Task Delete/Restore migration preserves all historical Task lifecycle fields');
+select results_eq($$select task_id,officer_id,to_jsonb(a) from task_officer_assignments a order by task_id,officer_id$$,
+ $$select task_id,officer_id,original from upgrade_fixture.pre_task_delete_restore_assignments order by task_id,officer_id$$,
+ 'Task Delete/Restore migration preserves assignment and completion history');
+select results_eq($$select id,to_jsonb(p) from point_transactions p order by id$$,
+ $$select id,original from upgrade_fixture.pre_task_delete_restore_points order by id$$,
+ 'Task Delete/Restore migration does not reclassify historical Point removals');
+select results_eq($$select id,to_jsonb(a) from audit_logs a order by id$$,
+ $$select id,original from upgrade_fixture.pre_task_delete_restore_audit order by id$$,
+ 'Task Delete/Restore migration preserves existing audit evidence');
+
 -- Recoverable catalogs add availability only; all prior IDs/values/flags stay.
 select results_eq($$select id,to_jsonb(p) from positions p order by id$$,
  $$select id,original from upgrade_fixture.pre_recoverable_positions order by id$$,

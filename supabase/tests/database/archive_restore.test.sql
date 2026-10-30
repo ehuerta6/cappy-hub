@@ -50,12 +50,18 @@ values(-9902,'Archivable Task','No protected history','Flyer',(select id from br
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000009902',true);
 set local role authenticated;
 select lives_ok($$select remove_event(-9901)$$,'a branch Lead archives an Event in scope');
-select throws_ok($$select remove_task(-9903)$$,'P0001','Completed or awarded Tasks cannot be archived',
-  'completed or awarded Tasks retain their current archive protection');
+select lives_ok($$select remove_task(-9903)$$,
+  'a branch Lead deletes a completed and awarded Task');
+select isnt((select removed_at from point_transactions where task_id=-9903 and award_type='task'),null::timestamptz,
+  'Task deletion suspends the automatic award');
+select lives_ok($$select restore_task(-9903)$$,
+  'a branch Lead restores a completed Task');
+select ok((select task_reconciliation_suspended from point_transactions where task_id=-9903 and award_type='task'),
+  'restore keeps a not-yet-due Task award suspended');
 select lives_ok($$select remove_task(-9902)$$,'a branch Lead archives an eligible Task in scope');
 reset role;
 select is((select count(*) from audit_logs where action='event.archived' and entity_id='-9901'),1::bigint,'Event archive is audited');
-select is((select count(*) from audit_logs where action='task.archived' and entity_id='-9902'),1::bigint,'Task archive is audited');
+select is((select count(*) from audit_logs where action='task.deleted' and entity_id='-9902'),1::bigint,'Task deletion is audited');
 set local role authenticated;
 select lives_ok($$select restore_event_archive(-9901)$$,'a branch Lead restores an archived Event in scope');
 select is((select id from events where id=-9901),-9901::bigint,'Event restoration preserves the original row ID');
