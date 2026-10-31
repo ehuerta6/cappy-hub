@@ -15,6 +15,8 @@ select is((select count(*) from public.events where id in (93301,93302) and not 
   2::bigint,'legacy archived and cancelled Events are never classified as new Deletes');
 select is((select count(*) from public.point_transactions where id in (93301,93302,93303)
   and not event_delete_suspended),3::bigint,'legacy Points are never marked suspended by Event Delete');
+select is((select count(*) from public.event_calendar_sync_failures),0::bigint,
+  'historical upgrade does not invent Calendar synchronization failures');
 
 select results_eq($$select t.id,to_jsonb(t) from tasks t
   join upgrade_fixture.pre_task_corrections_tasks original using(id) order by t.id$$,
@@ -427,8 +429,8 @@ select throws_ok($$insert into officers(name,position_id,personal_email) values
 select hasnt_column('positions','can_manage_branch_events','obsolete capability flag is gone');
 select hasnt_column('events','flyer_status','flyer event column is gone');
 select hasnt_column('application_config','flyer_completion_points','flyer configuration is gone');
-select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),23::bigint,
-  'final schema contains canonical Task and presenter data without the retired Waitlist table');
+select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),24::bigint,
+  'final schema includes manager-scoped Calendar recovery without the retired Waitlist table');
 select is((select count(*) from events where recurrence_series_id is not null and id not in (90680,90681)),0::bigint,
   'existing Events remain standalone after the additive recurrence migration');
 select is((select count(*) from tasks where recurrence_series_id is not null and id not in (90680,90681)),0::bigint,

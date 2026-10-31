@@ -13,6 +13,7 @@ vi.mock("@/lib/authorization", () => ({
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/google-calendar-sync", () => ({
+  isGoogleCalendarSyncEnabled: vi.fn().mockReturnValue(true),
   syncGoogleCalendarEvents: vi.fn().mockResolvedValue(true),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -22,12 +23,16 @@ import { redirect } from "next/navigation";
 import { getAuthorizationContext } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { syncGoogleCalendarEvents } from "@/lib/google-calendar-sync";
+import {
+  isGoogleCalendarSyncEnabled,
+  syncGoogleCalendarEvents,
+} from "@/lib/google-calendar-sync";
 import {
   bulkAddEventOfficers,
   deleteEvent,
   restoreEvent,
   restoreDeletedEvent,
+  retryGoogleCalendarSync,
   saveEvent,
   selfSignup,
 } from "@/app/(protected)/events/actions";
@@ -89,6 +94,7 @@ const eventForm = () => {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(syncGoogleCalendarEvents).mockResolvedValue(true);
+  vi.mocked(isGoogleCalendarSyncEnabled).mockReturnValue(true);
   vi.mocked(getAuthorizationContext).mockResolvedValue({ id: 8 } as never);
   vi.mocked(createClient).mockResolvedValue({ rpc, from } as never);
   rpc.mockResolvedValue({
@@ -99,6 +105,80 @@ beforeEach(() => {
     },
     error: null,
   });
+});
+
+it("retries a manager-authorized Event by ID against canonical state", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 8,
+    positionCode: "president",
+  } as never);
+  const retryFrom = vi.fn(() => ({
+    select: () => ({
+      eq: () => ({
+        maybeSingle: async () => ({
+          data: { id: 12, event_branches: [{ branch_id: 1 }] },
+          error: null,
+        }),
+      }),
+    }),
+  }));
+  vi.mocked(createClient).mockResolvedValue({ rpc, from: retryFrom } as never);
+  const data = new FormData();
+  data.set("event_id", "12");
+
+  const result = await retryGoogleCalendarSync(
+    { error: "", success: "" },
+    data,
+  );
+
+  expect(result.success).toBe("Google Calendar is up to date");
+  expect(syncGoogleCalendarEvents).toHaveBeenCalledWith(
+    [12],
+    expect.objectContaining({ from: retryFrom }),
+  );
+});
+
+it("rejects an out-of-scope retry and does not call Google", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 8,
+    positionCode: "lead",
+    branchIds: [2],
+  } as never);
+  const retryFrom = vi.fn(() => ({
+    select: () => ({
+      eq: () => ({
+        maybeSingle: async () => ({
+          data: { id: 12, event_branches: [{ branch_id: 1 }] },
+          error: null,
+        }),
+      }),
+    }),
+  }));
+  vi.mocked(createClient).mockResolvedValue({ rpc, from: retryFrom } as never);
+  const data = new FormData();
+  data.set("event_id", "12");
+
+  const result = await retryGoogleCalendarSync(
+    { error: "", success: "" },
+    data,
+  );
+
+  expect(result.error).toBe("Event outside branch scope");
+  expect(syncGoogleCalendarEvents).not.toHaveBeenCalled();
+});
+
+it("explains when a requested retry cannot run because sync is disabled", async () => {
+  vi.mocked(isGoogleCalendarSyncEnabled).mockReturnValue(false);
+  const data = new FormData();
+  data.set("event_id", "12");
+
+  const result = await retryGoogleCalendarSync(
+    { error: "", success: "" },
+    data,
+  );
+
+  expect(result.error).toBe("Google Calendar synchronization is disabled.");
+  expect(syncGoogleCalendarEvents).not.toHaveBeenCalled();
 });
 
 it("submits a selected officer group to the trusted RPC", async () => {

@@ -26,6 +26,7 @@ vi.mock("@/app/(protected)/points/history-table", () => ({
   }) => <p data-return-to={returnTo}>{emptyMessage}</p>,
 }));
 vi.mock("@/app/(protected)/events/event-controls", () => ({
+  RetryGoogleCalendarSyncForm: () => <button>Retry Calendar sync</button>,
   SelfSignupForm: ({ full }: { full: boolean }) => (
     <button disabled={full}>{full ? "Event full" : "Sign up"}</button>
   ),
@@ -284,9 +285,11 @@ beforeEach(() => {
               ? range
                 ? taskRows.slice(Number(range[1]), Number(range[2]) + 1)
                 : taskRows
-              : table === "events" && range
+              : table === "event_calendar_sync_failures" && range
                 ? data.slice(Number(range[1]), Number(range[2]) + 1)
-                : data,
+                : table === "events" && range
+                  ? data.slice(Number(range[1]), Number(range[2]) + 1)
+                  : data,
           error: failingTables.has(table) ? { message: "Query failed" } : null,
           count: head
             ? isBaseline || pointsBaseline || tasksBaseline
@@ -294,7 +297,9 @@ beforeEach(() => {
               : filteredCount
             : table === "tasks" && countExact
               ? taskRows.length
-              : undefined,
+              : table === "event_calendar_sync_failures" && countExact
+                ? data.length
+                : undefined,
         }).then(resolve);
       };
       return query;
@@ -388,6 +393,69 @@ it("keeps cancelled Events out of the default browsing groups", async () => {
     "starts_at",
     { ascending: true },
   ]);
+});
+
+it("shows Calendar recovery only for Events in the manager's branch scope", async () => {
+  admin = false;
+  lead = true;
+  actorBranches = [2];
+  rows.event_calendar_sync_failures = [
+    {
+      event_id: -9101,
+      failed_at: "2026-10-30T10:00:00Z",
+      event: {
+        id: -9101,
+        name: "Managed failed Event",
+        starts_at: "2099-10-30T16:00:00Z",
+        deleted_at: null,
+        event_branches: [{ branch_id: 2 }],
+      },
+    },
+    {
+      event_id: -9102,
+      failed_at: "2026-10-30T11:00:00Z",
+      event: {
+        id: -9102,
+        name: "Other branch failed Event",
+        starts_at: "2099-10-30T17:00:00Z",
+        deleted_at: null,
+        event_branches: [{ branch_id: 3 }],
+      },
+    },
+  ];
+
+  const html = await render(EventsPage);
+
+  expect(html).toContain("Google Calendar needs attention");
+  expect(html).toContain("Managed failed Event");
+  expect(html).toContain("Retry Calendar sync");
+  expect(html).not.toContain("Other branch failed Event");
+});
+
+it("paginates every manager-visible Calendar recovery item", async () => {
+  admin = false;
+  lead = true;
+  actorBranches = [2];
+  rows.event_calendar_sync_failures = Array.from(
+    { length: 201 },
+    (_, index) => ({
+      event_id: -9200 - index,
+      failed_at: `2026-10-30T10:${String(index % 60).padStart(2, "0")}:00Z`,
+      event: {
+        id: -9200 - index,
+        name: `Failed Event ${index + 1}`,
+        starts_at: "2099-10-30T16:00:00Z",
+        deleted_at: null,
+        event_branches: [{ branch_id: 2 }],
+      },
+    }),
+  );
+
+  const html = await render(EventsPage, { syncPage: "2" });
+
+  expect(html).toContain("Failed Event 201");
+  expect(html).not.toContain("Failed Event 1</a>");
+  expect(html).toContain("Previous recovery page");
 });
 
 it("combines search, type, and Branch filters with current temporal sections", async () => {

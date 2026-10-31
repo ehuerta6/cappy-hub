@@ -22,7 +22,10 @@ import { revalidatePath } from "next/cache";
 import { withReturnTo } from "@/lib/return-context";
 import { withSuccessNotice } from "@/lib/mutation-feedback";
 import { redirect } from "next/navigation";
-import { syncGoogleCalendarEvents } from "@/lib/google-calendar-sync";
+import {
+  isGoogleCalendarSyncEnabled,
+  syncGoogleCalendarEvents,
+} from "@/lib/google-calendar-sync";
 import {
   bulkAddEventOfficersInputSchema,
   changeSignupInputSchema,
@@ -596,6 +599,45 @@ export async function restoreEvent(
   if (!(await syncGoogleCalendarEvents([validation.data.event_id], supabase)))
     return { error: calendarSyncWarning, success: "" };
   return { error: "", success: "Event restored" };
+}
+
+export async function retryGoogleCalendarSync(
+  _previous: FormActionState,
+  formData: FormData,
+) {
+  const actor = await getAuthorizationContext();
+  const validation = eventRecordInputSchema.safeParse({
+    event_id: formData.get("event_id") ?? "",
+  });
+  if (!validation.success)
+    return { error: validation.error.issues[0].message, success: "" };
+  if (!isGoogleCalendarSyncEnabled())
+    return {
+      error: "Google Calendar synchronization is disabled.",
+      success: "",
+    };
+
+  const supabase = await createClient();
+  const { data: event, error: eventError } = await supabase
+    .from("events")
+    .select("id,event_branches(branch_id)")
+    .eq("id", validation.data.event_id)
+    .maybeSingle();
+  if (eventError || !event) return { error: "Event not found", success: "" };
+  if (
+    !canManageEvent(
+      actor,
+      event.event_branches.map((row) => row.branch_id),
+    )
+  )
+    return { error: "Event outside branch scope", success: "" };
+
+  const synced = await syncGoogleCalendarEvents([event.id], supabase);
+  revalidatePath("/events");
+  revalidatePath(`/events/${event.id}`);
+  return synced
+    ? { error: "", success: "Google Calendar is up to date" }
+    : { error: calendarSyncWarning, success: "" };
 }
 
 async function recurringEventIdsForScope(
