@@ -3,11 +3,13 @@ import {
   getAuthorizationContext,
   isLead,
   canSeeAllBranches,
+  canManageEvent,
 } from "@/lib/authorization";
 import { listReturnUrl, withReturnTo } from "@/lib/return-context";
 import { listPageUrl } from "@/lib/list-url";
 import { ListPagination } from "@/components/list-pagination";
 import Link from "next/link";
+import type { Route } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { eventStatus, eventSignupOpen } from "@/lib/event-status";
@@ -23,10 +25,15 @@ import {
 import { searchOrFilter } from "@/lib/list-search";
 import { eventListFiltersSchema } from "./filter-validation";
 import { currentDenverWeek } from "@/lib/current-denver-week";
-import { SelfSignupForm, SignupForm } from "./event-controls";
+import {
+  RetryGoogleCalendarSyncForm,
+  SelfSignupForm,
+  SignupForm,
+} from "./event-controls";
 import { eventSignupCountLabel, type EventListItem } from "@/lib/event-list";
 
 const EVENT_PAGE_SIZE = 8;
+const CALENDAR_FAILURES_PAGE_SIZE = 200;
 type EventListSearchParams = Record<string, string | string[] | undefined>;
 
 export default async function EventsPage({
@@ -37,6 +44,11 @@ export default async function EventsPage({
   const actor = await getAuthorizationContext();
   const params = await searchParams;
   const filters = eventListFiltersSchema.parse(params);
+  const requestedCalendarPage = Number(params.syncPage ?? "1");
+  const calendarPage =
+    Number.isSafeInteger(requestedCalendarPage) && requestedCalendarPage > 0
+      ? requestedCalendarPage
+      : 1;
   const mayBrowseDeleted =
     canSeeAllBranches(actor) || (isLead(actor) && actor.branchIds.length > 0);
   const status =
@@ -58,6 +70,12 @@ export default async function EventsPage({
   if (status) filtersInUrl.set("status", status);
   if (typeId !== undefined) filtersInUrl.set("type", String(typeId));
   if (branchId !== undefined) filtersInUrl.set("branch", String(branchId));
+  const calendarSyncPageUrl = (page: number) => {
+    const query = new URLSearchParams(filtersInUrl);
+    if (page > 1) query.set("syncPage", String(page));
+    const serialized = query.toString();
+    return (serialized ? `/events?${serialized}` : "/events") as Route;
+  };
 
   const deletedLead =
     status === "deleted" && isLead(actor) && !canSeeAllBranches(actor);
@@ -164,6 +182,33 @@ export default async function EventsPage({
           .length,
     ),
   }));
+  const calendarFailuresResult = await supabase
+    .from("event_calendar_sync_failures")
+    .select(
+      "event_id,failed_at,event:events(id,name,starts_at,deleted_at,event_branches(branch_id))",
+      { count: "exact" },
+    )
+    .order("failed_at", { ascending: true })
+    .order("event_id", { ascending: true })
+    .range(
+      (calendarPage - 1) * CALENDAR_FAILURES_PAGE_SIZE,
+      calendarPage * CALENDAR_FAILURES_PAGE_SIZE - 1,
+    );
+  if (calendarFailuresResult.error)
+    throw new Error("Failed to load Calendar recovery items");
+  const calendarFailures = (calendarFailuresResult.data ?? []).filter(
+    (failure) =>
+      failure.event &&
+      canManageEvent(
+        actor,
+        failure.event.event_branches.map(
+          (eventBranch) => eventBranch.branch_id,
+        ),
+      ),
+  );
+  const calendarFailurePageCount = Math.ceil(
+    (calendarFailuresResult.count ?? 0) / CALENDAR_FAILURES_PAGE_SIZE,
+  );
   const participates = (event: EventListItem) =>
     event.event_officers.some(
       ({ officer_id, removed_at }) =>
@@ -238,6 +283,63 @@ export default async function EventsPage({
           ) : undefined
         }
       />
+      {calendarFailures.length > 0 && (
+        <section
+          aria-label="Google Calendar synchronization failures"
+          className="rounded-lg border border-danger-border bg-danger-bg p-4"
+          role="region"
+        >
+          <SectionHeading title="Google Calendar needs attention" />
+          <p className="mb-3 text-sm">
+            Cappy Hub saved these Events, but their shared Calendar entries did
+            not synchronize. Retry uses each Event’s current details and deleted
+            status.
+          </p>
+          <ul className="space-y-3">
+            {calendarFailures.map((event) => (
+              <li
+                key={event.event_id}
+                className="flex flex-wrap items-center justify-between gap-3"
+              >
+                <Link
+                  href={`/events/${event.event!.id}`}
+                  className="font-medium underline"
+                >
+                  {event.event!.name}
+                  {event.event!.deleted_at ? " (deleted)" : ""}
+                </Link>
+                <RetryGoogleCalendarSyncForm
+                  eventId={event.event!.id}
+                  compact
+                />
+              </li>
+            ))}
+          </ul>
+          {(calendarPage > 1 || calendarPage < calendarFailurePageCount) && (
+            <nav
+              aria-label="Google Calendar recovery pages"
+              className="mt-4 flex gap-3 text-sm"
+            >
+              {calendarPage > 1 && (
+                <Link
+                  href={calendarSyncPageUrl(calendarPage - 1)}
+                  className="underline"
+                >
+                  Previous recovery page
+                </Link>
+              )}
+              {calendarPage < calendarFailurePageCount && (
+                <Link
+                  href={calendarSyncPageUrl(calendarPage + 1)}
+                  className="underline"
+                >
+                  More recovery items
+                </Link>
+              )}
+            </nav>
+          )}
+        </section>
+      )}
       <ListFilterBar
         key={JSON.stringify([search, status, typeId, branchId])}
         action="/events"

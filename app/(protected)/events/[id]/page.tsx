@@ -37,6 +37,7 @@ import {
   RestoreCancelledEventForm,
   RestoreDeletedEventForm,
   DeleteEventForm,
+  RetryGoogleCalendarSyncForm,
 } from "../event-controls";
 import {
   ActionLink,
@@ -207,6 +208,16 @@ export default async function EventDetailPage({
     event.event_branches.map((eventBranch) => eventBranch.branch_id),
   );
   if (event.deleted_at && !canManage) notFound();
+  const calendarSyncFailure = canManage
+    ? await supabase
+        .from("event_calendar_sync_failures")
+        .select("failed_at")
+        .eq("event_id", event.id)
+        .maybeSingle()
+    : null;
+  if (calendarSyncFailure?.error)
+    throw new Error("Failed to load Calendar sync status");
+  const hasCalendarSyncFailure = Boolean(calendarSyncFailure?.data);
   const eventPointsCountQuery = supabase
     .from("point_transactions")
     .select("id", { count: "exact", head: true })
@@ -514,6 +525,18 @@ export default async function EventDetailPage({
                 meetingNotesUrl={event.meeting_notes_url}
                 signupSheetUrl={event.signup_sheet_url}
               />
+              {canManage && hasCalendarSyncFailure && (
+                <div
+                  role="alert"
+                  className="space-y-2 rounded-lg border border-danger-border bg-danger-bg p-3"
+                >
+                  <p className="text-sm">
+                    This Event is not synchronized with the shared Google
+                    Calendar. Retry uses its current details and deleted status.
+                  </p>
+                  <RetryGoogleCalendarSyncForm eventId={event.id} />
+                </div>
+              )}
               {canManage && event.deleted_at && (
                 <RestoreDeletedEventForm
                   eventId={event.id}

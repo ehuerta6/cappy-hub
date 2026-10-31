@@ -126,6 +126,29 @@ export type Database = {
           },
         ];
       };
+      event_calendar_sync_failures: {
+        Row: {
+          event_id: number;
+          failed_at: string;
+        };
+        Insert: {
+          event_id: number;
+          failed_at?: string;
+        };
+        Update: {
+          event_id?: number;
+          failed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_calendar_sync_failures_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: true;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       event_locations: {
         Row: {
           created_at: string;
@@ -1656,6 +1679,14 @@ export type Database = {
           p_series_id: number;
         };
         Returns: number;
+      };
+      record_google_calendar_sync_results: {
+        Args: {
+          p_event_ids: number[];
+          p_expected_states: Json;
+          p_failed_event_ids: number[];
+        };
+        Returns: undefined;
       };
       remove_event: { Args: { p_event_id: number }; Returns: boolean };
       remove_participation_award: {

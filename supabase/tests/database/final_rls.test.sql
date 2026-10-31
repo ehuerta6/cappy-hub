@@ -174,6 +174,7 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       ,'public.mutate_recurring_event_with_capacity(bigint,text,text,uuid,bigint,integer,jsonb,text,date[],boolean,integer)'::regprocedure
       ,'public.mutate_recurring_event_lifecycle(bigint,text,text,uuid,bigint,integer)'::regprocedure
       ,'public.mutate_recurring_task_lifecycle(bigint,text,text,uuid,bigint,integer)'::regprocedure
+      ,'public.record_google_calendar_sync_results(bigint[],bigint[],jsonb)'::regprocedure
     )), 'authenticated has no unreviewed public RPC entry point');
 
 -- Fixtures are inserted as database owner. Every probe below changes to the

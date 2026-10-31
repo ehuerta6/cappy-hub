@@ -15,8 +15,37 @@ import {
   restoreEvent,
   restoreDeletedEvent,
   deleteEvent,
+  retryGoogleCalendarSync,
 } from "./actions";
 import { BulkAssignOfficersToSlotsForm } from "./time-slot-controls";
+
+export function RetryGoogleCalendarSyncForm({
+  eventId,
+  compact = false,
+}: {
+  eventId: number;
+  compact?: boolean;
+}) {
+  const [state, action, pending] = useActionState(retryGoogleCalendarSync, {
+    ...initialFormActionState,
+  });
+  return (
+    <form action={action} className="flex flex-wrap items-center gap-2">
+      <input type="hidden" name="event_id" value={eventId} />
+      <button
+        disabled={pending}
+        aria-label={
+          compact ? `Retry Calendar sync for Event ${eventId}` : undefined
+        }
+        className="button-secondary"
+      >
+        {pending ? "Retrying…" : "Retry Calendar sync"}
+      </button>
+      <ActionFeedback state={state} />
+    </form>
+  );
+}
+
 export function SelfSignupForm({
   eventId,
   eventName,
