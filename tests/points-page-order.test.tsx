@@ -119,10 +119,10 @@ it("orders Officer totals by points descending, then name ascending", async () =
   ]);
 });
 
-it("keeps the History Officer selector alphabetical", async () => {
+it("keeps History loading independent from Officer picker data", async () => {
   await PointsPage({ searchParams: Promise.resolve({ view: "history" }) });
 
-  expect(ordersByTable.get("officers")).toEqual([{ column: "name" }]);
+  expect(ordersByTable.get("officers")).toBeUndefined();
   expect(activeOfficerFilters).toEqual([]);
 });
 
@@ -157,18 +157,19 @@ it("defaults to the Overview view and shows read-only rate to non-admins", async
   expect(html).toContain("Officer ranking");
   expect(html).toContain("Participation Points");
   expect(html).not.toContain("Point configuration");
-  expect(html).not.toContain("Add transaction");
+  expect(html).not.toContain("Add adjustment");
   expect(queriedTables).not.toContain("point_history");
   expect(queriedTables).not.toContain("events");
 });
 
-it("shows Admin configuration and Add transaction in Overview", async () => {
+it("shows Admin configuration and Add adjustment in Overview", async () => {
   canManagePoints.mockReturnValue(true);
   const html = renderToStaticMarkup(
     await PointsPage({ searchParams: Promise.resolve({}) }),
   );
 
   expect(html).toContain('aria-labelledby="add-transaction-title"');
+  expect(html).toContain("Add adjustment");
   expect(html).toContain("Participation Points");
   expect(queriedTables).not.toContain("point_history");
   expect(queriedTables).toContain("events");
@@ -187,8 +188,7 @@ it("shows History when explicitly selected", async () => {
   expect(html).toContain("Point history");
   expect(html).not.toContain("Officer totals");
   expect(queriedTables).toContain("point_history");
-  expect(queriedTables).toContain("officers");
-  expect(queriedTables.filter((table) => table === "officers")).toHaveLength(1);
+  expect(queriedTables).not.toContain("officers");
   expect(
     queriedTables.filter((table) => table === "point_history"),
   ).toHaveLength(3);
@@ -223,8 +223,8 @@ it.each([
 
   expect(html).toMatch(/<a aria-current="page"[^>]*>History<\/a>/);
   if ("event" in searchParams) {
-    expect(queriedTables).toContain("events");
-    expect(html).toContain("Historic Event — Jan 1, 2025");
+    expect(queriedTables).not.toContain("events");
+    expect(html).not.toContain('placeholder="Search Events"');
   }
 });
 
