@@ -504,7 +504,6 @@ export async function restoreDeletedEvent(
   if (error) return { error: mutationError(error.message), success: "" };
   revalidatePath("/", "layout");
   revalidatePath("/events");
-  revalidatePath("/system-log");
   if (
     !(await syncGoogleCalendarEvents(
       Array.isArray(result.data)
@@ -545,7 +544,6 @@ export async function deleteEvent(
   if (error) return { error: mutationError(error.message), success: "" };
   revalidatePath("/", "layout");
   revalidatePath("/events");
-  revalidatePath("/system-log");
   if (
     !(await syncGoogleCalendarEvents(
       (data as number[] | boolean | null) instanceof Array

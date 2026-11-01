@@ -105,7 +105,7 @@ it("starts empty, filters names, selects one stable ID by keyboard, and retains 
   expect(new FormData(form).getAll("officer_id")).toEqual(["7"]);
 });
 
-it("restores a System Log actor ID and serializes the actor GET field", async () => {
+it("restores a selected numeric ID and serializes the corresponding GET field", async () => {
   const { form, hidden } = await renderSelect({
     name: "actor",
     label: "Actor",

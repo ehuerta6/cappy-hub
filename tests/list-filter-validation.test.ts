@@ -2,7 +2,6 @@ import { expect, it } from "vitest";
 import { officerListFiltersSchema } from "@/app/(protected)/officers/filter-validation";
 import { eventListFiltersSchema } from "@/app/(protected)/events/filter-validation";
 import { taskListFiltersSchema } from "@/app/(protected)/tasks/filter-validation";
-import { systemLogFiltersSchema } from "@/app/(protected)/system-log/filter-validation";
 import { searchOrFilter, literalSearchPattern } from "@/lib/list-search";
 
 it.each([
@@ -79,44 +78,6 @@ it("parses each page's domain filters", () => {
   expect(
     taskListFiltersSchema.parse({ status: "awaiting" }).status,
   ).toBeUndefined();
-});
-
-it("validates log actors, entity types, dates and bounded pages safely", () => {
-  expect(
-    systemLogFiltersSchema.parse({
-      actor: "invalid",
-      entity: "unknown",
-      from: "2026-02-30",
-      to: ["2026-01-01"],
-      page: "Infinity",
-    }),
-  ).toMatchObject({
-    actor: undefined,
-    entity: undefined,
-    from: undefined,
-    to: undefined,
-    page: 1,
-  });
-  expect(
-    systemLogFiltersSchema.parse({
-      actor: "system",
-      entity: "task",
-      from: "2026-10-03",
-      to: "2026-10-01",
-      page: "999999",
-    }),
-  ).toMatchObject({
-    actor: "system",
-    entity: "task",
-    dateRangeIsReversed: true,
-    page: 100000,
-  });
-  expect(systemLogFiltersSchema.parse({ actor: "42" }).actor).toBe(42);
-  expect(
-    systemLogFiltersSchema.parse({
-      actor: "00000000-0000-0000-0000-000000000001",
-    }).actor,
-  ).toBe("00000000-0000-0000-0000-000000000001");
 });
 
 it("escapes regex and PostgREST OR grammar as literal search text", () => {

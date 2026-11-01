@@ -31,4 +31,3 @@ export const canManageEvent = (
     branches.some((id) => actor.branchIds.includes(id)));
 export const canManageOfficers = isAdmin;
 export const canManagePoints = isAdmin;
-export const canViewSystemLog = isAdmin;

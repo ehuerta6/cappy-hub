@@ -29,10 +29,7 @@ export default function SiteNavigation({
   const active = (href: string) =>
     href === "/"
       ? pathname === href
-      : pathname === href ||
-        pathname.startsWith(href + "/") ||
-        (href === "/admin" &&
-          (pathname === "/system-log" || pathname.startsWith("/system-log/")));
+      : pathname === href || pathname.startsWith(href + "/");
 
   return (
     <header className="border-b border-border bg-background">

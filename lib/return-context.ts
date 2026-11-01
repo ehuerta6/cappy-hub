@@ -30,7 +30,6 @@ const listRoutes = {
     "page",
     "rankPage",
   ],
-  "/system-log": ["q", "actor", "action", "entity", "from", "to", "page"],
 } as const;
 
 export type ListRoute = keyof typeof listRoutes;
@@ -94,7 +93,6 @@ export function returnLinkLabel(
     "/events": "Back to events",
     "/tasks": "Back to tasks",
     "/points": "Back to points",
-    "/system-log": "Back to System Log",
   };
   return labels[pathname as ListRoute] ?? fallback;
 }

@@ -21,7 +21,7 @@ beforeEach(() => {
   } as never);
 });
 
-it("surfaces existing administration areas and their current destinations", async () => {
+it("surfaces the remaining administration areas and their current destinations", async () => {
   const html = renderToStaticMarkup(await AdminPage());
 
   expect(html).toContain("Officer access");
@@ -30,9 +30,9 @@ it("surfaces existing administration areas and their current destinations", asyn
   expect(html).toContain('href="/officers/catalogs"');
   expect(html).toContain("Points configuration and corrections");
   expect(html).toContain('href="/points"');
-  expect(html).toContain("System log");
-  expect(html).toContain('href="/system-log"');
-  expect(html.match(/<a\b/g)).toHaveLength(4);
+  expect(html).not.toContain("System log");
+  expect(html).not.toContain('href="/system-log"');
+  expect(html.match(/<a\b/g)).toHaveLength(3);
   expect(html).toContain('aria-label="Administration areas"');
   expect(html).toContain("focus-visible:outline-2");
   expect(html).toContain("hover:bg-hover");

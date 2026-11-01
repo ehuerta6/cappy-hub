@@ -127,8 +127,8 @@ function WarningForm({
               className={dialogDescriptionClassName}
             >
               {warning
-                ? "Corrections are recorded in the System Log. Historical status and approval history are preserved."
-                : "This warning takes effect immediately. Admins can correct its reason later, with a record in the System Log."}
+                ? "Corrections are recorded in the audit history. Historical status and approval history are preserved."
+                : "This warning takes effect immediately. Admins can correct its reason later, with a record in the audit history."}
             </p>
           </header>
           <WarningFields

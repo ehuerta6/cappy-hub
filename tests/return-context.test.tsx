@@ -45,7 +45,7 @@ it.each([
   expect(html).toContain("Back to events");
 });
 
-it.each(["/officers", "/events", "/tasks", "/points", "/system-log"])(
+it.each(["/officers", "/events", "/tasks", "/points"])(
   "accepts an exact internal list route and encoded query values: %s",
   (route) => {
     const destination = `${route}?q=hello+world%26%3F%25&page=2`;
@@ -84,7 +84,7 @@ it("keeps one stable list destination across detail/edit/detail and preserves ex
   );
 });
 
-it.each(["/points", "/system-log"] as const)(
+it.each(["/points"] as const)(
   "preserves URL pagination and filters for %s",
   (route) => {
     expect(
