@@ -53,7 +53,7 @@ Officers may manage their own Event signup and Task self-assignment where those 
 | Point transaction | Attributed signed transaction for Event participation, Task work, manual award, or correction. Removed transactions remain in history but are excluded from totals. |
 | Warning           | Admin-managed Officer record with audited corrections and preserved historical leadership decisions.                                                                                        |
 | Event/Task series | Recurrence definition that creates and relates real, independently addressable Event or Task occurrence rows.                                                       |
-| Audit entry       | System Log record of a meaningful mutation, with actor, entity, time, and useful context.                                                                           |
+| Audit entry       | Record of a meaningful mutation, with actor, entity, time, and useful context.                                                                                      |
 
 Zero Event Branches means a global Event. Branches do not define Positions or application roles.
 
@@ -89,7 +89,7 @@ When a non-cancelled, active timed Event ends, trusted processing awards exactly
 
 ### Historical Presenter Slot records
 
-Active Presenter Slot workflows are retired. Session Events remain valid and use ordinary Event signup and participation behavior. Historical presentation rows remain readable on the Event detail page, including their assigned Officer, order, topic, resource link, difficulty, and preparation notes. Their stable IDs and System Log evidence remain intact. Event signups, Officer deactivation, valid Event edits, Event Type edits, and Volunteer Time Slot behavior do not mutate or depend on the historical Presenter Slot rows. Presenter Slot creation, ordering, assignment, claiming, stepping down, removal, and detail editing are unavailable.
+Active Presenter Slot workflows are retired. Session Events remain valid and use ordinary Event signup and participation behavior. Historical presentation rows remain readable on the Event detail page, including their assigned Officer, order, topic, resource link, difficulty, and preparation notes. Their stable IDs and audit evidence remain intact. Event signups, Officer deactivation, valid Event edits, Event Type edits, and Volunteer Time Slot behavior do not mutate or depend on the historical Presenter Slot rows. Presenter Slot creation, ordering, assignment, claiming, stepping down, removal, and detail editing are unavailable.
 
 ## 7. Tasks
 
@@ -121,7 +121,7 @@ The Points page shows the fixed participation rule, ranked Officer totals, autho
 
 ### Current / shipped
 
-Admins create immediately effective Warnings with a nonblank reason; no leadership approval is required. Admins can correct the reason on current or historical records, including voided Warnings. Corrections preserve the recipient, original creation time, status, lifecycle and historical approval rows, and record meaningful before/after reasons with actor attribution in the System Log. An unrelated edit never approves a historical pending or rejected Warning.
+Admins create immediately effective Warnings with a nonblank reason; no leadership approval is required. Admins can correct the reason on current or historical records, including voided Warnings. Corrections preserve the recipient, original creation time, status, lifecycle and historical approval rows, and record meaningful before/after reasons with actor attribution in audit history. An unrelated edit never approves a historical pending or rejected Warning.
 
 Historical pending and rejected Warnings remain visible to Admins; the read-only legacy assignment view preserves assigned approver visibility. The existing trusted decision RPC remains compatible with explicitly deciding a legacy pending snapshot; new Warnings have no approval rows and cannot receive votes. Officers see approved, non-voided Warnings on their own profile. Only active approved Warnings count toward the threshold. Three active approved Warnings flag the Officer for Admin review; they do not automatically deactivate the Officer. Admins void Warnings to remove them from active totals while preserving their reason, original status, approvers, decisions, and timestamps. Voided Warnings cannot receive decisions. Admins can deliberately inspect Voided or All history. Void is terminal; issuing a new Warning creates a new record. Voiding is audited, and historical `warning.deleted` entries remain unchanged.
 
@@ -135,15 +135,15 @@ The Dashboard is a current summary and personal action surface. It shows the sig
 
 The internal Calendar is a read-only combined view of non-cancelled, non-removed Event occurrences and non-removed Task due dates from their source records. Selecting an item opens its canonical Event or Task. Display filters change only what is shown. Calendar is not a second source of scheduling truth and does not synchronize to Google Calendar.
 
-## 11. Admin and System Log
+## 11. Admin and audit history
 
 ### Current / shipped
 
-The Admin landing page is an Admin-only directory to the existing workflows: Officer access and warning management, Position/Branch/reusable Event location catalogs, Point configuration and corrections, and System Log. It does not duplicate those workflows or provide a separate analytics area.
+The Admin landing page is an Admin-only directory to the existing workflows: Officer access and warning management, Position/Branch/reusable Event location catalogs, and Point configuration and corrections. It does not duplicate those workflows or provide a separate analytics area.
 
 Catalog management supports creating, renaming and reversible Delete/Restore for Event Types, Branches, custom Positions and reusable Event locations. Deleted values have a discoverable view, retain their IDs and existing relationships, and cannot be newly assigned; Restore makes the same value available again. Retired values remain readable on existing records and are omitted from new relationship choices; existing relationships can remain during unrelated edits or be removed. The six required Positions are protected from renaming, deletion, and retirement. Reusable Event locations are suggested choices; a valid Event may use a new location. Catalog Delete confirmations explain recovery and retained historical relationships. Event Type availability uses its existing catalog flag; legacy unavailable types remain in Deleted values until an explicit Admin Restore. Session type guards remain unchanged. Reusable locations remain free text on Events; deleting a suggestion retains historical text/FKs and new free-text use does not silently restore it.
 
-System Log is Admin-only and records meaningful changes across Officers and access, catalogs, Events and recurrence, signups, Tasks and assignments/completion, Points, Warnings, configuration, and account linking. It is newest first, with search and filters for actor (including System), action, entity, and date. Six-row pages show readable actor/activity/record/details; before/after changes are human-readable, with technical identifiers and payload available when needed. Reads, page views, search, and navigation are not logged. Audit records retain actor, entity, timestamp, and relevant context; routine users cannot use the System Log as an editing surface.
+**System Log was retired under #367.** The application has no user-facing audit history page or navigation destination. Audit records, their actor/target/context, trusted writers, database authorization, and integrity remain in place for Point provenance, accountability, historical compatibility, and verification.
 
 ## 12. Recurrence and materialized occurrences
 
@@ -235,7 +235,7 @@ Admins have global management authority within existing product boundaries; Lead
 
 Use consistent Delete confirmations explaining consequences, discoverable Deleted views and Restore actions where appropriate, and clear errors and recovery paths. Preserve meaningful audit history and recoverable data. Avoid exposing lifecycle implementation fields unnecessarily. The Dashboard and internal Calendar derive updated state from the existing domains; they do not acquire independent workflows.
 
-**Presenter Slot retirement is implemented under #357.** Keep Session Events as valid Events without active Presenter Slot workflows. Preserve historical presentation rows, assigned Officer identities, details, stable IDs, and audit/System Log evidence; historical rows do not block unrelated valid Event or Event Type edits. Volunteer Time Slots remain active and unchanged. Historical Time Slot assignment correction remains separate in #358, and #330 remains blocked only by #328.
+**Presenter Slot retirement is implemented under #357.** Keep Session Events as valid Events without active Presenter Slot workflows. Preserve historical presentation rows, assigned Officer identities, details, stable IDs, and audit evidence; historical rows do not block unrelated valid Event or Event Type edits. Volunteer Time Slots remain active and unchanged. Historical Time Slot assignment correction remains separate in #358, and #330 remains blocked only by #328.
 
 #### Confirmed automatic Point editing behavior — Option C (2026-10-30)
 
@@ -262,7 +262,7 @@ Where these dated decisions conflict with earlier future targets in this specifi
 - **Officers and Warnings:** Keep academic classification as descriptive information without permission effects. Keep direct Admin Warning management and reversible Delete/Restore. Simplify obsolete legacy approval views for everyday use while preserving historical approval decisions, assignments and statuses.
 - **Points:** Keep the leaderboard, source-derived automatic Event and Task awards, and independent signed manual adjustments. Present manual additions and deductions in one understandable creation workflow with a reason, while preserving historical transaction types and identities. Simplify Point History to search and basic useful filters without reducing historical access.
 - **Semesters:** Replace the half-year Point metric with Admin-defined academic periods, separate semester totals/leaderboards, zero new-period accumulation and viewable prior periods. Retain all historical transactions and totals. Do not implement until the initial historical attribution rule and treatment of existing periods are decided.
-- **System Log:** Remove its user-facing page, navigation, filters and related administration UI. Retain audit records needed for Point history, authorization accountability, rollback verification and historical compatibility. Assess simplification of audit storage and writers separately; do not replace the page with another audit dashboard.
+- **System Log — implemented in #367:** The user-facing page, navigation, filters and related administration entry were removed. Audit records and trusted writers remain for Point provenance, authorization accountability, rollback verification and historical compatibility. Storage and writer simplification remains separate; no replacement audit dashboard was added.
 - **Other behavior:** Keep Event capacity, Event Types, custom Positions, multiple Branch memberships, Warning thresholds and Dashboard previews. Keep all approved behavior not changed above. Do not add speculative infrastructure.
 
 ### Google Calendar Event mirror — Issue #29
@@ -271,7 +271,7 @@ Where these dated decisions conflict with earlier future targets in this specifi
 
 ## 16. Audit and history expectations
 
-Meaningful mutations should retain enough context to understand what changed, who acted, which record was affected, and when. The System Log is the current human-readable administrative view over that audit history; its approved future UI removal is recorded in section 15. Actor attribution should refer to the Officer identity where supported and retain system attribution for scheduled processing. Routine reads and navigation are not audit events.
+Meaningful mutations should retain enough context to understand what changed, who acted, which record was affected, and when. The former System Log page was retired under #367; audit rows and trusted writers remain available to the application for provenance, accountability and historical compatibility. Actor attribution should refer to the Officer identity where supported and retain system attribution for scheduled processing. Routine reads and navigation are not audit events.
 
 Logical removal, deactivation, cancellation, correction, retirement, void, and restore transitions preserve prior history rather than rewriting unrelated relationships. A correction changes the current effective data through an explicit action; it does not make the original action disappear. Historical compatibility fields and older audit event names may remain in data without defining a current workflow.
 
@@ -283,7 +283,7 @@ Logical removal, deactivation, cancellation, correction, retirement, void, and r
 - The internal Calendar is read-only and is not a second source of scheduling truth. The accepted Google Calendar mirror in [#29](https://github.com/ehuerta6/cappy-hub/issues/29) is separate, one-way Event synchronization; it does not include Task deadlines or calendar administration.
 - Cappy Hub has no separate attendance/check-in subsystem. Confirmed native Event signups are the participation roster under current behavior.
 - The Dashboard does not introduce speculative analytics, metrics, or duplicated workflows.
-- The System Log does not provide a second mutation interface or log ordinary reads.
+- Audit history is not a second mutation interface; ordinary reads and navigation are not logged.
 - Do not resurrect the retired single-assignee Task compatibility model or legacy Task completion/approval RPC workflow.
 
 ## 18. Technical architecture and sources of truth

@@ -256,7 +256,6 @@ export async function setTaskAssignmentCompletion(
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${validation.data.task_id}`);
   revalidatePath("/points");
-  revalidatePath("/system-log");
   revalidatePath("/", "layout");
   return {
     error: "",
@@ -289,7 +288,6 @@ export async function removeTaskAssignment(
     ]);
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${validation.data.task_id}`);
-  revalidatePath("/system-log");
   revalidatePath("/", "layout");
   return { error: "", success: "Officer removed from task" };
 }
@@ -339,7 +337,6 @@ export async function removeTask(_previous: FormActionState, form: FormData) {
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${validation.data.task_id}`);
   revalidatePath("/calendar");
-  revalidatePath("/system-log");
   revalidatePath("/", "layout");
   return { error: "", success: "Task deleted" };
 }
@@ -370,7 +367,6 @@ export async function restoreTask(_previous: FormActionState, form: FormData) {
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${validation.data.task_id}`);
   revalidatePath("/calendar");
-  revalidatePath("/system-log");
   revalidatePath("/", "layout");
   return { error: "", success: "Task restored" };
 }

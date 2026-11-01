@@ -33,7 +33,6 @@ The external design reference named in the changelog is only an influence on gen
 | Add/edit officer    | `/officers/new`, `/officers/[id]/edit` | Officer record fields; application role is managed separately.                                              |
 | Officer catalogs    | `/officers/catalogs`                   | Admin-only positions, branches, Event Types and reusable Event locations.                                   |
 | Points              | `/points`                              | Participation rate, officer totals, on-demand Admin transaction entry, and point history.                   |
-| System Log          | `/system-log`                          | Admin-only, searchable and paginated record of changes made in Cappy Hub.                                   |
 | Admin               | `/admin`                               | Admin-only directory to existing administration areas.                                                      |
 | Login               | `/login`                               | Google sign-in; local development also offers local test-account buttons.                                   |
 | Access denied       | `/access-denied`                       | Explains that the signed-in Google account lacks Cappy Hub access and offers sign-out.                      |
@@ -43,9 +42,9 @@ The external design reference named in the changelog is only an influence on gen
 
 ### Current shell and access rules
 
-**CURRENT:** Protected pages require a current officer account. The horizontal navigation links to Dashboard, Events, Tasks, Calendar, Officers, and Points; it stays on one row at supported desktop widths (1024–1920px). Admin appears there only when the current application role is `admin`. The right side shows the theme toggle, current officer name, and Sign out. System Log and Officer catalogs are not top-level navigation destinations; existing links into them come from Admin and Officers respectively.
+**CURRENT:** Protected pages require a current officer account. The horizontal navigation links to Dashboard, Events, Tasks, Calendar, Officers, and Points; it stays on one row at supported desktop widths (1024–1920px). Admin appears there only when the current application role is `admin`. The right side shows the theme toggle, current officer name, and Sign out. Officer catalogs are not top-level navigation destinations; the Officers directory links to them.
 
-**CURRENT:** Admin-only tasks include the Admin landing page, officer/catalog management, point configuration and manual point actions, and System Log. Event/Task creation and management also depend on branch visibility: admins and the President/Vice Presidents can manage all branches; a Lead can manage work in their assigned branches. Active Officers may self-assign Tasks; only authorized managers control completion. Preserve the server-enforced permissions; visual hiding is not a substitute for them.
+**CURRENT:** Admin-only tasks include the Admin landing page, officer/catalog management, and point configuration and manual point actions. Event/Task creation and management also depend on branch visibility: admins and the President/Vice Presidents can manage all branches; a Lead can manage work in their assigned branches. Active Officers may self-assign Tasks; only authorized managers control completion. Preserve the server-enforced permissions; visual hiding is not a substitute for them.
 
 ## 3. Design principles
 
@@ -154,7 +153,7 @@ Success, info, and danger also have matching border tokens in `globals.css`. The
 
 ## 7. Spacing, shape, and density
 
-**CURRENT:** Protected content uses a centered 72rem (1152px) reading width by default. Dashboard, Events, Tasks, Calendar, Officers, Points, Admin, and System Log can use a centered 80rem (1280px) width for data-heavy work. The desktop shell uses consistent 24px side padding. Typical sections use 16–24px gaps, filters use compact padding, controls have 6px corners, and panels/table frames generally have 6–8px corners. There are no general drop shadows. Status and branch badges use compact fully rounded shapes.
+**CURRENT:** Protected content uses a centered 72rem (1152px) reading width by default. Dashboard, Events, Tasks, Calendar, Officers, Points, and Admin can use a centered 80rem (1280px) width for data-heavy work. The desktop shell uses consistent 24px side padding. Typical sections use 16–24px gaps, filters use compact padding, controls have 6px corners, and panels/table frames generally have 6–8px corners. There are no general drop shadows. Status and branch badges use compact fully rounded shapes.
 
 **DESIGN DECISION:** Use a simple 4px spacing rhythm (4, 8, 12, 16, 24, 32px). Keep common radii small to medium, roughly 6–10px, and borders close to 1px. Use almost no shadows. Keep full pills limited to short statuses or compact branch labels; do not make buttons, filter controls, or every field pill-shaped.
 
@@ -234,7 +233,7 @@ Use neutral badges for branches. Keep officer position and classification as pla
 
 ## 13. Dates and times
 
-**CURRENT:** `lib/presentation.ts` provides US English human-readable date, date-time, calendar-date, event schedule, and event-filter-option formatting. Event schedule/date-time helpers use `America/Denver`, the application's El Paso time zone. Compact same-day event schedules omit a repeated date and, where possible, a repeated AM/PM marker. System Log times also use `America/Denver`. Points history date-only values use a helper that avoids shifting a SQL date across time zones.
+**CURRENT:** `lib/presentation.ts` provides US English human-readable date, date-time, calendar-date, event schedule, and event-filter-option formatting. Event schedule/date-time helpers use `America/Denver`, the application's El Paso time zone. Compact same-day event schedules omit a repeated date and, where possible, a repeated AM/PM marker. Points history date-only values use a helper that avoids shifting a SQL date across time zones.
 
 **OPTIONAL REFINEMENT:** Prefer “Oct 3, 2026,” “Oct 3 · 6:00–7:00 PM,” or “Oct 3, 2026 · 6:00 PM” over ISO strings or raw timestamps. Some current screens still show date-only values as `YYYY-MM-DD` (for example task due dates and event detail dates); render those through the existing presentation helpers when visually refining those screens. Do not change the product's timezone or business rules in a design-only refinement. Avoid seconds and repeated timezone abbreviations unless they are needed to disambiguate a time.
 
@@ -246,7 +245,7 @@ Tables are a core pattern for directory, event, point, and audit work. **CURRENT
 
 ## 15. Filters and search
 
-**CURRENT:** Events, Officers, Tasks, Points history, and System Log have real filtering/search behavior. Their shared `ListFilterBar` uses a compact bordered surface, horizontally aligned/wrapping controls, labeled inputs, an Apply filters button, and Clear filters when a filter is active. Calendar also has its own Event/Task visibility toggles; these are not a `ListFilterBar`. Keep these real controls; do not present them as hypothetical.
+**CURRENT:** Events, Officers, Tasks, and Points history have real filtering/search behavior. Their shared `ListFilterBar` uses a compact bordered surface, horizontally aligned/wrapping controls, labeled inputs, an Apply filters button, and Clear filters when a filter is active. Calendar also has its own Event/Task visibility toggles; these are not a `ListFilterBar`. Keep these real controls; do not present them as hypothetical.
 
 | List           | Existing search and filters                                                                                               |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------- |
@@ -254,12 +253,11 @@ Tables are a core pattern for directory, event, point, and audit work. **CURRENT
 | Officers       | Search name or either email; Active / Inactive / All status (Active by default); position; branch.                        |
 | Tasks          | Search title or description; status; branch; assignee.                                                                    |
 | Points history | Search officer/reason/event/task; award type; officer; event; activity-date range; admins also filter Active/Removed/All. |
-| System Log     | Search action or record ID; actor (including System); action text; entity type; date range.                               |
 | Calendar       | Toggle Events and Tasks visibility independently.                                                                         |
 
 **DESIGN DECISION:** Keep filters visually secondary to results, compact, and aligned on desktop; wrap them at narrower widths. Labels stay visible and accessible. Show Apply for server-driven filters and Clear only when filters are active. Keep date validation feedback near the filter area. Do not invent filters, hide a current filter to reduce height, or create a giant always-open filter panel.
 
-**CURRENT pagination:** Officers (8 records/page), Warning reviews (5), Points ranking (8), Points History (8), System Log (6), Events (8), and Tasks (8) use the approved shared compact, single-line pager. Officer detail sections (5), Event detail sections (6), and Task detail sections (6) use the same pager and direct page selector. It provides First, Previous, direct page selection, Next, and Last controls for multiple pages; the page dropdown navigates immediately and preserves active filters and each route's URL parameters. For unusually large result sets, the numeric page field navigates on Enter. Single-page results omit navigation. Events group the eight selected records for presentation without moving records between pages. Record navigation from supported lists carries the safe originating list URL through detail and edit screens, and successful saves return through that context.
+**CURRENT pagination:** Officers (8 records/page), Warning reviews (5), Points ranking (8), Points History (8), Events (8), and Tasks (8) use the approved shared compact, single-line pager. Officer detail sections (5), Event detail sections (6), and Task detail sections (6) use the same pager and direct page selector. It provides First, Previous, direct page selection, Next, and Last controls for multiple pages; the page dropdown navigates immediately and preserves active filters and each route's URL parameters. For unusually large result sets, the numeric page field navigates on Enter. Single-page results omit navigation. Events group the eight selected records for presentation without moving records between pages. Record navigation from supported lists carries the safe originating list URL through detail and edit screens, and successful saves return through that context.
 
 ## 16. Forms and dialogs
 
@@ -443,7 +441,7 @@ The following sections describe the actual product workflows and the design dire
 ### Officer detail
 
 - **Purpose:** Review one officer's record, access, warnings, event association, and point history.
-- **Existing functionality that MUST be preserved — CURRENT:** Contextual Officers link that returns to the originating filtered directory when opened from one; edit action for admins; UTEP/personal email, position, application role, classification, status, branches, and total points. Admins can change another officer's application role separately from club position. The officer and admins can see that officer's warning section; admins see all warning states and approval details, can filter by warning status, create immediately effective Warnings, correct current/historical reasons with audit history, void Warnings, and see the three-approved-warning Admin Review message. The officer and admins can see associated Events that are not cancelled or archived, plus active point transactions and full point history; historical Event references remain in Point history and System Log.
+- **Existing functionality that MUST be preserved — CURRENT:** Contextual Officers link that returns to the originating filtered directory when opened from one; edit action for admins; UTEP/personal email, position, application role, classification, status, branches, and total points. Admins can change another officer's application role separately from club position. The officer and admins can see that officer's warning section; admins see all warning states and approval details, can filter by warning status, create immediately effective Warnings, correct current/historical reasons with audit history, void Warnings, and see the three-approved-warning Admin Review message. The officer and admins can see associated Events that are not cancelled or archived, plus active point transactions and full point history; historical Event references remain in Point history and audit records.
 - **Information hierarchy:** Name/edit action; identity and status/branches; role and warning controls by permission; associated events; point history.
 - **Recommended layout:** Keep an Overview with identity/contact, position and application role, status/branches, points, and permission-appropriate actions. Use URL-backed same-route navigation for Overview, authorized Warnings, Events, and Points. Limit Overview previews to two visible Warnings, four associated active Events, and three recent Point transactions, with counts and links to full sections. Full sections use five records per page and preserve Warning status filters, event associations, point history ordering, and contextual return links. Keep long content in natural document flow; do not add nested scroll panels.
 - **Primary action:** Edit officer when admin; otherwise no global mutation action.
@@ -497,27 +495,15 @@ The following sections describe the actual product workflows and the design dire
 - **Minimalism notes:** Preserve searchable historical access, pagination, and removed-state review. Keep correction/removal context clear; do not make all history cells colorful.
 - **Do not add:** New score metrics, charts, point categories, fake transaction references, or hidden admin audit fields.
 
-### System Log
-
-- **Purpose:** Let admins review recorded changes made in Cappy Hub.
-- **Existing functionality that MUST be preserved — CURRENT:** Admin-only access; filters for search, searchable actor/System, action text, entity type, and date range; newest-first rows; 6 records per page. Table fields are Time, Actor, Activity, Record, and Details. Known audit actions use centralized human-readable activity text and record context, preferring names in saved audit details and resolving current Event, Task, or Officer names where needed. Before/after values appear as readable field changes that can be expanded on demand. Action and entity identifiers and raw JSON remain available under “Technical details”; unknown or legacy actions use a readable fallback. Dates use America/Denver. Previous/Next preserve filters and the footer shows page and exact filtered entry count.
-- **Information hierarchy:** Title/short description; compact filters; audit table; page count/navigation.
-- **Recommended layout:** Treat as a dense administrative table. Give time, actor, action, and entity readable widths; let details expand without widening the whole page unnecessarily.
-- **Primary action:** Search/filter the log.
-- **Secondary actions:** Expand Technical details; navigate pages.
-- **Data presentation:** Neutral text with compact row padding and subtle separators; formatted time; human-readable activity and record context; an expandable changed-field summary; collapsible technical identifiers and structured payload. Expandable sections retain the full values and audit data, wrapping long evidence inline without truncation.
-- **Minimalism notes:** Keep the page factual and quiet. Use “System Log” and supported field names; no decorative technical claims.
-- **Do not add:** Fake sync/real-time indicators, cryptographic/ledger language, ingest status, analytics, or unaudited detail widgets.
-
 ### Admin
 
 - **Purpose:** Direct admins to existing administrative workflows.
-- **Existing functionality that MUST be preserved — CURRENT:** Admin-only landing page with links for Officer access (Officers), Positions and branches (catalog manager, including locations), Points configuration and corrections, and System Log. It does not duplicate these workflows.
-- **Information hierarchy:** Admin title/description; four existing destinations.
+- **Existing functionality that MUST be preserved — CURRENT:** Admin-only landing page with links for Officer access (Officers), Positions and branches (catalog manager, including locations), and Points configuration and corrections. It does not duplicate these workflows. The retired System Log route redirects to Admin.
+- **Information hierarchy:** Admin title/description; three existing destinations.
 - **Recommended layout:** Keep it a small directory of restrained full-area link panels or a simple list. One short explanation and a clear link per area; the full destination surface is a keyboard-focusable target with visible hover and focus feedback.
 - **Primary action:** Open the chosen administration area.
 - **Secondary actions:** None beyond each area's own workflow.
-- **Data presentation:** Four current destination descriptions and links.
+- **Data presentation:** Three current destination descriptions and links.
 - **Minimalism notes:** Keep it lightweight and scannable; do not convert the landing page into a second Dashboard.
 - **Do not add:** Analytics, duplicated officer/point/log tables, new admin areas, or destinations absent from the application.
 
@@ -593,6 +579,8 @@ Explicitly do not invent analytics cards, attendance percentages, fake sync indi
 Every generated redesign must preserve the existing screen's access rules, actual fields, statuses, filters, actions, and workflow order. Keep any optional presentation suggestion labeled as a suggestion until product code actually implements it.
 
 ## 24. Design decisions and changelog
+
+- **2026-11-01 — Retire System Log UI (#367).** Removed the user-facing route content, Admin destination, log-specific filters and presentation. The old route redirects to Admin; audit records and writers remain available to the application. No audit schema or authorization behavior changed.
 
 - **2026-10-14 — Existing dialog cohesion.** Shared the title, description, width, surface, spacing, backdrop, and footer presentation across Add transaction, Create warning, Bulk Task Officers, and confirmation dialogs. Native dialog behavior, form contracts, authorization, and per-dialog dismissal/focus rules remain unchanged.
 - **2026-10-14 — Shared pagination across existing list pages (#260).** Applied the compact one-line pager to Officers, Warning reviews, Points ranking and history, System Log, Events, and Tasks while preserving their page sizes, filters, URL parameters, and return context. Points History uses eight records per page and System Log uses six.

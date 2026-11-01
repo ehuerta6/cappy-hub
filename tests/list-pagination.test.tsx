@@ -11,7 +11,6 @@ it.each([
   ["/tasks", "Task", "tasks"],
   ["/officers", "Officer", "officers"],
   ["/points", "Point history", "transactions"],
-  ["/system-log", "System Log", "entries"],
 ] as const)(
   "offers a one-line direct %s page selector and preserves filters",
   (pathname, label, countLabel) => {

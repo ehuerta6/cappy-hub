@@ -272,7 +272,7 @@ it("explains that Point transaction removal is logical and retains feedback", ()
 
   expect(pointHtml).toContain("Remove Point transaction?");
   expect(pointHtml).toContain("marks the Point transaction as removed");
-  expect(pointHtml).toContain("The removal is recorded in the System Log.");
+  expect(pointHtml).toContain("The removal is recorded in the audit history.");
   expect(pointHtml).toContain(
     'type="button" class="button-secondary">Edit points</button>',
   );
