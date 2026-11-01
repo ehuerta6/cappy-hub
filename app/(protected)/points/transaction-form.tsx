@@ -78,7 +78,7 @@ export default function TransactionForm({
           setOpen(true);
         }}
       >
-        Add transaction
+        Add adjustment
       </button>
       {success && <FormMessage kind="success">{success}</FormMessage>}
       <dialog
@@ -97,14 +97,14 @@ export default function TransactionForm({
         <div className={dialogContentClassName}>
           <header className={dialogHeaderClassName}>
             <h2 id="add-transaction-title" className={dialogTitleClassName}>
-              Add transaction
+              Add Point adjustment
             </h2>
             <p
               id="add-transaction-description"
               className={dialogDescriptionClassName}
             >
-              Add or deduct Points with a reason. An optional Event link keeps
-              context; automatic participation Points remain separate.
+              Enter a signed amount and a reason; an optional Event link adds
+              context. Automatic participation Points remain separate.
             </p>
           </header>
           <TransactionFields
@@ -165,15 +165,18 @@ function TransactionFields({
         initialFocus
       />
       <label>
-        Points
+        Signed Points
         <input
           name="points"
           type="number"
           step="any"
+          inputMode="decimal"
           required
           aria-invalid={Boolean(fieldErrors.points)}
           aria-describedby={
-            fieldErrors.points ? "transaction-points-error" : undefined
+            fieldErrors.points
+              ? "transaction-points-hint transaction-points-error"
+              : "transaction-points-hint"
           }
           defaultValue={submittedValue(state.values, "points")}
           disabled={pending}
@@ -181,6 +184,9 @@ function TransactionFields({
         <FieldError id="transaction-points-error">
           {fieldErrors.points}
         </FieldError>
+        <span id="transaction-points-hint" className="text-sm text-muted">
+          Positive adds Points; negative deducts them.
+        </span>
       </label>
       <label className="sm:col-span-2">
         Reason
@@ -238,7 +244,7 @@ function TransactionFields({
           Cancel
         </button>
         <button type="submit" disabled={pending}>
-          {pending ? "Adding…" : "Add transaction"}
+          {pending ? "Saving…" : "Save adjustment"}
         </button>
       </div>
     </form>

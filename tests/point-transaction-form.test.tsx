@@ -597,3 +597,50 @@ it("keeps the dialog and submitted values after persistence failure, blocks pend
   ).toBe("");
   expect(addTransaction).toHaveBeenCalledTimes(2);
 });
+
+it("submits a signed deduction without an Event and retains correction classification", async () => {
+  vi.mocked(addTransaction).mockResolvedValue({
+    error: "",
+    success: "Point transaction added",
+  });
+
+  await renderTransactionForm();
+  const { dialog } = openDialog();
+  fillTransaction(dialog);
+  const points = dialog.querySelector<HTMLInputElement>(
+    'input[name="points"]',
+  )!;
+  const awardType = dialog.querySelector<HTMLSelectElement>(
+    'select[name="award_type"]',
+  )!;
+  act(() => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )?.set?.call(points, "-1.25");
+    points.dispatchEvent(new Event("input", { bubbles: true }));
+    awardType.value = "correction";
+    awardType.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  expect(dialog.textContent).toContain("Positive adds Points");
+  expect(points.getAttribute("aria-describedby")).toContain(
+    "transaction-points-hint",
+  );
+  expect(
+    dialog.querySelector<HTMLInputElement>('input[name="reason"]')?.required,
+  ).toBe(true);
+  expect(
+    dialog.querySelector<HTMLInputElement>('input[name="event_id"]')?.value,
+  ).toBe("");
+
+  await submit(dialog);
+
+  const submitted = vi.mocked(addTransaction).mock.calls[0][1] as FormData;
+  expect(Object.fromEntries(submitted)).toMatchObject({
+    officer_id: "3",
+    event_id: "",
+    points: "-1.25",
+    reason: "Lifecycle check",
+    award_type: "correction",
+  });
+});

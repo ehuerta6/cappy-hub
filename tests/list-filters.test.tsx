@@ -1517,7 +1517,7 @@ it("keeps the filtered Task page in returnTo and resets it on filter submission"
   expect(html).toContain('href="/tasks">Clear filters</a>');
 });
 
-it("keeps all Points capabilities with one GET form and preserves pagination filters", async () => {
+it("keeps basic Points filters and preserves legacy pagination context", async () => {
   filteredCount = 60;
   rows.events = [
     {
@@ -1545,27 +1545,10 @@ it("keeps all Points capabilities with one GET form and preserves pagination fil
   has(history, "gte", "activity_date", params.from);
   has(history, "lte", "activity_date", params.to);
   has(history, "not", "removed_at", "is", null);
-  const selectedEvent = forTable("events").find((query) =>
-    query.calls.some(
-      ([method, columns]) =>
-        method === "select" && columns === "id,name,event_date",
-    ),
-  )!;
-  has(selectedEvent, "eq", "id", -2001);
-  expect(selectedEvent.calls).toContainEqual(["maybeSingle"]);
-  expect(
-    selectedEvent.calls.some(
-      ([method, column]) =>
-        method === "is" ||
-        (method === "eq" &&
-          ["status", "cancelled_at", "archived_at", "deleted_at"].includes(
-            String(column),
-          )),
-    ),
-  ).toBe(false);
   expect(html).toContain('action="/points"');
-  expect(html).toContain("Officer #-1013 (name unavailable)");
-  expect(html).toContain("Archived historical Event — Feb 14, 2025");
+  expect(html).toContain('placeholder="Officer, reason, event, or task"');
+  expect(html).not.toContain('placeholder="All officers"');
+  expect(html).not.toContain('placeholder="Search Events"');
   expect(html).not.toContain('type="hidden" name="page"');
   expect(html).toContain(
     'data-return-to="/points?view=history&amp;q=Avery&amp;type=manual&amp;officer=-1013&amp;event=-2001&amp;status=removed&amp;from=2026-09-01&amp;to=2026-10-01&amp;page=2"',
@@ -1635,17 +1618,29 @@ it.each(["Lead", "Officer"])(
   },
 );
 
-it.each([PointsPage, SystemLogPage])(
-  "reports reversed dates and omits date predicates",
-  async (Page) => {
-    const html = await render(Page, { from: "2026-10-03", to: "2026-10-01" });
-    expect(html).toMatch(/after|before/);
-    for (const query of queries)
-      expect(
-        query.calls.some(([method]) => ["gte", "lte", "lt"].includes(method)),
-      ).toBe(false);
-  },
-);
+it("ignores reversed legacy Point History dates without applying date predicates", async () => {
+  const html = await render(PointsPage, {
+    from: "2026-10-03",
+    to: "2026-10-01",
+  });
+  expect(html).not.toContain("point-history-date-error");
+  for (const query of queries)
+    expect(
+      query.calls.some(([method]) => ["gte", "lte", "lt"].includes(method)),
+    ).toBe(false);
+});
+
+it("reports reversed System Log dates and omits date predicates", async () => {
+  const html = await render(SystemLogPage, {
+    from: "2026-10-03",
+    to: "2026-10-01",
+  });
+  expect(html).toMatch(/after|before/);
+  for (const query of queries)
+    expect(
+      query.calls.some(([method]) => ["gte", "lte", "lt"].includes(method)),
+    ).toBe(false);
+});
 
 it.each([OfficersPage, EventsPage, TasksPage, PointsPage, SystemLogPage])(
   "distinguishes empty datasets and filtered misses with URL-backed forms",
@@ -1688,8 +1683,7 @@ it.each([
     expect(form).toContain("Clear filters");
     expect(form).toContain("flex-wrap");
     expect(form).toContain("min-h-11");
-    if (Page === PointsPage || Page === SystemLogPage)
-      expect(form).toContain('type="date"');
+    if (Page === SystemLogPage) expect(form).toContain('type="date"');
   },
 );
 

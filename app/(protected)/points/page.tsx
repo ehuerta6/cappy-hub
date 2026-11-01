@@ -154,25 +154,11 @@ export default async function PointsPage({
   }
 
   async function loadHistoryData() {
-    const [historyCount, visibleHistoryCount, officers, selectedEvent] =
-      await Promise.all([
-        buildPointHistoryQuery(true, true),
-        buildPointHistoryQuery(false, true),
-        supabase.from("officers").select("id,name,status").order("name"),
-        eventId === undefined
-          ? Promise.resolve({ data: null, error: null })
-          : supabase
-              .from("events")
-              .select("id,name,event_date")
-              .eq("id", eventId)
-              .maybeSingle(),
-      ]);
-    if (
-      historyCount.error ||
-      visibleHistoryCount.error ||
-      officers.error ||
-      selectedEvent.error
-    )
+    const [historyCount, visibleHistoryCount] = await Promise.all([
+      buildPointHistoryQuery(true, true),
+      buildPointHistoryQuery(false, true),
+    ]);
+    if (historyCount.error || visibleHistoryCount.error)
       throw new Error("Failed to load points");
 
     const totalPages = Math.max(
@@ -204,8 +190,6 @@ export default async function PointsPage({
 
     return {
       historyCount,
-      officers,
-      selectedEvent,
       totalPages,
       page,
       transactions,
@@ -313,26 +297,15 @@ export default async function PointsPage({
         <section className="min-w-0 space-y-4">
           <SectionHeading
             title="Point history"
-            description="Search and filter all transactions, 8 per page."
+            description="Search by Officer, reason, Event, or Task. Filter by award type and, for Admins, history status."
           />
           <PointHistoryFilterControls
-            officers={historyData!.officers.data}
-            selectedEvent={historyData!.selectedEvent.data}
             isAdmin={admin}
             status={status}
-            fromDate={fromDate ?? ""}
-            toDate={toDate ?? ""}
             searchQuery={search}
             awardType={awardType}
-            officerId={officerId}
-            eventId={eventId}
-            dateRangeIsReversed={dateRangeIsReversed}
+            hasActiveFilters={currentFilterSearch.size > 1}
           />
-          {dateRangeIsReversed && (
-            <p id="point-history-date-error" role="alert">
-              Choose a From date on or before the To date.
-            </p>
-          )}
           <TableFrame compact label="Point history">
             <HistoryTable
               returnTo={listPageUrl(

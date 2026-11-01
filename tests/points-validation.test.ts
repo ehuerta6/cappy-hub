@@ -8,6 +8,13 @@ import {
 } from "@/app/(protected)/points/validation";
 
 it("requires finite nonzero points and a positive participation rate", () => {
+  const manualCredit = {
+    points: "2.5",
+    award_type: "manual",
+    reason: "Manual credit",
+    officer_id: "3",
+    event_id: "",
+  };
   const manualPointTransaction = {
     points: "-1.25",
     award_type: "correction",
@@ -16,8 +23,17 @@ it("requires finite nonzero points and a positive participation rate", () => {
     event_id: "",
   };
   expect(
+    manualPointTransactionInputSchema.safeParse(manualCredit).success,
+  ).toBe(true);
+  expect(
     manualPointTransactionInputSchema.safeParse(manualPointTransaction).success,
   ).toBe(true);
+  expect(
+    manualPointTransactionInputSchema.safeParse({
+      ...manualCredit,
+      reason: "  ",
+    }).success,
+  ).toBe(false);
   expect(
     manualPointTransactionInputSchema.safeParse({
       ...manualPointTransaction,
