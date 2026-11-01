@@ -48,7 +48,6 @@ import OfficersPage from "@/app/(protected)/officers/page";
 import EventsPage from "@/app/(protected)/events/page";
 import TasksPage from "@/app/(protected)/tasks/page";
 import PointsPage from "@/app/(protected)/points/page";
-import SystemLogPage from "@/app/(protected)/system-log/page";
 
 type Call = [string, ...unknown[]];
 type Query = { table: string; calls: Call[] };
@@ -1591,51 +1590,7 @@ it("forces active Points for non-admins with forged removed/all status", async (
   expect(html).not.toContain('name="status"');
 });
 
-it("filters System Log actor, activity, entity and inclusive Denver calendar dates", async () => {
-  const html = await render(SystemLogPage, {
-    q: "task",
-    actor: "system",
-    action: "update",
-    entity: "task",
-    from: "2026-03-08",
-    to: "2026-03-08",
-  });
-  const query = forTable("audit_logs")[0];
-  has(query, "is", "actor_id", null);
-  const activityFilter = query.calls
-    .filter(([method]) => method === "or")
-    .map(([, filter]) => filter)
-    .find((filter) => String(filter).includes("action.in."));
-  expect(activityFilter).toContain('action.imatch."update"');
-  has(query, "eq", "entity_type", "task");
-  has(query, "gte", "created_at", "2026-03-08T07:00:00.000Z");
-  has(query, "lt", "created_at", "2026-03-09T06:00:00.000Z");
-  expect(html).toContain("No System Log entries match these filters.");
-  expect(html).toContain("Activity");
-  expect(html).toContain('placeholder="e.g. signed up or cancelled event"');
-});
-
-it("matches readable System Log activity wording to audit action codes", async () => {
-  await render(SystemLogPage, { action: "cancelled event" });
-  const query = forTable("audit_logs")[0];
-  const activityFilter = query.calls.find(([method]) => method === "or")?.[1];
-  expect(activityFilter).toContain("event.cancelled");
-  expect(activityFilter).toContain('action.imatch."cancelled event"');
-});
-
-it.each(["Lead", "Officer"])(
-  "rejects System Log before querying for %s with forged actor and page parameters",
-  async (role) => {
-    admin = false;
-    lead = role === "Lead";
-    await expect(
-      render(SystemLogPage, { actor: actor.authUserId, page: "999" }),
-    ).rejects.toThrow("redirect:/access-denied");
-    expect(queries).toHaveLength(0);
-  },
-);
-
-it.each([PointsPage, SystemLogPage])(
+it.each([PointsPage])(
   "reports reversed dates and omits date predicates",
   async (Page) => {
     const html = await render(Page, { from: "2026-10-03", to: "2026-10-01" });
@@ -1647,7 +1602,7 @@ it.each([PointsPage, SystemLogPage])(
   },
 );
 
-it.each([OfficersPage, EventsPage, TasksPage, PointsPage, SystemLogPage])(
+it.each([OfficersPage, EventsPage, TasksPage, PointsPage])(
   "distinguishes empty datasets and filtered misses with URL-backed forms",
   async (Page) => {
     const matching = await render(Page, {
@@ -1676,7 +1631,6 @@ it.each([
   [EventsPage, "Event filters", "/events"],
   [TasksPage, "Task filters", "/tasks"],
   [PointsPage, "Point history filters", "/points"],
-  [SystemLogPage, "System Log filters", "/system-log"],
 ] as const)(
   "keeps %s filters grouped for narrow layouts",
   async (Page, label, action) => {
@@ -1688,8 +1642,7 @@ it.each([
     expect(form).toContain("Clear filters");
     expect(form).toContain("flex-wrap");
     expect(form).toContain("min-h-11");
-    if (Page === PointsPage || Page === SystemLogPage)
-      expect(form).toContain('type="date"');
+    if (Page === PointsPage) expect(form).toContain('type="date"');
   },
 );
 
@@ -1765,74 +1718,7 @@ it("shows Task-specific details and self-assignment only in Other tasks", async 
   expect(html).toContain('aria-label="Upcoming tasks: Other tasks"');
 });
 
-it("preserves the full System Log row and provides a keyboard-scroll region", async () => {
-  rows.audit_logs = [
-    {
-      id: 21,
-      actor_id: null,
-      actor_officer_id: null,
-      action: "event.updated",
-      entity_type: "event",
-      entity_id: 8,
-      details: {
-        before: {
-          name: "Synthetic workshop room",
-          location: "Old room",
-          description: "A long audit value that stays available in full.",
-        },
-        after: {
-          name: "Synthetic workshop room 2",
-          location: "New room",
-          description: "A long audit value that stays available in full.",
-        },
-      },
-      created_at: "2026-10-03T12:00:00.000Z",
-    },
-  ];
-  const html = await render(SystemLogPage);
-  expect(html).toContain('role="region"');
-  expect(html).toContain('aria-label="System Log entries"');
-  expect(html).toContain('tabindex="0"');
-  expect(html).toContain("<table");
-  for (const heading of ["Time", "Actor", "Activity", "Record", "Details"])
-    expect(html).toContain(`<th scope="col">${heading}</th>`);
-  expect(html).toContain("System");
-  expect(html).toContain("Synthetic workshop room 2");
-  expect(html).toContain("2 changes");
-  expect(html).toContain("Old room");
-  expect(html).toContain("New room");
-  expect(html).toContain("A long audit value that stays available in full.");
-  expect(html).toMatch(
-    /<summary class="min-h-10 cursor-pointer">2 changes<\/summary>/,
-  );
-  expect(html).toContain(
-    '<summary class="min-h-10 cursor-pointer">Technical details</summary>',
-  );
-  expect(html).toContain('type="date"');
-});
-
-it("keeps removed Task titles in System Log without linking removed Task rows", async () => {
-  rows.audit_logs = [
-    {
-      id: 22,
-      actor_id: null,
-      actor_officer_id: null,
-      action: "task.removed",
-      entity_type: "task",
-      entity_id: 19,
-      details: { title: "Removed recurring task" },
-      created_at: "2026-10-03T12:00:00.000Z",
-    },
-  ];
-
-  const html = await render(SystemLogPage);
-
-  expect(html).toContain("Removed recurring task");
-  expect(html).not.toContain('href="/tasks/19"');
-  has(forTable("tasks")[0], "is", "removed_at", null);
-});
-
-it.each([EventsPage, TasksPage, PointsPage, SystemLogPage])(
+it.each([EventsPage, TasksPage, PointsPage])(
   "clamps out-of-range pagination while preserving URL filters",
   async (Page) => {
     await expect(render(Page, { q: "search", page: "999" })).rejects.toThrow(
@@ -1846,91 +1732,6 @@ it.each([EventsPage, TasksPage, PointsPage, SystemLogPage])(
 it("keeps removed Event records out of legacy removed URLs", async () => {
   await render(EventsPage, { removed: "1" });
   for (const query of forTable("events")) has(query, "is", "deleted_at", null);
-});
-
-it("filters a specific System Log actor without losing other URL filters", async () => {
-  filteredCount = 125;
-  const html = await render(SystemLogPage, {
-    actor: String(actor.id),
-    entity: "officer",
-    q: "change",
-    page: "2",
-  });
-  has(forTable("audit_logs")[0], "eq", "actor_officer_id", actor.id);
-  expect(html).toContain("actor=" + actor.id);
-  expect(html).toContain("entity=officer");
-  expect(html).toContain("q=change");
-  expect(html).toContain("page=3");
-});
-
-it("preserves a selected Officer actor filter when Officer names are unavailable", async () => {
-  filteredCount = 125;
-  rows.audit_logs = [
-    {
-      id: 23,
-      actor_id: null,
-      actor_officer_id: actor.id,
-      action: "officer.updated",
-      entity_type: "officer",
-      entity_id: actor.id,
-      details: { name: "Alex" },
-      created_at: "2026-10-03T12:00:00.000Z",
-    },
-  ];
-  failingTables.add("officers");
-
-  const html = await render(SystemLogPage, {
-    actor: String(actor.id),
-    q: "updated",
-    page: "2",
-  });
-  expect(html).toContain(`>Officer #${actor.id} (name unavailable)</span>`);
-  expect(html).toContain(
-    `<input type="hidden" name="actor" value="${actor.id}"/>`,
-  );
-  expect(html).toContain("Officer names are unavailable");
-  expect(html).toContain("officer.updated");
-  expect(html).toContain("q=updated");
-  expect(html).toContain("actor=1");
-  expect(html).toContain("q=updated&amp;actor=1&amp;page=3");
-  has(forTable("audit_logs")[0], "eq", "actor_officer_id", actor.id);
-});
-
-it("preserves legacy account actor identifiers in the searchable filter", async () => {
-  const legacyActor = "00000000-0000-0000-0000-000000000002";
-  const html = await render(SystemLogPage, { actor: legacyActor });
-
-  expect(html).toContain(`>Account ${legacyActor}</span>`);
-  expect(html).toContain(
-    `<input type="hidden" name="actor" value="${legacyActor}"/>`,
-  );
-  has(forTable("audit_logs")[0], "eq", "actor_id", legacyActor);
-});
-
-it("shows exact filtered totals and requests six newest-first rows per System Log page", async () => {
-  filteredCount = 13;
-  const html = await render(SystemLogPage, {
-    q: "change",
-    actor: String(actor.id),
-    action: "updated",
-    entity: "officer",
-    from: "2026-10-01",
-    to: "2026-10-12",
-    page: "2",
-  });
-  const entryQuery = forTable("audit_logs").find(({ calls }) =>
-    calls.some(([method]) => method === "range"),
-  )!;
-  has(entryQuery, "range", 6, 11);
-  has(entryQuery, "order", "created_at", { ascending: false });
-  has(entryQuery, "order", "id", { ascending: false });
-  expect(html).toContain('aria-label="System Log pages"');
-  expect(html).toContain('option value="2" selected=""');
-  expect(html).toContain("13 entries");
-  expect(html).toContain(
-    "q=change&amp;actor=1&amp;action=updated&amp;entity=officer",
-  );
-  expect(html).toContain("page=3");
 });
 
 it.each([

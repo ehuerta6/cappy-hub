@@ -824,41 +824,6 @@
   max-width: 80rem;
 }
 
-.system-log-table {
-  table-layout: fixed;
-}
-
-.system-log-table th,
-.system-log-table td {
-  padding: 0.5rem 0.625rem;
-  vertical-align: top;
-}
-
-.system-log-table th:nth-child(1),
-.system-log-table td:nth-child(1) {
-  width: 14%;
-}
-
-.system-log-table th:nth-child(2),
-.system-log-table td:nth-child(2) {
-  width: 15%;
-}
-
-.system-log-table th:nth-child(3),
-.system-log-table td:nth-child(3) {
-  width: 28%;
-}
-
-.system-log-table th:nth-child(4),
-.system-log-table td:nth-child(4) {
-  width: 22%;
-}
-
-.system-log-table th:nth-child(5),
-.system-log-table td:nth-child(5) {
-  width: 21%;
-}
-
 .table-frame--compact > table {
   min-width: 0;
 }

@@ -26,13 +26,6 @@ const adminAreas = [
     href: "/points",
     link: "Open points administration",
   },
-  {
-    title: "System log",
-    description:
-      "Review the audit history for application administration and other recorded changes.",
-    href: "/system-log",
-    link: "View system log",
-  },
 ] as const satisfies readonly {
   title: string;
   description: string;

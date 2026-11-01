@@ -63,9 +63,7 @@ it("shows the Admin navigation item only to application admins", () => {
 
   expect(adminHtml).toContain('href="/admin"');
   expect(adminHtml).toContain(">Admin</a>");
-  expect(adminHtml).not.toContain('href="/system-log"');
   expect(officerHtml).not.toContain('href="/admin"');
-  expect(officerHtml).not.toContain('href="/system-log"');
 });
 
 it.each(["lead", "officer"])("omits Admin navigation for %s", (role) => {
@@ -76,15 +74,14 @@ it.each(["lead", "officer"])("omits Admin navigation for %s", (role) => {
   expect(html).not.toContain('href="/admin"');
 });
 
-it("marks Admin as the current section from its System Log workflow", () => {
-  pathState.current = "/system-log";
+it("does not expose a System Log destination in the authenticated shell", () => {
+  pathState.current = "/calendar";
   const html = renderToStaticMarkup(
     <SiteNavigation isAdmin={true} account={<span>Admin</span>} />,
   );
 
-  expect(html).toMatch(/aria-current="page"[^>]*href="\/admin"/);
   expect(html).not.toContain('href="/system-log"');
-  pathState.current = "/calendar";
+  expect(html).not.toContain("System Log");
 });
 
 it("keeps nested records active under their primary navigation section", () => {

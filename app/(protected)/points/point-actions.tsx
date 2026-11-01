@@ -73,7 +73,7 @@ export default function PointActions({
         <input type="hidden" name="transaction_id" value={transactionId} />
         <ConfirmationDialog
           title="Remove Point transaction?"
-          description="This marks the Point transaction as removed, so it no longer counts in totals. The removal is recorded in the System Log."
+          description="This marks the Point transaction as removed, so it no longer counts in totals. The removal is recorded in the audit history."
           triggerLabel={removing ? "Removing…" : "Remove"}
           confirmLabel="Remove transaction"
           destructive

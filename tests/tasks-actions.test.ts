@@ -259,7 +259,7 @@ it("submits recurring Task delete scope through the trusted RPC", async () => {
     p_revision: 2,
   });
   expect(revalidatePath).toHaveBeenCalledWith("/calendar");
-  expect(revalidatePath).toHaveBeenCalledWith("/system-log");
+  expect(revalidatePath).not.toHaveBeenCalledWith("/system-log");
   expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
 });
 
