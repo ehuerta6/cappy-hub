@@ -209,12 +209,14 @@ it("caps the Task preview at five with a bounded source query", async () => {
   tasks = Array.from({ length: 20 }, (_, i) => task(i + 1));
   const html = await render();
   const section = html
-    .split('aria-label="Your action items"')[1]
+    .split('aria-labelledby="action-items-title"')[1]
     .split("</section>")[0];
   expect(section.match(/<li>/g)).toHaveLength(5);
   expect(section).toContain('href="/tasks/5"');
   expect(section).not.toContain('href="/tasks/6"');
-  expect(section).toContain("Showing the first 5 items. View Tasks for more.");
+  expect(section).toContain(
+    "Showing the first 5 items. View Tasks for the full list.",
+  );
   for (const url of urls.filter((url) => url.pathname.endsWith("tasks"))) {
     expect(url.searchParams.get("limit")).toBe("6");
     expect(url.searchParams.get("order")).toMatch(/,id.asc$/);
@@ -225,41 +227,44 @@ it("renders personal completion status with canonical links", async () => {
   tasks = [task(8)];
   const html = await render();
   const section = html
-    .split('aria-label="Your action items"')[1]
+    .split('aria-labelledby="action-items-title"')[1]
     .split("</section>")[0];
   expect(section).toContain("Task 8");
   expect(section).toContain('href="/tasks/8"');
-  expect(section).toContain("Due Oct 5, 2026");
+  expect(section).toContain("Oct 5, 2026");
   expect(section).toContain("Not completed");
   expect(section).not.toContain("<form");
 });
 
-it("keeps the empty state lightweight and preserves profile, metrics and summary layout", async () => {
+it("keeps the empty state lightweight and preserves profile and summary content", async () => {
   const html = await render();
   expect(html).toContain("You&#x27;re all caught up.");
   expect(html).not.toContain("<ul");
   expect(html).not.toContain("<table");
   for (const label of [
-    "Your profile",
-    "Summary",
+    "Club summary",
     "Upcoming events",
     "Recent point activity",
   ])
     expect(html).toContain(`aria-label="${label}"`);
-  const summary = html.split('aria-label="Summary"')[1].split("</section>")[0];
+  expect(html).toContain("View your profile");
+  expect(html).toContain('href="/officers/8"');
+  const summary = html
+    .split('aria-label="Club summary"')[1]
+    .split("</section>")[0];
   expect(summary.match(/<dt\b/g)).toHaveLength(3);
-  expect(summary).toContain("sm:grid-cols-3");
-  expect(summary).toContain("sm:divide-x");
-  expect(html).toContain("lg:grid-cols-2");
-  expect(html.indexOf('aria-label="Summary"')).toBeLessThan(
-    html.indexOf('aria-label="Your action items"'),
+  expect(summary).toContain("Active officers");
+  expect(summary).toContain("Upcoming events");
+  expect(summary).toContain("Points this period");
+  expect(html.indexOf('aria-label="Club summary"')).toBeLessThan(
+    html.indexOf('aria-labelledby="action-items-title"'),
   );
 });
 
 it("preserves other Dashboard content when recent point activity is unavailable", async () => {
   failingTables.add("point_transactions");
   const html = await render();
-  expect(html).toContain('aria-label="Summary"');
+  expect(html).toContain('aria-label="Club summary"');
   expect(html).toContain('aria-label="Upcoming events"');
   expect(html).toContain("Recent point activity unavailable");
   expect(html).not.toContain("No point transactions yet.");
@@ -271,12 +276,12 @@ it("reports Task source failures without a false empty-state success", async () 
   const result = await load();
   const html = await render();
   const section = html
-    .split('aria-label="Your action items"')[1]
+    .split('aria-labelledby="action-items-title"')[1]
     .split("</section>")[0];
   expect(result.items).toEqual([]);
   expect(result.unavailableSources).toEqual({ tasks: true });
   expect(section).not.toContain("You&#x27;re all caught up.");
-  expect(section).toContain("Task actions unavailable");
-  expect(section).toContain("This list may be incomplete.");
+  expect(section).toContain("Task actions are unavailable. Reload to retry.");
+  expect(section).toContain("Showing available items only.");
   expect(section).not.toContain("Warning decisions");
 });

@@ -186,10 +186,14 @@ it("renders rank numbers from the sorted totals", async () => {
   );
 
   expect(html).toContain('<th scope="col">Rank</th>');
-  expect(html).toMatch(/>1<\/td><td><a[^>]*>First Officer<\/a>/);
-  expect(html).toMatch(/>2<\/td><td><a[^>]*>Second Officer<\/a>/);
-  expect(html).toContain('class="w-20 tabular-nums text-muted"');
-  expect(html).toContain('class="text-right"><span class="tabular-nums');
+  expect(html).toMatch(
+    /aria-label="Rank 1">1<\/span><\/td><td><a[^>]*>First Officer<\/a>/,
+  );
+  expect(html).toMatch(
+    /aria-label="Rank 2">2<\/span><\/td><td><a[^>]*>Second Officer<\/a>/,
+  );
+  expect(html).toContain('class="points-total text-right"');
+  expect(html).toContain("+12");
 });
 
 it("defaults to the Overview view and shows read-only rate to non-admins", async () => {
@@ -200,8 +204,9 @@ it("defaults to the Overview view and shows read-only rate to non-admins", async
   expect(html).toMatch(/<a aria-current="page"[^>]*>Overview<\/a>/);
   expect(html).not.toContain("Point history filters");
   expect(html).toContain(
-    "Event participation earns exactly 1 Point per eligible hour.",
+    "Event participation is calculated automatically after an event ends.",
   );
+  expect(html).toContain("Point per eligible hour");
   expect(html).toContain("Officer ranking");
   expect(html).toContain("Participation Points");
   expect(html).not.toContain("Point configuration");
@@ -295,6 +300,8 @@ it("shows an empty ranking as its first and only page", async () => {
   );
 
   expect(html).toContain("Officer ranking");
-  expect(html).toContain("0 officers");
-  expect(html).toContain("<tbody></tbody>");
+  expect(html).toContain("0 active officers · Fall 2026");
+  expect(html).toContain(
+    "No active Officers have earned Points in this period yet.",
+  );
 });

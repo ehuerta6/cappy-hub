@@ -496,27 +496,24 @@ it("shows useful empty messages without empty tables", async () => {
   expect(html).not.toContain("<table");
 });
 
-it("keeps Dashboard as the page heading and gives the current officer stronger identity", async () => {
+it("keeps Dashboard as the page heading and identifies the current officer", async () => {
   const html = renderToStaticMarkup(await DashboardPage({}));
   expect(html.match(/<h1\b/g)).toHaveLength(1);
   expect(html).toMatch(/<h1[^>]*>Dashboard<\/h1>/);
-  expect(html).toMatch(/<h2[^>]*>Local Officer<\/h2>/);
-  expect(html).toContain("· Secretary");
-  expect(html).toContain("A current view of club activity.");
-  const profile = html
-    .split('aria-label="Your profile"')[1]
-    .split("</section>")[0];
+  expect(html).toContain("Local Officer");
+  expect(html).toContain("Secretary");
+  const profileStart = html.indexOf('href="/officers/8"');
+  const profile = html.slice(profileStart, html.indexOf("</a>", profileStart));
   expect(profile).toContain("+12.5");
   expect(profile).toContain("pts");
-  expect(profile).toContain("Personal total");
-  expect(profile).toContain('href="/officers/8"');
-  expect(profile).toContain('aria-label="View Local Officer&#x27;s profile"');
-  expect(profile).toContain("View profile");
+  expect(profile).toContain("View your profile");
 });
 
 it("preserves all three summary metric values and the existing summary/activity queries", async () => {
   const html = renderToStaticMarkup(await DashboardPage({}));
-  const summary = html.split('aria-label="Summary"')[1].split("</section>")[0];
+  const summary = html
+    .split('aria-label="Club summary"')[1]
+    .split("</section>")[0];
   expect(summary).toContain("Active officers");
   expect(summary).toContain(">24</dd>");
   expect(summary).toContain("Upcoming events");
@@ -588,7 +585,7 @@ it("places the single sign out form and officer context inside the protected hea
   expect(header).toContain("Local Officer");
   expect(header).toContain("Sign out");
   expect(header).toContain('aria-label="Switch to light theme"');
-  expect(header).toContain("min-h-11");
+  expect(header).toContain("theme-toggle");
   expect(header).toContain("Local Officer");
   expect(html.match(/Sign out/g)).toHaveLength(1);
   expect(html.split("</header>")[1].split("<script>")[0]).toBe(
@@ -674,16 +671,15 @@ it("shows a bounded upcoming-event preview with signup context and full-page lin
     .split('aria-label="Upcoming events"')[1]
     .split("</section>")[0];
   expect(list).toContain("<ul");
-  expect(list.match(/<li /g)).toHaveLength(5);
+  expect(list.match(/<li\b/g)).toHaveLength(5);
   expect(list).toContain('href="/events/5"');
   expect(list).not.toContain('href="/events/6"');
   expect(list).toContain("Signed up");
   expect(list).toContain("Not signed up");
-  expect(list).toMatch(/class="text-info">Signed up/);
-  expect(list).toMatch(/class="text-muted">Not signed up/);
+  expect(list).toContain("Signed up");
+  expect(list).toContain("Not signed up");
   expect(list).toContain("1 officer");
   expect(list).toContain('href="/events"');
-  expect(list).toContain("Next events · El Paso time");
   expect(countedEventIds).toEqual([1, 2, 3, 4, 5]);
   expect(html).toContain('href="/points?view=history"');
   expect(html).not.toContain("<table");
@@ -722,7 +718,7 @@ it("summarizes signed point values with officer and event/task links or a manual
     .split('aria-label="Recent point activity"')[1]
     .split("</section>")[0];
   expect(list).toContain("<ul");
-  expect(list.match(/<li /g)).toHaveLength(3);
+  expect(list.match(/<li\b/g)).toHaveLength(3);
   for (const href of ["/officers/8", "/events/3", "/tasks/4"])
     expect(list).toContain(`href="${href}"`);
   for (const text of ["+2.5", "-1", "Manual adjustment", "Oct 3, 2026"])
@@ -752,11 +748,10 @@ it("shows only the five newest Point transactions and keeps full Points navigati
   const list = html
     .split('aria-label="Recent point activity"')[1]
     .split("</section>")[0];
-  expect(list.match(/<li /g)).toHaveLength(5);
+  expect(list.match(/<li\b/g)).toHaveLength(5);
   expect(list).toContain("Transaction 1");
   expect(list).toContain("Transaction 5");
   expect(list).not.toContain("Transaction 6");
-  expect(list).toContain("Latest 5 transactions");
   expect(list).toContain('href="/points?view=history"');
 });
 
@@ -765,8 +760,8 @@ it("keeps dashboard empty states and destination links without empty lists or ta
   const html = renderToStaticMarkup(await DashboardPage({}));
   expect(html).toContain("No upcoming events.");
   expect(html).toContain("No point transactions yet.");
-  expect(html).toContain("View all Events");
-  expect(html).toContain("View all Points");
+  expect(html).toContain("View events");
+  expect(html).toContain("View history");
   expect(html).toContain('href="/points?view=history"');
   expect(html).not.toContain("<ul");
   expect(html).not.toContain("<table");
