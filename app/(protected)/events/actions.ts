@@ -424,9 +424,12 @@ export async function selfSignup(
     enforceWritablePeriod: true,
     periodContext: formData.get("writable_period"),
   });
+  const writablePeriod = formData.get("writable_period");
   const signup = new FormData();
   signup.set("event_id", String(formData.get("event_id") ?? ""));
   signup.set("officer_id", String(actor.id));
+  if (typeof writablePeriod === "string")
+    signup.set("writable_period", writablePeriod);
   const result = await changeSignup(previous, signup);
   return result;
 }

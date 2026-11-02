@@ -494,20 +494,28 @@ it("surfaces trusted database authorization and validation errors", async () => 
   expect(result.error).toBe("Event outside branch scope");
 });
 
-it("self signup derives identity on the server and revalidates the grouped page", async () => {
-  const data = form();
-  data.set("officer_id", "999");
-  data.set("remove", "true");
-  const result = await selfSignup({ error: "", success: "" }, data);
-  expect(rpc).toHaveBeenCalledWith("change_event_signup", {
-    p_event_id: 12,
-    p_officer_id: 8,
-    p_remove: false,
-  });
-  expect(result.error).toBe("");
-  expect(syncGoogleCalendarEvents).not.toHaveBeenCalled();
-  expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
-});
+it.each(["current", "9001"])(
+  "self signup preserves the %s period context, derives identity, and revalidates the grouped page",
+  async (writablePeriod) => {
+    const data = form();
+    data.set("officer_id", "999");
+    data.set("remove", "true");
+    data.set("writable_period", writablePeriod);
+    const result = await selfSignup({ error: "", success: "" }, data);
+    expect(getAuthorizationContext).toHaveBeenNthCalledWith(2, {
+      enforceWritablePeriod: true,
+      periodContext: writablePeriod,
+    });
+    expect(rpc).toHaveBeenCalledWith("change_event_signup", {
+      p_event_id: 12,
+      p_officer_id: 8,
+      p_remove: false,
+    });
+    expect(result.error).toBe("");
+    expect(syncGoogleCalendarEvents).not.toHaveBeenCalled();
+    expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+  },
+);
 
 it("self signup reports closed-event RPC errors without claiming success or revalidating", async () => {
   rpc.mockResolvedValueOnce({
