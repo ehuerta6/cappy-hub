@@ -110,13 +110,11 @@ export default async function EventsPage({
       query = query
         .gte("event_date", selectedPeriod.starts_on)
         .lte("event_date", selectedPeriod.ends_on);
-    if (status === undefined && selectedPeriod)
+    if (status === undefined) {
       query = query.neq("status", "cancelled");
-    if (status === undefined && !selectedPeriod)
-      query = query
-        .neq("status", "cancelled")
-        .gte("event_date", today)
-        .gt("ends_at", nowIso);
+      if (!selectedPeriod || !periodSelection.isHistorical)
+        query = query.gte("event_date", today).gt("ends_at", nowIso);
+    }
     if (status === "upcoming")
       query = query.neq("status", "cancelled").gt("starts_at", nowIso);
     if (status === "happening")
@@ -389,7 +387,11 @@ export default async function EventsPage({
         <label className="min-w-36">
           Status
           <select name="status" defaultValue={status ?? ""}>
-            <option value="">Current events</option>
+            <option value="">
+              {selectedPeriod && periodSelection.isHistorical
+                ? "All events in period"
+                : "Current events"}
+            </option>
             <option value="upcoming">Upcoming</option>
             <option value="happening">Happening</option>
             <option value="past">Past</option>
