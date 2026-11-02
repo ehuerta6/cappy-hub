@@ -205,7 +205,7 @@ export default async function PointsPage({
         title="Officer ranking"
         description={
           selectedPeriod
-            ? `${overviewData.totals.count ?? 0} active officers · ${selectedPeriod.name}`
+            ? `${overviewData.totals.count ?? 0} officers · ${selectedPeriod.name}`
             : "Select an academic period to see ranked points."
         }
       />
@@ -254,7 +254,7 @@ export default async function PointsPage({
       ) : (
         <p className="points-ranking-empty" role="status">
           {selectedPeriod
-            ? "No active Officers have earned Points in this period yet."
+            ? "No Officers have earned Points in this period yet."
             : "No period selected. Choose an academic period from the header."}
         </p>
       )}

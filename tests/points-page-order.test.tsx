@@ -300,8 +300,6 @@ it("shows an empty ranking as its first and only page", async () => {
   );
 
   expect(html).toContain("Officer ranking");
-  expect(html).toContain("0 active officers · Fall 2026");
-  expect(html).toContain(
-    "No active Officers have earned Points in this period yet.",
-  );
+  expect(html).toContain("0 officers · Fall 2026");
+  expect(html).toContain("No Officers have earned Points in this period yet.");
 });
