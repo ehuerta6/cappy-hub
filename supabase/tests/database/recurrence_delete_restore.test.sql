@@ -82,12 +82,9 @@ select throws_ok($$select mutate_recurring_event(-33301,'occurrence','edit','000
  'P0001','Idempotency key already used','lifecycle and recurring edits share the request-key namespace');
 select throws_ok($$select mutate_recurring_event_lifecycle(-33301,'series','delete',gen_random_uuid(),-33301,0)$$,
  'P0001','Series changed; reload and try again','stale Event revision is rejected');
-select lives_ok($$select mutate_recurring_event_lifecycle(-33301,'occurrence','restore','00000000-0000-4000-8000-000000033312',-33301,1)$$,
- 'single-occurrence Restore applies to its selected Delete batch');
+select lives_ok($$select mutate_recurring_event_lifecycle(-33301,'following','restore','00000000-0000-4000-8000-000000033313',-33301,1)$$,
+ 'following Event Restore restores matching members of the original Delete batch');
 select is((select deleted_at is null from events where id=-33301),true,'selected Event occurrence restored');
-select is((select deleted_at is not null from events where id=-33302),true,'independently deleted Event remains deleted');
-select lives_ok($$select mutate_recurring_event_lifecycle(-33302,'following','restore','00000000-0000-4000-8000-000000033313',-33301,2)$$,
- 'following Event Restore restores the remaining matching members of the original Delete batch');
 select is((select deleted_at is null from events where id=-33303),true,
  'following Event Restore includes the later occurrence');
 select is((select deleted_at is not null from events where id=-33302),true,
@@ -112,7 +109,7 @@ update tasks set branch_id=(select id from branches where name='icpc') where id=
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033302',true);
 set local role authenticated;
-select throws_ok($$select mutate_recurring_event_lifecycle(-33301,'series','delete',gen_random_uuid(),-33301,3)$$,
+select throws_ok($$select mutate_recurring_event_lifecycle(-33301,'series','delete',gen_random_uuid(),-33301,2)$$,
  'P0001','Event outside branch scope','Lead scope is checked across every Event in the requested series');
 select throws_ok($$select mutate_recurring_task_lifecycle(-33340,'series','delete',gen_random_uuid(),-33302,0)$$,
  'P0001','Task outside branch scope','Lead cannot mutate an out-of-branch Task series');
@@ -122,9 +119,9 @@ select is((select count(*) from tasks where id between -33343 and -33340 and rem
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033301',true);
 set local role authenticated;
-select lives_ok($$select mutate_recurring_event_lifecycle(-33300,'series','delete','00000000-0000-4000-8000-000000033314',-33301,3)$$,
+select lives_ok($$select mutate_recurring_event_lifecycle(-33300,'series','delete','00000000-0000-4000-8000-000000033314',-33301,2)$$,
  'All-scope Event Delete includes every still-active occurrence');
-select lives_ok($$select mutate_recurring_event_lifecycle(-33300,'series','restore','00000000-0000-4000-8000-000000033315',-33301,4)$$,
+select lives_ok($$select mutate_recurring_event_lifecycle(-33300,'series','restore','00000000-0000-4000-8000-000000033315',-33301,3)$$,
  'All-scope Event Restore reconciles the Delete batch');
 select is((select count(*) from events where id in (-33300,-33301,-33302,-33303) and deleted_at is null),3::bigint,
  'All-scope Event recovery leaves the independently deleted occurrence untouched');

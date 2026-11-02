@@ -46,10 +46,12 @@ npm test -- --exclude tests/database.test.ts
 
 The integrated application tree on current `main` matches the #380 tested code; later commits in `a230269` are documentation-only. The new pgTAP assertion in this PR still requires exact-head CI. The normal local full-suite command was not run because it requires the unavailable local database.
 
+The first #381 CI run executed the new pgTAP case but failed because the test selected an independently deleted occurrence as the restore-range anchor. The database correctly rejected that anchor (`Choose an occurrence from a scoped Delete to restore this range`). The test now anchors the following Restore at the still-deleted occurrence from the scoped Delete batch and checks both the later restored occurrence and preservation of the independent deletion. The corrected assertion is pending exact-head CI; this was a test-fixture error, not a confirmed product defect.
+
 ## Rollout and remaining gates
 
 - **Merged into repository:** #366/#373, #367/#372, and #369/#374 are merged; the #380 regression fix is also merged. Current inspected `main` is `a230269`.
 - **Deployed:** Vercel reports a `READY` Production deployment for exact revision `a2302692ae36a225495b0b3d418dfee1a336c92b`. This is status metadata only; no production HTTP smoke or administrative workflow was exercised in this QA.
 - **Operationally configured:** production Google Calendar activation and write access are not verified here; `docs/google-calendar.md` tracks the external test-calendar access requirements separately. Production migration history was not queried.
 - **Verified:** local Vitest, lint, formatting, typecheck, Webpack production build, Preview HTTP login, and the cited exact-head CI/Preview results passed. Local pgTAP/upgrade and seeded browser verification remain unavailable in this environment.
-- **Follow-up:** no product defect was confirmed. The direct Event following-scope Restore assertion added above must pass CI before this QA PR is merge-ready. No production release, schema repair, real Google Calendar write, or merge was performed.
+- **Follow-up:** no product defect was confirmed. The corrected direct Event following-scope Restore assertion added above must pass CI before this QA PR is merge-ready. No production release, schema repair, real Google Calendar write, or merge was performed.
