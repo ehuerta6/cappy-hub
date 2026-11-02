@@ -86,10 +86,14 @@ select lives_ok($$select mutate_recurring_event_lifecycle(-33301,'occurrence','r
  'single-occurrence Restore applies to its selected Delete batch');
 select is((select deleted_at is null from events where id=-33301),true,'selected Event occurrence restored');
 select is((select deleted_at is not null from events where id=-33302),true,'independently deleted Event remains deleted');
-select lives_ok($$select mutate_recurring_event_lifecycle(-33303,'series','restore','00000000-0000-4000-8000-000000033313',-33301,2)$$,
- 'All occurrences restores the remaining members of the original Delete batch');
+select lives_ok($$select mutate_recurring_event_lifecycle(-33302,'following','restore','00000000-0000-4000-8000-000000033313',-33301,2)$$,
+ 'following Event Restore restores the remaining matching members of the original Delete batch');
+select is((select deleted_at is null from events where id=-33303),true,
+ 'following Event Restore includes the later occurrence');
+select is((select deleted_at is not null from events where id=-33302),true,
+ 'following Event Restore preserves the independently deleted occurrence');
 select is((select count(*) from events where id in (-33300,-33301,-33302,-33303) and deleted_at is null),3::bigint,
- 'All-scope restore preserves independent deletion');
+ 'following Event Restore preserves the independent deletion');
 select is((select count(*) from point_transactions where event_id in (-33300,-33301,-33302,-33303) and removed_at is null),3::bigint,
  'eligible Event Points reconcile without replacing transaction identities');
 select is((select count(*) from point_transactions where event_id=-33302 and removed_at is not null),2::bigint,
