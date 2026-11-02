@@ -18,6 +18,18 @@ Keep these sources distinct:
 
 If `knowledge/README.md` exists, read it first. Search only for the current task's concepts and inspect the relevant notes, using native repository search such as `rg -n -i '<terms>' knowledge/`. Follow links to canonical issues, pull requests, code, and documentation. Do not load or mirror unrelated history.
 
+### Optional fresh-session retrieval check
+
+For adoption or troubleshooting, manually check whether normal project instructions make relevant decisions discoverable in a new conversation. This is optional, not a step for every issue or PR:
+
+1. Choose one real, approved, non-sensitive decision in the project's canonical sources. Do not invent a decision, create notes for the check, or include the decision text in the prompt.
+2. Start a genuinely fresh Codex or Claude session with normal project access and instructions. Ask a concrete question whose answer depends on the decision and ask for the supporting canonical file or link.
+3. Check that the session found the right source, recovered the decision accurately, distinguished approved intent from current implementation, and avoided invented or outdated context. Require support from canonical project sources; if external or personal memory may have supplied the answer and cannot be excluded, report the result as confounded.
+4. When checking implementation, record the checkout or revision examined. Do not treat a stale local branch as current `main`, or infer production status from repository code.
+5. If retrieval fails or sources conflict, inspect the actual cause—such as a missing instruction pointer, search strategy, unavailable source, absent documentation, stale status, or stale branch reference. Make only the smallest justified correction within the authorized scope; otherwise report the limitation or unresolved conflict.
+
+Report the project context, source, observed result, and any limitation. One successful controlled check demonstrates only that the decision was discoverable in that session; it does not establish regular use or change adoption status.
+
 ## Capture
 
 Record knowledge when it is likely to change a future decision or prevent repeated investigation. Suitable content includes explicitly approved decisions, durable constraints, architectural rationale, and verified lessons. Keep routine task progress in GitHub.

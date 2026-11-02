@@ -39,6 +39,8 @@ If the Issue depends on unresolved product or technical decisions that materiall
 
 If sources materially conflict, report the conflict instead of silently choosing one.
 
+Before proposing or changing established behavior, inspect `knowledge/README.md`, search `knowledge/` for task-relevant decisions, and follow links to their canonical sources. Treat notes as context, not approval that overrides the source order in `AGENTS.md`. Do not elevate suggestions or agent inferences to approved product policy.
+
 ### 2. Inspect the repository
 
 Before editing:
@@ -187,6 +189,8 @@ Report:
 - any follow-up work discovered.
 
 Do not merge unless the user explicitly asks for the merge.
+
+For meaningful implementation work, check whether it established a durable, verified lesson that would change future decisions. Record only genuinely new approved context with its source, status, and rationale; link to canonical Issues, PRs, specifications, or documentation instead of copying them. Skip routine progress and duplicate notes.
 
 ## Rules
 
