@@ -1,5 +1,6 @@
-import Link from "next/link";
+import type { Route } from "next";
 import { notFound } from "next/navigation";
+import ContextualBackLink from "@/components/contextual-back-link";
 import { PageHeader } from "@/components/ui";
 import { getAuthorizationContext, isAdmin } from "@/lib/authorization";
 import {
@@ -44,14 +45,13 @@ export default async function AcademicPeriodsPage({
   const error = params.error ? messages[params.error] : undefined;
   return (
     <div data-page-width="wide" data-form-page="periods" className="space-y-5">
-      <Link
+      <ContextualBackLink
         href={
-          `/admin${params.period ? `?period=${params.period}` : ""}` as import("next").Route
+          `/admin${params.period ? `?period=${params.period}` : ""}` as Route
         }
-        className="text-sm underline underline-offset-4"
       >
         Back to Admin
-      </Link>
+      </ContextualBackLink>
       <PageHeader
         title="Academic periods"
         description="Create periods for history and planning. Period dates use America/Denver calendar days."
