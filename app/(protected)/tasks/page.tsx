@@ -18,7 +18,11 @@ import { ListPagination } from "@/components/list-pagination";
 import { formatLabel, formatTaskDueDate } from "@/lib/presentation";
 import { currentDenverWeek } from "@/lib/current-denver-week";
 import { organizeTaskList } from "@/lib/task-list";
-import { buildTaskListQuery, TASKS_PER_PAGE } from "@/lib/task-list-query";
+import {
+  buildTaskListQuery,
+  taskListDateFilters,
+  TASKS_PER_PAGE,
+} from "@/lib/task-list-query";
 import { taskListFiltersSchema } from "./filter-validation";
 import { SearchableSelect } from "@/components/searchable-select";
 import {
@@ -83,6 +87,16 @@ export default async function TasksPage({
     period: params.period,
   });
   const supabase = await createClient();
+  const dateRange =
+    selectedPeriod && view !== "deleted"
+      ? { from: selectedPeriod.starts_on, through: selectedPeriod.ends_on }
+      : undefined;
+  const dateFilters = taskListDateFilters({
+    view,
+    today,
+    dateRange,
+    periodIsHistorical: periodSelection.isHistorical,
+  });
   const tasksQuery = buildTaskListQuery(supabase, {
     view,
     today,
@@ -95,10 +109,8 @@ export default async function TasksPage({
         ? actor.branchIds
         : undefined,
     page: requestedPage,
-    dateRange:
-      selectedPeriod && view !== "deleted"
-        ? { from: selectedPeriod.starts_on, through: selectedPeriod.ends_on }
-        : undefined,
+    dateRange,
+    periodIsHistorical: periodSelection.isHistorical,
   });
 
   let taskCountQuery = supabase
@@ -108,13 +120,12 @@ export default async function TasksPage({
     taskCountQuery = taskCountQuery.not("removed_at", "is", null);
   else {
     taskCountQuery = taskCountQuery.is("removed_at", null);
-    taskCountQuery = selectedPeriod
-      ? taskCountQuery
-          .gte("due_date", selectedPeriod.starts_on)
-          .lte("due_date", selectedPeriod.ends_on)
-      : view === "past"
-        ? taskCountQuery.lt("due_date", today)
-        : taskCountQuery.gte("due_date", today);
+    if ("from" in dateFilters && dateFilters.from)
+      taskCountQuery = taskCountQuery.gte("due_date", dateFilters.from);
+    if ("through" in dateFilters && dateFilters.through)
+      taskCountQuery = taskCountQuery.lte("due_date", dateFilters.through);
+    if ("before" in dateFilters && dateFilters.before)
+      taskCountQuery = taskCountQuery.lt("due_date", dateFilters.before);
   }
   if (view === "deleted" && isLead(actor) && !canSeeAllBranches(actor))
     taskCountQuery = taskCountQuery.in("branch_id", actor.branchIds);

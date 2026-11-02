@@ -17,7 +17,28 @@ type TaskListQueryOptions = {
   assigneeId?: number;
   page: number;
   dateRange?: { from: string; through: string };
+  periodIsHistorical?: boolean;
 };
+
+export function taskListDateFilters({
+  view,
+  today,
+  dateRange,
+  periodIsHistorical = false,
+}: Pick<
+  TaskListQueryOptions,
+  "view" | "today" | "dateRange" | "periodIsHistorical"
+>) {
+  if (view === "deleted") return {};
+
+  const from = dateRange?.from;
+  const through = dateRange?.through;
+  if (dateRange && periodIsHistorical) return { from, through };
+
+  return view === "past"
+    ? { from, through, before: today }
+    : { from: from && from > today ? from : today, through };
+}
 
 export function buildTaskListQuery(
   supabase: SupabaseClient<Database>,
@@ -31,6 +52,7 @@ export function buildTaskListQuery(
     assigneeId,
     page,
     dateRange,
+    periodIsHistorical = false,
   }: TaskListQueryOptions,
 ) {
   const taskSelection = [
@@ -55,13 +77,18 @@ export function buildTaskListQuery(
   if (view === "deleted") tasksQuery = tasksQuery.not("removed_at", "is", null);
   else {
     tasksQuery = tasksQuery.is("removed_at", null);
-    tasksQuery = dateRange
-      ? tasksQuery
-          .gte("due_date", dateRange.from)
-          .lte("due_date", dateRange.through)
-      : view === "past"
-        ? tasksQuery.lt("due_date", today)
-        : tasksQuery.gte("due_date", today);
+    const dateFilters = taskListDateFilters({
+      view,
+      today,
+      dateRange,
+      periodIsHistorical,
+    });
+    if ("from" in dateFilters && dateFilters.from)
+      tasksQuery = tasksQuery.gte("due_date", dateFilters.from);
+    if ("through" in dateFilters && dateFilters.through)
+      tasksQuery = tasksQuery.lte("due_date", dateFilters.through);
+    if ("before" in dateFilters && dateFilters.before)
+      tasksQuery = tasksQuery.lt("due_date", dateFilters.before);
   }
 
   if (view === "deleted" && branchScope?.length)

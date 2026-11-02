@@ -9,11 +9,11 @@ vi.mock("@/lib/authorization", async (original) => ({
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/academic-periods", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/academic-periods")>()),
-  getAcademicPeriodData: async () => ({
+  getAcademicPeriodData: vi.fn(async () => ({
     periods: [],
     currentDate: "2026-11-01",
     currentPeriodId: null,
-  }),
+  })),
 }));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
@@ -53,6 +53,7 @@ vi.mock("@/app/(protected)/officers/warning-forms", () => ({
 }));
 import { getAuthorizationContext } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
+import { getAcademicPeriodData } from "@/lib/academic-periods";
 import OfficersPage from "@/app/(protected)/officers/page";
 import EventsPage from "@/app/(protected)/events/page";
 import TasksPage from "@/app/(protected)/tasks/page";
@@ -195,6 +196,12 @@ beforeEach(() => {
   queries = [];
   visibleCount = 4;
   filteredCount = 0;
+  vi.mocked(getAcademicPeriodData).mockReset();
+  vi.mocked(getAcademicPeriodData).mockResolvedValue({
+    periods: [],
+    currentDate: "2026-11-01",
+    currentPeriodId: null,
+  });
   admin = true;
   lead = false;
   actorBranches = [];
@@ -1707,6 +1714,50 @@ it("shows Task-specific details and self-assignment only in Other tasks", async 
   expect(html).not.toContain("2099-10-08");
   expect(html).not.toContain("Select officer");
   expect(html).toContain('aria-label="Upcoming tasks: Other tasks"');
+});
+
+it("applies the same period and Current bounds to Task pagination and totals", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-11-02T20:00:00.000Z"));
+  vi.mocked(getAcademicPeriodData).mockResolvedValue({
+    periods: [
+      {
+        id: -1,
+        name: "Fall 2026",
+        starts_on: "2026-08-16",
+        ends_on: "2026-12-20",
+        created_at: "2026-08-01T00:00:00Z",
+        updated_at: "2026-08-01T00:00:00Z",
+      },
+    ],
+    currentDate: "2026-11-02",
+    currentPeriodId: -1,
+  });
+
+  try {
+    await render(TasksPage, { period: "-1" });
+    const taskListQuery = forTable("tasks").find(({ calls }) =>
+      calls.some(([method]) => method === "range"),
+    )!;
+    const taskCountQuery = forTable("tasks").find(({ calls }) =>
+      calls.some(
+        ([method, , options]) =>
+          method === "select" && (options as { head?: boolean }).head,
+      ),
+    )!;
+
+    for (const query of [taskListQuery, taskCountQuery]) {
+      has(query, "gte", "due_date", "2026-11-02");
+      has(query, "lte", "due_date", "2026-12-20");
+    }
+    expect(
+      taskListQuery.calls.findIndex(([method]) => method === "gte"),
+    ).toBeLessThan(
+      taskListQuery.calls.findIndex(([method]) => method === "range"),
+    );
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 it.each([EventsPage, TasksPage, PointsPage])(
