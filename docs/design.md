@@ -46,6 +46,7 @@ Use semantic tokens from `app/globals.css`; do not hard-code a local palette for
 | Warning        | `#fbbf24`  | `#a16207`   | Attention needed or time-sensitive status                             |
 | Danger         | `#e0a29a`  | `#a7463c`   | Errors, removal, and destructive actions                              |
 | Teal           | `#8ac4b4`  | `#25675d`   | Secondary positive category accents where already meaningful          |
+| Violet         | `#c4b5fd`  | `#6d28d9`   | Archived or deleted record states                                     |
 
 The dark theme is the visual default. Light and dark themes use the same component structure and state colors; only token values change. Keep the canvas and surfaces monochrome. Reserve color for selection, status, validation, and other meaningful information. Pair color with a label or icon so status is never communicated by color alone. Check readable contrast in both themes.
 
@@ -64,11 +65,11 @@ Follow the existing Tailwind spacing scale. Align labels, fields, buttons, table
 
 ### Actions and controls
 
-Use one primary button style for create, save, and submit actions; one outlined secondary style for supporting actions; and a distinct danger treatment only for destructive actions. Links that navigate should read as links, not as a second primary button. Give buttons, selects, and theme/period controls consistent height, padding, border, radius, hover, disabled, and keyboard-focus states.
+Use one primary button style for create, save, and submit actions; one outlined secondary style for supporting actions; and a distinct danger treatment only for destructive actions. Links that navigate should read as links, not as a second primary button. Give buttons, selects, and theme/period controls consistent height, padding, border, radius, hover, disabled, and keyboard-focus states. Use the brand blue focus ring consistently across keyboard-operated controls and links.
 
 ### Sections, panels, and forms
 
-Use section groupings to explain how fields relate. Event and Task create/edit forms share the same centered two-column form grid, bordered fieldsets, blue-tinted legends, label spacing, error placement, and action row. Other forms reuse the same field, form-message, and fieldset primitives. Do not wrap a form in an extra card when its fieldsets already provide the needed grouping.
+Use section groupings to explain how fields relate. Event, Task, and Officer create/edit forms share the same centered two-column form grid, bordered fieldsets, blue-tinted legends, label spacing, error placement, and action row. Other forms reuse the same field, form-message, and fieldset primitives. Do not wrap a form in an extra card when its fieldsets already provide the needed grouping.
 
 ### Tables and rankings
 

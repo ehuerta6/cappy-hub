@@ -96,7 +96,7 @@ export function PageHeader({
   action,
 }: {
   title: string;
-  description?: string;
+  description?: ReactNode;
   action?: ReactNode;
 }) {
   return (
@@ -114,15 +114,17 @@ export function SectionHeading({
   title,
   description,
   action,
+  id,
 }: {
   title: string;
   description?: string;
   action?: ReactNode;
+  id?: string;
 }) {
   return (
     <div className="section-heading">
       <div className="section-heading__copy">
-        <h2>{title}</h2>
+        <h2 id={id}>{title}</h2>
         {description && <p>{description}</p>}
       </div>
       {action}
@@ -280,7 +282,7 @@ export function ListFilterBar({
             <Link
               href={clearHref}
               aria-label={`Clear current ${label.toLowerCase()}`}
-              className="inline-flex min-h-11 items-center rounded-md border border-border-strong px-3 py-2 text-sm font-medium text-secondary underline-offset-4 hover:bg-hover hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted lg:min-h-0"
+              className="inline-flex min-h-11 items-center rounded-md border border-border-strong px-3 py-2 text-sm font-medium text-secondary underline-offset-4 hover:bg-hover hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand lg:min-h-0"
             >
               Clear filters
             </Link>

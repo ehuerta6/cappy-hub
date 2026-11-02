@@ -283,7 +283,7 @@ export default async function PointsPage({
         <Link
           href={rankingPageUrl(1)}
           aria-current={view === "overview" ? "page" : undefined}
-          className={`border-b-2 px-1 pb-2 text-sm font-medium ${view === "overview" ? "border-foreground text-foreground" : "border-transparent text-secondary hover:text-foreground"}`}
+          className={`border-b-2 px-1 pb-2 text-sm font-medium ${view === "overview" ? "border-brand text-brand" : "border-transparent text-secondary hover:text-foreground"}`}
         >
           Overview
         </Link>
@@ -292,7 +292,7 @@ export default async function PointsPage({
             `/points?${new URLSearchParams({ ...(params.period === undefined ? {} : { period: String(params.period) }), view: "history" })}` as Route
           }
           aria-current={view === "history" ? "page" : undefined}
-          className={`border-b-2 px-1 pb-2 text-sm font-medium ${view === "history" ? "border-foreground text-foreground" : "border-transparent text-secondary hover:text-foreground"}`}
+          className={`border-b-2 px-1 pb-2 text-sm font-medium ${view === "history" ? "border-brand text-brand" : "border-transparent text-secondary hover:text-foreground"}`}
         >
           History
         </Link>

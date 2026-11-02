@@ -36,6 +36,9 @@
   --teal: #8ac4b4;
   --teal-bg: rgb(31 89 76 / 0.28);
   --teal-border: rgb(79 142 127 / 0.44);
+  --violet: #c4b5fd;
+  --violet-bg: rgb(76 29 149 / 0.28);
+  --violet-border: rgb(167 139 250 / 0.42);
 }
 
 :root[data-theme="light"] {
@@ -70,6 +73,9 @@
   --teal: #25675d;
   --teal-bg: #e8f1ee;
   --teal-border: #b8d2cb;
+  --violet: #6d28d9;
+  --violet-bg: #f3e8ff;
+  --violet-border: #d8b4fe;
 }
 
 @theme inline {
@@ -103,6 +109,9 @@
   --color-teal: var(--teal);
   --color-teal-bg: var(--teal-bg);
   --color-teal-border: var(--teal-border);
+  --color-violet: var(--violet);
+  --color-violet-bg: var(--violet-bg);
+  --color-violet-border: var(--violet-border);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -380,7 +389,7 @@
   }
 
   .event-roster-disclosure > summary:focus-visible {
-    outline: 2px solid var(--muted);
+    outline: 2px solid var(--brand);
     outline-offset: 2px;
   }
 
@@ -430,7 +439,7 @@
 
   .event-form-resources > summary:focus-visible,
   .event-form-new-recurrence > summary:focus-visible {
-    outline: 2px solid var(--muted);
+    outline: 2px solid var(--brand);
     outline-offset: 2px;
   }
 
@@ -727,7 +736,7 @@
   textarea:focus-visible,
   button:focus-visible,
   a:focus-visible {
-    outline: 2px solid var(--muted);
+    outline: 2px solid var(--brand);
     outline-offset: 2px;
   }
 
@@ -844,7 +853,7 @@
 }
 
 .table-frame--keyboard-scroll:focus-visible {
-  outline: 2px solid var(--muted);
+  outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
 
@@ -885,18 +894,6 @@
 [data-form-page] > .page-header,
 [data-record-page] > .page-header {
   margin-top: 0.25rem;
-}
-
-.officer-form {
-  border: 1px solid var(--border);
-  border-radius: 0.65rem;
-  background: var(--surface);
-  padding: 1.25rem;
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--foreground) 2%, transparent);
-}
-
-.officer-form {
-  margin-inline: auto;
 }
 
 .event-form-section {
@@ -1248,8 +1245,7 @@ select.header-control {
   line-height: 1.35;
 }
 
-.section-heading h2::before,
-.dashboard .sectionHeading h2::before {
+.section-heading h2::before {
   display: inline-block;
   width: 0.42rem;
   height: 0.42rem;
@@ -1759,9 +1755,9 @@ button:disabled,
   color: var(--warning);
 }
 .badge-violet {
-  border-color: var(--brand-border);
-  background: var(--brand-bg);
-  color: var(--secondary);
+  border-color: var(--violet-border);
+  background: var(--violet-bg);
+  color: var(--violet);
 }
 .badge-teal {
   border-color: var(--teal-border);

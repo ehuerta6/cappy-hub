@@ -40,7 +40,7 @@ export function ListPagination({
       pageParam as "page" | "rankPage" | "reviewPage",
     );
   const linkClassName =
-    "inline-flex size-8 items-center justify-center rounded border border-border bg-surface text-muted transition-colors hover:border-border-strong hover:bg-hover hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted";
+    "inline-flex size-8 items-center justify-center rounded border border-border bg-surface text-muted transition-colors hover:border-border-strong hover:bg-hover hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
   const renderControl = (title: string, symbol: string, targetPage: number) =>
     targetPage < 1 ||
     targetPage > totalPages ||

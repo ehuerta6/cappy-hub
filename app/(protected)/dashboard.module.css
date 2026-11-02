@@ -5,53 +5,6 @@
   padding-block: 0 3.5rem;
 }
 
-.pageHeader {
-  display: flex;
-  min-width: 0;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1.5rem;
-  border-left: 3px solid var(--brand);
-  padding: 0.35rem 0 1rem 0.9rem;
-  border-bottom: 1px solid var(--border);
-}
-
-.welcome,
-.pageHeader > div {
-  min-width: 0;
-}
-
-.eyebrow {
-  margin: 0 0 0.35rem;
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.045em;
-}
-
-.pageHeader h1 {
-  overflow-wrap: anywhere;
-  color: var(--foreground);
-  font-size: clamp(1.75rem, 2vw, 2.15rem);
-  font-weight: 620;
-  letter-spacing: -0.04em;
-  line-height: 1.16;
-}
-
-.headerDescription {
-  margin: 0.45rem 0 0;
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-
-.nameLine {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 0.75rem;
-}
-
 .personalCard {
   display: inline-flex;
   min-height: 3.1rem;
@@ -163,41 +116,9 @@
   min-width: 0;
 }
 
-.sectionHeading {
-  display: flex;
-  min-width: 0;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
+.dashboard :global(.section-heading) {
+  margin-top: 0;
   margin-bottom: 0.65rem;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 0.7rem;
-}
-
-.sectionHeading h2 {
-  color: var(--foreground);
-  font-size: 0.95rem;
-  font-weight: 620;
-  letter-spacing: -0.02em;
-  line-height: 1.35;
-}
-
-.sectionHeading h2::before {
-  display: inline-block;
-  width: 0.42rem;
-  height: 0.42rem;
-  margin-inline-end: 0.55rem;
-  border-radius: 50%;
-  background: var(--brand);
-  content: "";
-  vertical-align: 0.08em;
-}
-
-.sectionHeading p {
-  margin: 0.25rem 0 0;
-  color: var(--muted);
-  font-size: 0.75rem;
-  line-height: 1.4;
 }
 
 .textLink {

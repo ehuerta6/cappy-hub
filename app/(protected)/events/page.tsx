@@ -290,7 +290,7 @@ export default async function EventsPage({
     (status === undefined || status === "upcoming" || status === "happening");
 
   return (
-    <div data-page-width="wide" data-nav-page="events" className="space-y-4">
+    <div data-page-width="wide" data-nav-page="events" className="space-y-5">
       <PageHeader
         title="Events"
         description="Club events and participation."

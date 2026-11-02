@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { displayPoints } from "@/lib/participation";
 import { participationLabel } from "@/lib/event-status";
 import { eventSignupCountLabel } from "@/lib/event-list";
-import { PointValue } from "@/components/ui";
+import { PageHeader, PointValue, SectionHeading } from "@/components/ui";
 import { loadDashboardActionItems } from "./dashboard-action-items";
 import { DASHBOARD_PREVIEW_LIMIT } from "./dashboard-limits";
 import {
@@ -76,36 +76,37 @@ export default async function DashboardPage({
 
     return (
       <div className={styles.dashboard} data-page-width="wide">
-        <header className={styles.pageHeader}>
-          <div>
-            <p className={styles.eyebrow}>Period overview</p>
-            <h1>{selectedPeriod.name}</h1>
-            <p className={styles.headerDescription}>
-              {periodSelection.isHistorical
-                ? "Historical view · read only"
-                : "Future period overview"}
-            </p>
-          </div>
-          <div
-            className={`${styles.periodState} ${periodSelection.isHistorical ? styles.periodHistorical : styles.periodFuture}`}
-          >
-            {periodSelection.isHistorical ? "Historical" : "Upcoming period"}
-          </div>
-        </header>
+        <PageHeader
+          title={selectedPeriod.name}
+          description={
+            periodSelection.isHistorical
+              ? "Historical view · read only"
+              : "Future period overview"
+          }
+          action={
+            <span
+              className={`${styles.periodState} ${periodSelection.isHistorical ? styles.periodHistorical : styles.periodFuture}`}
+            >
+              {periodSelection.isHistorical ? "Historical" : "Upcoming period"}
+            </span>
+          }
+        />
 
-        <section className={styles.metricGrid} aria-label="Period summary">
-          <MetricCard label="Events" value={events.count ?? 0} />
-          <MetricCard label="Tasks" value={tasks.count ?? 0} />
-          <MetricCard
-            label="Net points"
-            value={<PointValue value={pointSummary.data.net_points} />}
-          />
+        <section aria-label="Period summary">
+          <dl className={styles.metricGrid}>
+            <MetricCard label="Events" value={events.count ?? 0} />
+            <MetricCard label="Tasks" value={tasks.count ?? 0} />
+            <MetricCard
+              label="Net points"
+              value={<PointValue value={pointSummary.data.net_points} />}
+            />
+          </dl>
         </section>
 
         <section className={styles.panel} aria-label="Period ranking">
-          <SectionTitle
+          <SectionHeading
             title="Points leaderboard"
-            detail="Officer totals for this academic period"
+            description="Officer totals for this academic period"
           />
           {rankedOfficers.length === 0 ? (
             <div className={styles.emptyState}>
@@ -209,42 +210,44 @@ export default async function DashboardPage({
 
   return (
     <div className={styles.dashboard} data-page-width="wide">
-      <header className={styles.pageHeader}>
-        <div className={styles.welcome}>
-          <div className={styles.nameLine}>
-            <h1>Dashboard</h1>
-          </div>
-          <p className={styles.headerDescription}>
+      <PageHeader
+        title="Dashboard"
+        description={
+          <>
             {officer.name} <span aria-hidden="true">·</span>{" "}
             {officer.positionName}
-          </p>
-        </div>
+          </>
+        }
+        action={
+          <Link
+            href={`/officers/${officer.id}`}
+            className={styles.personalCard}
+          >
+            <span className={styles.personalInfo}>
+              <span className={styles.personalLabel}>Your points</span>
+              {total.error ? (
+                <span role="alert" className={styles.personalError}>
+                  Unavailable · reload to retry
+                </span>
+              ) : (
+                <span className={styles.personalValue}>
+                  <PointValue value={total.data.total_points ?? 0} />
+                  <span>pts</span>
+                </span>
+              )}
+            </span>
+            <span className="sr-only">View your profile</span>
+          </Link>
+        }
+      />
 
-        <Link href={`/officers/${officer.id}`} className={styles.personalCard}>
-          <span className={styles.personalInfo}>
-            <span className={styles.personalLabel}>Your points</span>
-            {total.error ? (
-              <span role="alert" className={styles.personalError}>
-                Unavailable · reload to retry
-              </span>
-            ) : (
-              <span className={styles.personalValue}>
-                <PointValue value={total.data.total_points ?? 0} />
-                <span>pts</span>
-              </span>
-            )}
-          </span>
-          <span className="sr-only">View your profile</span>
-        </Link>
-      </header>
-
-      <section className={styles.metricGrid} aria-label="Club summary">
+      <section aria-label="Club summary">
         {summary.error ? (
           <p role="alert" className={styles.inlineError}>
             Summary unavailable. Reload this page to retry.
           </p>
         ) : (
-          <>
+          <dl className={styles.metricGrid}>
             <MetricCard
               label="Active officers"
               value={summary.data.active_officer_count ?? 0}
@@ -261,7 +264,7 @@ export default async function DashboardPage({
                   : displayPoints(currentPeriodPoints)
               }
             />
-          </>
+          </dl>
         )}
       </section>
 
@@ -275,7 +278,7 @@ export default async function DashboardPage({
         className={`${styles.panel} ${styles.actionsPanel}`}
         aria-labelledby="action-items-title"
       >
-        <SectionTitle
+        <SectionHeading
           title="Your action items"
           id="action-items-title"
           action={
@@ -331,7 +334,7 @@ export default async function DashboardPage({
 
       <div className={styles.contentGrid}>
         <section className={styles.panel} aria-label="Upcoming events">
-          <SectionTitle
+          <SectionHeading
             title="Upcoming events"
             action={
               <Link href="/events" className={styles.textLink}>
@@ -398,7 +401,7 @@ export default async function DashboardPage({
         </section>
 
         <section className={styles.panel} aria-label="Recent point activity">
-          <SectionTitle
+          <SectionHeading
             title="Recent point activity"
             action={
               <Link href="/points?view=history" className={styles.textLink}>
@@ -466,28 +469,6 @@ function MetricCard({ label, value }: { label: string; value: ReactNode }) {
     <div className={styles.metricCard}>
       <dt className={styles.metricLabel}>{label}</dt>
       <dd className={styles.metricValue}>{value}</dd>
-    </div>
-  );
-}
-
-function SectionTitle({
-  title,
-  id,
-  action,
-  detail,
-}: {
-  title: string;
-  id?: string;
-  action?: ReactNode;
-  detail?: string;
-}) {
-  return (
-    <div className={styles.sectionHeading}>
-      <div>
-        <h2 id={id}>{title}</h2>
-        {detail && <p>{detail}</p>}
-      </div>
-      {action}
     </div>
   );
 }

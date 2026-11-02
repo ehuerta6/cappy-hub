@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
-import { ActionFeedback, FieldError } from "@/components/ui";
+import { ActionFeedback, FieldError, SectionHeading } from "@/components/ui";
 import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { changeCatalog } from "./actions";
@@ -229,9 +229,7 @@ export default function CatalogManager({
 }) {
   return (
     <section className="catalog-manager space-y-3">
-      <h2 id="catalog-category-heading" className="text-lg font-semibold">
-        {title}
-      </h2>
+      <SectionHeading title={title} id="catalog-category-heading" />
       {showCreate && !readOnly && (
         <CatalogForm catalog={catalog} operation="create" />
       )}

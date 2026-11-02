@@ -76,7 +76,7 @@ export function TaskEventCombobox({
         onValueChange={(value) => updateSelection((value ?? []).map(String))}
         autoHighlight
       >
-        <Combobox.Chips className="flex min-h-11 w-full flex-wrap items-center gap-1.5 rounded-md border border-border-strong bg-surface-muted px-2 py-1 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-muted">
+        <Combobox.Chips className="flex min-h-11 w-full flex-wrap items-center gap-1.5 rounded-md border border-border-strong bg-surface-muted px-2 py-1 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-brand">
           <Combobox.Value>
             {(value: string[]) =>
               value.map((id) => {
@@ -94,7 +94,7 @@ export function TaskEventCombobox({
                     </span>
                     <Combobox.ChipRemove
                       aria-label={`Remove ${label}`}
-                      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border-0 bg-transparent p-0 text-secondary hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-muted"
+                      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border-0 bg-transparent p-0 text-secondary hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
                     >
                       <X aria-hidden="true" size={16} />
                     </Combobox.ChipRemove>

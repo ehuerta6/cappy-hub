@@ -148,7 +148,7 @@ function EventSectionNavigation({
           key={item.id}
           href={sectionHref(eventId, item.id, 1, returnTo)}
           aria-current={section === item.id ? "page" : undefined}
-          className={`min-h-10 border-b-2 py-2 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted ${section === item.id ? "border-foreground font-semibold text-foreground" : "border-transparent text-muted"}`}
+          className={`min-h-10 border-b-2 py-2 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${section === item.id ? "border-brand font-semibold text-brand" : "border-transparent text-muted"}`}
         >
           {item.label}
           {item.count === undefined ? "" : ` (${item.count})`}

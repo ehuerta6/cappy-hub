@@ -143,7 +143,6 @@ export default function TaskCreateForm({
             <input
               name="title"
               required
-              className="h-10 text-base font-medium"
               aria-invalid={Boolean(fieldErrors.title)}
               aria-describedby={
                 fieldErrors.title ? "task-title-error" : undefined
