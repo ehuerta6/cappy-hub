@@ -12,6 +12,16 @@ Follow the repository's [`AGENTS.md`](../AGENTS.md) for project requirements and
 
 Have an idea? Open an Issue describing the problem, what you think should change, and why it would improve Cappy Hub. You do not need to know the implementation in advance.
 
+### Manual project-knowledge verification
+
+Use this repeatable scenario when checking whether agent instructions make project knowledge discoverable:
+
+1. In a fresh Codex or Claude session on an isolated branch based on current `main`, ask a concrete question about an approved decision (for example, whether Volunteer Time Slots remain active). Do not include the answer in the prompt. Confirm the agent points to the canonical Issue or specification and distinguishes approved intent from shipped behavior.
+2. Ask about a decision already owned by an Issue or documentation (for example, the one-way Google Calendar mirror). Confirm the agent links that source and does not create a duplicate `knowledge/` note.
+3. On the isolated branch, explicitly approve a new, non-sensitive, durable test decision. Ask the agent to capture it using the existing template, then start a separate fresh session and ask a question that requires retrieving it. Confirm the note includes its approval source and status and that the new session follows the source link. Discard the isolated branch after inspection.
+
+This scenario checks retrieval and selective capture. Documentation changes alone do not show that an agent run passed; report agent behavior as unverified unless the scenario was actually run. Never use production data or credentials in this check.
+
 ## Issue hygiene
 
 Before opening an Issue, search both open and closed Issues for the same requirement. Extend the canonical open Issue when the scope is genuinely the same. Create a new Issue when the requirement can be implemented independently or intentionally changes a settled product decision. Keep one canonical Issue responsible for one implementation scope.

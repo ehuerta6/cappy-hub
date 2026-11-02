@@ -44,6 +44,8 @@ Reusable project workflows live in `.agents/skills/`.
 
 When a workflow applies, read its `SKILL.md` before performing that workflow.
 
+Before changing established product behavior, inspect `knowledge/README.md` and search only for task-relevant decisions; follow their canonical links and keep the source precedence above. At delivery of meaningful work, consider whether a genuinely new, verified durable lesson belongs in `knowledge/`. Skip notes when the Issue, PR, specification, documentation, or code already owns the information.
+
 - unresolved product or technical decisions → `.agents/skills/grill-me/SKILL.md`
 - resolved decisions needing a durable feature specification → `.agents/skills/to-spec/SKILL.md`
 - approved work needing GitHub Issues → `.agents/skills/to-issues/SKILL.md`
