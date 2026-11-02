@@ -6,7 +6,18 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/current-officer", () => ({ requireCurrentOfficer: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn(),
+  useSearchParams: () => new URLSearchParams(),
+}));
+vi.mock("@/lib/academic-periods", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/academic-periods")>()),
+  getAcademicPeriodData: async () => ({
+    periods: [],
+    currentDate: "2026-11-01",
+    currentPeriodId: null,
+  }),
+}));
 
 import { requireCurrentOfficer } from "@/lib/current-officer";
 import { createClient } from "@/lib/supabase/server";
@@ -121,7 +132,7 @@ const client = () =>
     global: { fetch: mockFetch },
   });
 const load = () => loadDashboardActionItems(client(), actor);
-const render = async () => renderToStaticMarkup(await DashboardPage());
+const render = async () => renderToStaticMarkup(await DashboardPage({}));
 beforeEach(() => {
   actor = { ...officer, branchIds: [...officer.branchIds] };
   tasks = [];

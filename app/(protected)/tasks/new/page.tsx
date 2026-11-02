@@ -8,8 +8,22 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui";
 import TaskCreateForm from "../task-create-form";
+import {
+  getAcademicPeriodData,
+  resolveAcademicPeriod,
+} from "@/lib/academic-periods";
 
-export default async function NewTaskPage() {
+export default async function NewTaskPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const periodSelection = resolveAcademicPeriod(
+    params.period,
+    await getAcademicPeriodData(),
+  );
+  if (periodSelection.isHistorical) redirect(`/tasks?period=${params.period}`);
   const actor = await getAuthorizationContext();
   if (!canSeeAllBranches(actor) && (!isLead(actor) || !actor.branchIds.length))
     redirect("/access-denied");
@@ -36,7 +50,15 @@ export default async function NewTaskPage() {
     throw new Error("Failed to load Task form");
   return (
     <div className="space-y-6">
-      <ContextualBackLink href="/tasks">Back to tasks</ContextualBackLink>
+      <ContextualBackLink
+        href={
+          params.period
+            ? (`/tasks?period=${params.period}` as import("next").Route)
+            : "/tasks"
+        }
+      >
+        Back to tasks
+      </ContextualBackLink>
       <PageHeader title="New task" />
       <TaskCreateForm
         recurrenceRequestKey={crypto.randomUUID()}

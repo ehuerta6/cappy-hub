@@ -6,6 +6,7 @@ type PointHistoryFilterControlsProps = {
   searchQuery: string;
   awardType?: string;
   hasActiveFilters: boolean;
+  period?: string | string[];
 };
 
 export default function PointHistoryFilterControls({
@@ -14,6 +15,7 @@ export default function PointHistoryFilterControls({
   searchQuery,
   awardType,
   hasActiveFilters,
+  period,
 }: PointHistoryFilterControlsProps) {
   return (
     <ListFilterBar
@@ -21,9 +23,16 @@ export default function PointHistoryFilterControls({
       action="/points"
       label="Point history filters"
       active={hasActiveFilters}
-      clearHref="/points?view=history"
+      clearHref={
+        period
+          ? `/points?view=history&period=${period}`
+          : "/points?view=history"
+      }
     >
       <input type="hidden" name="view" value="history" />
+      {period !== undefined && (
+        <input type="hidden" name="period" value={String(period)} />
+      )}
       <label className="min-w-56 flex-1">
         Search point history
         <input

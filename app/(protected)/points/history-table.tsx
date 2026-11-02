@@ -66,11 +66,13 @@ export default function HistoryTable({
   returnTo,
   transactions,
   isAdmin,
+  canMutate = isAdmin,
   emptyMessage,
 }: {
   returnTo?: string;
   transactions: Tables<"point_history">[];
   isAdmin: boolean;
+  canMutate?: boolean;
   emptyMessage: string;
 }) {
   if (!transactions.length) return <p>{emptyMessage}</p>;
@@ -97,7 +99,7 @@ export default function HistoryTable({
             <th scope="col">Type</th>
             <th scope="col">Activity date</th>
             {isAdmin && <th scope="col">Actor / status</th>}
-            {isAdmin && <th scope="col">Action</th>}
+            {canMutate && <th scope="col">Action</th>}
           </tr>
         </thead>
         <tbody>
@@ -129,7 +131,7 @@ export default function HistoryTable({
                   ? formatCalendarDate(transaction.activity_date)
                   : "—"}
               </td>
-              {isAdmin && (
+              {canMutate && (
                 <td>
                   <div>{actorName(transaction)}</div>
                   {transaction.removed_at && (

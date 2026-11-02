@@ -15,9 +15,10 @@ const listRoutes = {
     "page",
     "view",
     "reviewPage",
+    "period",
   ],
-  "/events": ["q", "status", "type", "branch", "page"],
-  "/tasks": ["q", "view", "status", "branch", "assignee", "page"],
+  "/events": ["q", "status", "type", "branch", "page", "period"],
+  "/tasks": ["q", "view", "status", "branch", "assignee", "page", "period"],
   "/points": [
     "view",
     "q",
@@ -29,6 +30,7 @@ const listRoutes = {
     "to",
     "page",
     "rankPage",
+    "period",
   ],
 } as const;
 
@@ -78,7 +80,14 @@ export function withReturnTo<T extends string>(
   const destination = safeReturnTo(value);
   const url = new URL(href, "https://cappy.invalid");
   url.searchParams.delete("returnTo");
-  if (destination) url.searchParams.set("returnTo", destination);
+  if (destination) {
+    url.searchParams.set("returnTo", destination);
+    const period = new URL(
+      destination,
+      "https://cappy.invalid",
+    ).searchParams.get("period");
+    if (period !== null) url.searchParams.set("period", period);
+  }
   // Only the query changes; the input's checked route pathname is preserved.
   return `${url.pathname}${url.search}${url.hash}` as Route<T>;
 }

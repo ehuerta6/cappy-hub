@@ -12,6 +12,7 @@ const {
   totalCount,
   totalRows,
   queriedTables,
+  periodSummaryCalls,
 } = vi.hoisted(() => ({
   getAuthorizationContext: vi.fn(),
   canManagePoints: vi.fn(),
@@ -25,6 +26,7 @@ const {
     value: null as null | { id: number; name: string; total_points: number }[],
   },
   queriedTables: [] as string[],
+  periodSummaryCalls: [] as number[],
 }));
 
 vi.mock("@/lib/authorization", () => ({
@@ -32,9 +34,27 @@ vi.mock("@/lib/authorization", () => ({
   canManagePoints,
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient }));
+vi.mock("@/lib/academic-periods", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/academic-periods")>()),
+  getAcademicPeriodData: async () => ({
+    periods: [
+      {
+        id: 1,
+        name: "Fall 2026",
+        starts_on: "2026-08-16",
+        ends_on: "2026-12-20",
+        created_at: "2026-08-01T00:00:00Z",
+        updated_at: "2026-08-01T00:00:00Z",
+      },
+    ],
+    currentDate: "2026-11-01",
+    currentPeriodId: 1,
+  }),
+}));
 vi.mock("next/navigation", () => ({
   redirect: vi.fn(),
   useRouter: () => ({ refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 import PointsPage from "@/app/(protected)/points/page";
@@ -47,9 +67,32 @@ beforeEach(() => {
   totalCount.officers = 0;
   totalRows.value = null;
   queriedTables.length = 0;
+  periodSummaryCalls.length = 0;
   getAuthorizationContext.mockResolvedValue({ id: 1 });
   canManagePoints.mockReturnValue(false);
   createClient.mockResolvedValue({
+    rpc: (name: string, args: { p_period_id: number }) => {
+      if (name !== "academic_period_point_summary")
+        throw new Error(`Unexpected RPC ${name}`);
+      periodSummaryCalls.push(args.p_period_id);
+      const rows = totalRows.value ?? [
+        { id: 7, name: "First Officer", total_points: 12 },
+        { id: 2, name: "Second Officer", total_points: 8 },
+      ];
+      return {
+        single: async () => ({
+          data: {
+            net_points: rows.reduce((sum, row) => sum + row.total_points, 0),
+            ranking: rows.map((row) => ({
+              officer_id: row.id,
+              officer_name: row.name,
+              points: row.total_points,
+            })),
+          },
+          error: null,
+        }),
+      };
+    },
     from: (table: string) => {
       queriedTables.push(table);
       const query = {
@@ -94,11 +137,17 @@ beforeEach(() => {
             data:
               table === "officers"
                 ? [{ id: 7, name: "First Officer", status: "active" }]
-                : table === "officer_point_totals"
-                  ? (totalRows.value ?? [
-                      { id: 7, name: "First Officer", total_points: 12 },
-                      { id: 2, name: "Second Officer", total_points: 8 },
-                    ])
+                : table === "point_history"
+                  ? (
+                      totalRows.value ?? [
+                        { id: 7, name: "First Officer", total_points: 12 },
+                        { id: 2, name: "Second Officer", total_points: 8 },
+                      ]
+                    ).map(({ id, name, total_points }) => ({
+                      officer_id: id,
+                      officer_name: name,
+                      points: total_points,
+                    }))
                   : [],
             error: null,
             count: table === "officer_point_totals" ? totalCount.officers : 0,
@@ -112,11 +161,8 @@ beforeEach(() => {
 it("orders Officer totals by points descending, then name ascending", async () => {
   await PointsPage({ searchParams: Promise.resolve({}) });
 
-  expect(ordersByTable.get("officer_point_totals")).toEqual([
-    { column: "total_points", ascending: false },
-    { column: "name", ascending: true },
-    { column: "id", ascending: true },
-  ]);
+  expect(periodSummaryCalls).toEqual([1]);
+  expect(queriedTables).not.toContain("point_history");
 });
 
 it("keeps History loading independent from Officer picker data", async () => {
@@ -126,10 +172,12 @@ it("keeps History loading independent from Officer picker data", async () => {
   expect(activeOfficerFilters).toEqual([]);
 });
 
-it("queries Officer totals only for active recipients", async () => {
+it("loads the period ranking from the database aggregate", async () => {
   await PointsPage({ searchParams: Promise.resolve({}) });
 
-  expect(totalOfficerIds).toEqual([[7]]);
+  expect(periodSummaryCalls).toEqual([1]);
+  expect(queriedTables).not.toContain("point_history");
+  expect(totalOfficerIds).toEqual([]);
 });
 
 it("renders rank numbers from the sorted totals", async () => {
@@ -158,6 +206,7 @@ it("defaults to the Overview view and shows read-only rate to non-admins", async
   expect(html).toContain("Participation Points");
   expect(html).not.toContain("Point configuration");
   expect(html).not.toContain("Add adjustment");
+  expect(periodSummaryCalls).toEqual([1]);
   expect(queriedTables).not.toContain("point_history");
   expect(queriedTables).not.toContain("events");
 });
@@ -171,6 +220,7 @@ it("shows Admin configuration and Add adjustment in Overview", async () => {
   expect(html).toContain('aria-labelledby="add-transaction-title"');
   expect(html).toContain("Add adjustment");
   expect(html).toContain("Participation Points");
+  expect(periodSummaryCalls).toEqual([1]);
   expect(queriedTables).not.toContain("point_history");
   expect(queriedTables).toContain("events");
   expect(queriedTables.filter((table) => table === "events")).toHaveLength(1);
@@ -228,28 +278,14 @@ it.each([
   }
 });
 
-it("shows a paginated eight-Officer ranking with a separate rankPage parameter", async () => {
-  totalCount.officers = 17;
+it("keeps the selected period in period-ranking Officer links", async () => {
   const html = renderToStaticMarkup(
-    await PointsPage({ searchParams: Promise.resolve({ rankPage: "2" }) }),
+    await PointsPage({
+      searchParams: Promise.resolve({ period: "1" }),
+    }),
   );
 
-  expect(rangesByTable.get("officer_point_totals")).toEqual([[8, 15]]);
-  expect(html).toContain('aria-label="Officer ranking pages"');
-  expect(html).toContain('option value="2" selected=""');
-  expect(html).toContain("of 3");
-  expect(html).toContain('aria-label="Previous page"');
-  expect(html).toContain("rankPage=3");
-  expect(html).not.toContain('name="page"');
-});
-
-it("clamps an out-of-range ranking page to the last page", async () => {
-  const { redirect } = await import("next/navigation");
-  totalCount.officers = 17;
-
-  await PointsPage({ searchParams: Promise.resolve({ rankPage: "99" }) });
-
-  expect(redirect).toHaveBeenCalledWith("/points?rankPage=3");
+  expect(html).toContain('href="/officers/7?period=1"');
 });
 
 it("shows an empty ranking as its first and only page", async () => {

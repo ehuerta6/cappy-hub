@@ -4,6 +4,10 @@ import { ListPagination } from "@/components/list-pagination";
 import { PageHeader } from "@/components/ui";
 import { getAuthorizationContext, isAdmin } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
+import {
+  getAcademicPeriodData,
+  resolveAcademicPeriod,
+} from "@/lib/academic-periods";
 import CatalogManager, { type CatalogRecord } from "./manager";
 import {
   CATALOG_CATEGORIES,
@@ -24,6 +28,16 @@ export default async function OfficerCatalogsPage({
   if (!isAdmin(actor)) notFound();
 
   const params = await searchParams;
+  const periodData = await getAcademicPeriodData();
+  const periodSelection = resolveAcademicPeriod(params.period, periodData);
+  const contextHref = (href: string) => {
+    const period = Array.isArray(params.period)
+      ? params.period[0]
+      : params.period;
+    if (!period) return href as import("next").Route;
+    const separator = href.includes("?") ? "&" : "?";
+    return `${href}${separator}period=${encodeURIComponent(period)}` as import("next").Route;
+  };
   const category = selectedCatalogCategory(params.category);
   const status = params.status === "deleted" ? "deleted" : "active";
   const requestedPage = selectedCatalogPage(params.page);
@@ -60,7 +74,7 @@ export default async function OfficerCatalogsPage({
         String(page) !== params.page ||
         page === 1))
   ) {
-    redirect(catalogUrl(category, page, status));
+    redirect(contextHref(catalogUrl(category, page, status)));
   }
 
   const start = (page - 1) * CATALOGS_PER_PAGE;
@@ -122,6 +136,7 @@ export default async function OfficerCatalogsPage({
     throw new Error("Could not load catalog records");
 
   const filters = new URLSearchParams({ category });
+  if (params.period !== undefined) filters.set("period", String(params.period));
   if (status === "deleted") filters.set("status", status);
   return (
     <div className="space-y-5">
@@ -138,7 +153,7 @@ export default async function OfficerCatalogsPage({
         {CATALOG_CATEGORIES.map((item) => (
           <Link
             key={item.value}
-            href={catalogUrl(item.value)}
+            href={contextHref(catalogUrl(item.value))}
             aria-current={item.value === category ? "page" : undefined}
             className={
               item.value === category
@@ -152,13 +167,13 @@ export default async function OfficerCatalogsPage({
       </nav>
       <nav aria-label="Catalog status" className="flex gap-4 text-sm">
         <Link
-          href={catalogUrl(category)}
+          href={contextHref(catalogUrl(category))}
           aria-current={status === "active" ? "page" : undefined}
         >
           Active values
         </Link>
         <Link
-          href={catalogUrl(category, 1, "deleted")}
+          href={contextHref(catalogUrl(category, 1, "deleted"))}
           aria-current={status === "deleted" ? "page" : undefined}
         >
           Deleted values
@@ -170,6 +185,7 @@ export default async function OfficerCatalogsPage({
           title={categoryDefinition.label}
           records={records}
           showCreate={status === "active"}
+          readOnly={periodSelection.isHistorical}
         />
         {records.length === 0 ? (
           <p className="text-sm text-muted">
@@ -186,7 +202,7 @@ export default async function OfficerCatalogsPage({
             totalCount={totalCount}
             countLabel={totalCount === 1 ? "record" : "records"}
             getPageHref={(targetPage) =>
-              catalogUrl(category, targetPage, status)
+              contextHref(catalogUrl(category, targetPage, status))
             }
           />
         )}

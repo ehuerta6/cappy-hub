@@ -1,12 +1,28 @@
 import "server-only";
+import { redirect } from "next/navigation";
 import { requireCurrentOfficer } from "./current-officer";
+import { createClient } from "./supabase/server";
 
 export type AuthorizationContext = Awaited<
   ReturnType<typeof requireCurrentOfficer>
 >;
 
-export async function getAuthorizationContext() {
-  return requireCurrentOfficer();
+export async function getAuthorizationContext(options?: {
+  enforceWritablePeriod?: boolean;
+  periodContext?: FormDataEntryValue | null;
+}) {
+  const actor = await requireCurrentOfficer();
+  if (options?.enforceWritablePeriod) {
+    const periodContext = options.periodContext;
+    if (typeof periodContext !== "string") redirect("/");
+    const supabase = await createClient();
+    const { error } = await supabase.rpc(
+      "assert_academic_period_context_writable",
+      { p_period_context: periodContext },
+    );
+    if (error) redirect("/");
+  }
+  return actor;
 }
 
 export const isAdmin = (actor: AuthorizationContext) =>

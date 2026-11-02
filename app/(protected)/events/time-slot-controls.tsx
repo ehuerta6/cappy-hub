@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { ActionFeedback, FieldError } from "@/components/ui";
+import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 import { initialFormActionState, submittedValues } from "@/lib/form-feedback";
 import { denverParts } from "@/lib/event-time";
 import type { Tables } from "@/lib/database.types";
@@ -36,6 +37,7 @@ function SingleSelectionAction({
   });
   return (
     <form action={action} className="inline-flex flex-wrap items-center gap-2">
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="event_id" value={eventId} />
       {officerId !== undefined && (
         <input type="hidden" name="officer_id" value={officerId} />
@@ -72,6 +74,7 @@ export function JoinSelectedTimeSlotsForm({
   const error = state.fieldErrors?.slot_ids;
   return (
     <form action={action} className="space-y-2">
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="event_id" value={eventId} />
       <input type="hidden" name="mode" value="join_selected" />
       <fieldset
@@ -177,6 +180,7 @@ export function AssignOfficerToTimeSlotForm({
   const selected = state.values?.officer_id?.[0] ?? "";
   return (
     <form action={action} className="flex flex-wrap items-end gap-2">
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="event_id" value={eventId} />
       <input type="hidden" name="mode" value="join_selected" />
       <input type="hidden" name="slot_ids" value={slotId} />
@@ -215,6 +219,7 @@ export function RemoveOfficerFromTimeSlotForm({
   });
   return (
     <form action={action} className="inline-flex items-center gap-2">
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="event_id" value={eventId} />
       <input type="hidden" name="officer_id" value={officerId} />
       <input type="hidden" name="mode" value="leave_selected" />
@@ -247,6 +252,7 @@ export function BulkAssignOfficersToSlotsForm({
   const selectedSlots = submittedValues(state.values, "slot_ids");
   return (
     <form action={action} className="space-y-3">
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="event_id" value={eventId} />
       <fieldset>
         <legend>Select Officers</legend>
@@ -320,6 +326,7 @@ export function CorrectHistoricalTimeSlotAssignmentsForm({
         Correct selected Time Slots
       </summary>
       <form action={action} className="mt-2 space-y-2">
+        <AcademicPeriodWriteContextField />
         <input type="hidden" name="event_id" value={eventId} />
         <input type="hidden" name="officer_id" value={officerId} />
         <fieldset

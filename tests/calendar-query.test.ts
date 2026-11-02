@@ -76,6 +76,7 @@ describe("calendar query pagination", () => {
           lt: (...args: unknown[]) => record("lt", ...args),
           gt: (...args: unknown[]) => record("gt", ...args),
           gte: (...args: unknown[]) => record("gte", ...args),
+          lte: (...args: unknown[]) => record("lte", ...args),
           order: (...args: unknown[]) => record("order", ...args),
           range: async (from: number, to: number) => {
             calls.push({ table, method: "range", args: [from, to] });

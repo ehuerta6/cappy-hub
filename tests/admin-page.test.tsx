@@ -7,6 +7,7 @@ vi.mock("@/lib/authorization", () => ({
     actor.applicationRole === "admin",
 }));
 vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
   notFound: () => {
     throw new Error("Not found");
   },
@@ -22,7 +23,7 @@ beforeEach(() => {
 });
 
 it("surfaces the remaining administration areas and their current destinations", async () => {
-  const html = renderToStaticMarkup(await AdminPage());
+  const html = renderToStaticMarkup(await AdminPage({}));
 
   expect(html).toContain("Officer access");
   expect(html).toContain('href="/officers"');
@@ -32,7 +33,7 @@ it("surfaces the remaining administration areas and their current destinations",
   expect(html).toContain('href="/points"');
   expect(html).not.toContain("System log");
   expect(html).not.toContain('href="/system-log"');
-  expect(html.match(/<a\b/g)).toHaveLength(3);
+  expect(html.match(/<a\b/g)).toHaveLength(4);
   expect(html).toContain('aria-label="Administration areas"');
   expect(html).toContain("focus-visible:outline-2");
   expect(html).toContain("hover:bg-hover");
@@ -46,5 +47,5 @@ it.each([
     ...actor,
   } as never);
 
-  await expect(AdminPage()).rejects.toThrow("Not found");
+  await expect(AdminPage({})).rejects.toThrow("Not found");
 });

@@ -10,6 +10,7 @@ import {
 import { useRouter } from "next/navigation";
 import type { Tables } from "@/lib/database.types";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
+import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 import {
   ActionFeedback,
   dialogContentClassName,
@@ -149,6 +150,7 @@ function TransactionFields({
       onReset={(event) => event.preventDefault()}
       className="!grid !max-w-none grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2"
     >
+      <AcademicPeriodWriteContextField />
       <SearchableSelect
         name="officer_id"
         label="Officer"

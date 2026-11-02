@@ -20,7 +20,10 @@ export async function addTransaction(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  const actor = await getAuthorizationContext();
+  const actor = await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   if (!canManagePoints(actor))
     return formFailure("Admin required", formData, [
       "points",
@@ -72,7 +75,10 @@ export async function changeParticipationRate(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  const actor = await getAuthorizationContext();
+  const actor = await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   if (!canManagePoints(actor))
     return formFailure("Admin required", formData, ["rate"]);
   const validationResult = participationRateInputSchema.safeParse({
@@ -94,7 +100,10 @@ export async function removeParticipationAward(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  const actor = await getAuthorizationContext();
+  const actor = await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   if (!canManagePoints(actor)) return { error: "Admin required", success: "" };
   const validationResult = pointTransactionInputSchema.safeParse({
     transaction_id: formData.get("transaction_id") ?? "",
@@ -117,7 +126,10 @@ export async function editPointTransaction(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  const actor = await getAuthorizationContext();
+  const actor = await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   if (!canManagePoints(actor))
     return formFailure("Admin required", formData, ["points"]);
   const rawPointTransactionEditInput = {
@@ -144,7 +156,10 @@ export async function removePointTransaction(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  const actor = await getAuthorizationContext();
+  const actor = await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   if (!canManagePoints(actor)) return { error: "Admin required", success: "" };
   const validationResult = pointTransactionInputSchema.safeParse({
     transaction_id: formData.get("transaction_id") ?? "",
@@ -168,7 +183,10 @@ export async function confirmPrematureParticipation(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  const actor = await getAuthorizationContext();
+  const actor = await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   if (!canManagePoints(actor))
     return formFailure("Admin required", formData, ["reason"]);
   const validation = pointTransactionInputSchema.safeParse({

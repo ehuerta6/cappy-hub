@@ -3,6 +3,7 @@
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { useActionState } from "react";
 import { ActionFeedback } from "@/components/ui";
+import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 import { initialFormActionState } from "@/lib/form-feedback";
 import { removeTask, restoreTask } from "./actions";
 
@@ -70,6 +71,7 @@ export function TaskDeleteForm({
   );
   return (
     <form action={action}>
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="task_id" value={taskId} />
       {recurrenceInputs(series, requestKey)}
       <ActionFeedback state={state} />
@@ -104,6 +106,7 @@ export function TaskRestoreForm({
   );
   return (
     <form action={action}>
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="task_id" value={taskId} />
       {recurrenceInputs(series, requestKey)}
       <ActionFeedback state={state} />

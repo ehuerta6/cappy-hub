@@ -15,8 +15,10 @@ export type PresenterSlot = Pick<
 
 export default function PresenterSlotsSection({
   slots,
+  period,
 }: {
   slots: PresenterSlot[];
+  period?: string;
 }) {
   if (slots.length === 0) return null;
 
@@ -36,7 +38,7 @@ export default function PresenterSlotsSection({
               <span className="font-medium">Presentation {slot.position}</span>
               {slot.officers ? (
                 <Link
-                  href={`/officers/${slot.officers.id}`}
+                  href={`/officers/${slot.officers.id}${period ? `?period=${period}` : ""}`}
                   className="underline underline-offset-4"
                 >
                   {slot.officers.name}

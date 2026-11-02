@@ -1,5 +1,6 @@
 import {
   safeReturnTo,
+  listReturnUrl,
   withReturnTo,
   type NavigationSearchParams,
 } from "@/lib/return-context";
@@ -11,6 +12,10 @@ import Link from "next/link";
 import type { Route } from "next";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import {
+  getAcademicPeriodData,
+  resolveAcademicPeriod,
+} from "@/lib/academic-periods";
 import EventResourceLinks from "../event-resource-links";
 import {
   eventStatus,
@@ -101,7 +106,14 @@ function sectionHref(
   if (section !== "overview") params.set("section", section);
   if (page > 1) params.set("page", String(page));
   const safeDestination = safeReturnTo(returnTo);
-  if (safeDestination) params.set("returnTo", safeDestination);
+  if (safeDestination) {
+    params.set("returnTo", safeDestination);
+    const period = new URL(
+      safeDestination,
+      "https://cappy.invalid",
+    ).searchParams.get("period");
+    if (period !== null) params.set("period", period);
+  }
   const query = params.toString();
   return `/events/${eventId}${query ? `?${query}` : ""}` as Route;
 }
@@ -185,6 +197,11 @@ export default async function EventDetailPage({
 }) {
   const query = (await searchParams) ?? {};
   const { returnTo, feedback } = query;
+  const periodData = await getAcademicPeriodData();
+  const periodSelection = resolveAcademicPeriod(query.period, periodData);
+  const selectedPeriod = periodSelection.period;
+  const contextualReturnTo =
+    safeReturnTo(returnTo) ?? listReturnUrl("/events", query);
   const section = requestedSection(query.section);
   const requested = requestedPage(query.page);
   const actor = await getAuthorizationContext();
@@ -200,13 +217,21 @@ export default async function EventDetailPage({
   if (result.error) throw new Error("Failed to load event");
   if (!result.data) notFound();
   const event = result.data;
+  if (
+    selectedPeriod &&
+    (event.event_date < selectedPeriod.starts_on ||
+      event.event_date > selectedPeriod.ends_on)
+  )
+    notFound();
   const status = eventStatus(event);
   const signupOpen = !event.deleted_at && eventSignupOpen(event);
   const past = status === "past";
-  const canManage = canManageEvent(
-    actor,
-    event.event_branches.map((eventBranch) => eventBranch.branch_id),
-  );
+  const canManage =
+    !periodSelection.isHistorical &&
+    canManageEvent(
+      actor,
+      event.event_branches.map((eventBranch) => eventBranch.branch_id),
+    );
   if (event.deleted_at && !canManage) notFound();
   const calendarSyncFailure = canManage
     ? await supabase
@@ -294,7 +319,7 @@ export default async function EventDetailPage({
   const page = Math.min(requested, totalPages);
   const canonicalPage = page > 1 ? String(page) : undefined;
   if (query.page !== canonicalPage) {
-    redirect(sectionHref(eventIdParam, section, page, returnTo));
+    redirect(sectionHref(eventIdParam, section, page, contextualReturnTo));
   }
   const start = (page - 1) * RELATED_PAGE_SIZE;
 
@@ -418,7 +443,7 @@ export default async function EventDetailPage({
 
   return (
     <div className="space-y-4">
-      <ContextualBackLink href="/events" returnTo={returnTo}>
+      <ContextualBackLink href="/events" returnTo={contextualReturnTo}>
         Back to events
       </ContextualBackLink>
       <PageHeader
@@ -426,7 +451,10 @@ export default async function EventDetailPage({
         action={
           canManage && !event.deleted_at && status !== "cancelled" ? (
             <ActionLink
-              href={withReturnTo(`/events/${eventIdParam}/edit`, returnTo)}
+              href={withReturnTo(
+                `/events/${eventIdParam}/edit`,
+                contextualReturnTo,
+              )}
             >
               Edit event
             </ActionLink>
@@ -437,7 +465,7 @@ export default async function EventDetailPage({
       <EventSectionNavigation
         eventId={eventIdParam}
         section={section}
-        returnTo={returnTo}
+        returnTo={contextualReturnTo}
         counts={{
           roster: confirmedCount,
           tasks: taskCount,
@@ -602,6 +630,9 @@ export default async function EventDetailPage({
                   eventCapacityBlocked={full && !confirmed}
                   officers={officersAvailableForSlots}
                   past={past}
+                  period={
+                    typeof query.period === "string" ? query.period : undefined
+                  }
                 />
               )}
               {confirmedCount > 0 ? (
@@ -613,7 +644,10 @@ export default async function EventDetailPage({
                     {rosterRows.map(({ officers: officer }) => (
                       <li key={officer.id}>
                         <Link
-                          href={`/officers/${officer.id}`}
+                          href={withReturnTo(
+                            `/officers/${officer.id}`,
+                            contextualReturnTo,
+                          )}
                           className="underline underline-offset-4"
                         >
                           {officer.name}
@@ -622,7 +656,12 @@ export default async function EventDetailPage({
                     ))}
                   </ul>
                   <Link
-                    href={sectionHref(eventIdParam, "roster", 1, returnTo)}
+                    href={sectionHref(
+                      eventIdParam,
+                      "roster",
+                      1,
+                      contextualReturnTo,
+                    )}
                     className="mt-1 inline-block text-sm underline underline-offset-4"
                   >
                     View full roster
@@ -697,12 +736,17 @@ export default async function EventDetailPage({
             </section>
           </div>
           {showPresenters && (
-            <PresenterSlotsSection slots={presenterSlotsResult?.data ?? []} />
+            <PresenterSlotsSection
+              slots={presenterSlotsResult?.data ?? []}
+              period={
+                typeof query.period === "string" ? query.period : undefined
+              }
+            />
           )}
           {taskCount > 0 && (
             <p className="text-sm">
               <Link
-                href={sectionHref(eventIdParam, "tasks", 1, returnTo)}
+                href={sectionHref(eventIdParam, "tasks", 1, contextualReturnTo)}
                 className="underline underline-offset-4"
               >
                 Linked Tasks ({taskCount})
@@ -711,7 +755,7 @@ export default async function EventDetailPage({
           )}
           <p className="text-sm">
             <Link
-              href={sectionHref(eventIdParam, "points", 1, returnTo)}
+              href={sectionHref(eventIdParam, "points", 1, contextualReturnTo)}
               className="underline underline-offset-4"
             >
               Event point history ({pointCount})
@@ -731,7 +775,7 @@ export default async function EventDetailPage({
             section="roster"
             page={page}
             totalPages={totalPages}
-            returnTo={returnTo}
+            returnTo={contextualReturnTo}
           />
           {rosterRows.length ? (
             <TableFrame compact label="Event signups">
@@ -748,7 +792,10 @@ export default async function EventDetailPage({
                     <tr key={officer.id}>
                       <td>
                         <Link
-                          href={`/officers/${officer.id}`}
+                          href={withReturnTo(
+                            `/officers/${officer.id}`,
+                            contextualReturnTo,
+                          )}
                           className="underline underline-offset-4"
                         >
                           {officer.name}
@@ -827,7 +874,7 @@ export default async function EventDetailPage({
             section="roster"
             page={page}
             totalPages={totalPages}
-            returnTo={returnTo}
+            returnTo={contextualReturnTo}
           />
         </section>
       )}
@@ -846,7 +893,10 @@ export default async function EventDetailPage({
                     </>
                   ) : (
                     <Link
-                      href={`/tasks/${linkedTask.id}`}
+                      href={withReturnTo(
+                        `/tasks/${linkedTask.id}`,
+                        contextualReturnTo,
+                      )}
                       className="underline underline-offset-4"
                     >
                       {linkedTask.title}
@@ -863,7 +913,7 @@ export default async function EventDetailPage({
             section="tasks"
             page={page}
             totalPages={totalPages}
-            returnTo={returnTo}
+            returnTo={contextualReturnTo}
           />
         </section>
       )}
@@ -876,18 +926,25 @@ export default async function EventDetailPage({
             section="points"
             page={page}
             totalPages={totalPages}
-            returnTo={returnTo}
+            returnTo={contextualReturnTo}
           />
           {transactions.length ? (
             <TableFrame compact label="Event point history">
-              <PointTransactionTable transactions={transactions} />
+              <PointTransactionTable
+                transactions={transactions}
+                period={
+                  typeof query.period === "string" ? query.period : undefined
+                }
+              />
             </TableFrame>
           ) : (
             <p>No Event point history.</p>
           )}
           {pointCount > 0 && (
             <Link
-              href={`/points?event=${event.id}`}
+              href={
+                `/points?${new URLSearchParams({ event: String(event.id), ...(typeof query.period === "string" ? { period: query.period } : {}) })}` as Route
+              }
               className="inline-block text-sm underline underline-offset-4"
             >
               View in Points history
@@ -898,7 +955,7 @@ export default async function EventDetailPage({
             section="points"
             page={page}
             totalPages={totalPages}
-            returnTo={returnTo}
+            returnTo={contextualReturnTo}
           />
         </section>
       )}

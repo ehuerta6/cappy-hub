@@ -21,7 +21,10 @@ export async function createWarning(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const actor = await getAuthorizationContext();
+  const actor = await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   if (!isAdmin(actor))
     return formFailure("Admin required", formData, ["reason"]);
   const rawWarningInput = {
@@ -48,7 +51,10 @@ export async function updateWarning(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const actor = await getAuthorizationContext();
+  const actor = await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   if (!isAdmin(actor))
     return formFailure("Admin required", formData, ["reason"]);
   const result = updateWarningInputSchema.safeParse({
@@ -73,7 +79,10 @@ export async function deleteWarning(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const actor = await getAuthorizationContext();
+  const actor = await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   if (!isAdmin(actor)) return { error: "Admin required", success: "" };
   const rawWarningInput = {
     warning_id: formData.get("warning_id") ?? "",
@@ -99,7 +108,10 @@ export async function restoreWarning(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const actor = await getAuthorizationContext();
+  const actor = await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   if (!isAdmin(actor)) return { error: "Admin required", success: "" };
   const result = warningLifecycleInputSchema.safeParse({
     warning_id: formData.get("warning_id") ?? "",

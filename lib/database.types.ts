@@ -9,6 +9,33 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      academic_periods: {
+        Row: {
+          created_at: string;
+          ends_on: string;
+          id: number;
+          name: string;
+          starts_on: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          ends_on: string;
+          id?: number;
+          name: string;
+          starts_on: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          ends_on?: string;
+          id?: number;
+          name?: string;
+          starts_on?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       application_config: {
         Row: {
           id: number;
@@ -1391,6 +1418,20 @@ export type Database = {
       };
     };
     Functions: {
+      academic_period_context: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          current_date_denver: string;
+          current_period_id: number;
+        }[];
+      };
+      academic_period_point_summary: {
+        Args: { p_period_id: number };
+        Returns: {
+          net_points: number;
+          ranking: Json;
+        }[];
+      };
       add_manual_transaction: {
         Args: {
           p_award_type: string;
@@ -1402,6 +1443,14 @@ export type Database = {
         Returns: undefined;
       };
       add_presenter_slot: { Args: { p_event_id: number }; Returns: number };
+      assert_academic_period_context_writable: {
+        Args: { p_period_context: string };
+        Returns: undefined;
+      };
+      assert_academic_period_writable: {
+        Args: { p_period_id: number };
+        Returns: undefined;
+      };
       bulk_add_event_officers: {
         Args: { p_event_id: number; p_officer_ids: number[] };
         Returns: Json;
@@ -1746,6 +1795,15 @@ export type Database = {
       restore_task: { Args: { p_task_id: number }; Returns: undefined };
       restore_task_type: { Args: { p_id: number }; Returns: undefined };
       restore_warning: { Args: { p_warning_id: number }; Returns: undefined };
+      save_academic_period: {
+        Args: {
+          p_ends_on: string;
+          p_name: string;
+          p_period_id?: number;
+          p_starts_on: string;
+        };
+        Returns: number;
+      };
       save_event_with_capacity: {
         Args: {
           p_branch_ids: number[];

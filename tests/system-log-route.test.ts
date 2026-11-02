@@ -1,6 +1,7 @@
 import { expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
   redirect: (path: string) => {
     throw new Error(`redirect:${path}`);
   },

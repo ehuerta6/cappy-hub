@@ -33,6 +33,7 @@ export default function TimeSlotsSection({
   eventCapacityBlocked,
   officers,
   past,
+  period,
 }: {
   eventId: number;
   slots: EventTimeSlotWithRoster[];
@@ -44,6 +45,7 @@ export default function TimeSlotsSection({
   eventCapacityBlocked: boolean;
   officers: Pick<Tables<"officers">, "id" | "name">[];
   past: boolean;
+  period?: string;
 }) {
   const activeSlots = slots.map((slot) => ({
     ...slot,
@@ -129,7 +131,7 @@ export default function TimeSlotsSection({
                         <span key={officer.id}>
                           {officerIndex > 0 ? ", " : ""}
                           <Link
-                            href={`/officers/${officer.id}`}
+                            href={`/officers/${officer.id}${period ? `?period=${period}` : ""}`}
                             className="underline underline-offset-4"
                           >
                             {officer.name}

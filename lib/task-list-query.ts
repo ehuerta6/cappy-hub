@@ -16,6 +16,7 @@ type TaskListQueryOptions = {
   branchScope?: number[];
   assigneeId?: number;
   page: number;
+  dateRange?: { from: string; through: string };
 };
 
 export function buildTaskListQuery(
@@ -29,6 +30,7 @@ export function buildTaskListQuery(
     branchScope,
     assigneeId,
     page,
+    dateRange,
   }: TaskListQueryOptions,
 ) {
   const taskSelection = [
@@ -53,8 +55,11 @@ export function buildTaskListQuery(
   if (view === "deleted") tasksQuery = tasksQuery.not("removed_at", "is", null);
   else {
     tasksQuery = tasksQuery.is("removed_at", null);
-    tasksQuery =
-      view === "past"
+    tasksQuery = dateRange
+      ? tasksQuery
+          .gte("due_date", dateRange.from)
+          .lte("due_date", dateRange.through)
+      : view === "past"
         ? tasksQuery.lt("due_date", today)
         : tasksQuery.gte("due_date", today);
   }

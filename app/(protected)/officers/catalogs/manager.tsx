@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { ActionFeedback, FieldError } from "@/components/ui";
+import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { changeCatalog } from "./actions";
 
@@ -47,6 +48,7 @@ function CatalogForm({
     operation === "create" ? "catalog-create-form" : "catalog-action-form";
   return (
     <form action={action} className={formClassName}>
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="catalog" value={catalog} />
       <input type="hidden" name="operation" value={operation} />
       {record && <input type="hidden" name="id" value={record.id} />}
@@ -175,6 +177,7 @@ function CatalogRename({
 
   return (
     <form action={action} className="catalog-rename-form">
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="catalog" value={catalog} />
       <input type="hidden" name="operation" value="rename" />
       <input type="hidden" name="id" value={record.id} />
@@ -216,18 +219,22 @@ export default function CatalogManager({
   title,
   records,
   showCreate = true,
+  readOnly = false,
 }: {
   catalog: Catalog;
   title: string;
   records: CatalogRecord[];
   showCreate?: boolean;
+  readOnly?: boolean;
 }) {
   return (
     <section className="catalog-manager space-y-3">
       <h2 id="catalog-category-heading" className="text-lg font-semibold">
         {title}
       </h2>
-      {showCreate && <CatalogForm catalog={catalog} operation="create" />}
+      {showCreate && !readOnly && (
+        <CatalogForm catalog={catalog} operation="create" />
+      )}
       <ul
         className={
           catalog === "position"
@@ -250,15 +257,21 @@ export default function CatalogManager({
                 </p>
               ) : (
                 <>
-                  <CatalogRename catalog={catalog} record={record} />
+                  {readOnly ? (
+                    <p>{record.name}</p>
+                  ) : (
+                    <CatalogRename catalog={catalog} record={record} />
+                  )}
                   {deleted && (
                     <span className="catalog-record-status">Deleted</span>
                   )}
-                  <CatalogForm
-                    catalog={catalog}
-                    operation={deleted ? "restore" : "delete"}
-                    record={record}
-                  />
+                  {!readOnly && (
+                    <CatalogForm
+                      catalog={catalog}
+                      operation={deleted ? "restore" : "delete"}
+                      record={record}
+                    />
+                  )}
                 </>
               )}
             </li>

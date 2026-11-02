@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { ActionFeedback, FieldError } from "@/components/ui";
+import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { changeApplicationRole } from "../actions";
 
@@ -19,6 +20,7 @@ export default function RoleForm({
   const fieldErrors = state.fieldErrors ?? {};
   return (
     <form action={action} className="flex flex-wrap items-end gap-3">
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="officer_id" value={officerId} />
       <label>
         Application role

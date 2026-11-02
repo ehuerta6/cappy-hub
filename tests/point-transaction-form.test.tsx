@@ -13,6 +13,7 @@ vi.mock("@/app/(protected)/points/actions", () => ({
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 import TransactionForm from "@/app/(protected)/points/transaction-form";

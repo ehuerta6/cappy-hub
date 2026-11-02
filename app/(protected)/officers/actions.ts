@@ -35,7 +35,10 @@ export async function saveOfficer(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  const actor = await getAuthorizationContext();
+  const actor = await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   if (!canManageOfficers(actor))
     return formFailure(
       "Admin required",
@@ -98,7 +101,10 @@ export async function changeApplicationRole(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  const actor = await getAuthorizationContext();
+  const actor = await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   if (!canManageOfficers(actor))
     return formFailure("Admin required", formData, ["role"]);
   const rawApplicationRoleChangeInput = {

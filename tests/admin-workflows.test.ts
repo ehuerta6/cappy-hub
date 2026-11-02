@@ -9,7 +9,10 @@ vi.mock("@/lib/authorization", () => ({
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn(),
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 import { redirect } from "next/navigation";
 import { getAuthorizationContext } from "@/lib/authorization";

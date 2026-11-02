@@ -1,5 +1,6 @@
 "use client";
 import { ActionFeedback, FieldError } from "@/components/ui";
+import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 import {
   initialFormActionState,
   submittedValue,
@@ -31,6 +32,7 @@ export function RetryGoogleCalendarSyncForm({
   });
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="event_id" value={eventId} />
       <button
         disabled={pending}
@@ -60,6 +62,7 @@ export function SelfSignupForm({
   });
   return (
     <form action={action} className="gap-2">
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="event_id" value={eventId} />
       <button
         disabled={pending || full}
@@ -89,6 +92,7 @@ export function SignupForm({
   const fieldErrors = state.fieldErrors ?? {};
   return (
     <form action={action}>
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="event_id" value={eventId} />
       <input type="hidden" name="remove" value={String(remove)} />
       {remove ? (
@@ -171,6 +175,7 @@ export function BulkAddOfficersForm({
   const fieldErrors = state.fieldErrors ?? {};
   return (
     <form action={action} className="mt-4 space-y-3">
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="event_id" value={eventId} />
       <fieldset
         aria-invalid={Boolean(fieldErrors.officer_ids)}
@@ -292,6 +297,7 @@ export function RestoreDeletedEventForm({
   });
   return (
     <form action={action}>
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="event_id" value={eventId} />
       {lifecycleInputs({ seriesId, revision, requestKey })}
       <ActionFeedback state={state} />
@@ -321,6 +327,7 @@ export function RestoreCancelledEventForm({ eventId }: { eventId: number }) {
   });
   return (
     <form action={action}>
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="event_id" value={eventId} />
       <ActionFeedback state={state} />
       <button disabled={pending} className="button-secondary">
@@ -346,6 +353,7 @@ export function DeleteEventForm({
   });
   return (
     <form action={action}>
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="event_id" value={eventId} />
       {lifecycleInputs({ seriesId, revision, requestKey })}
       <ActionFeedback state={state} />

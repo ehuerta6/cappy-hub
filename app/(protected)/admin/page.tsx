@@ -6,6 +6,13 @@ import { notFound } from "next/navigation";
 
 const adminAreas = [
   {
+    title: "Academic periods",
+    description:
+      "Create and maintain non-overlapping periods used for history and planning.",
+    href: "/admin/periods",
+    link: "Manage periods",
+  },
+  {
     title: "Officer access",
     description:
       "Manage application roles and officer warnings from an officer’s profile. Officer records and everyday workflows remain in Officers.",
@@ -33,10 +40,17 @@ const adminAreas = [
   link: string;
 }[];
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const actor = await getAuthorizationContext();
   if (!isAdmin(actor)) notFound();
 
+  const params = (await searchParams) ?? {};
+  const periodSuffix =
+    params.period === undefined ? "" : `?period=${String(params.period)}`;
   return (
     <div data-page-width="wide" className="space-y-5">
       <PageHeader
@@ -49,7 +63,7 @@ export default async function AdminPage() {
             <li key={area.href} className="min-w-0">
               <Link
                 className="group flex h-full min-h-11 flex-col items-start gap-1.5 rounded-md border border-border bg-surface/30 px-4 py-3 hover:border-border-strong hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted"
-                href={area.href}
+                href={`${area.href}${periodSuffix}` as Route}
               >
                 <h2 className="font-semibold text-foreground group-hover:underline group-hover:underline-offset-4">
                   {area.title}

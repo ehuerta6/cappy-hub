@@ -14,6 +14,7 @@ import {
   removePointTransaction,
   confirmPrematureParticipation,
 } from "./actions";
+import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 import {
   usePointHistoryAmount,
   useSetPointHistoryAmount,
@@ -70,6 +71,7 @@ export default function PointActions({
         </button>
       )}
       <form action={removeAction} className="point-remove-form">
+        <AcademicPeriodWriteContextField />
         <input type="hidden" name="transaction_id" value={transactionId} />
         <ConfirmationDialog
           title="Remove Point transaction?"
@@ -124,6 +126,7 @@ function EditPointForm({
       onReset={(event) => event.preventDefault()}
       className="point-edit-form"
     >
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="transaction_id" value={transactionId} />
       <span className="text-muted" aria-live="polite">
         Current amount: {points} points
@@ -177,6 +180,7 @@ export function PrematureParticipationConfirmation({
   );
   return (
     <form action={action} className="space-y-2">
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="transaction_id" value={transactionId} />
       <ConfirmationDialog
         title="Confirm this award was premature?"

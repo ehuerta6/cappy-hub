@@ -9,6 +9,10 @@ import {
 import ContextualBackLink from "@/components/contextual-back-link";
 import { PageHeader } from "@/components/ui";
 import TaskCreateForm from "../../task-create-form";
+import {
+  getAcademicPeriodData,
+  resolveAcademicPeriod,
+} from "@/lib/academic-periods";
 
 export default async function EditTaskPage({
   params,
@@ -17,7 +21,13 @@ export default async function EditTaskPage({
   params: Promise<{ id: string }>;
   searchParams?: Promise<NavigationSearchParams>;
 }) {
-  const returnTo = safeReturnTo((await searchParams)?.returnTo);
+  const context = (await searchParams) ?? {};
+  const returnTo = safeReturnTo(context.returnTo);
+  const periodSelection = resolveAcademicPeriod(
+    context.period,
+    await getAcademicPeriodData(),
+  );
+  if (periodSelection.isHistorical) redirect(`/tasks?period=${context.period}`);
   const actor = await getAuthorizationContext();
   const { id } = await params;
   if (!/^-?[1-9]\d*$/.test(id)) notFound();
@@ -28,6 +38,12 @@ export default async function EditTaskPage({
     .eq("id", Number(id))
     .single();
   if (task.error || !task.data || task.data.removed_at) notFound();
+  if (
+    periodSelection.period &&
+    (task.data.due_date < periodSelection.period.starts_on ||
+      task.data.due_date > periodSelection.period.ends_on)
+  )
+    notFound();
   if (!canManageEvent(actor, [task.data.branch_id])) redirect("/access-denied");
   const [series, branches, links, eventOptions, taskTypes] = await Promise.all([
     task.data.recurrence_series_id === null

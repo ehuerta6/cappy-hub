@@ -17,7 +17,10 @@ vi.mock("@/lib/google-calendar-sync", () => ({
   syncGoogleCalendarEvents: vi.fn().mockResolvedValue(true),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn(),
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 import { redirect } from "next/navigation";
 import { getAuthorizationContext } from "@/lib/authorization";
@@ -87,6 +90,7 @@ const eventForm = () => {
   data.set("slides_url", " https://example.com/slides ");
   data.set("meeting_notes_url", "");
   data.set("signup_sheet_url", " https://example.com/signup ");
+  data.set("writable_period", "current");
   data.set("recurrence_request_key", "00000000-0000-4000-8000-000000000001");
   return data;
 };
@@ -339,6 +343,10 @@ it("sends validated Event fields to the existing RPC", async () => {
   expect(redirect).toHaveBeenCalledWith(
     "/events/12?returnTo=%2Fevents%3Fq%3Dmeeting%26branch%3D2&feedback=event-saved",
   );
+  expect(getAuthorizationContext).toHaveBeenCalledWith({
+    enforceWritablePeriod: true,
+    periodContext: "current",
+  });
 });
 
 it("saves an Event before reporting that Google Calendar could not be updated", async () => {
@@ -486,20 +494,28 @@ it("surfaces trusted database authorization and validation errors", async () => 
   expect(result.error).toBe("Event outside branch scope");
 });
 
-it("self signup derives identity on the server and revalidates the grouped page", async () => {
-  const data = form();
-  data.set("officer_id", "999");
-  data.set("remove", "true");
-  const result = await selfSignup({ error: "", success: "" }, data);
-  expect(rpc).toHaveBeenCalledWith("change_event_signup", {
-    p_event_id: 12,
-    p_officer_id: 8,
-    p_remove: false,
-  });
-  expect(result.error).toBe("");
-  expect(syncGoogleCalendarEvents).not.toHaveBeenCalled();
-  expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
-});
+it.each(["current", "9001"])(
+  "self signup preserves the %s period context, derives identity, and revalidates the grouped page",
+  async (writablePeriod) => {
+    const data = form();
+    data.set("officer_id", "999");
+    data.set("remove", "true");
+    data.set("writable_period", writablePeriod);
+    const result = await selfSignup({ error: "", success: "" }, data);
+    expect(getAuthorizationContext).toHaveBeenNthCalledWith(2, {
+      enforceWritablePeriod: true,
+      periodContext: writablePeriod,
+    });
+    expect(rpc).toHaveBeenCalledWith("change_event_signup", {
+      p_event_id: 12,
+      p_officer_id: 8,
+      p_remove: false,
+    });
+    expect(result.error).toBe("");
+    expect(syncGoogleCalendarEvents).not.toHaveBeenCalled();
+    expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+  },
+);
 
 it("self signup reports closed-event RPC errors without claiming success or revalidating", async () => {
   rpc.mockResolvedValueOnce({

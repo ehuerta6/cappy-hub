@@ -55,10 +55,11 @@ export function fetchCalendarRecords(supabase: SupabaseClient<Database>) {
 export function fetchCalendarRecordsForRange(
   supabase: SupabaseClient<Database>,
   range: { start: string; end: string; startDate: string; endDate: string },
+  period?: { from: string; through: string },
 ) {
   return Promise.all([
-    fetchAllCalendarPages((from, to) =>
-      supabase
+    fetchAllCalendarPages((from, to) => {
+      let query = supabase
         .from("events")
         .select("id,name,starts_at,ends_at")
         .is("deleted_at", null)
@@ -66,19 +67,25 @@ export function fetchCalendarRecordsForRange(
         .lt("starts_at", range.end)
         .gt("ends_at", range.start)
         .order("starts_at")
-        .order("id")
-        .range(from, to),
-    ),
-    fetchAllCalendarPages((from, to) =>
-      supabase
+        .order("id");
+      if (period)
+        query = query
+          .gte("event_date", period.from)
+          .lte("event_date", period.through);
+      return query.range(from, to);
+    }),
+    fetchAllCalendarPages((from, to) => {
+      let query = supabase
         .from("tasks")
         .select("id,title,due_date")
         .is("removed_at", null)
-        .gte("due_date", range.startDate)
         .lt("due_date", range.endDate)
         .order("due_date")
-        .order("id")
-        .range(from, to),
-    ),
+        .order("id");
+      query = period
+        ? query.gte("due_date", period.from).lte("due_date", period.through)
+        : query.gte("due_date", range.startDate);
+      return query.range(from, to);
+    }),
   ]);
 }

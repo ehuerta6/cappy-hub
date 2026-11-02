@@ -165,6 +165,8 @@ On laptop/desktop, use the available width for lists and detail layouts. Aim for
 
 **CURRENT:** Authenticated pages share one compact top header. Cappy Hub is at the left; primary links occupy the middle; theme control, officer name, and Sign out sit to the right. Navigation links wrap within the header when a desktop window is resized or zoomed. The page body is centered below it. There is no sidebar, avatar, notification bell, or global search.
 
+The header also contains a compact academic-period selector. It displays the current period by default, keeps a selected period visible, and labels a past selection as historical/read only. Period selection follows the URL and does not persist as an account preference.
+
 **DESIGN DECISION:** Preserve this single compact navigation architecture. Keep the header understated and let the page title establish the screen. Do not add a sidebar, global search, command palette, notifications, organization switcher, required avatar, or breadcrumbs everywhere.
 
 Dark mode is the current default. The existing toggle switches between light and dark and persists the user's selection in browser storage. Both themes use the same layout, typography, component sizing, spacing, and semantics.
@@ -330,14 +332,14 @@ The following sections describe the actual product workflows and the design dire
 ### Dashboard
 
 - **Purpose:** Give each signed-in officer a useful current view and direct access to work that needs attention.
-- **Existing functionality that MUST be preserved — CURRENT:** Shows the current officer's name, club position, personal total points, and View profile link; three club summary metrics (active officers, upcoming events, points this half-year); a note defining January–June/July–December in America/Denver and that points include signed corrections; personal action items from the current officer's incomplete Task assignments; upcoming non-cancelled/non-removed Events with schedule and signup state; and recent active Point transactions with Officer, related Event/Task or reason, signed Points, and date. Links lead to the full owning area. Warning decisions are no longer prompted on the Dashboard.
+- **Existing functionality that MUST be preserved — CURRENT:** Shows the current officer's name, club position, personal lifetime Point total, and View profile link; three club summary metrics (active officers, upcoming events, current-period net Points); a short note that Points include signed corrections; personal action items from the current officer's incomplete Task assignments; upcoming non-cancelled/non-removed Events with schedule and signup state; and recent active Point transactions with Officer, related Event/Task or reason, signed Points, and date. Links lead to the full owning area. Warning decisions are no longer prompted on the Dashboard. Past/future period Dashboards show only period Event and Task counts, net Points, and period ranking.
 - **Approved preview limits:** Show up to 5 eligible prioritized action items, 5 upcoming Events, and 5 newest Point transactions; show fewer when fewer eligible records exist. Keep each source query bounded, with stable chronological Event ordering and a deterministic ID tie-break. Unshown records remain accessible through the full Tasks, Events, and Points destinations; show the action-item overflow notice when more items exist.
 - **Information hierarchy:** Page title/profile access; compact summary metrics and their explanation; action items; then upcoming events and recent point activity.
 - **Recommended layout:** Keep the metrics in one modest row, action items as a simple divided list, and the two recent-activity sections side by side at desktop widths. Let them stack when desktop window resizing or zoom leaves insufficient room.
 - **Primary action:** No single global action; each action-item row is a direct link to its Task.
 - **Secondary actions:** View profile; View all Tasks; View all Events; View all Points.
 - **Data presentation:** Small metric blocks, divided action rows, compact Event list, compact Point activity list. Use existing schedule and point formatters; describe the Event and transaction previews accurately.
-- **Minimalism notes:** Keep the current sections but distinguish metrics from actionable work; do not turn each section into a KPI card. Keep profile access small and the explanatory half-year note close to the metrics.
+- **Minimalism notes:** Keep the current sections but distinguish metrics from actionable work; do not turn each section into a KPI card. Keep profile access small and the signed-Points note close to the metrics.
 - **Do not add:** Attendance percentages, charts, notifications, unsupported KPIs, action items beyond the real workflow, or an analytics dashboard.
 
 ### Events list

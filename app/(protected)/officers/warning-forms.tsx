@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
+import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 import {
   ActionFeedback,
   dialogContentClassName,
@@ -173,6 +174,7 @@ function WarningFields({
       className="space-y-3"
       onReset={(event) => event.preventDefault()}
     >
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="officer_id" value={officerId} />
       {warning && <input type="hidden" name="warning_id" value={warning.id} />}
       <label>
@@ -225,6 +227,7 @@ export function DeleteWarningForm({
   const [state, action, pending] = useActionState(deleteWarning, initial);
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="warning_id" value={warningId} />
       <input type="hidden" name="officer_id" value={officerId} />
       <ConfirmationDialog
@@ -251,6 +254,7 @@ export function RestoreWarningForm({
   const [state, action, pending] = useActionState(restoreWarning, initial);
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="warning_id" value={warningId} />
       <input type="hidden" name="officer_id" value={officerId} />
       <ConfirmationDialog

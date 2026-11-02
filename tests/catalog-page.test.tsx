@@ -26,6 +26,15 @@ const mocks = vi.hoisted(() => ({
   ranges: [] as Array<[string, number, number]>,
 }));
 
+vi.mock("@/lib/academic-periods", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/academic-periods")>()),
+  getAcademicPeriodData: async () => ({
+    periods: [],
+    currentDate: "2026-11-01",
+    currentPeriodId: null,
+  }),
+}));
+
 vi.mock("@/lib/authorization", () => ({
   getAuthorizationContext: vi.fn(async () => mocks.actor),
   isAdmin: (actor: { applicationRole: string }) =>
@@ -89,6 +98,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
   notFound: () => {
     throw new Error("NOT_FOUND");
   },

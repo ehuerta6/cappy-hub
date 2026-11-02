@@ -7,8 +7,24 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import OfficerForm from "./officer-form";
 import { PageHeader } from "@/components/ui";
+import {
+  getAcademicPeriodData,
+  resolveAcademicPeriod,
+} from "@/lib/academic-periods";
 
-export default async function NewOfficerPage() {
+export default async function NewOfficerPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await (searchParams ??
+    Promise.resolve<Record<string, string | string[] | undefined>>({}));
+  const periodSelection = resolveAcademicPeriod(
+    params.period,
+    await getAcademicPeriodData(),
+  );
+  if (periodSelection.isHistorical)
+    redirect(`/officers?period=${params.period}`);
   if (!canManageOfficers(await getAuthorizationContext()))
     redirect("/access-denied");
   const supabase = await createClient();
@@ -28,7 +44,15 @@ export default async function NewOfficerPage() {
     throw new Error("Failed to load officer options");
   return (
     <div className="space-y-6">
-      <ContextualBackLink href="/officers">Back to officers</ContextualBackLink>
+      <ContextualBackLink
+        href={
+          params.period
+            ? (`/officers?period=${params.period}` as import("next").Route)
+            : "/officers"
+        }
+      >
+        Back to officers
+      </ContextualBackLink>
       <PageHeader title="Add officer" />
       <OfficerForm branches={branches.data} positions={positions.data} />
     </div>

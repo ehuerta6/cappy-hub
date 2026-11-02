@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { ActionFeedback } from "@/components/ui";
+import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 import { initialFormActionState } from "@/lib/form-feedback";
 import { selfAssignTask } from "./actions";
 
@@ -12,6 +13,7 @@ export default function TaskSelfAssignForm({ taskId }: { taskId: number }) {
   );
   return (
     <form action={action} className="gap-2">
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="task_id" value={taskId} />
       <button
         className="whitespace-nowrap px-3 py-1.5"

@@ -1,9 +1,11 @@
 import SiteNavigation from "@/components/site-navigation";
 import { requireCurrentOfficer } from "@/lib/current-officer";
 import { signOut } from "@/app/auth/actions";
+import { getAcademicPeriodData } from "@/lib/academic-periods";
 
 export default async function ProtectedLayout({ children }: LayoutProps<"/">) {
   const officer = await requireCurrentOfficer();
+  const academicPeriods = await getAcademicPeriodData();
   return (
     <>
       <a
@@ -14,6 +16,7 @@ export default async function ProtectedLayout({ children }: LayoutProps<"/">) {
       </a>
       <SiteNavigation
         isAdmin={officer.applicationRole === "admin"}
+        academicPeriods={academicPeriods}
         account={
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2 text-sm">
             <span className="min-w-28 flex-1 break-words text-muted">
