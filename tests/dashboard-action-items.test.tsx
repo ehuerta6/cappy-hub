@@ -6,7 +6,10 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/current-officer", () => ({ requireCurrentOfficer: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn(),
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock("@/lib/academic-periods", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/academic-periods")>()),
   getAcademicPeriodData: async () => ({

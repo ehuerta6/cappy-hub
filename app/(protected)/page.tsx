@@ -32,7 +32,7 @@ export default async function DashboardPage({
   const periodSelection = resolveAcademicPeriod(params.period, periodData);
   const selectedPeriod = periodSelection.period;
   if (selectedPeriod && selectedPeriod.id !== periodData.currentPeriodId) {
-    const [events, tasks, history] = await Promise.all([
+    const [events, tasks, pointSummary] = await Promise.all([
       supabase
         .from("events")
         .select("id", { count: "exact", head: true })
@@ -47,34 +47,25 @@ export default async function DashboardPage({
         .lte("due_date", selectedPeriod.ends_on)
         .is("removed_at", null),
       supabase
-        .from("point_history")
-        .select("officer_id,officer_name,points")
-        .gte("activity_date", selectedPeriod.starts_on)
-        .lte("activity_date", selectedPeriod.ends_on)
-        .is("removed_at", null),
+        .rpc("academic_period_point_summary", {
+          p_period_id: selectedPeriod.id,
+        })
+        .single(),
     ]);
-    if (events.error || tasks.error || history.error)
+    if (events.error || tasks.error || pointSummary.error)
       throw new Error("Failed to load academic period summary");
-    const ranking = new Map<number, { name: string; points: number }>();
-    for (const point of history.data) {
-      if (point.officer_id === null || point.officer_name === null) continue;
-      const current = ranking.get(point.officer_id) ?? {
-        name: point.officer_name,
-        points: 0,
-      };
-      current.points += point.points ?? 0;
-      ranking.set(point.officer_id, current);
-    }
-    const rankedOfficers = [...ranking.entries()]
-      .map(([id, row]) => ({ id, ...row }))
-      .sort(
-        (left, right) =>
-          right.points - left.points || left.name.localeCompare(right.name),
-      );
-    const netPoints = history.data.reduce(
-      (sum, row) => sum + (row.points ?? 0),
-      0,
-    );
+    const rankedOfficers = (
+      pointSummary.data.ranking as Array<{
+        officer_id: number;
+        officer_name: string;
+        points: number;
+      }>
+    ).map((row) => ({
+      id: row.officer_id,
+      name: row.officer_name,
+      points: row.points,
+    }));
+    const netPoints = pointSummary.data.net_points;
     return (
       <div data-page-width="wide" className="space-y-5">
         <header className="space-y-1 border-b border-border pb-4">
@@ -151,16 +142,12 @@ export default async function DashboardPage({
   let currentPeriodPoints: number | null = null;
   if (selectedPeriod) {
     const periodPoints = await supabase
-      .from("point_history")
-      .select("points")
-      .gte("activity_date", selectedPeriod.starts_on)
-      .lte("activity_date", selectedPeriod.ends_on)
-      .is("removed_at", null);
+      .rpc("academic_period_point_summary", {
+        p_period_id: selectedPeriod.id,
+      })
+      .single();
     if (periodPoints.error) throw new Error("Failed to load period Points");
-    currentPeriodPoints = periodPoints.data.reduce(
-      (sum, row) => sum + (row.points ?? 0),
-      0,
-    );
+    currentPeriodPoints = periodPoints.data.net_points;
   }
   const [summary, events, transactions, total, actionItems] = await Promise.all(
     [

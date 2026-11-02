@@ -45,6 +45,7 @@ vi.mock("react", async (importOriginal) => ({
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: harness.push }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("@/components/theme", () => ({ useTheme: () => ({ theme: "light" }) }));
 vi.mock("@/app/(protected)/calendar/calendar-actions", () => ({

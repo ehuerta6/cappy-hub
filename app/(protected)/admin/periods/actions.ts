@@ -6,7 +6,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function saveAcademicPeriod(formData: FormData) {
-  const actor = await getAuthorizationContext({ enforceWritablePeriod: true });
+  const actor = await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   if (!isAdmin(actor)) redirect("/admin/periods?error=admin");
   const name = String(formData.get("name") ?? "").trim();
   const startsOn = String(formData.get("starts_on") ?? "");

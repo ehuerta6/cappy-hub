@@ -19,6 +19,7 @@ import {
   FieldError,
   FormMessage,
 } from "@/components/ui";
+import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 import { initialFormActionState, submittedValues } from "@/lib/form-feedback";
 import {
   bulkAssignTaskOfficers,
@@ -104,6 +105,7 @@ export function BulkTaskOfficersForm({
         className={dialogSurfaceClassName}
       >
         <form action={action} className={dialogContentClassName}>
+          <AcademicPeriodWriteContextField />
           <input type="hidden" name="task_id" value={taskId} />
           <header className={dialogHeaderClassName}>
             <h2 id="task-officers-title" className={dialogTitleClassName}>
@@ -197,6 +199,7 @@ export function TaskCompletionControl({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2">
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="task_id" value={taskId} />
       <input type="hidden" name="officer_id" value={officerId} />
       <input type="hidden" name="completed" value={String(checked)} />
@@ -238,6 +241,7 @@ export function RemoveTaskAssignmentForm({
   );
   return (
     <form action={action} className="space-y-2">
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="task_id" value={taskId} />
       <input type="hidden" name="officer_id" value={officerId} />
       <ActionFeedback state={state} />

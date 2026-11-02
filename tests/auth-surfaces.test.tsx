@@ -12,6 +12,7 @@ const { routerPush, routerRefresh } = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
   redirect: vi.fn(),
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ push: routerPush, refresh: routerRefresh }),
 }));
 vi.mock("@/lib/current-officer", () => ({ getCurrentOfficer: vi.fn() }));

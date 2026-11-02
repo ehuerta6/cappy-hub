@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { ActionFeedback, FieldError } from "@/components/ui";
+import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { changeCatalog } from "./actions";
 
@@ -47,6 +48,7 @@ function CatalogForm({
     operation === "create" ? "catalog-create-form" : "catalog-action-form";
   return (
     <form action={action} className={formClassName}>
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="catalog" value={catalog} />
       <input type="hidden" name="operation" value={operation} />
       {record && <input type="hidden" name="id" value={record.id} />}
@@ -175,6 +177,7 @@ function CatalogRename({
 
   return (
     <form action={action} className="catalog-rename-form">
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="catalog" value={catalog} />
       <input type="hidden" name="operation" value="rename" />
       <input type="hidden" name="id" value={record.id} />

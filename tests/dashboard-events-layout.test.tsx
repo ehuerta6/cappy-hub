@@ -40,6 +40,14 @@ vi.mock("@/lib/academic-periods", async (importOriginal) => ({
         created_at: "2026-08-01T00:00:00Z",
         updated_at: "2026-08-01T00:00:00Z",
       },
+      {
+        id: 2,
+        name: "Spring 2027",
+        starts_on: "2027-01-05",
+        ends_on: "2027-05-15",
+        created_at: "2026-11-01T00:00:00Z",
+        updated_at: "2026-11-01T00:00:00Z",
+      },
     ],
     currentDate: "2026-11-01",
     currentPeriodId: 1,
@@ -103,6 +111,7 @@ let transactions: {
 }[];
 let dashboardQueries: { table: string; operations: [string, unknown[]][] }[];
 let countedEventIds: number[];
+let periodSummaryCalls: number[];
 const from = vi.fn((table: string) => {
   const operations: [string, unknown[]][] = [];
   const result = {
@@ -119,9 +128,7 @@ const from = vi.fn((table: string) => {
                   upcoming_event_count: 5,
                   half_year_points: 99,
                 }
-              : table === "point_history"
-                ? [{ points: 99 }]
-                : [],
+              : [],
     error: null,
   };
   const query = {
@@ -219,6 +226,7 @@ beforeEach(() => {
   transactions = [];
   dashboardQueries = [];
   countedEventIds = [];
+  periodSummaryCalls = [];
   events = [
     upcoming,
     { ...upcoming, id: 2, name: "Available event", event_officers: [] },
@@ -227,7 +235,26 @@ beforeEach(() => {
   vi.mocked(getAuthorizationContext).mockResolvedValue(actor as never);
   vi.mocked(createClient).mockResolvedValue({
     from,
-    rpc: () => {
+    rpc: (name: string, args?: { p_period_id?: number }) => {
+      if (name === "academic_period_point_summary") {
+        if (args?.p_period_id !== undefined)
+          periodSummaryCalls.push(args.p_period_id);
+        return {
+          single: async () => ({
+            data: {
+              net_points: 99,
+              ranking: [
+                {
+                  officer_id: 7,
+                  officer_name: "Historical Officer",
+                  points: 99,
+                },
+              ],
+            },
+            error: null,
+          }),
+        };
+      }
       const counts = events.map((event) => ({
         event_id: event.id,
         confirmed_count: event.event_officers.length,
@@ -343,6 +370,7 @@ it("preserves all three summary metric values and the existing summary/activity 
   expect(summary).toContain(">5</dd>");
   expect(html).toContain("Points this period");
   expect(html).toContain("+99");
+  expect(periodSummaryCalls).toEqual([1]);
 
   const operations = (table: string) =>
     dashboardQueries.find((query) => query.table === table)?.operations ?? [];
@@ -376,6 +404,23 @@ it("preserves all three summary metric values and the existing summary/activity 
     ["order", ["id", { ascending: false }]],
     ["limit", [5]],
   ]);
+});
+
+it("uses the database Point aggregate in a selected period overview", async () => {
+  const html = renderToStaticMarkup(
+    await DashboardPage({
+      searchParams: Promise.resolve({ period: "2" }),
+    }),
+  );
+  expect(html).toContain("Spring 2027");
+  expect(html).toContain("Future period");
+  expect(html).toContain("Period ranking");
+  expect(html).toContain("Historical Officer");
+  expect(html).toContain("+99");
+  expect(periodSummaryCalls).toEqual([2]);
+  expect(dashboardQueries.map(({ table }) => table)).not.toContain(
+    "point_history",
+  );
 });
 
 it("places the single sign out form and officer context inside the protected header", async () => {

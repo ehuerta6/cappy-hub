@@ -12,6 +12,7 @@ const {
   totalCount,
   totalRows,
   queriedTables,
+  periodSummaryCalls,
 } = vi.hoisted(() => ({
   getAuthorizationContext: vi.fn(),
   canManagePoints: vi.fn(),
@@ -25,6 +26,7 @@ const {
     value: null as null | { id: number; name: string; total_points: number }[],
   },
   queriedTables: [] as string[],
+  periodSummaryCalls: [] as number[],
 }));
 
 vi.mock("@/lib/authorization", () => ({
@@ -52,6 +54,7 @@ vi.mock("@/lib/academic-periods", async (importOriginal) => ({
 vi.mock("next/navigation", () => ({
   redirect: vi.fn(),
   useRouter: () => ({ refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 import PointsPage from "@/app/(protected)/points/page";
@@ -64,9 +67,32 @@ beforeEach(() => {
   totalCount.officers = 0;
   totalRows.value = null;
   queriedTables.length = 0;
+  periodSummaryCalls.length = 0;
   getAuthorizationContext.mockResolvedValue({ id: 1 });
   canManagePoints.mockReturnValue(false);
   createClient.mockResolvedValue({
+    rpc: (name: string, args: { p_period_id: number }) => {
+      if (name !== "academic_period_point_summary")
+        throw new Error(`Unexpected RPC ${name}`);
+      periodSummaryCalls.push(args.p_period_id);
+      const rows = totalRows.value ?? [
+        { id: 7, name: "First Officer", total_points: 12 },
+        { id: 2, name: "Second Officer", total_points: 8 },
+      ];
+      return {
+        single: async () => ({
+          data: {
+            net_points: rows.reduce((sum, row) => sum + row.total_points, 0),
+            ranking: rows.map((row) => ({
+              officer_id: row.id,
+              officer_name: row.name,
+              points: row.total_points,
+            })),
+          },
+          error: null,
+        }),
+      };
+    },
     from: (table: string) => {
       queriedTables.push(table);
       const query = {
@@ -135,8 +161,8 @@ beforeEach(() => {
 it("orders Officer totals by points descending, then name ascending", async () => {
   await PointsPage({ searchParams: Promise.resolve({}) });
 
-  expect(ordersByTable.get("point_history")).toBeUndefined();
-  expect(queriedTables).toContain("point_history");
+  expect(periodSummaryCalls).toEqual([1]);
+  expect(queriedTables).not.toContain("point_history");
 });
 
 it("keeps History loading independent from Officer picker data", async () => {
@@ -146,10 +172,11 @@ it("keeps History loading independent from Officer picker data", async () => {
   expect(activeOfficerFilters).toEqual([]);
 });
 
-it("builds the ranking from period Point history", async () => {
+it("loads the period ranking from the database aggregate", async () => {
   await PointsPage({ searchParams: Promise.resolve({}) });
 
-  expect(queriedTables).toContain("point_history");
+  expect(periodSummaryCalls).toEqual([1]);
+  expect(queriedTables).not.toContain("point_history");
   expect(totalOfficerIds).toEqual([]);
 });
 
@@ -179,7 +206,8 @@ it("defaults to the Overview view and shows read-only rate to non-admins", async
   expect(html).toContain("Participation Points");
   expect(html).not.toContain("Point configuration");
   expect(html).not.toContain("Add adjustment");
-  expect(queriedTables).toContain("point_history");
+  expect(periodSummaryCalls).toEqual([1]);
+  expect(queriedTables).not.toContain("point_history");
   expect(queriedTables).not.toContain("events");
 });
 
@@ -192,7 +220,8 @@ it("shows Admin configuration and Add adjustment in Overview", async () => {
   expect(html).toContain('aria-labelledby="add-transaction-title"');
   expect(html).toContain("Add adjustment");
   expect(html).toContain("Participation Points");
-  expect(queriedTables).toContain("point_history");
+  expect(periodSummaryCalls).toEqual([1]);
+  expect(queriedTables).not.toContain("point_history");
   expect(queriedTables).toContain("events");
   expect(queriedTables.filter((table) => table === "events")).toHaveLength(1);
   expect(queriedTables.filter((table) => table === "officers")).toHaveLength(1);

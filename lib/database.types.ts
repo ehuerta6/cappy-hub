@@ -1425,6 +1425,13 @@ export type Database = {
           current_period_id: number;
         }[];
       };
+      academic_period_point_summary: {
+        Args: { p_period_id: number };
+        Returns: {
+          net_points: number;
+          ranking: Json;
+        }[];
+      };
       add_manual_transaction: {
         Args: {
           p_award_type: string;
@@ -1436,6 +1443,10 @@ export type Database = {
         Returns: undefined;
       };
       add_presenter_slot: { Args: { p_event_id: number }; Returns: number };
+      assert_academic_period_context_writable: {
+        Args: { p_period_context: string };
+        Returns: undefined;
+      };
       assert_academic_period_writable: {
         Args: { p_period_id: number };
         Returns: undefined;

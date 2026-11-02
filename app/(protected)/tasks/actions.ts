@@ -61,7 +61,10 @@ export async function createTask(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  await getAuthorizationContext({ enforceWritablePeriod: true });
+  await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   const rawTaskInput = {
     title: formData.get("title") ?? "",
     description: formData.get("description") ?? "",
@@ -164,7 +167,10 @@ export async function selfAssignTask(
   _previous: FormActionState,
   form: FormData,
 ) {
-  await getAuthorizationContext({ enforceWritablePeriod: true });
+  await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: form.get("writable_period"),
+  });
   const validation = taskRecordInputSchema.safeParse({
     task_id: form.get("task_id") ?? "",
   });
@@ -185,7 +191,10 @@ export async function bulkAssignTaskOfficers(
   _previous: FormActionState,
   form: FormData,
 ) {
-  await getAuthorizationContext({ enforceWritablePeriod: true });
+  await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: form.get("writable_period"),
+  });
   const validation = bulkTaskAssignmentInputSchema.safeParse({
     task_id: form.get("task_id") ?? "",
     officer_ids: form.getAll("officer_ids"),
@@ -229,7 +238,10 @@ export async function setTaskAssignmentCompletion(
   _previous: FormActionState,
   form: FormData,
 ) {
-  await getAuthorizationContext({ enforceWritablePeriod: true });
+  await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: form.get("writable_period"),
+  });
   const validation = setTaskCompletionInputSchema.safeParse({
     task_id: form.get("task_id") ?? "",
     officer_id: form.get("officer_id") ?? "",
@@ -269,7 +281,10 @@ export async function removeTaskAssignment(
   _previous: FormActionState,
   form: FormData,
 ) {
-  await getAuthorizationContext({ enforceWritablePeriod: true });
+  await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: form.get("writable_period"),
+  });
   const validation = removeTaskAssignmentInputSchema.safeParse({
     task_id: form.get("task_id") ?? "",
     officer_id: form.get("officer_id") ?? "",
@@ -312,7 +327,10 @@ function recurringTaskLifecycleFields(form: FormData) {
 }
 
 export async function removeTask(_previous: FormActionState, form: FormData) {
-  await getAuthorizationContext({ enforceWritablePeriod: true });
+  await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: form.get("writable_period"),
+  });
   const validation = taskRecordInputSchema.safeParse({
     task_id: form.get("task_id") ?? "",
   });
@@ -342,7 +360,10 @@ export async function removeTask(_previous: FormActionState, form: FormData) {
 }
 
 export async function restoreTask(_previous: FormActionState, form: FormData) {
-  await getAuthorizationContext({ enforceWritablePeriod: true });
+  await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: form.get("writable_period"),
+  });
   const validation = taskRecordInputSchema.safeParse({
     task_id: form.get("task_id") ?? "",
   });
@@ -375,7 +396,10 @@ export async function editStandaloneTask(
   _previous: FormActionState,
   form: FormData,
 ) {
-  await getAuthorizationContext({ enforceWritablePeriod: true });
+  await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: form.get("writable_period"),
+  });
   const id = taskRecordInputSchema.safeParse({ task_id: form.get("task_id") });
   const validation = taskDetailsInputSchema.safeParse({
     ...Object.fromEntries(form.entries()),
@@ -428,7 +452,10 @@ export async function editRecurringTask(
   _previous: FormActionState,
   form: FormData,
 ) {
-  await getAuthorizationContext({ enforceWritablePeriod: true });
+  await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: form.get("writable_period"),
+  });
   const id = taskRecordInputSchema.safeParse({ task_id: form.get("task_id") });
   const validation = createTaskInputSchema.safeParse({
     ...Object.fromEntries(form.entries()),

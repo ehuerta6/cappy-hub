@@ -15,6 +15,7 @@ import {
   fieldLabelClassName,
 } from "@/components/ui";
 import { saveOfficer } from "../actions";
+import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 
 type OfficerFormProps = {
   returnTo?: string;
@@ -45,6 +46,7 @@ export default function OfficerForm({
       action={action}
       className="grid-cols-1 gap-4 max-w-3xl sm:grid-cols-2"
     >
+      <AcademicPeriodWriteContextField />
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
       {officer && <input type="hidden" name="id" value={officer.id} />}
 

@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { ActionFeedback } from "@/components/ui";
 import { initialFormActionState } from "@/lib/form-feedback";
 import { removeParticipationAward } from "./actions";
+import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 
 export default function RemoveAwardForm({
   transactionId,
@@ -16,6 +17,7 @@ export default function RemoveAwardForm({
   );
   return (
     <form action={action}>
+      <AcademicPeriodWriteContextField />
       <input type="hidden" name="transaction_id" value={transactionId} />
       <button disabled={pending} className="button-secondary">
         {pending ? "Removing…" : "Remove award"}

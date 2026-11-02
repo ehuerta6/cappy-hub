@@ -7,6 +7,7 @@ vi.mock("@/lib/authorization", () => ({
     actor.applicationRole === "admin",
 }));
 vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
   notFound: () => {
     throw new Error("Not found");
   },

@@ -16,6 +16,7 @@ vi.mock("@/lib/academic-periods", async (importOriginal) => ({
   }),
 }));
 vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
   redirect: vi.fn((url: string) => {
     throw new Error(`redirect:${url}`);
   }),

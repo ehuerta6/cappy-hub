@@ -155,6 +155,7 @@ vi.mock("@/lib/academic-periods", async (importOriginal) => ({
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
   notFound: () => {
     throw new Error("Not found");
   },

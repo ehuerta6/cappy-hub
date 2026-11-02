@@ -37,7 +37,10 @@ export async function changeTimeSlotSignup(
   _previous: FormActionState,
   formData: FormData,
 ): Promise<FormActionState> {
-  const actor = await getAuthorizationContext({ enforceWritablePeriod: true });
+  const actor = await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   const validation = slotSelectionInputSchema.safeParse({
     event_id: formData.get("event_id") ?? "",
     officer_id: formData.get("officer_id") ?? undefined,
@@ -87,7 +90,10 @@ export async function assignBulkOfficersToTimeSlots(
   _previous: FormActionState,
   formData: FormData,
 ): Promise<FormActionState> {
-  const actor = await getAuthorizationContext({ enforceWritablePeriod: true });
+  const actor = await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   const validation = zod
     .object({
       event_id: zod
@@ -172,7 +178,10 @@ export async function correctHistoricalTimeSlotAssignments(
   _previous: FormActionState,
   formData: FormData,
 ): Promise<FormActionState> {
-  const actor = await getAuthorizationContext({ enforceWritablePeriod: true });
+  const actor = await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   const validation = zod
     .object({
       event_id: zod

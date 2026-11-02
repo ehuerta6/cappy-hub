@@ -5,7 +5,10 @@ vi.mock("@/lib/authorization", () => ({
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn(),
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 import { redirect } from "next/navigation";
 import { getAuthorizationContext } from "@/lib/authorization";
@@ -32,6 +35,7 @@ const taskForm = () => {
   data.set("due_date", "2026-10-15");
   data.set("points", "1.5");
   data.set("recurrence_request_key", "00000000-0000-4000-8000-000000000002");
+  data.set("writable_period", "current");
   return data;
 };
 

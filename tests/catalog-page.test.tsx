@@ -98,6 +98,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
   notFound: () => {
     throw new Error("NOT_FOUND");
   },

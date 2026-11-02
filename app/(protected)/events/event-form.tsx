@@ -10,6 +10,7 @@ import {
 } from "@/lib/form-feedback";
 import { ActionFeedback, FieldError } from "@/components/ui";
 import { saveEvent } from "./actions";
+import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 import {
   RecurrenceScope,
   changedFormFields,
@@ -168,6 +169,7 @@ export default function EventForm({
       className="event-form"
       onChange={(event) => updateEditedFields(event.currentTarget)}
     >
+      <AcademicPeriodWriteContextField />
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
       {editedFields.map((field) => (
         <input key={field} type="hidden" name="edited_fields" value={field} />

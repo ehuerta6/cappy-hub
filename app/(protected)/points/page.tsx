@@ -124,34 +124,27 @@ export default async function PointsPage({
         : Promise.resolve(null),
       selectedPeriod
         ? supabase
-            .from("point_history")
-            .select("officer_id,officer_name,points")
-            .gte("activity_date", selectedPeriod.starts_on)
-            .lte("activity_date", selectedPeriod.ends_on)
-            .is("removed_at", null)
-        : Promise.resolve({ data: [], error: null }),
+            .rpc("academic_period_point_summary", {
+              p_period_id: selectedPeriod.id,
+            })
+            .single()
+        : Promise.resolve({ data: null, error: null }),
     ]);
     if (activeOfficers.error || recentEvents?.error || periodPoints.error)
       throw new Error("Failed to load points");
-    const byOfficer = new Map<
-      number,
-      { id: number; name: string; total_points: number }
-    >();
-    for (const point of periodPoints.data) {
-      if (point.officer_id === null || point.officer_name === null) continue;
-      const row = byOfficer.get(point.officer_id) ?? {
-        id: point.officer_id,
-        name: point.officer_name,
-        total_points: 0,
-      };
-      row.total_points += point.points ?? 0;
-      byOfficer.set(point.officer_id, row);
-    }
-    const ranking = [...byOfficer.values()].sort(
-      (left, right) =>
-        right.total_points - left.total_points ||
-        left.name.localeCompare(right.name),
-    );
+    const ranking = selectedPeriod
+      ? (
+          periodPoints.data!.ranking as Array<{
+            officer_id: number;
+            officer_name: string;
+            points: number;
+          }>
+        ).map((row) => ({
+          id: row.officer_id,
+          name: row.officer_name,
+          total_points: row.points,
+        }))
+      : [];
 
     return {
       activeOfficers,

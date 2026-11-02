@@ -7,6 +7,7 @@ import {
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
 import { saveAcademicPeriod } from "./actions";
+import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 
 const messages: Record<string, string> = {
   admin: "Admin access is required.",
@@ -74,6 +75,7 @@ export default async function AcademicPeriodsPage({
             action={saveAcademicPeriod}
             className="event-form-fields grid gap-3 rounded-md border border-border p-4 sm:grid-cols-4"
           >
+            <AcademicPeriodWriteContextField />
             <label className="sm:col-span-2">
               Name
               <input name="name" required maxLength={80} />
@@ -114,6 +116,7 @@ export default async function AcademicPeriodsPage({
                     action={saveAcademicPeriod}
                     className="event-form-fields grid gap-3 rounded-md border border-border p-4 sm:grid-cols-4"
                   >
+                    <AcademicPeriodWriteContextField />
                     <input type="hidden" name="id" value={period.id} />
                     <label className="sm:col-span-2">
                       Name

@@ -20,6 +20,7 @@ import {
 import { createTask, editRecurringTask, editStandaloneTask } from "./actions";
 import { RecurrenceFields } from "@/components/recurrence-fields";
 import { TaskEventCombobox } from "@/components/task-event-combobox";
+import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 
 export default function TaskCreateForm({
   returnTo,
@@ -93,6 +94,7 @@ export default function TaskCreateForm({
       className="task-form grid max-w-6xl grid-cols-2 gap-x-6 gap-y-4"
       onChange={updateEditedFields}
     >
+      <AcademicPeriodWriteContextField />
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
       {task && <input type="hidden" name="task_id" value={task.id} />}
       {series && task && (

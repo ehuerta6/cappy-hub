@@ -1,17 +1,40 @@
-import { expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const { pathState } = vi.hoisted(() => ({
-  pathState: { current: "/calendar" },
+  pathState: { current: "/calendar", search: "" },
 }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => pathState.current,
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(pathState.search),
   useRouter: () => ({ push: vi.fn() }),
 }));
 
 import SiteNavigation from "@/components/site-navigation";
+import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
+
+beforeEach(() => {
+  pathState.current = "/calendar";
+  pathState.search = "";
+});
+
+it("includes the selected URL context in write forms", () => {
+  pathState.search = "";
+  expect(renderToStaticMarkup(<AcademicPeriodWriteContextField />)).toContain(
+    'name="writable_period" value="current"',
+  );
+
+  pathState.search = "period=524";
+  expect(renderToStaticMarkup(<AcademicPeriodWriteContextField />)).toContain(
+    'name="writable_period" value="524"',
+  );
+
+  pathState.search = "period=none";
+  expect(renderToStaticMarkup(<AcademicPeriodWriteContextField />)).toContain(
+    'name="writable_period" value="none"',
+  );
+});
 
 it("renders the CIC mark decoratively inside the Cappy Hub home link", () => {
   const html = renderToStaticMarkup(

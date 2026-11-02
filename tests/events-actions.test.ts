@@ -17,7 +17,10 @@ vi.mock("@/lib/google-calendar-sync", () => ({
   syncGoogleCalendarEvents: vi.fn().mockResolvedValue(true),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn(),
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 import { redirect } from "next/navigation";
 import { getAuthorizationContext } from "@/lib/authorization";
@@ -87,6 +90,7 @@ const eventForm = () => {
   data.set("slides_url", " https://example.com/slides ");
   data.set("meeting_notes_url", "");
   data.set("signup_sheet_url", " https://example.com/signup ");
+  data.set("writable_period", "current");
   data.set("recurrence_request_key", "00000000-0000-4000-8000-000000000001");
   return data;
 };
@@ -339,6 +343,10 @@ it("sends validated Event fields to the existing RPC", async () => {
   expect(redirect).toHaveBeenCalledWith(
     "/events/12?returnTo=%2Fevents%3Fq%3Dmeeting%26branch%3D2&feedback=event-saved",
   );
+  expect(getAuthorizationContext).toHaveBeenCalledWith({
+    enforceWritablePeriod: true,
+    periodContext: "current",
+  });
 });
 
 it("saves an Event before reporting that Google Calendar could not be updated", async () => {

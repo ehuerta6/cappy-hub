@@ -65,7 +65,10 @@ export async function saveEvent(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  const actor = await getAuthorizationContext({ enforceWritablePeriod: true });
+  const actor = await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   const rawBranchIds = formData.getAll("branches");
   const branchValidationResult =
     eventBranchIdsInputSchema.safeParse(rawBranchIds);
@@ -375,7 +378,10 @@ export async function changeSignup(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  await getAuthorizationContext({ enforceWritablePeriod: true });
+  await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   const rawSignupInput = {
     event_id: formData.get("event_id") ?? "",
     officer_id: formData.get("officer_id") ?? "",
@@ -414,7 +420,10 @@ export async function selfSignup(
   previous: FormActionState,
   formData: FormData,
 ) {
-  const actor = await getAuthorizationContext({ enforceWritablePeriod: true });
+  const actor = await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   const signup = new FormData();
   signup.set("event_id", String(formData.get("event_id") ?? ""));
   signup.set("officer_id", String(actor.id));
@@ -426,7 +435,10 @@ export async function bulkAddEventOfficers(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  await getAuthorizationContext({ enforceWritablePeriod: true });
+  await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   const rawBulkAddEventOfficersInput = {
     event_id: formData.get("event_id") ?? "",
     officer_ids: formData.getAll("officer_ids"),
@@ -477,7 +489,10 @@ export async function restoreDeletedEvent(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  await getAuthorizationContext({ enforceWritablePeriod: true });
+  await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   const restoreEventValidationResult = restoreEventInputSchema.safeParse({
     event_id: formData.get("event_id") ?? "",
   });
@@ -520,7 +535,10 @@ export async function deleteEvent(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  await getAuthorizationContext({ enforceWritablePeriod: true });
+  await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   const validationResult = eventRecordInputSchema.safeParse({
     event_id: formData.get("event_id") ?? "",
   });
@@ -582,7 +600,10 @@ export async function restoreEvent(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  await getAuthorizationContext({ enforceWritablePeriod: true });
+  await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   const validation = restoreEventInputSchema.safeParse({
     event_id: formData.get("event_id") ?? "",
   });
@@ -603,7 +624,10 @@ export async function retryGoogleCalendarSync(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  const actor = await getAuthorizationContext({ enforceWritablePeriod: true });
+  const actor = await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: formData.get("writable_period"),
+  });
   const validation = eventRecordInputSchema.safeParse({
     event_id: formData.get("event_id") ?? "",
   });

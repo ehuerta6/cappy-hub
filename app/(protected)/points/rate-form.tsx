@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { ActionFeedback, FieldError } from "@/components/ui";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { changeParticipationRate } from "./actions";
+import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 
 export default function RateForm({ rate }: { rate: number }) {
   const [state, action, pending] = useActionState(
@@ -13,6 +14,7 @@ export default function RateForm({ rate }: { rate: number }) {
   const fieldErrors = state.fieldErrors ?? {};
   return (
     <form action={action} className="flex flex-wrap items-end gap-3">
+      <AcademicPeriodWriteContextField />
       <label>
         Participation points per hour
         <input
