@@ -1,6 +1,7 @@
-import Link from "next/link";
+import type { Route } from "next";
 import { notFound } from "next/navigation";
-import { PageHeader } from "@/components/ui";
+import ContextualBackLink from "@/components/contextual-back-link";
+import { PageHeader, SectionHeading } from "@/components/ui";
 import { getAuthorizationContext, isAdmin } from "@/lib/authorization";
 import {
   getAcademicPeriodData,
@@ -43,15 +44,14 @@ export default async function AcademicPeriodsPage({
   const readOnly = periodSelection.isHistorical;
   const error = params.error ? messages[params.error] : undefined;
   return (
-    <div data-page-width="wide" className="space-y-5">
-      <Link
+    <div data-page-width="wide" data-form-page="periods" className="space-y-5">
+      <ContextualBackLink
         href={
-          `/admin${params.period ? `?period=${params.period}` : ""}` as import("next").Route
+          `/admin${params.period ? `?period=${params.period}` : ""}` as Route
         }
-        className="text-sm underline underline-offset-4"
       >
         Back to Admin
-      </Link>
+      </ContextualBackLink>
       <PageHeader
         title="Academic periods"
         description="Create periods for history and planning. Period dates use America/Denver calendar days."
@@ -68,9 +68,7 @@ export default async function AcademicPeriodsPage({
       )}
       {!readOnly && (
         <section aria-labelledby="new-period-heading" className="space-y-3">
-          <h2 id="new-period-heading" className="text-lg font-semibold">
-            New period
-          </h2>
+          <SectionHeading title="New period" id="new-period-heading" />
           <form
             action={saveAcademicPeriod}
             className="event-form-fields grid gap-3 rounded-md border border-border p-4 sm:grid-cols-4"
@@ -95,9 +93,7 @@ export default async function AcademicPeriodsPage({
         </section>
       )}
       <section aria-labelledby="period-list-heading" className="space-y-3">
-        <h2 id="period-list-heading" className="text-lg font-semibold">
-          Configured periods
-        </h2>
+        <SectionHeading title="Configured periods" id="period-list-heading" />
         {periods.length === 0 ? (
           <p className="text-sm text-muted">No periods configured yet.</p>
         ) : (

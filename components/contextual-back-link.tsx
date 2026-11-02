@@ -17,7 +17,7 @@ export default function ContextualBackLink<T extends string>({
   return (
     <Link
       href={destination ?? href}
-      className="inline-flex min-h-10 items-center gap-2 text-sm text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted"
+      className="inline-flex min-h-10 items-center gap-2 text-sm text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
     >
       <ArrowLeft size={16} aria-hidden="true" />
       {destination ? returnLinkLabel(destination, children) : children}

@@ -73,7 +73,7 @@ export default function GoogleSignIn() {
                 type="button"
                 disabled={Boolean(busy)}
                 onClick={() => signInLocally(account.email)}
-                className="inline-flex min-h-11 items-center justify-center break-words rounded-md border border-border-strong bg-surface-muted px-3 py-2 text-center text-sm font-medium text-foreground hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex min-h-11 items-center justify-center break-words rounded-md border border-border-strong bg-surface-muted px-3 py-2 text-center text-sm font-medium text-foreground hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {busy === account.email ? "Signing in..." : account.label}
               </button>

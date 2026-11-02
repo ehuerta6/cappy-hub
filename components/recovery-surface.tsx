@@ -31,4 +31,4 @@ export function RecoverySurface({
 }
 
 export const recoveryActionClassName =
-  "inline-flex min-h-11 w-full items-center justify-center break-words rounded-md bg-accent px-4 py-2 text-center text-sm font-medium text-accent-foreground hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted";
+  "inline-flex min-h-11 w-full items-center justify-center break-words rounded-md bg-accent px-4 py-2 text-center text-sm font-medium text-accent-foreground hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";

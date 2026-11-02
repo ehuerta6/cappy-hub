@@ -52,7 +52,7 @@ export default async function AdminPage({
   const periodSuffix =
     params.period === undefined ? "" : `?period=${String(params.period)}`;
   return (
-    <div data-page-width="wide" className="space-y-5">
+    <div data-page-width="wide" data-nav-page="admin" className="space-y-5">
       <PageHeader
         title="Admin"
         description="Application-wide administration for Coding Interview Club."
@@ -62,7 +62,7 @@ export default async function AdminPage({
           {adminAreas.map((area) => (
             <li key={area.href} className="min-w-0">
               <Link
-                className="group flex h-full min-h-11 flex-col items-start gap-1.5 rounded-md border border-border bg-surface/30 px-4 py-3 hover:border-border-strong hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted"
+                className="admin-area-link group flex h-full min-h-11 flex-col items-start gap-1.5 rounded-md border border-border bg-surface/30 px-4 py-3 hover:border-border-strong hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 href={`${area.href}${periodSuffix}` as Route}
               >
                 <h2 className="font-semibold text-foreground group-hover:underline group-hover:underline-offset-4">

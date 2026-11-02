@@ -324,7 +324,7 @@ export default async function TaskDetailPage({
     );
 
   return (
-    <div className="space-y-4">
+    <div data-record-page="task" className="space-y-4">
       <ContextualBackLink href="/tasks" returnTo={contextualReturnTo}>
         Back to tasks
       </ContextualBackLink>
@@ -359,7 +359,7 @@ export default async function TaskDetailPage({
             key={target}
             href={taskSectionUrl(taskIdParam, target, contextualReturnTo)}
             aria-current={activeSection === target ? "page" : undefined}
-            className={`border-b-2 px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted ${activeSection === target ? "border-foreground font-medium" : "border-transparent text-muted hover:text-foreground"}`}
+            className={`border-b-2 px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${activeSection === target ? "border-brand font-medium text-brand" : "border-transparent text-muted hover:text-foreground"}`}
           >
             {label}
           </Link>

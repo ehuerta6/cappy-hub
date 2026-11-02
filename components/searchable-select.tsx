@@ -85,7 +85,7 @@ export function SearchableSelect({
         disabled={disabled}
         autoHighlight
       >
-        <div className="flex min-w-0 items-center rounded-md border border-border-strong bg-surface-muted focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-muted has-[[aria-invalid=true]]:border-danger-border has-[[aria-invalid=true]]:focus-within:outline-danger">
+        <div className="flex min-w-0 items-center rounded-md border border-border-strong bg-surface-muted focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-brand has-[[aria-invalid=true]]:border-danger-border has-[[aria-invalid=true]]:focus-within:outline-danger">
           <Combobox.Input
             id={inputId}
             data-initial-focus={initialFocus ? "" : undefined}
@@ -99,7 +99,7 @@ export function SearchableSelect({
           <Combobox.Clear
             aria-label={`Clear ${label.toLowerCase()} search or selection`}
             disabled={disabled}
-            className="mr-1 flex size-9 shrink-0 items-center justify-center rounded-md border-0 bg-transparent text-secondary hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted"
+            className="mr-1 flex size-9 shrink-0 items-center justify-center rounded-md border-0 bg-transparent text-secondary hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             <X aria-hidden="true" size={16} />
           </Combobox.Clear>

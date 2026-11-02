@@ -101,7 +101,7 @@ function SectionLink({
     <Link
       href={sectionHref(officerId, section, params)}
       aria-current={current ? "page" : undefined}
-      className={`inline-flex min-h-9 items-center border-b-2 px-3 text-sm ${current ? "border-foreground font-semibold text-foreground" : "border-transparent text-secondary hover:text-foreground"}`}
+      className={`inline-flex min-h-9 items-center border-b-2 px-3 text-sm ${current ? "border-brand font-semibold text-brand" : "border-transparent text-secondary hover:text-foreground"}`}
     >
       {label}
     </Link>
@@ -598,7 +598,7 @@ export default async function OfficerDetailPage({
               safeReturnDestination,
             )}
             aria-current={active ? "page" : undefined}
-            className={`border-b-2 px-3 py-2 ${active ? "border-foreground font-semibold" : "border-transparent text-secondary hover:text-foreground"}`}
+            className={`border-b-2 px-3 py-2 ${active ? "border-brand font-semibold text-brand" : "border-transparent text-secondary hover:text-foreground"}`}
           >
             {label}
           </Link>
@@ -861,7 +861,7 @@ export default async function OfficerDetailPage({
   );
 
   return (
-    <div className="space-y-4">
+    <div data-record-page="officer" className="space-y-4">
       <ContextualBackLink href="/officers" returnTo={safeReturnDestination}>
         Back to officers
       </ContextualBackLink>

@@ -160,7 +160,7 @@ export function EventSearchSelect({
           aria-invalid={Boolean(error)}
           aria-describedby={error ? errorId : undefined}
           placeholder="Search Events"
-          className="min-h-11 w-full rounded-md border border-border-strong bg-surface-muted px-3 py-2 text-sm text-foreground outline-none placeholder:text-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted aria-invalid:border-danger-border aria-invalid:focus-visible:outline-danger"
+          className="min-h-11 w-full rounded-md border border-border-strong bg-surface-muted px-3 py-2 text-sm text-foreground outline-none placeholder:text-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand aria-invalid:border-danger-border aria-invalid:focus-visible:outline-danger"
         />
         <Combobox.Portal container={portalContainer}>
           <Combobox.Positioner

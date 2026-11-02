@@ -1,0 +1,192 @@
+.shell {
+  position: relative;
+  z-index: 10;
+  border-bottom: 1px solid var(--border);
+  margin-inline: -1rem;
+  background: var(--background);
+}
+
+.inner {
+  display: flex;
+  width: min(calc(100% - 3rem), 120rem);
+  min-height: 3.35rem;
+  align-items: center;
+  gap: 0.8rem;
+  margin-inline: auto;
+}
+
+.brand {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 0.45rem;
+  color: var(--foreground);
+  font-size: 0.85rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+}
+
+.brand img {
+  width: 1.55rem;
+  height: 1.55rem;
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-self: stretch;
+  align-items: center;
+  gap: 0.15rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nav::-webkit-scrollbar {
+  display: none;
+}
+
+.navLink,
+.navActive {
+  display: inline-flex;
+  min-height: 2.5rem;
+  flex: 0 0 auto;
+  align-items: center;
+  border-bottom: 2px solid transparent;
+  border-radius: 0.25rem 0.25rem 0 0;
+  padding-inline: 0.65rem;
+  color: var(--muted);
+  font-size: 0.79rem;
+  font-weight: 500;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+.navLink:hover {
+  background: var(--hover);
+  color: var(--foreground);
+}
+
+.navActive {
+  border-bottom-color: var(--brand);
+  color: var(--foreground);
+  font-weight: 650;
+}
+
+.navLink:focus-visible,
+.navActive:focus-visible,
+.brand:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.controls {
+  display: flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.account {
+  display: flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.account > div {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.account :global(span) {
+  min-width: 0 !important;
+  max-width: 9rem;
+  flex: 0 1 auto;
+  overflow: hidden;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.controls :global(button),
+.controls :global(select) {
+  min-height: 2.2rem;
+  padding-block: 0.35rem;
+  font-size: 0.76rem;
+}
+
+.controls :global(.academic-period-control) {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.controls :global(.academic-period-select) {
+  width: 8.5rem;
+  max-width: 8.5rem;
+  min-height: 2.2rem;
+  padding-block: 0.3rem;
+}
+
+.controls :global(#academic-period-state) {
+  white-space: nowrap;
+  font-size: 0.66rem;
+}
+
+.controls :global(.theme-toggle) {
+  white-space: nowrap;
+}
+
+.account :global(form) {
+  width: auto;
+  max-width: none;
+  flex: 0 0 auto;
+}
+
+.account :global(button) {
+  white-space: nowrap;
+}
+
+@media (max-width: 1060px) {
+  .inner {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.1rem 0.8rem;
+    padding-top: 0.2rem;
+  }
+
+  .nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .controls {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+}
+
+@media (min-width: 640px) {
+  .shell {
+    margin-inline: -1.5rem;
+  }
+}
+
+@media (max-width: 760px) {
+  .inner {
+    width: calc(100% - 2rem);
+  }
+
+  .account {
+    max-width: none;
+  }
+}

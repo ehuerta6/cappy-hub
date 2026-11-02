@@ -8,6 +8,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import ThemeToggle from "@/components/theme-toggle";
 import AcademicPeriodSelector from "@/components/academic-period-selector";
 import type { AcademicPeriodData } from "@/lib/academic-periods";
+import styles from "./site-navigation.module.css";
 
 const links = [
   { href: "/", label: "Dashboard" },
@@ -44,12 +45,9 @@ export default function SiteNavigation({
       : pathname === href || pathname.startsWith(href + "/");
 
   return (
-    <header className="border-b border-border bg-background">
-      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3 lg:flex-nowrap">
-        <Link
-          href={withPeriod("/")}
-          className="flex min-w-0 shrink-0 items-center gap-2 text-sm font-semibold tracking-tight text-foreground hover:text-foreground"
-        >
+    <header className={styles.shell}>
+      <div className={styles.inner}>
+        <Link href={withPeriod("/")} className={styles.brand}>
           <Image
             src="/favicon.ico"
             alt=""
@@ -60,10 +58,7 @@ export default function SiteNavigation({
           />
           <span className="min-w-0 break-words">Cappy Hub</span>
         </Link>
-        <nav
-          aria-label="Main navigation"
-          className="flex min-w-0 flex-1 flex-wrap gap-x-1 lg:flex-nowrap"
-        >
+        <nav aria-label="Main navigation" className={styles.nav}>
           {visibleLinks.map(({ href, label }) => {
             const isActive = active(href);
             return (
@@ -71,21 +66,17 @@ export default function SiteNavigation({
                 key={href}
                 href={withPeriod(href)}
                 aria-current={isActive ? "page" : undefined}
-                className={
-                  isActive
-                    ? "shrink-0 whitespace-nowrap border-b border-foreground px-2 py-2 text-sm font-medium text-foreground lg:px-1.5"
-                    : "shrink-0 whitespace-nowrap border-b border-transparent px-2 py-2 text-sm text-muted hover:text-foreground lg:px-1.5"
-                }
+                className={isActive ? styles.navActive : styles.navLink}
               >
                 {label}
               </Link>
             );
           })}
         </nav>
-        <div className="ml-auto flex min-w-0 flex-wrap items-center gap-3">
+        <div className={styles.controls}>
           <AcademicPeriodSelector {...academicPeriods} />
           <ThemeToggle />
-          <div className="min-w-0">{account}</div>
+          <div className={styles.account}>{account}</div>
         </div>
       </div>
     </header>

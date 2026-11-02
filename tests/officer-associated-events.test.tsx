@@ -274,7 +274,7 @@ it("keeps everyday Warning views simple and removes legacy approval details", as
 
   expect(html).toContain('aria-label="Warning status"');
   expect(html).toContain(
-    'aria-current="page" class="border-b-2 px-3 py-2 border-foreground font-semibold" href="/officers/7?section=warnings&amp;returnTo=%2Fofficers%3Fq%3Dclub"',
+    'aria-current="page" class="border-b-2 px-3 py-2 border-brand font-semibold text-brand" href="/officers/7?section=warnings&amp;returnTo=%2Fofficers%3Fq%3Dclub"',
   );
   expect(html).toContain("Deleted");
   expect(html).toContain("All history");

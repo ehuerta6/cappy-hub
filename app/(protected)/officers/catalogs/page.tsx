@@ -139,7 +139,7 @@ export default async function OfficerCatalogsPage({
   if (params.period !== undefined) filters.set("period", String(params.period));
   if (status === "deleted") filters.set("status", status);
   return (
-    <div className="space-y-5">
+    <div data-page-width="wide" data-nav-page="admin" className="space-y-5">
       <PageHeader
         title="Officer catalogs"
         description="Manage Positions, Branches, Event Types, Task Types and reusable Event locations."
