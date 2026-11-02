@@ -99,32 +99,32 @@ export default async function OfficersPage({
   const officers = officersResult.data;
   const returnTo = directoryHref;
   return (
-    <div data-page-width="wide" className="space-y-3">
+    <div data-page-width="wide" data-nav-page="officers" className="space-y-3">
       <PageHeader
         title="Officers"
         description="Club directory and branch memberships."
         action={
           canManageOfficers(actor) && !periodSelection.isHistorical ? (
-            <ActionLink
-              href={
-                `/officers/new${params.period ? `?period=${params.period}` : ""}` as import("next").Route
-              }
-            >
-              + Add officer
-            </ActionLink>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Link
+                href={
+                  `/officers/catalogs${params.period ? `?period=${params.period}` : ""}` as import("next").Route
+                }
+                className="button-secondary inline-flex min-h-11 items-center justify-center rounded-md px-3 py-2 text-sm font-medium lg:min-h-0"
+              >
+                Manage catalogs
+              </Link>
+              <ActionLink
+                href={
+                  `/officers/new${params.period ? `?period=${params.period}` : ""}` as import("next").Route
+                }
+              >
+                + Add officer
+              </ActionLink>
+            </div>
           ) : undefined
         }
       />
-      {canManageOfficers(actor) && !periodSelection.isHistorical && (
-        <Link
-          href={
-            `/officers/catalogs${params.period ? `?period=${params.period}` : ""}` as import("next").Route
-          }
-          className="text-sm underline"
-        >
-          Manage catalogs
-        </Link>
-      )}
       <>
         <ListFilterBar
           key={JSON.stringify(filters)}

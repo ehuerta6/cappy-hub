@@ -80,7 +80,7 @@ export default async function EditTaskPage({
       linkedIds.includes(event.id),
   );
   return (
-    <div className="space-y-6">
+    <div data-form-page="task" className="space-y-6">
       <ContextualBackLink href={withReturnTo(`/tasks/${id}`, returnTo)}>
         Back to task
       </ContextualBackLink>

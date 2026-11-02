@@ -50,7 +50,7 @@ export default async function NewEventPage({
   if (branches.error || eventTypes.error || locations.error)
     throw new Error("Failed to load event form");
   return (
-    <div className="space-y-6">
+    <div data-form-page="event" className="space-y-6">
       <ContextualBackLink
         href={
           params.period

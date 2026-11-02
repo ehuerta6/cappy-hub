@@ -15,6 +15,7 @@ import { createClient } from "@/lib/supabase/server";
 import { eventStatus, eventSignupOpen } from "@/lib/event-status";
 import {
   ActionLink,
+  Badge,
   BranchBadges,
   ListFilterBar,
   PageHeader,
@@ -289,7 +290,7 @@ export default async function EventsPage({
     (status === undefined || status === "upcoming" || status === "happening");
 
   return (
-    <div data-page-width="wide" className="space-y-4">
+    <div data-page-width="wide" data-nav-page="events" className="space-y-4">
       <PageHeader
         title="Events"
         description="Club events and participation."
@@ -503,7 +504,11 @@ export default async function EventsPage({
                                       event.ends_at,
                                     )}
                                   </td>
-                                  <td>{event.event_types.name}</td>
+                                  <td>
+                                    <Badge tone="blue">
+                                      {event.event_types.name}
+                                    </Badge>
+                                  </td>
                                   <td>
                                     <BranchBadges
                                       branches={event.event_branches.map(

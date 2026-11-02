@@ -1,27 +1,31 @@
+import type { ReactNode } from "react";
+import Link from "next/link";
 import {
   formatCalendarDate,
   formatDate,
   formatEventSchedule,
 } from "@/lib/presentation";
 import { requireCurrentOfficer } from "@/lib/current-officer";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { displayPoints } from "@/lib/participation";
 import { participationLabel } from "@/lib/event-status";
 import { eventSignupCountLabel } from "@/lib/event-list";
-import { SectionHeading, PointValue } from "@/components/ui";
+import { PointValue } from "@/components/ui";
 import { loadDashboardActionItems } from "./dashboard-action-items";
 import { DASHBOARD_PREVIEW_LIMIT } from "./dashboard-limits";
 import {
   getAcademicPeriodData,
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
+import styles from "./dashboard.module.css";
+
+type DashboardPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
 
 export default async function DashboardPage({
   searchParams,
-}: {
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
-}) {
+}: DashboardPageProps) {
   const officer = await requireCurrentOfficer();
   const supabase = await createClient();
   const [params, periodData] = await Promise.all([
@@ -31,6 +35,10 @@ export default async function DashboardPage({
   ]);
   const periodSelection = resolveAcademicPeriod(params.period, periodData);
   const selectedPeriod = periodSelection.period;
+  const periodHref = params.period
+    ? `?period=${encodeURIComponent(String(params.period))}`
+    : "";
+
   if (selectedPeriod && selectedPeriod.id !== periodData.currentPeriodId) {
     const [events, tasks, pointSummary] = await Promise.all([
       supabase
@@ -65,52 +73,52 @@ export default async function DashboardPage({
       name: row.officer_name,
       points: row.points,
     }));
-    const netPoints = pointSummary.data.net_points;
+
     return (
-      <div data-page-width="wide" className="space-y-5">
-        <header className="space-y-1 border-b border-border pb-4">
-          <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted">
-            Period overview
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            {selectedPeriod.name}
-          </h1>
-          <p className="text-sm text-muted">
-            {periodSelection.isHistorical
-              ? "Historical · read only"
-              : "Future period"}
-          </p>
-        </header>
-        <dl className="grid grid-cols-1 divide-y divide-border overflow-hidden rounded-md border border-border bg-surface/30 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-          {[
-            { label: "Events", value: events.count ?? 0 },
-            { label: "Tasks", value: tasks.count ?? 0 },
-            { label: "Net points", value: <PointValue value={netPoints} /> },
-          ].map((item) => (
-            <div key={item.label} className="px-4 py-3">
-              <dt className="text-xs font-medium uppercase tracking-wide text-muted">
-                {item.label}
-              </dt>
-              <dd className="mt-1 text-2xl font-semibold tabular-nums">
-                {item.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold">Period ranking</h2>
-          {rankedOfficers.length === 0 ? (
-            <p className="text-sm text-muted">
-              No active Points in this period.
+      <div className={styles.dashboard} data-page-width="wide">
+        <header className={styles.pageHeader}>
+          <div>
+            <p className={styles.eyebrow}>Period overview</p>
+            <h1>{selectedPeriod.name}</h1>
+            <p className={styles.headerDescription}>
+              {periodSelection.isHistorical
+                ? "Historical view · read only"
+                : "Future period overview"}
             </p>
+          </div>
+          <div
+            className={`${styles.periodState} ${periodSelection.isHistorical ? styles.periodHistorical : styles.periodFuture}`}
+          >
+            {periodSelection.isHistorical ? "Historical" : "Upcoming period"}
+          </div>
+        </header>
+
+        <section className={styles.metricGrid} aria-label="Period summary">
+          <MetricCard label="Events" value={events.count ?? 0} />
+          <MetricCard label="Tasks" value={tasks.count ?? 0} />
+          <MetricCard
+            label="Net points"
+            value={<PointValue value={pointSummary.data.net_points} />}
+          />
+        </section>
+
+        <section className={styles.panel} aria-label="Period ranking">
+          <SectionTitle
+            title="Points leaderboard"
+            detail="Officer totals for this academic period"
+          />
+          {rankedOfficers.length === 0 ? (
+            <div className={styles.emptyState}>
+              <p>No active Points in this period yet.</p>
+            </div>
           ) : (
-            <div className="overflow-x-auto rounded-md border border-border">
-              <table className="w-full">
+            <div className={styles.tableWrap}>
+              <table className={styles.rankingTable}>
                 <thead>
                   <tr>
                     <th scope="col">Rank</th>
                     <th scope="col">Officer</th>
-                    <th scope="col" className="text-right">
+                    <th scope="col" className={styles.alignRight}>
                       Net points
                     </th>
                   </tr>
@@ -118,16 +126,25 @@ export default async function DashboardPage({
                 <tbody>
                   {rankedOfficers.map((row, index) => (
                     <tr key={row.id}>
-                      <td className="tabular-nums text-muted">{index + 1}</td>
+                      <td>
+                        <span
+                          className={`${styles.rankNumber} ${[styles.rank1, styles.rank2, styles.rank3][index] ?? ""}`}
+                        >
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
+                      </td>
                       <td>
                         <Link
-                          href={`/officers/${row.id}${params.period ? `?period=${params.period}` : ""}`}
+                          href={`/officers/${row.id}${periodHref}`}
+                          className={styles.personLink}
                         >
                           {row.name}
                         </Link>
                       </td>
-                      <td className="text-right">
-                        <PointValue value={row.points} />
+                      <td className={styles.alignRight}>
+                        <strong className={styles.pointsValue}>
+                          <PointValue value={row.points} />
+                        </strong>
                       </td>
                     </tr>
                   ))}
@@ -139,6 +156,7 @@ export default async function DashboardPage({
       </div>
     );
   }
+
   let currentPeriodPoints: number | null = null;
   if (selectedPeriod) {
     const periodPoints = await supabase
@@ -149,6 +167,7 @@ export default async function DashboardPage({
     if (periodPoints.error) throw new Error("Failed to load period Points");
     currentPeriodPoints = periodPoints.data.net_points;
   }
+
   const [summary, events, transactions, total, actionItems] = await Promise.all(
     [
       supabase.from("dashboard_summary").select("*").single(),
@@ -187,147 +206,114 @@ export default async function DashboardPage({
   const signupCounts = new Map(
     (countsResult.data ?? []).map((row) => [row.event_id, row]),
   );
+
   return (
-    <div data-page-width="wide" className="space-y-4">
-      <header className="grid min-w-0 gap-4 border-b border-border pb-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-        <section aria-label="Dashboard context" className="min-w-0">
-          <h1 className="text-xs font-medium uppercase tracking-[0.08em] text-muted">
-            Dashboard
-          </h1>
-          <div className="mt-1.5 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-            <h2 className="break-words text-2xl font-semibold tracking-tight text-foreground sm:text-[1.75rem]">
-              {officer.name}
-            </h2>
-            <span className="break-words text-sm text-muted">
-              · {officer.positionName}
-            </span>
+    <div className={styles.dashboard} data-page-width="wide">
+      <header className={styles.pageHeader}>
+        <div className={styles.welcome}>
+          <div className={styles.nameLine}>
+            <h1>Dashboard</h1>
           </div>
-          <p className="mt-1 text-sm text-muted">
-            A current view of club activity.
+          <p className={styles.headerDescription}>
+            {officer.name} <span aria-hidden="true">·</span>{" "}
+            {officer.positionName}
           </p>
-        </section>
-        <section
-          aria-label="Your profile"
-          className="flex min-w-0 flex-wrap items-center justify-between gap-x-5 gap-y-2 sm:justify-end"
-        >
-          <div className="min-w-0">
-            <p className="text-[0.6875rem] font-medium uppercase tracking-[0.06em] text-muted">
-              Personal total
-            </p>
+        </div>
+
+        <Link href={`/officers/${officer.id}`} className={styles.personalCard}>
+          <span className={styles.personalInfo}>
+            <span className={styles.personalLabel}>Your points</span>
             {total.error ? (
-              <p role="alert" className="text-sm">
-                Personal total unavailable. Reload this page to retry.
-              </p>
+              <span role="alert" className={styles.personalError}>
+                Unavailable · reload to retry
+              </span>
             ) : (
-              <p className="mt-0.5 flex items-baseline gap-1 text-lg font-semibold tabular-nums text-foreground">
+              <span className={styles.personalValue}>
                 <PointValue value={total.data.total_points ?? 0} />
-                <span className="text-sm font-medium text-muted">pts</span>
-              </p>
+                <span>pts</span>
+              </span>
             )}
-          </div>
-          <Link
-            href={`/officers/${officer.id}`}
-            aria-label={`View ${officer.name}'s profile`}
-            className="inline-flex min-h-11 items-center gap-1 text-sm text-secondary underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted lg:min-h-9"
-          >
-            View profile <span aria-hidden="true">→</span>
-          </Link>
-        </section>
+          </span>
+          <span className="sr-only">View your profile</span>
+        </Link>
       </header>
-      <section
-        aria-label="Summary"
-        className="overflow-hidden rounded-md border border-border bg-surface/30"
-      >
+
+      <section className={styles.metricGrid} aria-label="Club summary">
         {summary.error ? (
-          <p role="alert" className="px-4 py-3 text-sm">
+          <p role="alert" className={styles.inlineError}>
             Summary unavailable. Reload this page to retry.
           </p>
         ) : (
-          <dl className="grid grid-cols-1 divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-            {[
-              {
-                label: "Active officers",
-                value: summary.data.active_officer_count ?? 0,
-              },
-              {
-                label: "Upcoming events",
-                value: summary.data.upcoming_event_count ?? 0,
-              },
-              {
-                label: "Points this period",
-                value:
-                  currentPeriodPoints === null
-                    ? "No current period"
-                    : displayPoints(currentPeriodPoints),
-              },
-            ].map((stat) => (
-              <div key={stat.label} className="min-w-0 px-3 py-2.5 sm:px-4">
-                <dt className="mt-0 text-[0.6875rem] font-medium uppercase tracking-[0.06em] text-muted">
-                  {stat.label}
-                </dt>
-                <dd className="mt-1 text-xl font-semibold tabular-nums text-foreground sm:text-2xl">
-                  {stat.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
+          <>
+            <MetricCard
+              label="Active officers"
+              value={summary.data.active_officer_count ?? 0}
+            />
+            <MetricCard
+              label="Upcoming events"
+              value={summary.data.upcoming_event_count ?? 0}
+            />
+            <MetricCard
+              label="Points this period"
+              value={
+                currentPeriodPoints === null
+                  ? "—"
+                  : displayPoints(currentPeriodPoints)
+              }
+            />
+          </>
         )}
       </section>
-      <p className="px-1 text-xs text-muted">
+
+      <p className={styles.periodNote}>
         {selectedPeriod
           ? `Points include signed transactions attributed to ${selectedPeriod.name}.`
           : "No current period. Dashboard activity is unfiltered."}
       </p>
+
       <section
-        aria-label="Your action items"
-        className="min-w-0 border-y border-border py-3"
+        className={`${styles.panel} ${styles.actionsPanel}`}
+        aria-labelledby="action-items-title"
       >
-        <SectionHeading
+        <SectionTitle
           title="Your action items"
+          id="action-items-title"
           action={
-            <div className="flex max-w-full flex-wrap gap-x-4 text-sm">
-              <Link
-                href="/tasks"
-                className="inline-flex min-h-9 items-center underline underline-offset-4"
-              >
-                View all Tasks
-              </Link>
-            </div>
+            <Link href="/tasks" className={styles.textLink}>
+              View tasks
+            </Link>
           }
         />
-        {actionItems.unavailableSources.tasks && (
-          <p role="alert" className="text-sm">
-            Task actions unavailable. Reload this page to retry.
-          </p>
-        )}
         {actionItems.unavailableSources.tasks ? (
-          <p className="text-sm text-muted">
-            Showing available action items. This list may be incomplete.
-          </p>
-        ) : null}
-        {actionItems.items.length === 0 ? (
-          actionItems.unavailableSources.tasks ? null : (
-            <p className="text-sm">You&apos;re all caught up.</p>
-          )
+          <div className={styles.alertBox} role="alert">
+            <span>Task actions are unavailable. Reload to retry.</span>
+            <span>Showing available items only.</span>
+          </div>
+        ) : actionItems.items.length === 0 ? (
+          <div className={styles.emptyState}>
+            <p>You&apos;re all caught up.</p>
+          </div>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className={styles.actionList}>
             {actionItems.items.map((item) => (
               <li key={item.key}>
-                <Link
-                  href={item.href}
-                  className="grid min-h-11 min-w-0 gap-x-4 gap-y-1 py-2 text-sm hover:underline sm:grid-cols-[minmax(0,1fr)_max-content_max-content] sm:items-center"
-                >
-                  <span className="min-w-0 break-words font-medium text-foreground">
-                    {item.title}
+                <Link href={item.href} className={styles.actionRow}>
+                  <span className={styles.actionMain}>
+                    <span className={styles.actionTitle}>{item.title}</span>
+                    <span className={styles.actionMeta}>
+                      {item.dueDate ? (
+                        <time dateTime={item.dueDate}>
+                          {formatCalendarDate(item.dueDate)}
+                        </time>
+                      ) : (
+                        <span>Needs your attention</span>
+                      )}
+                    </span>
                   </span>
-                  {item.dueDate ? (
-                    <time dateTime={item.dueDate} className="text-muted">
-                      Due {formatCalendarDate(item.dueDate)}
-                    </time>
-                  ) : (
-                    <span className="hidden sm:block" />
-                  )}
-                  <span className="min-w-0 break-words text-muted sm:text-right">
+                  <span
+                    className={styles.actionStatusLabel}
+                    data-status={item.status.toLowerCase().replaceAll(" ", "-")}
+                  >
                     {item.status}
                   </span>
                 </Link>
@@ -336,156 +322,134 @@ export default async function DashboardPage({
           </ul>
         )}
         {actionItems.hasMore && (
-          <p className="mt-2 text-xs">
-            {actionItems.unavailableSources.tasks
-              ? "Showing the first " +
-                DASHBOARD_PREVIEW_LIMIT +
-                " available items. "
-              : "Showing the first " + DASHBOARD_PREVIEW_LIMIT + " items. "}
-            View Tasks for more.
+          <p className={styles.listFootnote}>
+            Showing the first {DASHBOARD_PREVIEW_LIMIT} items. View Tasks for
+            the full list.
           </p>
         )}
       </section>
-      <div className="grid min-w-0 items-start gap-5 border-t border-border pt-4 lg:grid-cols-2 lg:gap-0">
-        <section aria-label="Upcoming events" className="min-w-0 lg:pr-6">
-          <SectionHeading
+
+      <div className={styles.contentGrid}>
+        <section className={styles.panel} aria-label="Upcoming events">
+          <SectionTitle
             title="Upcoming events"
-            description="Next events · El Paso time"
             action={
-              <Link
-                href="/events"
-                className="inline-flex min-h-9 items-center text-sm underline underline-offset-4"
-              >
-                View all Events
+              <Link href="/events" className={styles.textLink}>
+                View events
               </Link>
             }
           />
           {events.error ? (
-            <p role="alert" className="text-sm">
+            <div className={styles.alertBox} role="alert">
               Upcoming events unavailable. Reload this page to retry.
-            </p>
+            </div>
           ) : !events.data.length ? (
-            <p>No upcoming events.</p>
+            <div className={styles.emptyState}>
+              <p>No upcoming events.</p>
+            </div>
           ) : (
-            <ul className="divide-y divide-border">
-              {events.data.map((event) => (
-                <li
-                  key={event.id}
-                  className="grid min-w-0 gap-1 py-2.5 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-3"
-                >
-                  <div className="min-w-0">
+            <ul className={styles.eventList}>
+              {events.data.map((event) => {
+                const isSignedUp = event.event_officers.some(
+                  (signup) =>
+                    signup.officer_id === officer.id &&
+                    signup.removed_at == null,
+                );
+                return (
+                  <li key={event.id}>
                     <Link
                       href={`/events/${event.id}`}
-                      className="block break-words font-medium text-foreground hover:underline"
+                      className={styles.eventRow}
                     >
-                      {event.name}
+                      <span className={styles.eventMain}>
+                        <span className={styles.eventTitle}>{event.name}</span>
+                        <span className={styles.eventMeta}>
+                          {formatEventSchedule(event.starts_at, event.ends_at)}
+                        </span>
+                      </span>
+                      <span className={styles.eventDetails}>
+                        <span className={styles.eventCapacity}>
+                          {countsResult.error ||
+                          signupCounts.get(event.id)?.confirmed_count == null
+                            ? "Signups unavailable"
+                            : eventSignupCountLabel({
+                                max_volunteers: event.max_volunteers,
+                                confirmed_count: Number(
+                                  signupCounts.get(event.id)?.confirmed_count,
+                                ),
+                              })}
+                        </span>
+                        <span
+                          className={
+                            isSignedUp
+                              ? styles.statusBlue
+                              : styles.statusNeutral
+                          }
+                        >
+                          {participationLabel(isSignedUp)}
+                        </span>
+                      </span>
                     </Link>
-                    <p className="text-sm">
-                      {formatEventSchedule(event.starts_at, event.ends_at)}
-                    </p>
-                  </div>
-                  <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted sm:flex-col sm:items-end sm:gap-y-0.5">
-                    <span>
-                      {countsResult.error ||
-                      signupCounts.get(event.id)?.confirmed_count == null
-                        ? "Signup counts unavailable"
-                        : eventSignupCountLabel({
-                            max_volunteers: event.max_volunteers,
-                            confirmed_count: Number(
-                              signupCounts.get(event.id)?.confirmed_count,
-                            ),
-                          })}
-                    </span>
-                    <span
-                      className={
-                        event.event_officers.some(
-                          (signup) =>
-                            signup.officer_id === officer.id &&
-                            signup.removed_at == null,
-                        )
-                          ? "text-info"
-                          : "text-muted"
-                      }
-                    >
-                      {participationLabel(
-                        event.event_officers.some(
-                          (signup) =>
-                            signup.officer_id === officer.id &&
-                            signup.removed_at == null,
-                        ),
-                      )}
-                    </span>
-                  </div>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
-        <section
-          aria-label="Recent point activity"
-          className="min-w-0 border-t border-border pt-4 lg:border-l lg:border-t-0 lg:py-0 lg:pl-5"
-        >
-          <SectionHeading
+
+        <section className={styles.panel} aria-label="Recent point activity">
+          <SectionTitle
             title="Recent point activity"
-            description={`Latest ${DASHBOARD_PREVIEW_LIMIT} transactions`}
             action={
-              <Link
-                href="/points?view=history"
-                className="inline-flex min-h-9 items-center text-sm underline underline-offset-4"
-              >
-                View all Points
+              <Link href="/points?view=history" className={styles.textLink}>
+                View history
               </Link>
             }
           />
           {transactions.error ? (
-            <p role="alert" className="text-sm">
+            <div className={styles.alertBox} role="alert">
               Recent point activity unavailable. Reload this page to retry.
-            </p>
+            </div>
           ) : !transactions.data.length ? (
-            <p>No point transactions yet.</p>
+            <div className={styles.emptyState}>
+              <p>No point transactions yet.</p>
+            </div>
           ) : (
-            <ul className="divide-y divide-border">
+            <ul className={styles.pointList}>
               {transactions.data.map((transaction) => (
-                <li
-                  key={transaction.id}
-                  className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 py-2.5 first:pt-0 last:pb-0"
-                >
-                  <div className="min-w-0 text-sm">
-                    <Link
-                      href={`/officers/${transaction.officers.id}`}
-                      className="break-words font-medium text-foreground hover:underline"
-                    >
-                      {transaction.officers.name}
-                    </Link>
-                    <p className="break-words">
-                      {transaction.events ? (
-                        <Link
-                          href={`/events/${transaction.events.id}`}
-                          className="underline underline-offset-4"
-                        >
-                          {transaction.events.name}
-                        </Link>
-                      ) : transaction.tasks ? (
-                        <Link
-                          href={`/tasks/${transaction.tasks.id}`}
-                          className="underline underline-offset-4"
-                        >
-                          {transaction.tasks.title}
-                        </Link>
-                      ) : (
-                        transaction.reason
-                      )}
-                    </p>
-                  </div>
-                  <div className="shrink-0 space-y-1 text-right text-sm">
-                    <PointValue value={transaction.points} />
-                    <span className="sr-only"> points</span>
-                    <time
-                      dateTime={transaction.created_at}
-                      className="block text-xs text-muted"
-                    >
-                      {formatDate(transaction.created_at)}
-                    </time>
+                <li key={transaction.id}>
+                  <div className={styles.pointRow}>
+                    <span className={styles.pointMain}>
+                      <Link
+                        href={`/officers/${transaction.officers.id}`}
+                        className={styles.pointOfficer}
+                      >
+                        {transaction.officers.name}
+                      </Link>
+                      <span className={styles.pointReason}>
+                        {transaction.events ? (
+                          <Link href={`/events/${transaction.events.id}`}>
+                            {transaction.events.name}
+                          </Link>
+                        ) : transaction.tasks ? (
+                          <Link href={`/tasks/${transaction.tasks.id}`}>
+                            {transaction.tasks.title}
+                          </Link>
+                        ) : (
+                          transaction.reason
+                        )}
+                      </span>
+                    </span>
+                    <span className={styles.pointRight}>
+                      <strong
+                        className={`${styles.pointAmount} ${transaction.points < 0 ? styles.negativeText : styles.positiveText}`}
+                      >
+                        <PointValue value={transaction.points} />
+                      </strong>
+                      <time dateTime={transaction.created_at}>
+                        {formatDate(transaction.created_at)}
+                      </time>
+                    </span>
                   </div>
                 </li>
               ))}
@@ -493,6 +457,37 @@ export default async function DashboardPage({
           )}
         </section>
       </div>
+    </div>
+  );
+}
+
+function MetricCard({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className={styles.metricCard}>
+      <dt className={styles.metricLabel}>{label}</dt>
+      <dd className={styles.metricValue}>{value}</dd>
+    </div>
+  );
+}
+
+function SectionTitle({
+  title,
+  id,
+  action,
+  detail,
+}: {
+  title: string;
+  id?: string;
+  action?: ReactNode;
+  detail?: string;
+}) {
+  return (
+    <div className={styles.sectionHeading}>
+      <div>
+        <h2 id={id}>{title}</h2>
+        {detail && <p>{detail}</p>}
+      </div>
+      {action}
     </div>
   );
 }

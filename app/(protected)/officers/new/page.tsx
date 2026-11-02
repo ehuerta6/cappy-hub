@@ -43,7 +43,7 @@ export default async function NewOfficerPage({
   if (branches.error || positions.error)
     throw new Error("Failed to load officer options");
   return (
-    <div className="space-y-6">
+    <div data-form-page="officer" className="space-y-6">
       <ContextualBackLink
         href={
           params.period

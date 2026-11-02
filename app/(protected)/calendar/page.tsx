@@ -17,7 +17,7 @@ export default async function CalendarPage({
   ]);
   const periodSelection = resolveAcademicPeriod(params.period, periodData);
   return (
-    <div data-page-width="wide" className="space-y-5">
+    <div data-page-width="wide" data-nav-page="calendar" className="space-y-5">
       <PageHeader
         title="Calendar"
         description={
@@ -33,7 +33,9 @@ export default async function CalendarPage({
           Array.isArray(params.period) ? params.period[0] : params.period
         }
         initialDate={
-          periodSelection.period?.starts_on ?? periodData.currentDate
+          periodSelection.isHistorical
+            ? periodSelection.period?.starts_on
+            : periodData.currentDate
         }
       />
     </div>

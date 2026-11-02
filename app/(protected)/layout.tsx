@@ -25,7 +25,7 @@ export default async function ProtectedLayout({ children }: LayoutProps<"/">) {
             <form action={signOut} className="w-auto max-w-full shrink-0">
               <button
                 type="submit"
-                className="button-secondary min-h-11 max-w-full whitespace-normal break-words px-3 py-2 text-left lg:min-h-0 lg:py-1.5"
+                className="header-control button-secondary max-w-full text-left"
               >
                 Sign out
               </button>

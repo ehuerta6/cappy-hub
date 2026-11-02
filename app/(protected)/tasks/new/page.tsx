@@ -49,7 +49,7 @@ export default async function NewTaskPage({
   if (branches.error || events.error || taskTypes.error)
     throw new Error("Failed to load Task form");
   return (
-    <div className="space-y-6">
+    <div data-form-page="task" className="space-y-6">
       <ContextualBackLink
         href={
           params.period

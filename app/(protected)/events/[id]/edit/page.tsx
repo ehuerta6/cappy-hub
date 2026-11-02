@@ -100,7 +100,7 @@ export default async function EditEventPage({
           .single();
   if (series?.error) throw new Error("Failed to load recurring series");
   return (
-    <div className="space-y-6">
+    <div data-form-page="event" className="space-y-6">
       <ContextualBackLink
         href={withReturnTo(`/events/${eventIdParam}`, returnTo)}
       >

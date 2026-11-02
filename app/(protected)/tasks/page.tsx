@@ -6,6 +6,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import {
   ActionLink,
+  Badge,
   BranchBadges,
   ListFilterBar,
   PageHeader,
@@ -222,7 +223,9 @@ export default async function TasksPage({
                     <td className="whitespace-nowrap">
                       {formatTaskDueDate(task.due_date)}
                     </td>
-                    <td>{formatLabel(task.task_type)}</td>
+                    <td>
+                      <Badge tone="teal">{formatLabel(task.task_type)}</Badge>
+                    </td>
                     <td>
                       <BranchBadges branches={[task.branches.name]} />
                     </td>
@@ -261,7 +264,7 @@ export default async function TasksPage({
   };
 
   return (
-    <div data-page-width="wide" className="space-y-5">
+    <div data-page-width="wide" data-nav-page="tasks" className="space-y-5">
       <PageHeader
         title="Tasks"
         description="Task assignments, due dates, and completion."

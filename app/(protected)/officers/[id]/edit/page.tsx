@@ -12,6 +12,7 @@ import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import OfficerForm from "../../new/officer-form";
+import { PageHeader } from "@/components/ui";
 import {
   getAcademicPeriodData,
   resolveAcademicPeriod,
@@ -50,11 +51,11 @@ export default async function EditOfficerPage({
     throw new Error("Failed to load officer form");
   if (!officer.data) notFound();
   return (
-    <div className="space-y-4">
+    <div data-form-page="officer" className="space-y-4">
       <ContextualBackLink href={withReturnTo(`/officers/${id}`, returnTo)}>
         Back to officer
       </ContextualBackLink>
-      <h1>Edit officer</h1>
+      <PageHeader title="Edit officer" />
       <OfficerForm
         returnTo={returnTo}
         officer={officer.data}

@@ -52,14 +52,14 @@ export default function AcademicPeriodSelector({
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-0.5">
+    <div className="academic-period-control flex min-w-0 flex-col gap-0.5">
       <label className="sr-only" htmlFor="academic-period-select">
         View academic period
       </label>
       <select
         id="academic-period-select"
         aria-describedby="academic-period-state"
-        className="min-h-9 max-w-44 rounded-md border border-border bg-surface px-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted"
+        className="header-control academic-period-select focus-visible:outline-2 focus-visible:outline-offset-2"
         value={selectValue}
         onChange={(event) => selectPeriod(event.target.value)}
       >

@@ -324,7 +324,7 @@ export default async function TaskDetailPage({
     );
 
   return (
-    <div className="space-y-4">
+    <div data-record-page="task" className="space-y-4">
       <ContextualBackLink href="/tasks" returnTo={contextualReturnTo}>
         Back to tasks
       </ContextualBackLink>

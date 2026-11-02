@@ -91,7 +91,7 @@ export default function TaskCreateForm({
     <form
       ref={formRef}
       action={action}
-      className="task-form grid max-w-6xl grid-cols-2 gap-x-6 gap-y-4"
+      className="event-form task-form"
       onChange={updateEditedFields}
     >
       <AcademicPeriodWriteContextField />
@@ -133,143 +133,166 @@ export default function TaskCreateForm({
         name="recurrence_request_key"
         value={recurrenceRequestKey}
       />
-      <label className={`task-form-title self-start ${fieldLabelClassName}`}>
-        Title
-        <input
-          name="title"
-          required
-          className="h-10 text-base font-medium"
-          aria-invalid={Boolean(fieldErrors.title)}
-          aria-describedby={fieldErrors.title ? "task-title-error" : undefined}
-          defaultValue={submittedValue(
-            state.values,
-            "title",
-            task?.title ?? "",
-          )}
-        />
-        <FieldError id="task-title-error">{fieldErrors.title}</FieldError>
-      </label>
-      <label
-        className={`task-form-description self-start ${fieldLabelClassName}`}
-      >
-        Description
-        <textarea
-          name="description"
-          required
-          aria-invalid={Boolean(fieldErrors.description)}
-          aria-describedby={
-            fieldErrors.description ? "task-description-error" : undefined
-          }
-          defaultValue={submittedValue(
-            state.values,
-            "description",
-            task?.description ?? "",
-          )}
-        />
-        <FieldError id="task-description-error">
-          {fieldErrors.description}
-        </FieldError>
-      </label>
-      <label className={fieldLabelClassName}>
-        Type
-        <select
-          name="task_type"
-          required
-          aria-invalid={Boolean(fieldErrors.task_type)}
-          aria-describedby={
-            fieldErrors.task_type ? "task-type-error" : undefined
-          }
-          defaultValue={submittedValue(
-            state.values,
-            "task_type",
-            task?.task_type ?? "",
-          )}
-        >
-          <option value="" disabled>
-            Select task type
-          </option>
-          {task && !taskTypes.some((type) => type.name === task.task_type) && (
-            <option value={task.task_type}>{task.task_type} (Deleted)</option>
-          )}
-          {taskTypes.map(({ name }) => (
-            <option key={name}>{name}</option>
-          ))}
-        </select>
-        <FieldError id="task-type-error">{fieldErrors.task_type}</FieldError>
-      </label>
-      <label className={fieldLabelClassName}>
-        Branch
-        <select
-          name="branch_id"
-          required
-          aria-invalid={Boolean(fieldErrors.branch_id)}
-          aria-describedby={
-            fieldErrors.branch_id ? "task-branch-error" : undefined
-          }
-          defaultValue={submittedValue(
-            state.values,
-            "branch_id",
-            String(task?.branch_id ?? ""),
-          )}
-        >
-          <option value="" disabled>
-            Select branch
-          </option>
-          {branches.map((branch) => (
-            <option key={branch.id} value={branch.id}>
-              {branch.name}
-            </option>
-          ))}
-        </select>
-        <FieldError id="task-branch-error">{fieldErrors.branch_id}</FieldError>
-      </label>
-      <label className={fieldLabelClassName}>
-        Due date
-        <input
-          name="due_date"
-          type="date"
-          required
-          aria-invalid={Boolean(fieldErrors.due_date)}
-          aria-describedby={
-            fieldErrors.due_date ? "task-due-date-error" : undefined
-          }
-          defaultValue={submittedValue(
-            state.values,
-            "due_date",
-            task?.due_date ?? "",
-          )}
-        />
-        <FieldError id="task-due-date-error">{fieldErrors.due_date}</FieldError>
-      </label>
-      <label className={fieldLabelClassName}>
-        Points
-        <input
-          name="points"
-          type="number"
-          min="0"
-          step="any"
-          required
-          aria-invalid={Boolean(fieldErrors.points)}
-          aria-describedby={
-            fieldErrors.points ? "task-points-error" : undefined
-          }
-          defaultValue={submittedValue(
-            state.values,
-            "points",
-            task ? String(task.points) : "",
-          )}
-        />
-        <FieldError id="task-points-error">{fieldErrors.points}</FieldError>
-      </label>
-      <TaskEventCombobox
-        events={events}
-        initialSelectedIds={initialEventIds}
-        error={fieldErrors.event_ids}
-        onSelectionChange={(ids) => {
-          selectedEventIds.current = ids;
-          updateEditedFields();
-        }}
-      />
+      <fieldset className="event-form-section">
+        <legend>Task details</legend>
+        <div className="event-form-fields">
+          <label
+            className={`task-form-title col-span-full self-start ${fieldLabelClassName}`}
+          >
+            Title
+            <input
+              name="title"
+              required
+              className="h-10 text-base font-medium"
+              aria-invalid={Boolean(fieldErrors.title)}
+              aria-describedby={
+                fieldErrors.title ? "task-title-error" : undefined
+              }
+              defaultValue={submittedValue(
+                state.values,
+                "title",
+                task?.title ?? "",
+              )}
+            />
+            <FieldError id="task-title-error">{fieldErrors.title}</FieldError>
+          </label>
+          <label
+            className={`task-form-description col-span-full self-start ${fieldLabelClassName}`}
+          >
+            Description
+            <textarea
+              name="description"
+              required
+              aria-invalid={Boolean(fieldErrors.description)}
+              aria-describedby={
+                fieldErrors.description ? "task-description-error" : undefined
+              }
+              defaultValue={submittedValue(
+                state.values,
+                "description",
+                task?.description ?? "",
+              )}
+            />
+            <FieldError id="task-description-error">
+              {fieldErrors.description}
+            </FieldError>
+          </label>
+          <label className={fieldLabelClassName}>
+            Type
+            <select
+              name="task_type"
+              required
+              aria-invalid={Boolean(fieldErrors.task_type)}
+              aria-describedby={
+                fieldErrors.task_type ? "task-type-error" : undefined
+              }
+              defaultValue={submittedValue(
+                state.values,
+                "task_type",
+                task?.task_type ?? "",
+              )}
+            >
+              <option value="" disabled>
+                Select task type
+              </option>
+              {task &&
+                !taskTypes.some((type) => type.name === task.task_type) && (
+                  <option value={task.task_type}>
+                    {task.task_type} (Deleted)
+                  </option>
+                )}
+              {taskTypes.map(({ name }) => (
+                <option key={name}>{name}</option>
+              ))}
+            </select>
+            <FieldError id="task-type-error">
+              {fieldErrors.task_type}
+            </FieldError>
+          </label>
+        </div>
+      </fieldset>
+      <fieldset className="event-form-section">
+        <legend>Schedule and ownership</legend>
+        <div className="event-form-fields">
+          <label className={fieldLabelClassName}>
+            Branch
+            <select
+              name="branch_id"
+              required
+              aria-invalid={Boolean(fieldErrors.branch_id)}
+              aria-describedby={
+                fieldErrors.branch_id ? "task-branch-error" : undefined
+              }
+              defaultValue={submittedValue(
+                state.values,
+                "branch_id",
+                String(task?.branch_id ?? ""),
+              )}
+            >
+              <option value="" disabled>
+                Select branch
+              </option>
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
+            <FieldError id="task-branch-error">
+              {fieldErrors.branch_id}
+            </FieldError>
+          </label>
+          <label className={fieldLabelClassName}>
+            Due date
+            <input
+              name="due_date"
+              type="date"
+              required
+              aria-invalid={Boolean(fieldErrors.due_date)}
+              aria-describedby={
+                fieldErrors.due_date ? "task-due-date-error" : undefined
+              }
+              defaultValue={submittedValue(
+                state.values,
+                "due_date",
+                task?.due_date ?? "",
+              )}
+            />
+            <FieldError id="task-due-date-error">
+              {fieldErrors.due_date}
+            </FieldError>
+          </label>
+          <label className={fieldLabelClassName}>
+            Points
+            <input
+              name="points"
+              type="number"
+              min="0"
+              step="any"
+              required
+              aria-invalid={Boolean(fieldErrors.points)}
+              aria-describedby={
+                fieldErrors.points ? "task-points-error" : undefined
+              }
+              defaultValue={submittedValue(
+                state.values,
+                "points",
+                task ? String(task.points) : "",
+              )}
+            />
+            <FieldError id="task-points-error">{fieldErrors.points}</FieldError>
+          </label>
+          <TaskEventCombobox
+            events={events}
+            initialSelectedIds={initialEventIds}
+            error={fieldErrors.event_ids}
+            onSelectionChange={(ids) => {
+              selectedEventIds.current = ids;
+              updateEditedFields();
+            }}
+          />
+        </div>
+      </fieldset>
       {!task && (
         <div className="col-span-2">
           <RecurrenceFields
@@ -280,20 +303,18 @@ export default function TaskCreateForm({
           />
         </div>
       )}
-      {(state.error || state.success) && (
-        <div className="col-span-2">
-          <ActionFeedback state={state} />
-        </div>
-      )}
-      <button disabled={pending} className="lg:justify-self-start">
-        {pending
-          ? task
-            ? "Saving…"
-            : "Creating…"
-          : task
-            ? "Save task"
-            : "Create task"}
-      </button>
+      <div className="col-span-2 flex flex-wrap items-start gap-4">
+        {(state.error || state.success) && <ActionFeedback state={state} />}
+        <button disabled={pending}>
+          {pending
+            ? task
+              ? "Saving…"
+              : "Creating…"
+            : task
+              ? "Save task"
+              : "Create task"}
+        </button>
+      </div>
     </form>
   );
 }

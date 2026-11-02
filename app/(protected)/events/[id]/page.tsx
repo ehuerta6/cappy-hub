@@ -442,7 +442,7 @@ export default async function EventDetailPage({
   const seriesData = series?.data;
 
   return (
-    <div className="space-y-4">
+    <div data-record-page="event" className="space-y-4">
       <ContextualBackLink href="/events" returnTo={contextualReturnTo}>
         Back to events
       </ContextualBackLink>

@@ -43,7 +43,7 @@ export default async function AcademicPeriodsPage({
   const readOnly = periodSelection.isHistorical;
   const error = params.error ? messages[params.error] : undefined;
   return (
-    <div data-page-width="wide" className="space-y-5">
+    <div data-page-width="wide" data-form-page="periods" className="space-y-5">
       <Link
         href={
           `/admin${params.period ? `?period=${params.period}` : ""}` as import("next").Route

@@ -44,7 +44,7 @@ export default function OfficerForm({
   return (
     <form
       action={action}
-      className="grid-cols-1 gap-4 max-w-3xl sm:grid-cols-2"
+      className="officer-form grid-cols-1 gap-4 max-w-3xl sm:grid-cols-2"
     >
       <AcademicPeriodWriteContextField />
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}

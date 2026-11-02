@@ -10,7 +10,7 @@ import { successNotice } from "@/lib/mutation-feedback";
 export const fieldLabelClassName = "block text-sm font-medium text-secondary";
 export const fieldDescriptionClassName = "text-sm text-muted";
 export const dialogSurfaceClassName =
-  "m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-lg border border-border bg-surface p-5 text-foreground backdrop:bg-black/60 sm:p-6";
+  "cappy-dialog m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-lg border border-border bg-surface p-5 text-foreground backdrop:bg-black/60 sm:p-6";
 export const dialogContentClassName = "space-y-4";
 export const dialogHeaderClassName = "space-y-1.5";
 export const dialogTitleClassName =
@@ -19,7 +19,7 @@ export const dialogDescriptionClassName = "text-sm leading-5 text-secondary";
 export const dialogFooterClassName =
   "flex flex-wrap justify-end gap-2 border-t border-border pt-4";
 export const popupSurfaceClassName =
-  "overflow-hidden rounded-md border border-border-strong bg-surface text-foreground shadow-lg";
+  "cappy-popup overflow-hidden rounded-md border border-border-strong bg-surface text-foreground shadow-lg";
 export const popupListClassName = "max-h-72 overflow-y-auto";
 export const popupOptionClassName =
   "flex cursor-default items-start gap-2 rounded px-2 py-2 text-sm text-secondary outline-none data-[highlighted]:bg-hover data-[selected]:bg-hover data-[selected]:font-medium data-[selected]:text-foreground";
@@ -34,14 +34,11 @@ export function FormMessage({
   className?: string;
 }) {
   if (!children) return null;
-  const tone =
-    kind === "error"
-      ? "border-danger-border bg-danger-bg text-danger"
-      : "border-success-border bg-success-bg text-success";
+  const tone = kind === "error" ? "feedback-error" : "feedback-success";
   return (
     <p
       role={kind === "error" ? "alert" : "status"}
-      className={`rounded-md border px-3 py-2 text-sm ${tone} ${className}`}
+      className={`feedback-message rounded-md border px-3 py-2 text-sm ${tone} ${className}`}
     >
       {children}
     </p>
@@ -103,16 +100,12 @@ export function PageHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-      <div className="min-w-0 space-y-1">
-        <h1 className="break-words text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-          {title}
-        </h1>
-        {description && <p className="text-sm text-muted">{description}</p>}
+    <div className="page-header">
+      <div className="page-header__copy">
+        <h1>{title}</h1>
+        {description && <p>{description}</p>}
       </div>
-      {action && (
-        <div className="min-w-0 shrink-0 sm:max-w-[50%]">{action}</div>
-      )}
+      {action && <div className="page-header__actions">{action}</div>}
     </div>
   );
 }
@@ -127,12 +120,10 @@ export function SectionHeading({
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-      <div className="min-w-0 space-y-1">
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">
-          {title}
-        </h2>
-        {description && <p className="text-sm text-muted">{description}</p>}
+    <div className="section-heading">
+      <div className="section-heading__copy">
+        <h2>{title}</h2>
+        {description && <p>{description}</p>}
       </div>
       {action}
     </div>
@@ -149,7 +140,7 @@ export function ActionLink<T extends string>({
   return (
     <Link
       href={href}
-      className="inline-flex min-h-11 w-fit max-w-full items-center justify-center break-words rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-foreground hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted lg:min-h-0"
+      className="button-primary inline-flex min-h-11 w-fit max-w-full items-center justify-center break-words rounded-md px-3 py-2 text-sm font-medium lg:min-h-0"
     >
       {children}
     </Link>
@@ -157,10 +148,13 @@ export function ActionLink<T extends string>({
 }
 
 const badgeTone = {
-  neutral: "border-border-strong bg-surface-muted text-secondary",
-  green: "border-success-border bg-success-bg text-success",
-  blue: "border-info-border bg-info-bg text-info",
-  red: "border-danger-border bg-danger-bg text-danger",
+  neutral: "badge-neutral",
+  green: "badge-green",
+  blue: "badge-blue",
+  amber: "badge-amber",
+  violet: "badge-violet",
+  teal: "badge-teal",
+  red: "badge-red",
 };
 
 export function Badge({
@@ -172,7 +166,7 @@ export function Badge({
 }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-xs font-medium leading-4 ${badgeTone[tone]}`}
+      className={`status-badge inline-flex items-center rounded-full border px-1.5 py-0.5 text-xs font-medium leading-4 ${badgeTone[tone]}`}
     >
       {children}
     </span>
@@ -180,16 +174,33 @@ export function Badge({
 }
 
 export function StatusBadge({ status }: { status: string }) {
+  const normalizedStatus = status
+    .toLowerCase()
+    .replaceAll("_", " ")
+    .replaceAll("-", " ");
   const tone =
-    status === "active" || status === "happening" || status === "approved"
+    normalizedStatus === "active" ||
+    normalizedStatus === "happening" ||
+    normalizedStatus === "approved" ||
+    normalizedStatus === "complete" ||
+    normalizedStatus === "completed"
       ? "green"
-      : status === "upcoming" || status === "pending" || status === "suspended"
+      : normalizedStatus === "upcoming" ||
+          normalizedStatus === "pending" ||
+          normalizedStatus === "suspended"
         ? "blue"
-        : status === "cancelled" ||
-            status === "rejected" ||
-            status === "removed"
-          ? "red"
-          : "neutral";
+        : normalizedStatus === "open" ||
+            normalizedStatus === "in progress" ||
+            normalizedStatus === "awaiting approval" ||
+            normalizedStatus === "needs decision"
+          ? "amber"
+          : normalizedStatus === "deleted" || normalizedStatus === "archived"
+            ? "violet"
+            : normalizedStatus === "cancelled" ||
+                normalizedStatus === "rejected" ||
+                normalizedStatus === "removed"
+              ? "red"
+              : "neutral";
   return <Badge tone={tone}>{formatLabel(status)}</Badge>;
 }
 
@@ -226,7 +237,7 @@ export function TableFrame({
   return (
     <div
       className={
-        "overflow-x-auto rounded-lg border border-border" +
+        "table-frame overflow-x-auto rounded-lg border border-border" +
         (compact ? " table-frame--compact" : "") +
         " table-frame--keyboard-scroll"
       }
@@ -253,7 +264,7 @@ export function ListFilterBar({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-surface/40 p-3">
+    <div className="list-filter-bar rounded-lg border border-border bg-surface/40 p-3">
       <Form
         action={action}
         role="search"

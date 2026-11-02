@@ -200,50 +200,64 @@ export default async function PointsPage({
   }
 
   const officerTotals = overviewData ? (
-    <section className="min-w-0">
-      <SectionHeading title="Officer ranking" />
-      <div className="rounded-lg border border-border">
-        <table className="w-full min-w-0 table-fixed">
-          <thead>
-            <tr>
-              <th scope="col">Rank</th>
-              <th scope="col">Officer</th>
-              <th scope="col" className="text-right">
-                Total points
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {overviewData!.totals.data.map((officer, index) => (
-              <tr key={officer.id}>
-                <td className="w-20 tabular-nums text-muted">{index + 1}</td>
-                <td>
-                  <Link
-                    href={`/officers/${officer.id}${params.period ? `?period=${params.period}` : ""}`}
-                  >
-                    {officer.name}
-                  </Link>
-                </td>
-                <td className="text-right">
-                  <PointValue value={officer.total_points ?? 0} />
-                </td>
+    <section className="points-ranking-panel" aria-label="Officer ranking">
+      <SectionHeading
+        title="Officer ranking"
+        description={
+          selectedPeriod
+            ? `${overviewData.totals.count ?? 0} active officers · ${selectedPeriod.name}`
+            : "Select an academic period to see ranked points."
+        }
+      />
+      {selectedPeriod && overviewData.totals.data.length > 0 ? (
+        <div className="points-ranking-table-wrap">
+          <table className="points-ranking-table">
+            <thead>
+              <tr>
+                <th scope="col">Rank</th>
+                <th scope="col">Officer</th>
+                <th scope="col" className="text-right">
+                  Points
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="pt-3">
-        <ListPagination
-          pathname="/points"
-          label="Officer ranking"
-          filters={new URLSearchParams()}
-          page={overviewData!.rankPage}
-          totalPages={overviewData!.rankingTotalPages}
-          totalCount={overviewData!.totals.count ?? 0}
-          countLabel="officers"
-          pageParam="rankPage"
-        />
-      </div>
+            </thead>
+            <tbody>
+              {overviewData.totals.data.map((officer, index) => {
+                const points = officer.total_points ?? 0;
+                return (
+                  <tr key={officer.id}>
+                    <td>
+                      <span
+                        className={`points-rank${index < 3 ? " points-rank--top" : ""}`}
+                        aria-label={`Rank ${index + 1}`}
+                      >
+                        {index + 1}
+                      </span>
+                    </td>
+                    <td>
+                      <Link
+                        className="points-officer-link"
+                        href={`/officers/${officer.id}${params.period ? `?period=${params.period}` : ""}`}
+                      >
+                        {officer.name}
+                      </Link>
+                    </td>
+                    <td className="points-total text-right">
+                      <PointValue value={points} />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="points-ranking-empty" role="status">
+          {selectedPeriod
+            ? "No active Officers have earned Points in this period yet."
+            : "No period selected. Choose an academic period from the header."}
+        </p>
+      )}
     </section>
   ) : null;
 
@@ -257,14 +271,14 @@ export default async function PointsPage({
   }
 
   return (
-    <div data-page-width="wide" className="space-y-6">
+    <div data-page-width="wide" data-nav-page="points" className="space-y-6">
       <PageHeader
         title="Points"
         description="Finished events receive participation awards automatically from the scheduled database processor."
       />
       <nav
         aria-label="Points views"
-        className="flex gap-5 border-b border-border"
+        className="points-view-tabs flex gap-5 border-b border-border"
       >
         <Link
           href={rankingPageUrl(1)}
@@ -284,29 +298,37 @@ export default async function PointsPage({
         </Link>
       </nav>
       {view === "overview" ? (
-        <div className="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.42fr)]">
-          {selectedPeriod ? (
-            officerTotals
-          ) : (
-            <p className="text-sm text-muted">
-              No period selected. Choose an academic period to see its ranking.
-            </p>
-          )}
-          <section className="min-w-0 space-y-3">
+        <div className="points-overview-grid">
+          {officerTotals}
+          <aside className="points-side-panel">
             <SectionHeading title="Participation Points" />
-            <p>Event participation earns exactly 1 Point per eligible hour.</p>
+            <p className="points-rule-copy">
+              Event participation is calculated automatically after an event
+              ends.
+            </p>
+            <div className="points-rule-rate">
+              <strong>1</strong>
+              <span>Point per eligible hour</span>
+            </div>
             {admin &&
               !periodSelection.isHistorical &&
               (selectedPeriod === null ||
                 selectedPeriod.id === periodData.currentPeriodId) && (
-                <>
+                <section className="points-admin-tools">
+                  <SectionHeading title="Administrator tools" />
+                  <p>Record a manual award or correction with a reason.</p>
                   <TransactionForm
                     officers={overviewData!.activeOfficers.data}
                     events={overviewData!.recentEvents!.data}
                   />
-                </>
+                </section>
               )}
-          </section>
+            {admin && periodSelection.isHistorical && (
+              <p className="points-readonly-note">
+                This academic period is read-only.
+              </p>
+            )}
+          </aside>
         </div>
       ) : (
         <section className="min-w-0 space-y-4">

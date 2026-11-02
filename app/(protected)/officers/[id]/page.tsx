@@ -861,7 +861,7 @@ export default async function OfficerDetailPage({
   );
 
   return (
-    <div className="space-y-4">
+    <div data-record-page="officer" className="space-y-4">
       <ContextualBackLink href="/officers" returnTo={safeReturnDestination}>
         Back to officers
       </ContextualBackLink>
