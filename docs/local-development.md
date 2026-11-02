@@ -13,6 +13,10 @@ npm run dev
 
 `local:setup` runs the full local reset. It starts Supabase, replays migrations, loads the synthetic `supabase/seed.sql`, creates local Auth test accounts, links those accounts to synthetic officers, and writes the local public URL and publishable key to `.env.local`.
 
+## Optional Google Calendar integration test
+
+The local `CAPPYHUB TEST` Calendar publication test is optional and makes real Google Calendar API writes. Ordinary local development and mocked tests do not need Google Cloud access. See [Google Calendar local contributor setup](google-calendar.md#optional-local-contributor-test-against-cappyhub-test) for approved access, short-lived ADC impersonation, configuration, and troubleshooting. Never use the production CIC calendar. Restoring synthetic Events with `npm run local:reset` discards local database changes.
+
 ## Local test accounts
 
 Use these emails on the local login page. Every account uses the same local-only password: `CappyLocal123!`.
