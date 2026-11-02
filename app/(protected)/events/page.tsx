@@ -26,6 +26,10 @@ import { searchOrFilter } from "@/lib/list-search";
 import { eventListFiltersSchema } from "./filter-validation";
 import { currentDenverWeek } from "@/lib/current-denver-week";
 import {
+  getAcademicPeriodData,
+  resolveAcademicPeriod,
+} from "@/lib/academic-periods";
+import {
   RetryGoogleCalendarSyncForm,
   SelfSignupForm,
   SignupForm,
@@ -43,6 +47,9 @@ export default async function EventsPage({
 }) {
   const actor = await getAuthorizationContext();
   const params = await searchParams;
+  const periodData = await getAcademicPeriodData();
+  const periodSelection = resolveAcademicPeriod(params.period, periodData);
+  const selectedPeriod = periodSelection.period;
   const filters = eventListFiltersSchema.parse(params);
   const requestedCalendarPage = Number(params.syncPage ?? "1");
   const calendarPage =
@@ -66,6 +73,8 @@ export default async function EventsPage({
   const { today, sunday } = currentDenverWeek(now);
   const supabase = await createClient();
   const filtersInUrl = new URLSearchParams();
+  if (params.period !== undefined)
+    filtersInUrl.set("period", String(params.period));
   if (search) filtersInUrl.set("q", search);
   if (status) filtersInUrl.set("status", status);
   if (typeId !== undefined) filtersInUrl.set("type", String(typeId));
@@ -97,7 +106,13 @@ export default async function EventsPage({
         .in("scope_branch.branch_id", actor.branchIds)
         .not("scope_branch", "is", null);
 
-    if (status === undefined)
+    if (selectedPeriod && status !== "cancelled" && status !== "deleted")
+      query = query
+        .gte("event_date", selectedPeriod.starts_on)
+        .lte("event_date", selectedPeriod.ends_on);
+    if (status === undefined && selectedPeriod)
+      query = query.neq("status", "cancelled");
+    if (status === undefined && !selectedPeriod)
       query = query
         .neq("status", "cancelled")
         .gte("event_date", today)
@@ -217,7 +232,7 @@ export default async function EventsPage({
   // Pagination selects and orders the page first; presentation groups only
   // those eight Events and keeps their order within each group.
   const sections =
-    status === undefined
+    status === undefined && !selectedPeriod
       ? [
           {
             title: "This week's events",
@@ -239,7 +254,7 @@ export default async function EventsPage({
                     ? "Deleted events"
                     : status === "happening"
                       ? "Happening events"
-                      : "Upcoming events",
+                      : (selectedPeriod?.name ?? "Upcoming events"),
             events,
           },
         ];
@@ -249,6 +264,7 @@ export default async function EventsPage({
     type: typeId?.toString(),
     branch: branchId?.toString(),
     page: page > 1 ? String(page) : undefined,
+    period: params.period,
   });
   const hasFilters = Boolean(search || status || typeId || branchId);
   const filteredToNothing =
@@ -267,9 +283,12 @@ export default async function EventsPage({
             ? "No upcoming events."
             : status === "happening"
               ? "No events happening now."
-              : "No current events.";
+              : selectedPeriod
+                ? `No Events in ${selectedPeriod.name}.`
+                : "No current events.";
   const signupActionsOpen =
-    status === undefined || status === "upcoming" || status === "happening";
+    !periodSelection.isHistorical &&
+    (status === undefined || status === "upcoming" || status === "happening");
 
   return (
     <div data-page-width="wide" className="space-y-4">
@@ -277,13 +296,20 @@ export default async function EventsPage({
         title="Events"
         description="Club events and participation."
         action={
-          canSeeAllBranches(actor) ||
-          (isLead(actor) && actor.branchIds.length > 0) ? (
-            <ActionLink href="/events/new">+ New event</ActionLink>
+          !periodSelection.isHistorical &&
+          (canSeeAllBranches(actor) ||
+            (isLead(actor) && actor.branchIds.length > 0)) ? (
+            <ActionLink
+              href={
+                `/events/new${params.period ? `?period=${params.period}` : ""}` as Route
+              }
+            >
+              + New event
+            </ActionLink>
           ) : undefined
         }
       />
-      {calendarFailures.length > 0 && (
+      {calendarFailures.length > 0 && !periodSelection.isHistorical && (
         <section
           aria-label="Google Calendar synchronization failures"
           className="rounded-lg border border-danger-border bg-danger-bg p-4"
@@ -302,7 +328,7 @@ export default async function EventsPage({
                 className="flex flex-wrap items-center justify-between gap-3"
               >
                 <Link
-                  href={`/events/${event.event!.id}`}
+                  href={withReturnTo(`/events/${event.event!.id}`, returnTo)}
                   className="font-medium underline"
                 >
                   {event.event!.name}
@@ -347,6 +373,9 @@ export default async function EventsPage({
         active={hasFilters}
         clearHref="/events"
       >
+        {params.period !== undefined && (
+          <input type="hidden" name="period" value={String(params.period)} />
+        )}
         <label className="min-w-56 flex-1">
           Search events
           <input

@@ -26,6 +26,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   safeReturnTo,
   withReturnTo,
+  listReturnUrl,
   type NavigationSearchParams,
 } from "@/lib/return-context";
 import Link from "next/link";
@@ -39,10 +40,14 @@ import {
   RestoreWarningForm,
 } from "../warning-forms";
 import type { Tables } from "@/lib/database.types";
+import {
+  getAcademicPeriodData,
+  resolveAcademicPeriod,
+} from "@/lib/academic-periods";
 
 const SECTION_PAGE_SIZE = 5;
 const SECTION_PREVIEW_LIMITS = { warnings: 2, events: 4, points: 3 } as const;
-type OfficerSection = "overview" | "warnings" | "events" | "points";
+type OfficerSection = "overview" | "warnings" | "events" | "tasks" | "points";
 type Warning = Tables<"officer_warnings">;
 type EventAssociation = { events: Tables<"events"> };
 type PointTransactionWithRelations = Tables<"point_transactions"> & {
@@ -142,8 +147,12 @@ export default async function OfficerDetailPage({
   const supabase = await createClient();
   const { id: officerIdParam } = await params;
   const context = (await searchParams) ?? {};
+  const periodData = await getAcademicPeriodData();
+  const periodSelection = resolveAcademicPeriod(context.period, periodData);
+  const selectedPeriod = periodSelection.period;
   const { returnTo } = context;
-  const safeReturnDestination = safeReturnTo(returnTo);
+  const safeReturnDestination =
+    safeReturnTo(returnTo) ?? listReturnUrl("/officers", context);
   const warningView =
     context.warningStatus === "deleted" || context.warningStatus === "all"
       ? context.warningStatus
@@ -169,6 +178,7 @@ export default async function OfficerDetailPage({
     "overview",
     "warnings",
     "events",
+    "tasks",
     "points",
   ].includes(requestedSection)
     ? (requestedSection as OfficerSection)
@@ -187,6 +197,8 @@ export default async function OfficerDetailPage({
     );
   const urlParams = new URLSearchParams();
   if (safeReturnDestination) urlParams.set("returnTo", safeReturnDestination);
+  if (context.period !== undefined)
+    urlParams.set("period", String(context.period));
   if (warningView !== "active") urlParams.set("warningStatus", warningView);
   const requestedPage = parsePage(context.page);
   if (context.page !== undefined && !isValidPageParam(context.page))
@@ -241,8 +253,26 @@ export default async function OfficerDetailPage({
       query = query
         .order("events(event_date)", { ascending: false })
         .order("events(id)", { ascending: false });
+    if (selectedPeriod)
+      query = query
+        .gte("events.event_date", selectedPeriod.starts_on)
+        .lte("events.event_date", selectedPeriod.ends_on);
     return query;
   };
+  const periodTransactionIds = selectedPeriod
+    ? await supabase
+        .from("point_history")
+        .select("id")
+        .eq("officer_id", officer.id)
+        .is("removed_at", null)
+        .gte("activity_date", selectedPeriod.starts_on)
+        .lte("activity_date", selectedPeriod.ends_on)
+    : null;
+  if (periodTransactionIds?.error)
+    throw new Error("Failed to load Officer period Points");
+  const transactionIds = periodTransactionIds?.data
+    .map((row) => row.id)
+    .filter((id): id is number => id !== null);
   const makeTransactionsQuery = (countOnly = false) => {
     let query = supabase
       .from("point_transactions")
@@ -254,10 +284,34 @@ export default async function OfficerDetailPage({
       )
       .is("removed_at", null)
       .eq("officer_id", officer.id);
+    if (transactionIds)
+      query = transactionIds.length
+        ? query.in("id", transactionIds)
+        : query.eq("id", -1);
     if (!countOnly)
       query = query
         .order("created_at", { ascending: false })
         .order("id", { ascending: false });
+    return query;
+  };
+  const makeTasksQuery = (countOnly = false) => {
+    let query = supabase
+      .from("task_officer_assignments")
+      .select(
+        "completed_at,approved_at,tasks!inner(id,title,due_date,points,task_type,removed_at)",
+        countOnly ? { count: "exact", head: true } : { count: "exact" },
+      )
+      .eq("officer_id", officer.id)
+      .is("removed_at", null)
+      .is("tasks.removed_at", null);
+    if (selectedPeriod)
+      query = query
+        .gte("tasks.due_date", selectedPeriod.starts_on)
+        .lte("tasks.due_date", selectedPeriod.ends_on);
+    if (!countOnly)
+      query = query
+        .order("tasks(due_date)", { ascending: false })
+        .order("tasks(id)", { ascending: false });
     return query;
   };
 
@@ -265,6 +319,7 @@ export default async function OfficerDetailPage({
   const warningsNeeded =
     showWarnings && (overview || visibleSection === "warnings");
   const eventsNeeded = overview || visibleSection === "events";
+  const tasksNeeded = overview || visibleSection === "tasks";
   const pointsNeeded = overview || visibleSection === "points";
   const [
     total,
@@ -273,6 +328,8 @@ export default async function OfficerDetailPage({
     approvedCountResult,
     eventCountResult,
     eventsResult,
+    taskCountResult,
+    tasksResult,
     transactionCountResult,
     transactionsResult,
   ] = await Promise.all([
@@ -317,6 +374,16 @@ export default async function OfficerDetailPage({
           return makeEventsQuery().range(from, from + limit - 1);
         })()
       : Promise.resolve({ data: [], error: null }),
+    tasksNeeded
+      ? makeTasksQuery(true)
+      : Promise.resolve({ count: 0, error: null }),
+    tasksNeeded
+      ? (() => {
+          const limit = overview ? SECTION_PAGE_SIZE : SECTION_PAGE_SIZE;
+          const from = overview ? 0 : (requestedPage - 1) * SECTION_PAGE_SIZE;
+          return makeTasksQuery().range(from, from + limit - 1);
+        })()
+      : Promise.resolve({ data: [], error: null }),
     pointsNeeded
       ? makeTransactionsQuery(true)
       : Promise.resolve({ count: 0, error: null }),
@@ -338,15 +405,30 @@ export default async function OfficerDetailPage({
     data: EventAssociation[] | null;
     error: { message: string } | null;
   };
+  const tasks = tasksResult as {
+    data:
+      | {
+          completed_at: string | null;
+          approved_at: string | null;
+          tasks: Pick<
+            Tables<"tasks">,
+            "id" | "title" | "due_date" | "points" | "task_type" | "removed_at"
+          >;
+        }[]
+      | null;
+    error: { message: string } | null;
+  };
   const transactions = transactionsResult as {
     data: PointTransactionWithRelations[] | null;
     error: { message: string } | null;
   };
   const warningCount = warningCountResult.count ?? 0;
   const eventCount = eventCountResult.count ?? 0;
+  const taskCount = taskCountResult.count ?? 0;
   const transactionCount = transactionCountResult.count ?? 0;
   const warningPages = Math.max(1, Math.ceil(warningCount / SECTION_PAGE_SIZE));
   const eventPages = Math.max(1, Math.ceil(eventCount / SECTION_PAGE_SIZE));
+  const taskPages = Math.max(1, Math.ceil(taskCount / SECTION_PAGE_SIZE));
   const transactionPages = Math.max(
     1,
     Math.ceil(transactionCount / SECTION_PAGE_SIZE),
@@ -356,7 +438,9 @@ export default async function OfficerDetailPage({
       ? warningPages
       : visibleSection === "events"
         ? eventPages
-        : transactionPages;
+        : visibleSection === "tasks"
+          ? taskPages
+          : transactionPages;
   if (!overview && requestedPage > selectedPages)
     redirect(
       sectionHref(officerIdParam, visibleSection, urlParams, selectedPages),
@@ -402,6 +486,17 @@ export default async function OfficerDetailPage({
         }
         params={urlParams}
         current={visibleSection === "events"}
+      />
+      <SectionLink
+        officerId={officerIdParam}
+        section="tasks"
+        label={
+          !tasksNeeded || taskCountResult.error
+            ? "Tasks"
+            : `Tasks (${taskCount})`
+        }
+        params={urlParams}
+        current={visibleSection === "tasks"}
       />
       <SectionLink
         officerId={officerIdParam}
@@ -461,15 +556,20 @@ export default async function OfficerDetailPage({
             />
           </dd>
         </dl>
-        {canManageOfficers(actor) && actor.id !== officer.id && (
-          <section className="space-y-2">
-            <SectionHeading
-              title="Application access"
-              description="Admin access is assigned separately from club position."
-            />
-            <RoleForm officerId={officer.id} role={officer.application_role} />
-          </section>
-        )}
+        {!periodSelection.isHistorical &&
+          canManageOfficers(actor) &&
+          actor.id !== officer.id && (
+            <section className="space-y-2">
+              <SectionHeading
+                title="Application access"
+                description="Admin access is assigned separately from club position."
+              />
+              <RoleForm
+                officerId={officer.id}
+                role={officer.application_role}
+              />
+            </section>
+          )}
         {showWarnings && (
           <p className="text-sm">Approved warnings: {approvedCount}</p>
         )}
@@ -495,7 +595,7 @@ export default async function OfficerDetailPage({
               status === "active"
                 ? `/officers/${officerIdParam}?section=warnings`
                 : `/officers/${officerIdParam}?warningStatus=${status}`,
-              returnTo,
+              safeReturnDestination,
             )}
             aria-current={active ? "page" : undefined}
             className={`border-b-2 px-3 py-2 ${active ? "border-foreground font-semibold" : "border-transparent text-secondary hover:text-foreground"}`}
@@ -512,7 +612,7 @@ export default async function OfficerDetailPage({
       <SectionHeading
         title="Warnings"
         action={
-          isAdmin(actor) && !warnings.error ? (
+          isAdmin(actor) && !periodSelection.isHistorical && !warnings.error ? (
             <CreateWarningForm officerId={officer.id} />
           ) : undefined
         }
@@ -569,7 +669,7 @@ export default async function OfficerDetailPage({
               </time>
             </div>
             <p className="whitespace-pre-wrap break-words">{warning.reason}</p>
-            {isAdmin(actor) && (
+            {isAdmin(actor) && !periodSelection.isHistorical && (
               <>
                 <EditWarningForm
                   warningId={warning.id}
@@ -626,7 +726,10 @@ export default async function OfficerDetailPage({
               className="flex flex-wrap items-center gap-2 border-b border-border py-2 text-sm"
             >
               <Link
-                href={`/events/${event.id}`}
+                href={withReturnTo(
+                  `/events/${event.id}`,
+                  listReturnUrl("/events", { period: context.period }),
+                )}
                 className="break-words font-medium text-secondary hover:underline"
               >
                 {event.name}
@@ -651,6 +754,72 @@ export default async function OfficerDetailPage({
     </section>
   );
 
+  const taskContent = (
+    <section aria-label="Associated tasks" className="min-w-0 space-y-3">
+      <SectionHeading title="Associated tasks" />
+      {taskCountResult.error && (
+        <p role="alert" className="text-sm">
+          Task count unavailable. Only visible tasks may be shown.
+        </p>
+      )}
+      {tasks.error ? (
+        <p role="alert" className="text-sm">
+          Tasks unavailable. Reload this page to retry.
+        </p>
+      ) : (tasks.data ?? []).length === 0 ? (
+        <p>No associated Tasks yet.</p>
+      ) : (
+        <TableFrame compact label="Officer tasks">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Task</th>
+                <th scope="col">Due</th>
+                <th scope="col">Points</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(tasks.data ?? []).map((assignment) => {
+                if (!assignment.tasks) return null;
+                return (
+                  <tr key={assignment.tasks.id}>
+                    <td>
+                      <Link
+                        href={withReturnTo(
+                          `/tasks/${assignment.tasks.id}`,
+                          listReturnUrl("/tasks", { period: context.period }),
+                        )}
+                      >
+                        {assignment.tasks.title}
+                      </Link>
+                    </td>
+                    <td>{formatCalendarDate(assignment.tasks.due_date)}</td>
+                    <td>
+                      <PointValue value={assignment.tasks.points} />
+                    </td>
+                    <td>
+                      {assignment.completed_at ? "Complete" : "Incomplete"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </TableFrame>
+      )}
+      {!tasks.error && (
+        <SectionPager
+          officerId={officerIdParam}
+          section="tasks"
+          params={urlParams}
+          page={requestedPage}
+          totalPages={taskPages}
+        />
+      )}
+    </section>
+  );
+
   const pointContent = (
     <section aria-label="Point history" className="space-y-3">
       <SectionHeading title="Point history" />
@@ -665,7 +834,12 @@ export default async function OfficerDetailPage({
         </p>
       ) : (
         <TableFrame compact label="Officer point history">
-          <PointTransactionTable transactions={transactions.data ?? []} />
+          <PointTransactionTable
+            transactions={transactions.data ?? []}
+            period={
+              typeof context.period === "string" ? context.period : undefined
+            }
+          />
         </TableFrame>
       )}
       {!transactions.error && (
@@ -678,7 +852,7 @@ export default async function OfficerDetailPage({
         />
       )}
       <Link
-        href={`/points?officer=${officer.id}`}
+        href={`/points?${new URLSearchParams({ officer: String(officer.id), ...(context.period === undefined ? {} : { period: String(context.period) }) })}`}
         className="inline-block text-sm underline"
       >
         View all point history
@@ -688,15 +862,18 @@ export default async function OfficerDetailPage({
 
   return (
     <div className="space-y-4">
-      <ContextualBackLink href="/officers" returnTo={returnTo}>
+      <ContextualBackLink href="/officers" returnTo={safeReturnDestination}>
         Back to officers
       </ContextualBackLink>
       <PageHeader
         title={officer.name}
         action={
-          canManageOfficers(actor) ? (
+          canManageOfficers(actor) && !periodSelection.isHistorical ? (
             <ActionLink
-              href={withReturnTo(`/officers/${officerIdParam}/edit`, returnTo)}
+              href={withReturnTo(
+                `/officers/${officerIdParam}/edit`,
+                safeReturnDestination,
+              )}
             >
               Edit officer
             </ActionLink>
@@ -716,7 +893,9 @@ export default async function OfficerDetailPage({
                 <SectionHeading
                   title="Warnings"
                   action={
-                    isAdmin(actor) && !warnings.error ? (
+                    isAdmin(actor) &&
+                    !periodSelection.isHistorical &&
+                    !warnings.error ? (
                       <CreateWarningForm officerId={officer.id} />
                     ) : undefined
                   }
@@ -760,7 +939,7 @@ export default async function OfficerDetailPage({
                       <p className="whitespace-pre-wrap break-words text-sm">
                         {warning.reason}
                       </p>
-                      {isAdmin(actor) && (
+                      {isAdmin(actor) && !periodSelection.isHistorical && (
                         <>
                           <EditWarningForm
                             warningId={warning.id}
@@ -818,6 +997,14 @@ export default async function OfficerDetailPage({
               ? "View all point history"
               : `View all point history (${transactionCount})`}
           </Link>
+          <Link
+            className="text-sm underline"
+            href={sectionHref(officerIdParam, "tasks", urlParams)}
+          >
+            {taskCountResult.error
+              ? "View all associated Tasks"
+              : `View all associated Tasks (${taskCount})`}
+          </Link>
         </div>
       )}
       {visibleSection === "warnings" && (
@@ -825,6 +1012,9 @@ export default async function OfficerDetailPage({
       )}
       {visibleSection === "events" && (
         <div className="max-w-4xl">{eventContent}</div>
+      )}
+      {visibleSection === "tasks" && (
+        <div className="max-w-5xl">{taskContent}</div>
       )}
       {visibleSection === "points" && (
         <div className="max-w-5xl">{pointContent}</div>

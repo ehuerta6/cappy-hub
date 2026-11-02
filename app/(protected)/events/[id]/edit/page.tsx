@@ -15,6 +15,10 @@ import { createClient } from "@/lib/supabase/server";
 import EventForm from "../../event-form";
 import { denverParts } from "@/lib/event-time";
 import { PageHeader } from "@/components/ui";
+import {
+  getAcademicPeriodData,
+  resolveAcademicPeriod,
+} from "@/lib/academic-periods";
 export default async function EditEventPage({
   params,
   searchParams,
@@ -22,7 +26,14 @@ export default async function EditEventPage({
   params: Promise<{ id: string }>;
   searchParams?: Promise<NavigationSearchParams>;
 }) {
-  const returnTo = safeReturnTo((await searchParams)?.returnTo);
+  const context = (await searchParams) ?? {};
+  const returnTo = safeReturnTo(context.returnTo);
+  const periodSelection = resolveAcademicPeriod(
+    context.period,
+    await getAcademicPeriodData(),
+  );
+  if (periodSelection.isHistorical)
+    redirect(`/events?period=${context.period}`);
   const actor = await getAuthorizationContext();
   const supabase = await createClient();
   const { id: eventIdParam } = await params;
@@ -66,6 +77,12 @@ export default async function EditEventPage({
     throw new Error("Failed to load event form");
   if (!event.data || event.data.deleted_at) notFound();
   const currentEvent = event.data;
+  if (
+    periodSelection.period &&
+    (currentEvent.event_date < periodSelection.period.starts_on ||
+      currentEvent.event_date > periodSelection.period.ends_on)
+  )
+    notFound();
   if (
     !canManageEvent(
       actor,

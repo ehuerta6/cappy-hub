@@ -12,6 +12,10 @@ import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import OfficerForm from "../../new/officer-form";
+import {
+  getAcademicPeriodData,
+  resolveAcademicPeriod,
+} from "@/lib/academic-periods";
 
 export default async function EditOfficerPage({
   params,
@@ -20,7 +24,14 @@ export default async function EditOfficerPage({
   params: Promise<{ id: string }>;
   searchParams?: Promise<NavigationSearchParams>;
 }) {
-  const returnTo = safeReturnTo((await searchParams)?.returnTo);
+  const context = (await searchParams) ?? {};
+  const returnTo = safeReturnTo(context.returnTo);
+  const periodSelection = resolveAcademicPeriod(
+    context.period,
+    await getAcademicPeriodData(),
+  );
+  if (periodSelection.isHistorical)
+    redirect(`/officers?period=${context.period}`);
   if (!canManageOfficers(await getAuthorizationContext()))
     redirect("/access-denied");
   const supabase = await createClient();

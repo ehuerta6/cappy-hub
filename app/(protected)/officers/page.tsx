@@ -19,6 +19,10 @@ import { formatLabel } from "@/lib/presentation";
 import { searchOrFilter } from "@/lib/list-search";
 import { listPageUrl } from "@/lib/list-url";
 import { officerListFiltersSchema } from "./filter-validation";
+import {
+  getAcademicPeriodData,
+  resolveAcademicPeriod,
+} from "@/lib/academic-periods";
 
 type OfficerListSearchParams = Record<string, string | string[] | undefined>;
 const OFFICERS_PER_PAGE = 8;
@@ -30,6 +34,8 @@ export default async function OfficersPage({
 }) {
   const actor = await getAuthorizationContext();
   const params = await searchParams;
+  const periodData = await getAcademicPeriodData();
+  const periodSelection = resolveAcademicPeriod(params.period, periodData);
   const filters = officerListFiltersSchema.parse(params);
   const {
     q: search,
@@ -43,6 +49,8 @@ export default async function OfficersPage({
     "*,positions(name),officer_branches(branch_id,branches(name)),filter_branch:officer_branches(branch_id)";
 
   const filterSearch = new URLSearchParams();
+  if (params.period !== undefined)
+    filterSearch.set("period", String(params.period));
   if (search) filterSearch.set("q", search);
   if (status !== "active") filterSearch.set("status", status);
   if (positionId !== undefined)
@@ -96,13 +104,24 @@ export default async function OfficersPage({
         title="Officers"
         description="Club directory and branch memberships."
         action={
-          canManageOfficers(actor) ? (
-            <ActionLink href="/officers/new">+ Add officer</ActionLink>
+          canManageOfficers(actor) && !periodSelection.isHistorical ? (
+            <ActionLink
+              href={
+                `/officers/new${params.period ? `?period=${params.period}` : ""}` as import("next").Route
+              }
+            >
+              + Add officer
+            </ActionLink>
           ) : undefined
         }
       />
-      {canManageOfficers(actor) && (
-        <Link href="/officers/catalogs" className="text-sm underline">
+      {canManageOfficers(actor) && !periodSelection.isHistorical && (
+        <Link
+          href={
+            `/officers/catalogs${params.period ? `?period=${params.period}` : ""}` as import("next").Route
+          }
+          className="text-sm underline"
+        >
           Manage catalogs
         </Link>
       )}
@@ -114,6 +133,9 @@ export default async function OfficersPage({
           active={hasFilters}
           clearHref="/officers"
         >
+          {params.period !== undefined && (
+            <input type="hidden" name="period" value={String(params.period)} />
+          )}
           <label className="min-w-56 flex-1">
             Search officers
             <input

@@ -135,6 +135,7 @@ it("loads each visible range once and filters loaded entries without refetching"
   expect(harness.fetchRange).toHaveBeenCalledWith(
     "2026-10-01T06:00:00.000Z",
     "2026-11-01T06:00:00.000Z",
+    null,
   );
   datesSet(octoberRange);
   await new Promise((resolve) => setTimeout(resolve, 10));

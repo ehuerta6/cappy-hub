@@ -216,18 +216,22 @@ export default function CatalogManager({
   title,
   records,
   showCreate = true,
+  readOnly = false,
 }: {
   catalog: Catalog;
   title: string;
   records: CatalogRecord[];
   showCreate?: boolean;
+  readOnly?: boolean;
 }) {
   return (
     <section className="catalog-manager space-y-3">
       <h2 id="catalog-category-heading" className="text-lg font-semibold">
         {title}
       </h2>
-      {showCreate && <CatalogForm catalog={catalog} operation="create" />}
+      {showCreate && !readOnly && (
+        <CatalogForm catalog={catalog} operation="create" />
+      )}
       <ul
         className={
           catalog === "position"
@@ -250,15 +254,21 @@ export default function CatalogManager({
                 </p>
               ) : (
                 <>
-                  <CatalogRename catalog={catalog} record={record} />
+                  {readOnly ? (
+                    <p>{record.name}</p>
+                  ) : (
+                    <CatalogRename catalog={catalog} record={record} />
+                  )}
                   {deleted && (
                     <span className="catalog-record-status">Deleted</span>
                   )}
-                  <CatalogForm
-                    catalog={catalog}
-                    operation={deleted ? "restore" : "delete"}
-                    record={record}
-                  />
+                  {!readOnly && (
+                    <CatalogForm
+                      catalog={catalog}
+                      operation={deleted ? "restore" : "delete"}
+                      record={record}
+                    />
+                  )}
                 </>
               )}
             </li>

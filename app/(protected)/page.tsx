@@ -12,10 +12,156 @@ import { eventSignupCountLabel } from "@/lib/event-list";
 import { SectionHeading, PointValue } from "@/components/ui";
 import { loadDashboardActionItems } from "./dashboard-action-items";
 import { DASHBOARD_PREVIEW_LIMIT } from "./dashboard-limits";
+import {
+  getAcademicPeriodData,
+  resolveAcademicPeriod,
+} from "@/lib/academic-periods";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const officer = await requireCurrentOfficer();
   const supabase = await createClient();
+  const [params, periodData] = await Promise.all([
+    searchParams ??
+      Promise.resolve<Record<string, string | string[] | undefined>>({}),
+    getAcademicPeriodData(),
+  ]);
+  const periodSelection = resolveAcademicPeriod(params.period, periodData);
+  const selectedPeriod = periodSelection.period;
+  if (selectedPeriod && selectedPeriod.id !== periodData.currentPeriodId) {
+    const [events, tasks, history] = await Promise.all([
+      supabase
+        .from("events")
+        .select("id", { count: "exact", head: true })
+        .gte("event_date", selectedPeriod.starts_on)
+        .lte("event_date", selectedPeriod.ends_on)
+        .is("deleted_at", null)
+        .neq("status", "cancelled"),
+      supabase
+        .from("tasks")
+        .select("id", { count: "exact", head: true })
+        .gte("due_date", selectedPeriod.starts_on)
+        .lte("due_date", selectedPeriod.ends_on)
+        .is("removed_at", null),
+      supabase
+        .from("point_history")
+        .select("officer_id,officer_name,points")
+        .gte("activity_date", selectedPeriod.starts_on)
+        .lte("activity_date", selectedPeriod.ends_on)
+        .is("removed_at", null),
+    ]);
+    if (events.error || tasks.error || history.error)
+      throw new Error("Failed to load academic period summary");
+    const ranking = new Map<number, { name: string; points: number }>();
+    for (const point of history.data) {
+      if (point.officer_id === null || point.officer_name === null) continue;
+      const current = ranking.get(point.officer_id) ?? {
+        name: point.officer_name,
+        points: 0,
+      };
+      current.points += point.points ?? 0;
+      ranking.set(point.officer_id, current);
+    }
+    const rankedOfficers = [...ranking.entries()]
+      .map(([id, row]) => ({ id, ...row }))
+      .sort(
+        (left, right) =>
+          right.points - left.points || left.name.localeCompare(right.name),
+      );
+    const netPoints = history.data.reduce(
+      (sum, row) => sum + (row.points ?? 0),
+      0,
+    );
+    return (
+      <div data-page-width="wide" className="space-y-5">
+        <header className="space-y-1 border-b border-border pb-4">
+          <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted">
+            Period overview
+          </p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            {selectedPeriod.name}
+          </h1>
+          <p className="text-sm text-muted">
+            {periodSelection.isHistorical
+              ? "Historical · read only"
+              : "Future period"}
+          </p>
+        </header>
+        <dl className="grid grid-cols-1 divide-y divide-border overflow-hidden rounded-md border border-border bg-surface/30 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          {[
+            { label: "Events", value: events.count ?? 0 },
+            { label: "Tasks", value: tasks.count ?? 0 },
+            { label: "Net points", value: <PointValue value={netPoints} /> },
+          ].map((item) => (
+            <div key={item.label} className="px-4 py-3">
+              <dt className="text-xs font-medium uppercase tracking-wide text-muted">
+                {item.label}
+              </dt>
+              <dd className="mt-1 text-2xl font-semibold tabular-nums">
+                {item.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">Period ranking</h2>
+          {rankedOfficers.length === 0 ? (
+            <p className="text-sm text-muted">
+              No active Points in this period.
+            </p>
+          ) : (
+            <div className="overflow-x-auto rounded-md border border-border">
+              <table className="w-full">
+                <thead>
+                  <tr>
+                    <th scope="col">Rank</th>
+                    <th scope="col">Officer</th>
+                    <th scope="col" className="text-right">
+                      Net points
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rankedOfficers.map((row, index) => (
+                    <tr key={row.id}>
+                      <td className="tabular-nums text-muted">{index + 1}</td>
+                      <td>
+                        <Link
+                          href={`/officers/${row.id}${params.period ? `?period=${params.period}` : ""}`}
+                        >
+                          {row.name}
+                        </Link>
+                      </td>
+                      <td className="text-right">
+                        <PointValue value={row.points} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </div>
+    );
+  }
+  let currentPeriodPoints: number | null = null;
+  if (selectedPeriod) {
+    const periodPoints = await supabase
+      .from("point_history")
+      .select("points")
+      .gte("activity_date", selectedPeriod.starts_on)
+      .lte("activity_date", selectedPeriod.ends_on)
+      .is("removed_at", null);
+    if (periodPoints.error) throw new Error("Failed to load period Points");
+    currentPeriodPoints = periodPoints.data.reduce(
+      (sum, row) => sum + (row.points ?? 0),
+      0,
+    );
+  }
   const [summary, events, transactions, total, actionItems] = await Promise.all(
     [
       supabase.from("dashboard_summary").select("*").single(),
@@ -121,8 +267,11 @@ export default async function DashboardPage() {
                 value: summary.data.upcoming_event_count ?? 0,
               },
               {
-                label: "Points this half-year",
-                value: displayPoints(summary.data.half_year_points ?? 0),
+                label: "Points this period",
+                value:
+                  currentPeriodPoints === null
+                    ? "No current period"
+                    : displayPoints(currentPeriodPoints),
               },
             ].map((stat) => (
               <div key={stat.label} className="min-w-0 px-3 py-2.5 sm:px-4">
@@ -138,8 +287,9 @@ export default async function DashboardPage() {
         )}
       </section>
       <p className="px-1 text-xs text-muted">
-        Half-year periods are January–June and July–December (America/Denver).
-        Points include signed corrections.
+        {selectedPeriod
+          ? `Points include signed transactions attributed to ${selectedPeriod.name}.`
+          : "No current period. Dashboard activity is unfiltered."}
       </p>
       <section
         aria-label="Your action items"

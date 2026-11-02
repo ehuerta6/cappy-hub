@@ -1,12 +1,46 @@
 import "server-only";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import type { Route } from "next";
 import { requireCurrentOfficer } from "./current-officer";
+import { createClient } from "./supabase/server";
 
 export type AuthorizationContext = Awaited<
   ReturnType<typeof requireCurrentOfficer>
 >;
 
-export async function getAuthorizationContext() {
-  return requireCurrentOfficer();
+export async function getAuthorizationContext(options?: {
+  enforceWritablePeriod?: boolean;
+}) {
+  const actor = await requireCurrentOfficer();
+  if (options?.enforceWritablePeriod) {
+    const referer = (await headers()).get("referer");
+    if (referer) {
+      let source: URL;
+      try {
+        source = new URL(referer);
+      } catch {
+        return actor;
+      }
+      const selectedPeriod = source.searchParams.get("period");
+      if (
+        selectedPeriod &&
+        selectedPeriod !== "none" &&
+        selectedPeriod !== "current"
+      ) {
+        const id = Number(selectedPeriod);
+        const supabase = await createClient();
+        const { error } = await supabase.rpc(
+          "assert_academic_period_writable",
+          {
+            p_period_id: Number.isSafeInteger(id) ? id : -1,
+          },
+        );
+        if (error) redirect(`${source.pathname}${source.search}` as Route);
+      }
+    }
+  }
+  return actor;
 }
 
 export const isAdmin = (actor: AuthorizationContext) =>

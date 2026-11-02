@@ -13,15 +13,32 @@ import { fetchCalendarRange } from "./calendar-actions";
 function calendarRoute(
   url: string,
   kind: unknown,
+  origin = "https://cappyhub.local",
 ): Route<`/events/${string}` | `/tasks/${string}`> | undefined {
-  if (kind === "event" && /^\/events\/\d+$/.test(url))
-    return url as Route<`/events/${string}`>;
-  if (kind === "task" && /^\/tasks\/\d+$/.test(url))
-    return url as Route<`/tasks/${string}`>;
+  let destination: URL;
+  try {
+    destination = new URL(url, origin);
+  } catch {
+    return undefined;
+  }
+  if (destination.origin !== origin || destination.search || destination.hash)
+    return undefined;
+  if (kind === "event" && /^\/events\/-?[1-9]\d*$/.test(destination.pathname))
+    return destination.pathname as Route<`/events/${string}`>;
+  if (kind === "task" && /^\/tasks\/-?[1-9]\d*$/.test(destination.pathname))
+    return destination.pathname as Route<`/tasks/${string}`>;
   return undefined;
 }
 
-export default function CalendarView() {
+export default function CalendarView({
+  periodId = null,
+  periodQuery,
+  initialDate,
+}: {
+  periodId?: number | null;
+  periodQuery?: string;
+  initialDate?: string;
+} = {}) {
   const router = useRouter();
   const { theme } = useTheme();
   const [visible, setVisible] = useState({ event: true, task: true });
@@ -32,36 +49,39 @@ export default function CalendarView() {
   const latestRange = useRef<string | null>(null);
   const displayedEntries = filterCalendarEntries(entries, visible);
 
-  const loadVisibleRange = useCallback((info: { start: Date; end: Date }) => {
-    const start = info.start.toISOString();
-    const end = info.end.toISOString();
-    const rangeKey = `${start}/${end}`;
-    if (rangeKey === latestRange.current) return;
-    latestRange.current = rangeKey;
-    const requestId = ++latestRequest.current;
+  const loadVisibleRange = useCallback(
+    (info: { start: Date; end: Date }) => {
+      const start = info.start.toISOString();
+      const end = info.end.toISOString();
+      const rangeKey = `${start}/${end}`;
+      if (rangeKey === latestRange.current) return;
+      latestRange.current = rangeKey;
+      const requestId = ++latestRequest.current;
 
-    // FullCalendar may report a new range during its render lifecycle.
-    // Defer the action and React updates until after that lifecycle completes.
-    window.setTimeout(() => {
-      if (requestId !== latestRequest.current) return;
-      setEntries([]);
-      setLoading(true);
-      setLoadError(false);
-      void fetchCalendarRange(start, end)
-        .then((nextEntries) => {
-          if (requestId === latestRequest.current) setEntries(nextEntries);
-        })
-        .catch(() => {
-          if (requestId === latestRequest.current) {
-            setEntries([]);
-            setLoadError(true);
-          }
-        })
-        .finally(() => {
-          if (requestId === latestRequest.current) setLoading(false);
-        });
-    }, 0);
-  }, []);
+      // FullCalendar may report a new range during its render lifecycle.
+      // Defer the action and React updates until after that lifecycle completes.
+      window.setTimeout(() => {
+        if (requestId !== latestRequest.current) return;
+        setEntries([]);
+        setLoading(true);
+        setLoadError(false);
+        void fetchCalendarRange(start, end, periodId)
+          .then((nextEntries) => {
+            if (requestId === latestRequest.current) setEntries(nextEntries);
+          })
+          .catch(() => {
+            if (requestId === latestRequest.current) {
+              setEntries([]);
+              setLoadError(true);
+            }
+          })
+          .finally(() => {
+            if (requestId === latestRequest.current) setLoading(false);
+          });
+      }, 0);
+    },
+    [periodId],
+  );
 
   return (
     <div className="calendar-shell min-w-0 rounded-md border border-border bg-surface p-4">
@@ -109,6 +129,7 @@ export default function CalendarView() {
       <FullCalendar
         plugins={[classicThemePlugin, dayGridPlugin]}
         initialView="dayGridMonth"
+        initialDate={initialDate}
         timeZone="America/Denver"
         colorScheme={theme}
         editable={false}
@@ -166,7 +187,12 @@ export default function CalendarView() {
           );
           if (!href) return;
           info.jsEvent.preventDefault();
-          router.push(href);
+          const query = periodQuery
+            ? `?period=${encodeURIComponent(periodQuery)}`
+            : "";
+          router.push(
+            (query ? `${href}${query}` : href) as import("next").Route,
+          );
         }}
       />
     </div>

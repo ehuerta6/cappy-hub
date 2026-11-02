@@ -351,4 +351,73 @@ values
 insert into public.point_transactions(officer_id,task_id,points,reason,award_type,created_by_officer_id)
 values (-1031,-8012,5,'Task completion: Refresh ICPC practice guide','task',-1006);
 
+-- Academic-period scenarios are synthetic and fixed so the same four views
+-- remain available after every local reset. Ranges are inclusive and adjacent.
+insert into public.academic_periods (id,name,starts_on,ends_on)
+values
+  (-5004,'Winter 2025','2025-12-01','2026-01-10'),
+  (-5003,'Spring 2026','2026-01-11','2026-05-15'),
+  (-5002,'Summer 2026','2026-05-16','2026-08-15'),
+  (-5001,'Fall 2026','2026-08-16','2026-12-20');
+
+insert into public.officers
+  (id,name,utep_email,personal_email,position_id,classification,status,application_role)
+values
+  (-1101,'Winter Demo Officer','winter.demo@cappy.test',null,(select id from public.positions where name='Officer'),'senior','inactive','officer'),
+  (-1102,'Spring Demo Officer','spring.demo@cappy.test',null,(select id from public.positions where name='Officer'),'junior','active','officer'),
+  (-1103,'Summer Demo Officer','summer.demo@cappy.test',null,(select id from public.positions where name='Officer'),'sophomore','active','officer'),
+  (-1104,'Fall Demo Officer','fall.demo@cappy.test',null,(select id from public.positions where name='Officer'),'freshman','active','officer');
+
+insert into public.officer_branches (officer_id,branch_id)
+values
+  (-1101,(select id from public.branches where name='general')),
+  (-1102,(select id from public.branches where name='intro')),
+  (-1103,(select id from public.branches where name='social')),
+  (-1104,(select id from public.branches where name='icpc'));
+
+insert into public.events
+  (id,name,description,event_type_id,location,event_date,starts_at,ends_at,status,participation_points_per_hour_at_end)
+values
+  (-2101,'Demo: Winter 2025 Showcase','Synthetic event for historical period browsing.',(select id from public.event_types where name='Meeting'),'CCSB 1.0202','2025-12-10',('2025-12-10 17:00'::timestamp at time zone 'America/Denver'),('2025-12-10 18:00'::timestamp at time zone 'America/Denver'),'past',1),
+  (-2102,'Demo: Spring 2026 Workshop','Synthetic event for historical period browsing.',(select id from public.event_types where name='Workshop'),'CCSB G.0208','2026-04-15',('2026-04-15 17:00'::timestamp at time zone 'America/Denver'),('2026-04-15 19:00'::timestamp at time zone 'America/Denver'),'past',1),
+  (-2103,'Demo: Summer 2026 Social','Synthetic event for historical period browsing.',(select id from public.event_types where name='Social'),'Union East','2026-07-10',('2026-07-10 18:00'::timestamp at time zone 'America/Denver'),('2026-07-10 20:00'::timestamp at time zone 'America/Denver'),'past',1),
+  (-2104,'Demo: Fall 2026 Session','Synthetic event for current-period browsing.',(select id from public.event_types where name='Session'),'CCSB 1.0410','2026-10-15',('2026-10-15 17:00'::timestamp at time zone 'America/Denver'),('2026-10-15 19:00'::timestamp at time zone 'America/Denver'),'past',1);
+
+insert into public.event_branches (event_id,branch_id)
+values
+  (-2101,(select id from public.branches where name='general')),
+  (-2102,(select id from public.branches where name='intro')),
+  (-2103,(select id from public.branches where name='social')),
+  (-2104,(select id from public.branches where name='icpc'));
+insert into public.event_officers (event_id,officer_id)
+values (-2101,-1101),(-2102,-1102),(-2103,-1103),(-2104,-1104);
+
+insert into public.tasks
+  (id,title,description,task_type,branch_id,due_date,points,approval_required,created_by)
+values
+  (-3101,'Winter 2025 report','Synthetic completed task for period history.','Post',(select id from public.branches where name='general'),'2025-12-18',3,false,-1001),
+  (-3102,'Spring 2026 workshop flyer','Synthetic task for period history.','Flyer',(select id from public.branches where name='intro'),'2026-04-20',4,false,-1005),
+  (-3103,'Summer 2026 social recap','Synthetic task for period history.','Story',(select id from public.branches where name='social'),'2026-07-20',2,false,-1007),
+  (-3104,'Fall 2026 practice guide','Synthetic task for current period.','Airtable',(select id from public.branches where name='icpc'),'2026-10-20',5,false,-1006);
+insert into public.task_officer_assignments (task_id,officer_id,assigned_by,completed_at)
+values
+  (-3101,-1101,-1001,'2025-12-18 18:00-07'),
+  (-3102,-1102,-1005,'2026-04-20 18:00-06'),
+  (-3103,-1103,-1007,'2026-07-20 18:00-06'),
+  (-3104,-1104,-1006,'2026-10-20 18:00-06');
+insert into public.point_transactions
+  (id,officer_id,event_id,points,reason,award_type,created_at)
+values
+  (-7101,-1101,-2101,1,'Demo: Winter participation','participation','2025-12-10 18:01-07'),
+  (-7102,-1102,-2102,2,'Demo: Spring participation','participation','2026-04-15 19:01-06'),
+  (-7103,-1103,-2103,2,'Demo: Summer participation','participation','2026-07-10 20:01-06'),
+  (-7104,-1104,-2104,2,'Demo: Fall participation','participation','2026-10-15 19:01-06');
+insert into public.point_transactions
+  (id,officer_id,task_id,points,reason,award_type,created_at,created_by_officer_id)
+values
+  (-7201,-1101,-3101,3,'Demo: Winter task completion','task','2025-12-18 18:01-07',-1001),
+  (-7202,-1102,-3102,4,'Demo: Spring task completion','task','2026-04-20 18:01-06',-1005),
+  (-7203,-1103,-3103,2,'Demo: Summer task completion','task','2026-07-20 18:01-06',-1007),
+  (-7204,-1104,-3104,5,'Demo: Fall task completion','task','2026-10-20 18:01-06',-1006);
+
 commit;

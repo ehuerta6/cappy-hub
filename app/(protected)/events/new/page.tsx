@@ -8,7 +8,21 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import EventForm from "../event-form";
 import { PageHeader } from "@/components/ui";
-export default async function NewEventPage() {
+import {
+  getAcademicPeriodData,
+  resolveAcademicPeriod,
+} from "@/lib/academic-periods";
+export default async function NewEventPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const periodSelection = resolveAcademicPeriod(
+    params.period,
+    await getAcademicPeriodData(),
+  );
+  if (periodSelection.isHistorical) redirect(`/events?period=${params.period}`);
   const actor = await getAuthorizationContext();
   if (
     !canSeeAllBranches(actor) &&
@@ -37,7 +51,15 @@ export default async function NewEventPage() {
     throw new Error("Failed to load event form");
   return (
     <div className="space-y-6">
-      <ContextualBackLink href="/events">Back to events</ContextualBackLink>
+      <ContextualBackLink
+        href={
+          params.period
+            ? (`/events?period=${params.period}` as import("next").Route)
+            : "/events"
+        }
+      >
+        Back to events
+      </ContextualBackLink>
       <PageHeader title="New event" />
       <EventForm
         recurrenceRequestKey={crypto.randomUUID()}

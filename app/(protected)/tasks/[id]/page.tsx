@@ -1,10 +1,15 @@
 import {
   safeReturnTo,
+  listReturnUrl,
   withReturnTo,
   type NavigationSearchParams,
 } from "@/lib/return-context";
 import { getAuthorizationContext, canManageEvent } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
+import {
+  getAcademicPeriodData,
+  resolveAcademicPeriod,
+} from "@/lib/academic-periods";
 import { notFound } from "next/navigation";
 import ContextualBackLink from "@/components/contextual-back-link";
 import { ListPagination } from "@/components/list-pagination";
@@ -65,7 +70,14 @@ function taskSectionUrl(
       String(page),
     );
   const safeDestination = safeReturnTo(returnTo);
-  if (safeDestination) query.set("returnTo", safeDestination);
+  if (safeDestination) {
+    query.set("returnTo", safeDestination);
+    const period = new URL(
+      safeDestination,
+      "https://cappy.invalid",
+    ).searchParams.get("period");
+    if (period !== null) query.set("period", period);
+  }
   if (feedback === "task-created" || feedback === "task-updated")
     query.set("feedback", feedback);
   const search = query.toString();
@@ -117,8 +129,13 @@ export default async function TaskDetailPage({
   params: Promise<{ id: string }>;
   searchParams?: Promise<NavigationSearchParams>;
 }) {
-  const { returnTo, feedback, section, assignmentPage, eventPage } =
-    (await searchParams) ?? {};
+  const context = (await searchParams) ?? {};
+  const { returnTo, feedback, section, assignmentPage, eventPage } = context;
+  const contextualReturnTo =
+    safeReturnTo(returnTo) ?? listReturnUrl("/tasks", context);
+  const periodData = await getAcademicPeriodData();
+  const periodSelection = resolveAcademicPeriod(context.period, periodData);
+  const selectedPeriod = periodSelection.period;
   const actor = await getAuthorizationContext();
   const { id: taskIdParam } = await params;
   if (!/^-?[1-9]\d*$/.test(taskIdParam)) notFound();
@@ -133,7 +150,14 @@ export default async function TaskDetailPage({
   if (!taskResult.data) notFound();
 
   const task = taskResult.data;
-  const canManageTask = canManageEvent(actor, [task.branch_id]);
+  if (
+    selectedPeriod &&
+    (task.due_date < selectedPeriod.starts_on ||
+      task.due_date > selectedPeriod.ends_on)
+  )
+    notFound();
+  const canManageTask =
+    !periodSelection.isHistorical && canManageEvent(actor, [task.branch_id]);
   if (task.removed_at && !canManageTask) notFound();
   const activeSection: TaskSection =
     section === "assignments" || section === "events" ? section : "overview";
@@ -293,7 +317,7 @@ export default async function TaskDetailPage({
       taskSectionUrl(
         taskIdParam,
         activeSection,
-        returnTo,
+        contextualReturnTo,
         activePage,
         safeFeedback,
       ),
@@ -301,7 +325,7 @@ export default async function TaskDetailPage({
 
   return (
     <div className="space-y-4">
-      <ContextualBackLink href="/tasks" returnTo={returnTo}>
+      <ContextualBackLink href="/tasks" returnTo={contextualReturnTo}>
         Back to tasks
       </ContextualBackLink>
       <PageHeader
@@ -309,7 +333,10 @@ export default async function TaskDetailPage({
         action={
           canManageTask && !task.removed_at ? (
             <ActionLink
-              href={withReturnTo(`/tasks/${taskIdParam}/edit`, returnTo)}
+              href={withReturnTo(
+                `/tasks/${taskIdParam}/edit`,
+                contextualReturnTo,
+              )}
             >
               {series?.data ? "Edit recurring task" : "Edit task"}
             </ActionLink>
@@ -330,7 +357,7 @@ export default async function TaskDetailPage({
         ).map(([target, label]) => (
           <Link
             key={target}
-            href={taskSectionUrl(taskIdParam, target, returnTo)}
+            href={taskSectionUrl(taskIdParam, target, contextualReturnTo)}
             aria-current={activeSection === target ? "page" : undefined}
             className={`border-b-2 px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-muted ${activeSection === target ? "border-foreground font-medium" : "border-transparent text-muted hover:text-foreground"}`}
           >
@@ -381,9 +408,9 @@ export default async function TaskDetailPage({
                 completion, and points belong to this Task only.
               </p>
             )}
-            {!task.removed_at && !myAssignment && (
-              <TaskSelfAssignForm taskId={task.id} />
-            )}
+            {!periodSelection.isHistorical &&
+              !task.removed_at &&
+              !myAssignment && <TaskSelfAssignForm taskId={task.id} />}
             {canManageTask && task.removed_at && (
               <TaskRestoreForm
                 taskId={task.id}
@@ -405,7 +432,11 @@ export default async function TaskDetailPage({
                 <SectionHeading title="Assignments" />
                 <Link
                   className="text-sm underline"
-                  href={taskSectionUrl(taskIdParam, "assignments", returnTo)}
+                  href={taskSectionUrl(
+                    taskIdParam,
+                    "assignments",
+                    contextualReturnTo,
+                  )}
                 >
                   View all
                 </Link>
@@ -422,7 +453,12 @@ export default async function TaskDetailPage({
                         key={officer_id}
                         className="flex flex-wrap justify-between gap-x-3"
                       >
-                        <Link href={`/officers/${assignedOfficer.id}`}>
+                        <Link
+                          href={withReturnTo(
+                            `/officers/${assignedOfficer.id}`,
+                            contextualReturnTo,
+                          )}
+                        >
                           {assignedOfficer.name}
                         </Link>
                         <span className="text-sm text-muted">
@@ -447,7 +483,11 @@ export default async function TaskDetailPage({
                 <SectionHeading title="Linked Events" />
                 <Link
                   className="text-sm underline"
-                  href={taskSectionUrl(taskIdParam, "events", returnTo)}
+                  href={taskSectionUrl(
+                    taskIdParam,
+                    "events",
+                    contextualReturnTo,
+                  )}
                 >
                   View all
                 </Link>
@@ -459,7 +499,12 @@ export default async function TaskDetailPage({
                       key={linkedEvent.id}
                       className="flex flex-wrap justify-between gap-x-3"
                     >
-                      <Link href={`/events/${linkedEvent.id}`}>
+                      <Link
+                        href={withReturnTo(
+                          `/events/${linkedEvent.id}`,
+                          contextualReturnTo,
+                        )}
+                      >
                         {linkedEvent.name}
                       </Link>
                       <span className="text-sm text-muted">
@@ -493,7 +538,12 @@ export default async function TaskDetailPage({
                   key={linkedEvent.id}
                   className="flex flex-wrap justify-between gap-x-4"
                 >
-                  <Link href={`/events/${linkedEvent.id}`}>
+                  <Link
+                    href={withReturnTo(
+                      `/events/${linkedEvent.id}`,
+                      contextualReturnTo,
+                    )}
+                  >
                     {linkedEvent.name}
                   </Link>
                   <span className="text-sm text-muted">
@@ -519,16 +569,16 @@ export default async function TaskDetailPage({
             section="events"
             page={currentEventPage}
             totalPages={eventPages}
-            returnTo={returnTo}
+            returnTo={contextualReturnTo}
             feedback={feedback}
           />
         </section>
       ) : (
         <section aria-label="Officers" className="min-w-0 space-y-3">
           <SectionHeading title="Assignments" />
-          {!task.removed_at && !myAssignment && (
-            <TaskSelfAssignForm taskId={task.id} />
-          )}
+          {!periodSelection.isHistorical &&
+            !task.removed_at &&
+            !myAssignment && <TaskSelfAssignForm taskId={task.id} />}
           {assignmentCount === 0 ? (
             <p>No Officers are assigned to this task.</p>
           ) : (
@@ -550,7 +600,12 @@ export default async function TaskDetailPage({
                     return (
                       <tr key={assignment.officer_id}>
                         <td>
-                          <Link href={`/officers/${assignedOfficer.id}`}>
+                          <Link
+                            href={withReturnTo(
+                              `/officers/${assignedOfficer.id}`,
+                              contextualReturnTo,
+                            )}
+                          >
                             {assignedOfficer.name}
                           </Link>
                         </td>
@@ -595,7 +650,7 @@ export default async function TaskDetailPage({
             section="assignments"
             page={currentAssignmentPage}
             totalPages={assignmentPages}
-            returnTo={returnTo}
+            returnTo={contextualReturnTo}
             feedback={feedback}
           />
         </section>

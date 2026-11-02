@@ -11,6 +11,7 @@ export function organizeTaskList<T extends TaskListItem>(
   view: TaskListView,
   today: string,
   sunday: string,
+  periodView = false,
 ) {
   const visible = tasks.filter((task) =>
     view === "deleted" ? task.removed_at !== null : task.removed_at === null,
@@ -19,6 +20,14 @@ export function organizeTaskList<T extends TaskListItem>(
     return {
       view,
       tasks: [...visible].sort(
+        (left, right) =>
+          right.due_date.localeCompare(left.due_date) || right.id - left.id,
+      ),
+    };
+  if (periodView)
+    return {
+      view: "past" as const,
+      tasks: visible.sort(
         (left, right) =>
           right.due_date.localeCompare(left.due_date) || right.id - left.id,
       ),

@@ -145,6 +145,14 @@ vi.mock("@/lib/supabase/server", () => ({
     },
   }),
 }));
+vi.mock("@/lib/academic-periods", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/academic-periods")>()),
+  getAcademicPeriodData: async () => ({
+    periods: [],
+    currentDate: "2026-11-01",
+    currentPeriodId: null,
+  }),
+}));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn() }),
   notFound: () => {

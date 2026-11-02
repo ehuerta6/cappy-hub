@@ -18,7 +18,7 @@ export async function changeCatalog(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  const actor = await getAuthorizationContext();
+  const actor = await getAuthorizationContext({ enforceWritablePeriod: true });
   if (!isAdmin(actor)) return formFailure("Admin required", formData, ["name"]);
 
   const rawCatalogMutationInput = {

@@ -29,9 +29,14 @@ import {
 import TaskSelfAssignForm from "./task-action-form";
 import { listReturnUrl, withReturnTo } from "@/lib/return-context";
 import { listPageUrl } from "@/lib/list-url";
+import {
+  getAcademicPeriodData,
+  resolveAcademicPeriod,
+} from "@/lib/academic-periods";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Tables } from "@/lib/database.types";
+import type { Route } from "next";
 
 type TaskListRow = Tables<"tasks"> & {
   branches: Pick<Tables<"branches">, "name">;
@@ -50,6 +55,9 @@ export default async function TasksPage({
 }) {
   const actor = await getAuthorizationContext();
   const params = await searchParams;
+  const periodData = await getAcademicPeriodData();
+  const periodSelection = resolveAcademicPeriod(params.period, periodData);
+  const selectedPeriod = periodSelection.period;
   const filters = taskListFiltersSchema.parse(params);
   const {
     q: search,
@@ -72,6 +80,7 @@ export default async function TasksPage({
     branch: branchId?.toString(),
     assignee: assigneeId?.toString(),
     page: requestedPage > 1 ? String(requestedPage) : undefined,
+    period: params.period,
   });
   const supabase = await createClient();
   const tasksQuery = buildTaskListQuery(supabase, {
@@ -86,6 +95,10 @@ export default async function TasksPage({
         ? actor.branchIds
         : undefined,
     page: requestedPage,
+    dateRange:
+      selectedPeriod && view !== "deleted"
+        ? { from: selectedPeriod.starts_on, through: selectedPeriod.ends_on }
+        : undefined,
   });
 
   let taskCountQuery = supabase
@@ -95,8 +108,11 @@ export default async function TasksPage({
     taskCountQuery = taskCountQuery.not("removed_at", "is", null);
   else {
     taskCountQuery = taskCountQuery.is("removed_at", null);
-    taskCountQuery =
-      view === "past"
+    taskCountQuery = selectedPeriod
+      ? taskCountQuery
+          .gte("due_date", selectedPeriod.starts_on)
+          .lte("due_date", selectedPeriod.ends_on)
+      : view === "past"
         ? taskCountQuery.lt("due_date", today)
         : taskCountQuery.gte("due_date", today);
   }
@@ -128,7 +144,13 @@ export default async function TasksPage({
 
   const tasks = tasksResult.data as unknown as TaskListRow[];
   const deletedTasks = view === "deleted" ? tasks : [];
-  const organizedTasks = organizeTaskList(tasks, view, today, sunday);
+  const organizedTasks = organizeTaskList(
+    tasks,
+    view,
+    today,
+    sunday,
+    periodSelection.isHistorical,
+  );
   const splitTasks = (items: typeof tasks) =>
     splitTasksByOfficer(items, actor.id);
   const filteredToNothing =
@@ -233,9 +255,16 @@ export default async function TasksPage({
         title="Tasks"
         description="Task assignments, due dates, and completion."
         action={
-          canSeeAllBranches(actor) ||
-          (isLead(actor) && actor.branchIds.length > 0) ? (
-            <ActionLink href="/tasks/new">+ New task</ActionLink>
+          !periodSelection.isHistorical &&
+          (canSeeAllBranches(actor) ||
+            (isLead(actor) && actor.branchIds.length > 0)) ? (
+            <ActionLink
+              href={
+                `/tasks/new${params.period ? `?period=${params.period}` : ""}` as Route
+              }
+            >
+              + New task
+            </ActionLink>
           ) : undefined
         }
       />
@@ -247,6 +276,9 @@ export default async function TasksPage({
         active={hasFilters}
         clearHref="/tasks"
       >
+        {params.period !== undefined && (
+          <input type="hidden" name="period" value={String(params.period)} />
+        )}
         <label className="min-w-56 flex-1">
           Search tasks
           <input
@@ -323,19 +355,28 @@ export default async function TasksPage({
       ) : filteredToNothing ? (
         <p>No tasks match these filters.</p>
       ) : tasks.length === 0 ? (
-        <p>{view === "past" ? "No past tasks." : "No current tasks."}</p>
+        <p>
+          {selectedPeriod
+            ? `No Tasks in ${selectedPeriod.name} for this view.`
+            : view === "past"
+              ? "No past tasks."
+              : "No current tasks."}
+        </p>
       ) : organizedTasks.view === "past" ? (
         organizedTasks.tasks.length > 0 ? (
-          <section aria-label="Past tasks" className="space-y-4">
-            <SectionHeading title="Past tasks" />
+          <section
+            aria-label={selectedPeriod?.name ?? "Past tasks"}
+            className="space-y-4"
+          >
+            <SectionHeading title={selectedPeriod?.name ?? "Past tasks"} />
             {renderGroup(
-              "Past tasks",
+              selectedPeriod?.name ?? "Past tasks",
               "Your tasks",
               splitTasks(organizedTasks.tasks).yourTasks,
               false,
             )}
             {renderGroup(
-              "Past tasks",
+              selectedPeriod?.name ?? "Past tasks",
               "Other tasks",
               splitTasks(organizedTasks.tasks).otherTasks,
               false,

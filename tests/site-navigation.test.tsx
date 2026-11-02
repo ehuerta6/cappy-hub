@@ -7,6 +7,8 @@ const { pathState } = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
   usePathname: () => pathState.current,
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push: vi.fn() }),
 }));
 
 import SiteNavigation from "@/components/site-navigation";

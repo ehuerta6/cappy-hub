@@ -10,22 +10,31 @@ type PointTransactionWithRelations = Tables<"point_transactions"> & {
 };
 type PointTransactionTableProps = {
   transactions: PointTransactionWithRelations[];
+  period?: string;
 };
 
 function TransactionSource({
   transaction,
+  period,
 }: {
   transaction: PointTransactionWithRelations;
+  period?: string;
 }) {
   if (transaction.events)
     return (
-      <Link href={`/events/${transaction.events.id}`} className="break-words">
+      <Link
+        href={`/events/${transaction.events.id}${period ? `?period=${period}` : ""}`}
+        className="break-words"
+      >
         {transaction.events.name}
       </Link>
     );
   if (transaction.tasks)
     return (
-      <Link href={`/tasks/${transaction.tasks.id}`} className="break-words">
+      <Link
+        href={`/tasks/${transaction.tasks.id}${period ? `?period=${period}` : ""}`}
+        className="break-words"
+      >
         {transaction.tasks.title}
       </Link>
     );
@@ -34,6 +43,7 @@ function TransactionSource({
 
 export default function PointTransactionTable({
   transactions,
+  period,
 }: PointTransactionTableProps) {
   if (!transactions.length) return <p>No point transactions yet.</p>;
   const showsRemoval = transactions.some(
@@ -56,12 +66,14 @@ export default function PointTransactionTable({
         {transactions.map((transaction) => (
           <tr key={transaction.id}>
             <td>
-              <Link href={`/officers/${transaction.officers.id}`}>
+              <Link
+                href={`/officers/${transaction.officers.id}${period ? `?period=${period}` : ""}`}
+              >
                 {transaction.officers.name}
               </Link>
             </td>
             <td>
-              <TransactionSource transaction={transaction} />
+              <TransactionSource transaction={transaction} period={period} />
             </td>
             <td className="break-words">{transaction.reason}</td>
             <td>

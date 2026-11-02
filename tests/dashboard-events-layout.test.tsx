@@ -23,9 +23,28 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/app/auth/actions", () => ({ signOut: vi.fn() }));
 vi.mock("next/navigation", () => ({
   usePathname: () => "/events",
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push: vi.fn() }),
   redirect: vi.fn(),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("@/lib/academic-periods", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/academic-periods")>()),
+  getAcademicPeriodData: async () => ({
+    periods: [
+      {
+        id: 1,
+        name: "Fall 2026",
+        starts_on: "2026-08-16",
+        ends_on: "2026-12-20",
+        created_at: "2026-08-01T00:00:00Z",
+        updated_at: "2026-08-01T00:00:00Z",
+      },
+    ],
+    currentDate: "2026-11-01",
+    currentPeriodId: 1,
+  }),
+}));
 
 import { requireCurrentOfficer } from "@/lib/current-officer";
 import { getAuthorizationContext } from "@/lib/authorization";
@@ -100,7 +119,9 @@ const from = vi.fn((table: string) => {
                   upcoming_event_count: 5,
                   half_year_points: 99,
                 }
-              : [],
+              : table === "point_history"
+                ? [{ points: 99 }]
+                : [],
     error: null,
   };
   const query = {
@@ -224,7 +245,9 @@ beforeEach(() => {
   } as never);
 });
 const renderEvents = async () =>
-  renderToStaticMarkup(await EventsPage({ searchParams: Promise.resolve({}) }));
+  renderToStaticMarkup(
+    await EventsPage({ searchParams: Promise.resolve({ period: "none" }) }),
+  );
 
 it("renders bounded Events in period tables grouped by participation", async () => {
   const html = await renderEvents();
@@ -294,7 +317,7 @@ it("shows useful empty messages without empty tables", async () => {
 });
 
 it("keeps Dashboard as the page heading and gives the current officer stronger identity", async () => {
-  const html = renderToStaticMarkup(await DashboardPage());
+  const html = renderToStaticMarkup(await DashboardPage({}));
   expect(html.match(/<h1\b/g)).toHaveLength(1);
   expect(html).toMatch(/<h1[^>]*>Dashboard<\/h1>/);
   expect(html).toMatch(/<h2[^>]*>Local Officer<\/h2>/);
@@ -312,13 +335,13 @@ it("keeps Dashboard as the page heading and gives the current officer stronger i
 });
 
 it("preserves all three summary metric values and the existing summary/activity queries", async () => {
-  const html = renderToStaticMarkup(await DashboardPage());
+  const html = renderToStaticMarkup(await DashboardPage({}));
   const summary = html.split('aria-label="Summary"')[1].split("</section>")[0];
   expect(summary).toContain("Active officers");
   expect(summary).toContain(">24</dd>");
   expect(summary).toContain("Upcoming events");
   expect(summary).toContain(">5</dd>");
-  expect(html).toContain("Points this half-year");
+  expect(html).toContain("Points this period");
   expect(html).toContain("+99");
 
   const operations = (table: string) =>
@@ -436,7 +459,7 @@ it("disables the row button while signup is pending and exposes accessible resul
 
 it("keeps main pages free of contextual navigation and shows the compact upcoming schedule", async () => {
   expect(await renderEvents()).not.toContain("Back to");
-  const html = renderToStaticMarkup(await DashboardPage());
+  const html = renderToStaticMarkup(await DashboardPage({}));
   expect(html).not.toContain("Back to");
   expect(html).toContain("Jan 1 · 5:00–6:00 AM");
 });
@@ -448,7 +471,7 @@ it("shows a bounded upcoming-event preview with signup context and full-page lin
     name: `Upcoming event ${index + 1}`,
     event_officers: index === 0 ? [{ officer_id: actor.id }] : [],
   }));
-  const html = renderToStaticMarkup(await DashboardPage());
+  const html = renderToStaticMarkup(await DashboardPage({}));
   const list = html
     .split('aria-label="Upcoming events"')[1]
     .split("</section>")[0];
@@ -496,7 +519,7 @@ it("summarizes signed point values with officer and event/task links or a manual
       reason: "Manual adjustment",
     },
   ];
-  const html = renderToStaticMarkup(await DashboardPage());
+  const html = renderToStaticMarkup(await DashboardPage({}));
   const list = html
     .split('aria-label="Recent point activity"')[1]
     .split("</section>")[0];
@@ -527,7 +550,7 @@ it("shows only the five newest Point transactions and keeps full Points navigati
     created_at: `2026-10-${String(13 - index).padStart(2, "0")}T12:00:00Z`,
   }));
 
-  const html = renderToStaticMarkup(await DashboardPage());
+  const html = renderToStaticMarkup(await DashboardPage({}));
   const list = html
     .split('aria-label="Recent point activity"')[1]
     .split("</section>")[0];
@@ -541,7 +564,7 @@ it("shows only the five newest Point transactions and keeps full Points navigati
 
 it("keeps dashboard empty states and destination links without empty lists or tables", async () => {
   events = [];
-  const html = renderToStaticMarkup(await DashboardPage());
+  const html = renderToStaticMarkup(await DashboardPage({}));
   expect(html).toContain("No upcoming events.");
   expect(html).toContain("No point transactions yet.");
   expect(html).toContain("View all Events");

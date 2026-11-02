@@ -41,7 +41,7 @@ select is((select activity_date from point_history where id=-4102),
 select is((select activity_date from point_history where id=-4103),
   '2026-09-30'::date,'standalone transaction date uses America/Denver calendar date');
 select is((select activity_date from point_history where id=-4104),
-  '2026-10-02'::date,'Task transaction uses creation date rather than Task due date');
+  '2020-09-20'::date,'Task transaction uses Task due date for period attribution');
 
 select ok((select 'security_invoker=true'=any(reloptions)
   from pg_catalog.pg_class where oid='public.point_history'::regclass),

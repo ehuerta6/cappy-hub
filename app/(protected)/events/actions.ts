@@ -65,7 +65,7 @@ export async function saveEvent(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  const actor = await getAuthorizationContext();
+  const actor = await getAuthorizationContext({ enforceWritablePeriod: true });
   const rawBranchIds = formData.getAll("branches");
   const branchValidationResult =
     eventBranchIdsInputSchema.safeParse(rawBranchIds);
@@ -375,7 +375,7 @@ export async function changeSignup(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  await getAuthorizationContext();
+  await getAuthorizationContext({ enforceWritablePeriod: true });
   const rawSignupInput = {
     event_id: formData.get("event_id") ?? "",
     officer_id: formData.get("officer_id") ?? "",
@@ -414,7 +414,7 @@ export async function selfSignup(
   previous: FormActionState,
   formData: FormData,
 ) {
-  const actor = await getAuthorizationContext();
+  const actor = await getAuthorizationContext({ enforceWritablePeriod: true });
   const signup = new FormData();
   signup.set("event_id", String(formData.get("event_id") ?? ""));
   signup.set("officer_id", String(actor.id));
@@ -426,7 +426,7 @@ export async function bulkAddEventOfficers(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  await getAuthorizationContext();
+  await getAuthorizationContext({ enforceWritablePeriod: true });
   const rawBulkAddEventOfficersInput = {
     event_id: formData.get("event_id") ?? "",
     officer_ids: formData.getAll("officer_ids"),
@@ -477,7 +477,7 @@ export async function restoreDeletedEvent(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  await getAuthorizationContext();
+  await getAuthorizationContext({ enforceWritablePeriod: true });
   const restoreEventValidationResult = restoreEventInputSchema.safeParse({
     event_id: formData.get("event_id") ?? "",
   });
@@ -520,7 +520,7 @@ export async function deleteEvent(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  await getAuthorizationContext();
+  await getAuthorizationContext({ enforceWritablePeriod: true });
   const validationResult = eventRecordInputSchema.safeParse({
     event_id: formData.get("event_id") ?? "",
   });
@@ -582,7 +582,7 @@ export async function restoreEvent(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  await getAuthorizationContext();
+  await getAuthorizationContext({ enforceWritablePeriod: true });
   const validation = restoreEventInputSchema.safeParse({
     event_id: formData.get("event_id") ?? "",
   });
@@ -603,7 +603,7 @@ export async function retryGoogleCalendarSync(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  const actor = await getAuthorizationContext();
+  const actor = await getAuthorizationContext({ enforceWritablePeriod: true });
   const validation = eventRecordInputSchema.safeParse({
     event_id: formData.get("event_id") ?? "",
   });
