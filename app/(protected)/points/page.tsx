@@ -132,6 +132,9 @@ export default async function PointsPage({
     ]);
     if (activeOfficers.error || recentEvents?.error || periodPoints.error)
       throw new Error("Failed to load points");
+    const activeOfficerIds = new Set(
+      (activeOfficers.data ?? []).map((officer) => officer.id),
+    );
     const ranking = selectedPeriod
       ? (
           periodPoints.data!.ranking as Array<{
@@ -139,11 +142,13 @@ export default async function PointsPage({
             officer_name: string;
             points: number;
           }>
-        ).map((row) => ({
-          id: row.officer_id,
-          name: row.officer_name,
-          total_points: row.points,
-        }))
+        )
+          .map((row) => ({
+            id: row.officer_id,
+            name: row.officer_name,
+            total_points: row.points,
+          }))
+          .filter((officer) => activeOfficerIds.has(officer.id))
       : [];
 
     return {
@@ -205,7 +210,7 @@ export default async function PointsPage({
         title="Officer ranking"
         description={
           selectedPeriod
-            ? `${overviewData.totals.count ?? 0} officers · ${selectedPeriod.name}`
+            ? `${overviewData.totals.count ?? 0} active officer${overviewData.totals.count === 1 ? "" : "s"} · ${selectedPeriod.name}`
             : "Select an academic period to see ranked points."
         }
       />
@@ -254,7 +259,7 @@ export default async function PointsPage({
       ) : (
         <p className="points-ranking-empty" role="status">
           {selectedPeriod
-            ? "No Officers have earned Points in this period yet."
+            ? "No active Officers have earned Points in this period yet."
             : "No period selected. Choose an academic period from the header."}
         </p>
       )}
