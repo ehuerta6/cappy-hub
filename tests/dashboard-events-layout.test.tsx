@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Tables } from "@/lib/database.types";
 import { createElement, useActionState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -47,6 +47,14 @@ vi.mock("@/lib/academic-periods", async (importOriginal) => ({
         ends_on: "2027-05-15",
         created_at: "2026-11-01T00:00:00Z",
         updated_at: "2026-11-01T00:00:00Z",
+      },
+      {
+        id: 3,
+        name: "Spring 2026",
+        starts_on: "2026-01-11",
+        ends_on: "2026-05-15",
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
       },
     ],
     currentDate: "2026-11-01",
@@ -187,14 +195,33 @@ const from = vi.fn((table: string) => {
           method === "select" &&
           (args[1] as { head?: boolean } | undefined)?.head,
       );
+      const visibleEvents = events.filter((event) =>
+        operations.every(([method, args]) => {
+          if (method === "gte" && args[0] === "event_date")
+            return event.event_date >= String(args[1]);
+          if (method === "lte" && args[0] === "event_date")
+            return event.event_date <= String(args[1]);
+          if (method === "gt" && args[0] === "ends_at")
+            return event.ends_at > String(args[1]);
+          if (method === "lte" && args[0] === "ends_at")
+            return event.ends_at <= String(args[1]);
+          if (method === "eq" && args[0] === "status")
+            return event.status === args[1];
+          if (method === "neq" && args[0] === "status")
+            return event.status !== args[1];
+          if (method === "is" && args[0] === "deleted_at")
+            return event.deleted_at === args[1];
+          return true;
+        }),
+      );
       return Promise.resolve({
         ...result,
         data:
           table === "events" && range
-            ? events.slice(Number(range[0]), Number(range[1]) + 1)
+            ? visibleEvents.slice(Number(range[0]), Number(range[1]) + 1)
             : table === "events" &&
                 operations.some(([method]) => method === "limit")
-              ? events.slice(
+              ? visibleEvents.slice(
                   0,
                   Number(
                     operations.find(([method]) => method === "limit")?.[1][0],
@@ -208,7 +235,7 @@ const from = vi.fn((table: string) => {
                     ),
                   )
                 : result.data,
-        count: table === "events" && head ? events.length : undefined,
+        count: table === "events" && head ? visibleEvents.length : undefined,
       }).then(resolve);
     },
   };
@@ -271,10 +298,136 @@ beforeEach(() => {
     },
   } as never);
 });
+afterEach(() => vi.useRealTimers());
 const renderEvents = async () =>
   renderToStaticMarkup(
     await EventsPage({ searchParams: Promise.resolve({ period: "none" }) }),
   );
+
+it("keeps ended Events out of the default current-period view", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-11-02T20:00:00.000Z"));
+  events = [
+    {
+      ...upcoming,
+      name: "Past period Event",
+      event_date: "2026-09-01",
+      starts_at: "2026-09-01T12:00:00Z",
+      ends_at: "2026-09-01T13:00:00Z",
+    },
+    {
+      ...upcoming,
+      id: 2,
+      name: "Upcoming period Event",
+      event_date: "2026-11-15",
+      starts_at: "2026-11-15T12:00:00Z",
+      ends_at: "2026-11-15T13:00:00Z",
+      event_officers: [],
+    },
+    {
+      ...upcoming,
+      id: 3,
+      name: "Cancelled period Event",
+      event_date: "2026-11-20",
+      starts_at: "2026-11-20T12:00:00Z",
+      ends_at: "2026-11-20T13:00:00Z",
+      status: "cancelled",
+      event_officers: [],
+    },
+  ];
+  const html = renderToStaticMarkup(
+    await EventsPage({ searchParams: Promise.resolve({}) }),
+  );
+
+  expect(html).not.toContain("Past period Event");
+  expect(html).not.toContain("Cancelled period Event");
+  expect(html).toContain("Upcoming period Event");
+  const pageQuery = dashboardQueries.find(
+    ({ table, operations }) =>
+      table === "events" && operations.some(([method]) => method === "range"),
+  );
+  expect(pageQuery?.operations).toContainEqual([
+    "gte",
+    ["event_date", "2026-11-02"],
+  ]);
+  expect(pageQuery?.operations).toContainEqual([
+    "gt",
+    ["ends_at", expect.any(String)],
+  ]);
+});
+
+it("shows past Events only after selecting the Past filter", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-11-02T20:00:00.000Z"));
+  events = [
+    {
+      ...upcoming,
+      name: "Past period Event",
+      event_date: "2026-09-01",
+      starts_at: "2026-09-01T12:00:00Z",
+      ends_at: "2026-09-01T13:00:00Z",
+    },
+    {
+      ...upcoming,
+      id: 2,
+      name: "Upcoming period Event",
+      event_date: "2026-11-15",
+      starts_at: "2026-11-15T12:00:00Z",
+      ends_at: "2026-11-15T13:00:00Z",
+      event_officers: [],
+    },
+  ];
+  const html = renderToStaticMarkup(
+    await EventsPage({
+      searchParams: Promise.resolve({ status: "past" }),
+    }),
+  );
+
+  expect(html).toContain("Past period Event");
+  expect(html).not.toContain("Upcoming period Event");
+  expect(html).toContain('aria-label="Events table: Past events: Your events"');
+});
+
+it("shows the selected historical period as an intentional history view", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-11-02T20:00:00.000Z"));
+  events = [
+    {
+      ...upcoming,
+      name: "Spring history Event",
+      event_date: "2026-04-15",
+      starts_at: "2026-04-15T12:00:00Z",
+      ends_at: "2026-04-15T13:00:00Z",
+    },
+    {
+      ...upcoming,
+      id: 2,
+      name: "Outside selected period",
+      event_date: "2026-09-01",
+      starts_at: "2026-09-01T12:00:00Z",
+      ends_at: "2026-09-01T13:00:00Z",
+    },
+  ];
+  const html = renderToStaticMarkup(
+    await EventsPage({ searchParams: Promise.resolve({ period: "3" }) }),
+  );
+
+  expect(html).toContain("Spring history Event");
+  expect(html).not.toContain("Outside selected period");
+  expect(html).toContain("All events in period");
+  const pageQuery = dashboardQueries.find(
+    ({ table, operations }) =>
+      table === "events" && operations.some(([method]) => method === "range"),
+  );
+  expect(pageQuery?.operations).toContainEqual([
+    "gte",
+    ["event_date", "2026-01-11"],
+  ]);
+  expect(pageQuery?.operations).not.toContainEqual([
+    "gt",
+    ["ends_at", expect.any(String)],
+  ]);
+});
 
 it("renders bounded Events in period tables grouped by participation", async () => {
   const html = await renderEvents();
