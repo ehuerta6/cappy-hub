@@ -32,6 +32,43 @@ select is((select count(*) from events where recurrence_key between '2099-03-06'
   'recurring Event creation materializes three independent Events');
 select is((select count(distinct recurrence_series_id) from events where recurrence_key between '2099-03-06' and '2099-03-08'),1::bigint,
   'Event occurrences share only their series metadata');
+select throws_ok($$select public.create_recurring_event_with_capacity_and_time_slots(
+  'General Session invalid recurrence','Synthetic recurrence regression',(select id from event_types where name='Session'),
+  'Campus','{}'::bigint[],null,null,null,0,'00000000-0000-4000-8000-000000000104',
+  'RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=WE;UNTIL=20261203T000000Z',
+  array['2026-11-04'::date,'2026-11-11','2026-11-18','2026-11-25','2026-12-02'],
+  array[timestamptz '2026-11-04 10:00-07',timestamptz '2026-11-11 10:00-07',timestamptz '2026-11-18 10:00-07',timestamptz '2026-11-25 10:00-07',timestamptz '2026-12-02 10:00-07'],
+  array[timestamptz '2026-11-04 11:00-07',timestamptz '2026-11-11 11:00-07',timestamptz '2026-11-18 11:00-07',timestamptz '2026-11-25 11:00-07',timestamptz '2026-12-02 11:00-07'],
+  '[]'::jsonb)$$,'P0001','Invalid recurrence definition',
+  'database rejects the RRule timestamp UNTIL representation');
+select is((select count(*) from event_series where request_key='00000000-0000-4000-8000-000000000104'),0::bigint,
+  'rejected recurrence does not leave a series row');
+select is((select count(*) from events where name='General Session invalid recurrence'),0::bigint,
+  'rejected recurrence does not leave partial Event occurrences');
+select set_config('test.end_date_first',public.create_recurring_event_with_capacity_and_time_slots(
+  'General Session end date','Synthetic recurrence regression',(select id from event_types where name='Session'),
+  'Campus','{}'::bigint[],null,null,null,0,'00000000-0000-4000-8000-000000000105',
+  'RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=WE;UNTIL=20261203',
+  array['2026-11-04'::date,'2026-11-11','2026-11-18','2026-11-25','2026-12-02'],
+  array[timestamptz '2026-11-04 10:00-07',timestamptz '2026-11-11 10:00-07',timestamptz '2026-11-18 10:00-07',timestamptz '2026-11-25 10:00-07',timestamptz '2026-12-02 10:00-07'],
+  array[timestamptz '2026-11-04 11:00-07',timestamptz '2026-11-11 11:00-07',timestamptz '2026-11-18 11:00-07',timestamptz '2026-11-25 11:00-07',timestamptz '2026-12-02 11:00-07'],
+  '[]'::jsonb)::text,true);
+select is((select array_agg(recurrence_key order by recurrence_key) from events
+  where recurrence_series_id=(select recurrence_series_id from events where id=current_setting('test.end_date_first')::bigint)),
+  array['2026-11-04'::date,'2026-11-11','2026-11-18','2026-11-25','2026-12-02'],
+  'inclusive Wednesday end date creates exactly the five expected Events');
+select is(public.create_recurring_event_with_capacity_and_time_slots(
+  'General Session end date','Synthetic recurrence regression',(select id from event_types where name='Session'),
+  'Campus','{}'::bigint[],null,null,null,0,'00000000-0000-4000-8000-000000000105',
+  'RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=WE;UNTIL=20261203',
+  array['2026-11-04'::date,'2026-11-11','2026-11-18','2026-11-25','2026-12-02'],
+  array[timestamptz '2026-11-04 10:00-07',timestamptz '2026-11-11 10:00-07',timestamptz '2026-11-18 10:00-07',timestamptz '2026-11-25 10:00-07',timestamptz '2026-12-02 10:00-07'],
+  array[timestamptz '2026-11-04 11:00-07',timestamptz '2026-11-11 11:00-07',timestamptz '2026-11-18 11:00-07',timestamptz '2026-11-25 11:00-07',timestamptz '2026-12-02 11:00-07'],
+  '[]'::jsonb),current_setting('test.end_date_first')::bigint,
+  'retrying end-date recurrence returns its original first Event');
+select is((select count(*) from events where recurrence_series_id=(select recurrence_series_id
+  from events where id=current_setting('test.end_date_first')::bigint)),5::bigint,
+  'retrying end-date recurrence does not create duplicate occurrences');
 select throws_ok($$select create_recurring_event(
   'Skipped date','Invalid DAILY expansion',(select id from event_types where name='Workshop'),
   'Campus','{}'::bigint[],null,null,'00000000-0000-4000-8000-000000000101',
@@ -186,7 +223,7 @@ select is((select count(*) from audit_logs where entity_type='task' and entity_i
   (select id::text from tasks where recurrence_key='2099-09-23') and action='task.deleted'),1::bigint,
   'delete audit identifies the individual Task occurrence');
 select is((select count(*) from audit_logs where action in ('event.series_created','task.series_created')),
-  2::bigint,'both recurrence series have audit records');
+  3::bigint,'all recurrence series have audit records');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000981',true);
 set local role authenticated;
