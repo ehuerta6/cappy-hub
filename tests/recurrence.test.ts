@@ -97,6 +97,27 @@ it("stores a canonical bounded RFC recurrence line", () => {
   ).toBe("RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE;COUNT=8");
 });
 
+it("stores an inclusive end date in the database's canonical date-only format", () => {
+  const until = recurrence({
+    frequency: "weekly",
+    interval: 1,
+    weekdays: ["WE"],
+    count: null,
+    until: "2026-12-03",
+  });
+
+  expect(canonicalRecurrenceRule(until)).toBe(
+    "RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=WE;UNTIL=20261203",
+  );
+  expect(expandRecurrenceDates("2026-11-04", until)).toEqual([
+    "2026-11-04",
+    "2026-11-11",
+    "2026-11-18",
+    "2026-11-25",
+    "2026-12-02",
+  ]);
+});
+
 it("keeps the intended Denver wall time across spring DST", () => {
   const dates = expandRecurrenceDates("2026-03-06", recurrence({ count: 5 }));
   const starts = dates.map((date) => denverTimestamp(date, "10:00"));

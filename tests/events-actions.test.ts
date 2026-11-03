@@ -460,6 +460,72 @@ it("materializes recurring Events with independent Denver schedules", async () =
   );
 });
 
+it("sends an inclusive end-date recurrence in the PostgreSQL canonical format", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 8,
+    positionName: "President",
+    positionCode: "president",
+  } as never);
+  const recurring = eventForm();
+  recurring.set("event_date", "2026-11-04");
+  recurring.set("recurrence_frequency", "weekly");
+  recurring.set("recurrence_interval", "1");
+  recurring.append("recurrence_weekdays", "WE");
+  recurring.set("recurrence_end_mode", "until");
+  recurring.set("recurrence_until", "2026-12-03");
+
+  await saveEvent({ error: "", success: "" }, recurring);
+
+  expect(rpc).toHaveBeenCalledWith(
+    "create_recurring_event_with_capacity_and_time_slots",
+    expect.objectContaining({
+      p_recurrence_rule: "RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=WE;UNTIL=20261203",
+      p_event_dates: [
+        "2026-11-04",
+        "2026-11-11",
+        "2026-11-18",
+        "2026-11-25",
+        "2026-12-02",
+      ],
+      p_starts_at: [
+        denverTimestamp("2026-11-04", "10:00"),
+        denverTimestamp("2026-11-11", "10:00"),
+        denverTimestamp("2026-11-18", "10:00"),
+        denverTimestamp("2026-11-25", "10:00"),
+        denverTimestamp("2026-12-02", "10:00"),
+      ],
+    }),
+  );
+});
+
+it("shows actionable feedback when PostgreSQL rejects an Event recurrence", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 8,
+    positionName: "President",
+    positionCode: "president",
+  } as never);
+  rpc.mockResolvedValueOnce({
+    data: null,
+    error: { message: "Invalid recurrence definition" },
+  });
+  const recurring = eventForm();
+  recurring.set("event_date", "2026-11-04");
+  recurring.set("recurrence_frequency", "weekly");
+  recurring.set("recurrence_interval", "1");
+  recurring.append("recurrence_weekdays", "WE");
+  recurring.set("recurrence_end_mode", "until");
+  recurring.set("recurrence_until", "2026-12-03");
+
+  const result = await saveEvent({ error: "", success: "" }, recurring);
+
+  expect(result).toMatchObject({
+    error:
+      "Review the recurrence frequency, repeat interval, selected weekdays, and end condition",
+    success: "",
+  });
+  expect(syncGoogleCalendarEvents).not.toHaveBeenCalled();
+});
+
 it("rejects an invalid signup sheet URL before calling the trusted RPC", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 8,

@@ -109,7 +109,7 @@ export function expandRecurrenceDates(
   return dates;
 }
 
-/** Returns the RFC-compatible recurrence line; DTSTART and timezone are stored separately. */
+/** Returns the canonical recurrence line stored and validated by PostgreSQL. */
 export function canonicalRecurrenceRule(input: RecurrenceInput) {
   const parts = [
     `FREQ=${input.frequency === "daily" ? "DAILY" : "WEEKLY"}`,
@@ -119,7 +119,7 @@ export function canonicalRecurrenceRule(input: RecurrenceInput) {
     parts.push(`BYDAY=${[...new Set(input.weekdays)].join(",")}`);
   if (input.count !== null) parts.push(`COUNT=${input.count}`);
   else if (input.until) parts.push(`UNTIL=${input.until.replaceAll("-", "")}`);
-  return RRule.fromString(`RRULE:${parts.join(";")}`).toString();
+  return `RRULE:${parts.join(";")}`;
 }
 
 /** Reads only the canonical MVP rule format emitted by this module. */

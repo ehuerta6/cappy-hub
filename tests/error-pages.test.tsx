@@ -65,6 +65,12 @@ it("explains why protected recurring Tasks must be deleted individually", () => 
   ).toBe("Completed or awarded Tasks must be deleted individually");
 });
 
+it("gives actionable guidance when a recurrence definition is rejected", () => {
+  expect(mutationError("Invalid recurrence definition")).toBe(
+    "Review the recurrence frequency, repeat interval, selected weekdays, and end condition",
+  );
+});
+
 it("maps duplicate primary Event awards to a clear domain message", () => {
   expect(
     mutationError(
