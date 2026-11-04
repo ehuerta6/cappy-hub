@@ -267,6 +267,10 @@ Where these dated decisions conflict with earlier future targets in this specifi
 - **System Log — implemented in #367:** The user-facing page, navigation, filters and related administration entry were removed. Audit records and trusted writers remain for Point provenance, authorization accountability, rollback verification and historical compatibility. Storage and writer simplification remains separate; no replacement audit dashboard was added.
 - **Other behavior:** Keep Event capacity, Event Types, custom Positions, multiple Branch memberships, Warning thresholds and Dashboard previews. Keep all approved behavior not changed above. Do not add speculative infrastructure.
 
+#### Owner-confirmed scope clarification (2026-11-03)
+
+- **Volunteer Time Slot overlap (#389; implementation pending):** After implementation, different Time Slots on one Event occurrence may overlap. New self-service, manager-added, and corrected assignments cannot place the same Officer in overlapping slots. Managers may edit slot schedules even when this creates overlap between existing assignments; save the schedule and preserve those assignments and their existing per-slot Point behavior. Current shipped behavior remains unchanged until #389 is implemented.
+
 ### Google Calendar Event mirror — Issue #29
 
 **Current integration present in repository; production activation is tracked separately.** Cappy Hub is authoritative and the private CIC Google Calendar is a one-way mirror. The integration uses stable Event-derived Google IDs and direct server-side upsert/remove calls after Cappy Hub mutations. Initial activation and server-side write access remain operational concerns. The payload contains Event name, America/Denver schedule, location, general description and protected Cappy Hub link; it excludes signups, attendees, internal notes, Points, audit data and Tasks. Google-side edits never change Cappy Hub; sharing remains CIC's responsibility. Signup/withdrawal does not synchronize. The accepted simplification above replaces the older Cancel/Archive user-facing contract; Issue #334 adds a discoverable recovery path for synchronization failures.

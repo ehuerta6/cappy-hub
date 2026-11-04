@@ -23,7 +23,9 @@ values
  (-2954,'Existing signup event','Test','Campus',(select id from event_types where name='Meeting'),date '2099-09-04',
   timestamptz '2099-09-04 09:00-06',timestamptz '2099-09-04 14:00-06','upcoming',4,null),
  (-2955,'Session slot event','Test','Campus',(select id from event_types where lower(name)='session'),date '2099-09-05',
-  timestamptz '2099-09-05 09:00-06',timestamptz '2099-09-05 14:00-06','upcoming',4,null);
+  timestamptz '2099-09-05 09:00-06',timestamptz '2099-09-05 14:00-06','upcoming',4,null),
+ (-2956,'Overlapping slot event','Test','Campus',(select id from event_types where name='Meeting'),date '2099-09-06',
+  timestamptz '2099-09-06 09:00-06',timestamptz '2099-09-06 14:00-06','upcoming',4,null);
 
 insert into event_officers(event_id,officer_id) values
  (-2951,-2952),(-2951,-2953),(-2954,-2952);
@@ -57,8 +59,33 @@ select throws_ok($$select private.replace_event_time_slots(-2954,'[{"start_time"
   'existing signup prevents enabling Time Slots');
 select throws_ok($$select private.replace_event_time_slots(-2953,'[{"start_time":"08:59","end_time":"10:00"}]'::jsonb)$$,
   'P0001','Each Time Slot must fit within the Event schedule','slot outside Event boundary is rejected');
-select throws_ok($$select private.replace_event_time_slots(-2953,'[{"start_time":"09:00","end_time":"11:00"},{"start_time":"10:30","end_time":"12:00"}]'::jsonb)$$,
-  'P0001','Custom Time Slots cannot overlap','overlapping custom slots are rejected');
+select lives_ok($$select private.replace_event_time_slots(-2956,'[{"start_time":"09:00","end_time":"10:00"},{"start_time":"10:00","end_time":"11:00"}]'::jsonb)$$,
+  'adjacent Time Slots can be configured');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000002951',true);
+set local role authenticated;
+select lives_ok($$select public.change_event_time_slot_signup(-2956,-2952,
+  (select array_agg(id order by id) from event_time_slots where event_id=-2956),'join_all')$$,
+  'an Officer can join adjacent Time Slots');
+reset role;
+select lives_ok($$select private.replace_event_time_slots(-2956,'[{"start_time":"09:00","end_time":"10:00"},{"start_time":"09:30","end_time":"11:00"}]'::jsonb)$$,
+  'editing a schedule may create overlap between already-assigned Time Slots');
+select is((select count(*) from event_time_slot_officers where event_id=-2956 and officer_id=-2952),
+  2::bigint,'schedule edits preserve existing assignments even when they now overlap');
+set local role authenticated;
+select lives_ok($$select public.change_event_time_slot_signup(-2956,-2953,
+  array[(select min(id) from event_time_slots where event_id=-2956)]::bigint[],'join_selected')$$,
+  'a different Officer can join one of two overlapping Time Slots');
+select throws_ok($$select public.change_event_time_slot_signup(-2956,-2953,
+  array[(select max(id) from event_time_slots where event_id=-2956)]::bigint[],'join_selected')$$,
+  'P0001','An Officer cannot be assigned to overlapping Time Slots',
+  'an Officer cannot add a Time Slot that overlaps their existing assignment');
+select is((select count(*) from event_time_slot_officers where event_id=-2956 and officer_id=-2953),
+  1::bigint,'a rejected overlapping signup leaves the original selection unchanged');
+select throws_ok($$select public.bulk_add_event_officers_to_slots(-2956,array[-2953]::bigint[],
+  array[(select max(id) from event_time_slots where event_id=-2956)]::bigint[])$$,
+  'P0001','An Officer cannot be assigned to overlapping Time Slots',
+  'manager bulk assignment cannot add an overlapping slot for the same Officer');
+reset role;
 insert into event_time_slots(id,event_id,starts_at,ends_at,capacity)
   values (295301,-2953,timestamptz '2099-09-03 13:30-06',timestamptz '2099-09-03 14:00-06',null);
 select throws_ok($$select private.replace_event_time_slots(-2953,'[{"id":295301,"start_time":"13:30","end_time":"14:00"},{"id":295301,"start_time":"13:30","end_time":"14:00"}]'::jsonb)$$,

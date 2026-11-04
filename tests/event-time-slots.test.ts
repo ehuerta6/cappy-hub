@@ -19,7 +19,7 @@ it("accepts optional capacity and custom gaps within the Event schedule", () => 
     expect(timeSlotBoundsError(result.data, "09:00", "14:00")).toBeUndefined();
 });
 
-it("rejects overlapping, out-of-bounds, and empty slot configurations", () => {
+it("allows overlapping slots while rejecting out-of-bounds and empty configurations", () => {
   const overlapping = slots(
     JSON.stringify([
       { start_time: "10:00", end_time: "12:00", capacity: null },
@@ -28,9 +28,9 @@ it("rejects overlapping, out-of-bounds, and empty slot configurations", () => {
   );
   expect(overlapping.success).toBe(true);
   if (overlapping.success)
-    expect(timeSlotBoundsError(overlapping.data, "09:00", "14:00")).toBe(
-      "Time Slots cannot overlap",
-    );
+    expect(
+      timeSlotBoundsError(overlapping.data, "09:00", "14:00"),
+    ).toBeUndefined();
 
   const outside = slots(
     JSON.stringify([
