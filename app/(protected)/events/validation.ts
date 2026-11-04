@@ -93,19 +93,13 @@ export function timeSlotBoundsError(
   eventEnd: string,
 ) {
   if (slots === null) return undefined;
-  const ordered = [...slots].sort((left, right) =>
-    left.start_time.localeCompare(right.start_time),
-  );
-  for (let index = 0; index < ordered.length; index += 1) {
-    const slot = ordered[index];
+  for (const slot of slots) {
     if (
       slot.start_time >= slot.end_time ||
       slot.start_time < eventStart ||
       slot.end_time > eventEnd
     )
       return "Each Time Slot must fit within the Event schedule and end after it starts";
-    if (index > 0 && ordered[index - 1].end_time > slot.start_time)
-      return "Time Slots cannot overlap";
   }
   return undefined;
 }

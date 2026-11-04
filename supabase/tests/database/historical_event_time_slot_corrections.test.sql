@@ -42,6 +42,7 @@ insert into event_time_slots(id,event_id,starts_at,ends_at,capacity) values
  (-358101,-35801,'2020-01-01 09:00-07','2020-01-01 10:00-07',null),
  (-358102,-35801,'2020-01-01 10:00-07','2020-01-01 11:30-07',1),
  (-358103,-35801,'2020-01-01 11:30-07','2020-01-01 12:00-07',null),
+ (-358104,-35801,'2020-01-01 09:30-07','2020-01-01 10:30-07',null),
  (-358201,-35802,'2020-01-02 09:00-07','2020-01-02 10:00-07',null),
  (-358301,-35803,'2020-01-03 09:00-07','2020-01-03 10:00-07',null),
  (-358401,-35804,'2020-01-04 09:00-07','2020-01-04 10:00-07',null);
@@ -84,6 +85,9 @@ select throws_ok($$select public.correct_historical_event_time_slots(-35801,-358
   'P0001','This Time Slot is full','historical corrections preserve per-slot capacity');
 select throws_ok($$select public.correct_historical_event_time_slots(-35801,-35802,array[-358301]::bigint[])$$,
   'P0001','One or more Time Slots do not belong to this Event','slot IDs must belong to the corrected Event');
+select throws_ok($$select public.correct_historical_event_time_slots(-35801,-35802,array[-358101,-358104]::bigint[])$$,
+  'P0001','An Officer cannot be assigned to overlapping Time Slots',
+  'historical correction rejects overlapping selections atomically');
 select lives_ok($$select public.correct_historical_event_time_slots(-35801,-35802,array[-358103]::bigint[])$$,
   'a scoped Event manager can replace an Officer historical slot assignment');
 reset role;
