@@ -29,7 +29,9 @@ values
  (-2957,'Slot replacement event','Test','Campus',(select id from event_types where name='Meeting'),date '2099-09-07',
   timestamptz '2099-09-07 09:00-06',timestamptz '2099-09-07 14:00-06','upcoming',4,null),
  (-2958,'Protected slot replacement event','Test','Campus',(select id from event_types where name='Meeting'),date '2099-09-08',
-  timestamptz '2099-09-08 09:00-06',timestamptz '2099-09-08 14:00-06','upcoming',4,null);
+  timestamptz '2099-09-08 09:00-06',timestamptz '2099-09-08 14:00-06','upcoming',4,null),
+ (-2959,'Recurrence slot replacement event','Test','Campus',(select id from event_types where name='Meeting'),date '2099-09-09',
+  timestamptz '2099-09-09 09:00-06',timestamptz '2099-09-09 14:00-06','upcoming',4,null);
 
 insert into event_officers(event_id,officer_id) values
  (-2951,-2952),(-2951,-2953),(-2954,-2952),(-2958,-2952);
@@ -43,7 +45,9 @@ insert into event_time_slots(id,event_id,starts_at,ends_at,capacity) values
  (295701,-2957,timestamptz '2099-09-07 09:00-06',timestamptz '2099-09-07 10:00-06',null),
  (295702,-2957,timestamptz '2099-09-07 10:00-06',timestamptz '2099-09-07 11:00-06',null),
  (295801,-2958,timestamptz '2099-09-08 09:00-06',timestamptz '2099-09-08 10:00-06',null),
- (295802,-2958,timestamptz '2099-09-08 10:00-06',timestamptz '2099-09-08 11:00-06',null);
+ (295802,-2958,timestamptz '2099-09-08 10:00-06',timestamptz '2099-09-08 11:00-06',null),
+ (295901,-2959,timestamptz '2099-09-09 09:00-06',timestamptz '2099-09-09 10:00-06',null),
+ (295902,-2959,timestamptz '2099-09-09 10:00-06',timestamptz '2099-09-09 11:00-06',null);
 insert into event_time_slot_officers(event_id,slot_id,officer_id)
 values (-2958,295802,-2952);
 select is((select max_volunteers from events where id=-2953),null::integer,
@@ -108,6 +112,22 @@ select is((select count(*) from event_time_slots where event_id=-2957),2::bigint
   'slot replacement keeps one existing slot and inserts the new slot');
 select is((select count(*) from event_time_slots where event_id=-2957 and id=295702),1::bigint,
   'slot replacement preserves the retained existing slot ID');
+select lives_ok($$select private.replace_event_time_slots(-2957,
+  '[{"id":295702,"start_time":"10:00","end_time":"11:00"},{"start_time":"11:00","end_time":"12:00"}]'::jsonb,
+  null,null,null,null,true)$$,
+  'an ID-less new slot stays new in a mixed-ID recurrence copy');
+select is((select count(*) from event_time_slots where event_id=-2957
+  and starts_at=timestamptz '2099-09-07 11:00-06'),1::bigint,
+  'mixed-ID recurrence copy creates the new slot at its requested time');
+select lives_ok($$select private.replace_event_time_slots(-2959,
+  '[{"id":295702,"start_time":"09:00","end_time":"10:00"},{"start_time":"11:00","end_time":"12:00"}]'::jsonb,
+  null,null,null,null,true)$$,
+  'foreign source ID maps by ordinal while a mixed ID-less recurrence slot stays new');
+select is((select count(*) from event_time_slots where event_id=-2959 and id=295901),1::bigint,
+  'mixed recurrence copy preserves the target slot ID for the foreign source slot');
+select is((select count(*) from event_time_slots where event_id=-2959
+  and starts_at=timestamptz '2099-09-09 11:00-06'),1::bigint,
+  'mixed recurrence copy inserts its ID-less slot instead of mapping it to the next target ID');
 select throws_ok($$select private.replace_event_time_slots(-2958,
   '[{"id":295801,"start_time":"09:00","end_time":"10:00"},{"start_time":"11:00","end_time":"12:00"}]'::jsonb)$$,
   'P0001','A Time Slot with registrations or Point history cannot be removed',

@@ -9,6 +9,7 @@ declare e public.events%rowtype; item jsonb; ord integer:=0; v_slot_id bigint;
   existing public.event_time_slots%rowtype; keep_ids bigint[]:='{}'::bigint[];
   new_starts timestamptz; new_ends timestamptz; new_type bigint; target_date date;
   before_slots jsonb; after_slots jsonb; existing_ids bigint[];
+  all_slots_missing_ids boolean;
   requested_ids bigint[]:='{}'::bigint[]; map_existing_id boolean;
 begin
   select * into e from public.events where id=p_event_id for update;
@@ -24,6 +25,9 @@ begin
   if p_time_slots is not null and jsonb_typeof(p_time_slots)<>'array' then raise exception 'Time Slots must be an array'; end if;
   if p_time_slots is not null and jsonb_array_length(p_time_slots)>100 then raise exception 'An Event cannot have more than 100 Time Slots'; end if;
   slot_count:=coalesce(jsonb_array_length(p_time_slots),0);
+  all_slots_missing_ids:=p_recurrence_copy and slot_count>0 and not exists(
+    select 1 from jsonb_array_elements(coalesce(p_time_slots,'[]'::jsonb)) as slots(value)
+    where value ? 'id' and value->'id'<>'null'::jsonb);
   if slot_count>0 then
     if private.is_session_event_type(new_type) then raise exception 'Time Slots are unavailable for Session Events'; end if;
     if not exists(select 1 from public.event_time_slots where event_id=p_event_id)
@@ -49,7 +53,7 @@ begin
     slot_end:=((target_date+(item->>'end_time')::time) at time zone 'America/Denver');
     if slot_start<new_starts or slot_end>new_ends or slot_end<=slot_start then
       raise exception 'Each Time Slot must fit within the Event schedule'; end if;
-    -- A foreign source ID maps to the same ordinal on another occurrence; an ID-less row is new.
+    -- Foreign source IDs map by ordinal; legacy all-ID-less copies do too. Mixed ID-less rows are new.
     map_existing_id:=false;
     if item ? 'id' and item->'id'<>'null'::jsonb then
       if jsonb_typeof(item->'id')<>'number' or (item->>'id') !~ '^[1-9][0-9]*$' then raise exception 'Invalid Time Slot id'; end if;
@@ -62,7 +66,7 @@ begin
       v_slot_id:=null;
       map_existing_id:=true;
     end if;
-    if map_existing_id then
+    if map_existing_id or (all_slots_missing_ids and v_slot_id is null) then
       v_slot_id:=existing_ids[ord];
     end if;
     if v_slot_id is not null then
