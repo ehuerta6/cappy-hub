@@ -81,7 +81,11 @@ select lives_ok($$select public.change_event_time_slot_signup(-2956,-2952,
   (select array_agg(id order by id) from event_time_slots where event_id=-2956),'join_all')$$,
   'an Officer can join adjacent Time Slots');
 reset role;
-select lives_ok($$select private.replace_event_time_slots(-2956,'[{"start_time":"09:00","end_time":"10:00"},{"start_time":"09:30","end_time":"11:00"}]'::jsonb)$$,
+select lives_ok($$select private.replace_event_time_slots(-2956,jsonb_build_array(
+  jsonb_build_object('id',(select id from event_time_slots where event_id=-2956 order by starts_at,id offset 0 limit 1),
+    'start_time','09:00','end_time','10:00'),
+  jsonb_build_object('id',(select id from event_time_slots where event_id=-2956 order by starts_at,id offset 1 limit 1),
+    'start_time','09:30','end_time','11:00')))$$,
   'editing a schedule may create overlap between already-assigned Time Slots');
 select is((select count(*) from event_time_slot_officers where event_id=-2956 and officer_id=-2952),
   2::bigint,'schedule edits preserve existing assignments even when they now overlap');
