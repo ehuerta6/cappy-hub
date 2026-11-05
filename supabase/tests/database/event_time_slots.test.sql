@@ -125,6 +125,8 @@ select lives_ok($$select private.replace_event_time_slots(-2959,
   'foreign source ID maps by ordinal while a mixed ID-less recurrence slot stays new');
 select is((select count(*) from event_time_slots where event_id=-2959 and id=295901),1::bigint,
   'mixed recurrence copy preserves the target slot ID for the foreign source slot');
+select is((select count(*) from event_time_slots where event_id=-2959 and id=295902),0::bigint,
+  'mixed recurrence copy does not reuse the next target slot ID for a new slot');
 select is((select count(*) from event_time_slots where event_id=-2959
   and starts_at=timestamptz '2099-09-09 11:00-06'),1::bigint,
   'mixed recurrence copy inserts its ID-less slot instead of mapping it to the next target ID');
