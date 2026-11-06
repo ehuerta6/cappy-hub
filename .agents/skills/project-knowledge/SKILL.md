@@ -16,7 +16,7 @@ Keep these sources distinct:
 - `docs/` describes the product and verified behavior.
 - Code is evidence of current implementation, not approval of product intent.
 
-If `knowledge/README.md` exists, read it first. Search only for the current task's concepts and inspect the relevant notes, using native repository search such as `rg -n -i '<terms>' knowledge/`. Follow links to canonical issues, pull requests, code, and documentation. Do not load or mirror unrelated history.
+If `knowledge/README.md` exists, read it first. Search only for the current task's concepts and inspect the relevant notes, using native repository search such as `rg -n -i '<terms>' knowledge/`. Follow links to canonical issues, pull requests, code, and documentation. Do not load or mirror unrelated history. For Cappy Hub capability-map, vertical-slice, and coverage work, use the local `cappy-knowledge` skill linked from `knowledge/README.md`; this general workflow remains its underlying source and capture guidance.
 
 ### Optional fresh-session retrieval check
 
