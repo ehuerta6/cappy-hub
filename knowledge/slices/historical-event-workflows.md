@@ -16,6 +16,6 @@ The former Presenter Slot workflow is retired. Existing `presentation_slots` row
 ## Sources
 
 - Canonical status: [Events and participation](../../docs/product/events.md), [administration audit](../../docs/product/administration-audit.md).
-- Waitlist retirement evidence: `supabase/migrations/20261019190000_remove_event_waitlist_contracts.sql`.
-- Presenter retirement evidence: `supabase/migrations/20261030220000_retire_presenter_slots.sql`; historical schema/detail evidence includes `20261013170000_presenter_slots.sql`, `20261015100000_presenter_owned_details.sql`.
+- Waitlist retirement evidence: [Waitlist retirement migration](../../supabase/migrations/20261019190000_remove_event_waitlist_contracts.sql).
+- Presenter retirement evidence: [Presenter Slot retirement migration](../../supabase/migrations/20261030220000_retire_presenter_slots.sql); historical schema/detail evidence includes [20261013170000_presenter_slots.sql](../../supabase/migrations/20261013170000_presenter_slots.sql), [20261015100000_presenter_owned_details.sql](../../supabase/migrations/20261015100000_presenter_owned_details.sql).
 - Related slices: [Events](events.md), [Event participation](event-participation.md), [Points](points.md).

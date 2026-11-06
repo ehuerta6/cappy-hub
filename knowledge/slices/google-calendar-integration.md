@@ -16,7 +16,7 @@ This external mirror is separate from the [read-only internal Calendar](calendar
 ## Sources
 
 - Operational contract and activation: [Google Calendar operations](../../docs/google-calendar.md), [Event Delete/Restore journey](../../docs/user-journeys/event-delete-restore.md).
-- Application: `app/(protected)/events/actions.ts` (`syncGoogleCalendarEvents`, `retryGoogleCalendarSync`), `lib/google-calendar-sync.ts`, `lib/google-calendar-event.ts`, `lib/google-calendar-auth.ts`.
-- Database evidence: `supabase/migrations/20261031150000_google_calendar_recovery.sql`.
-- Checks: `tests/google-calendar-event.test.ts`, `tests/google-calendar-sync.test.ts`, `tests/google-calendar-test-calendar.integration.test.ts` (external writes are opt-in).
+- Application: [Event actions](../../app/%28protected%29/events/actions.ts) (`syncGoogleCalendarEvents`, `retryGoogleCalendarSync`), [Google Calendar sync](../../lib/google-calendar-sync.ts), [Google event mapping](../../lib/google-calendar-event.ts), [Google Calendar auth](../../lib/google-calendar-auth.ts).
+- Database evidence: [Google Calendar recovery migration](../../supabase/migrations/20261031150000_google_calendar_recovery.sql).
+- Checks: [google-calendar-event.test.ts](../../tests/google-calendar-event.test.ts), [google-calendar-sync.test.ts](../../tests/google-calendar-sync.test.ts), [google-calendar-test-calendar.integration.test.ts](../../tests/google-calendar-test-calendar.integration.test.ts) (external writes are opt-in).
 - Related slices: [Events](events.md), [internal Calendar](calendar.md).

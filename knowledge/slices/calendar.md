@@ -14,6 +14,6 @@ Google Calendar is a distinct, one-way Event mirror with separate recovery behav
 ## Sources
 
 - Canonical behavior: [Dashboard and internal Calendar](../../docs/product/dashboard-calendar.md), [academic period lifecycle](../../docs/product/recurrence-lifecycles.md).
-- Application: `app/(protected)/calendar/page.tsx`, `calendar-query.ts`, `calendar-events.ts`, `calendar-view.tsx`.
-- Checks: `tests/calendar-page.test.tsx`, `tests/calendar-events.test.ts`, `tests/calendar-query.test.ts`, `tests/calendar-view.test.tsx`, `tests/calendar-postgrest.integration.test.ts`.
+- Application: [Calendar page](../../app/%28protected%29/calendar/page.tsx), [Calendar query](../../app/%28protected%29/calendar/calendar-query.ts), [Calendar events](../../app/%28protected%29/calendar/calendar-events.ts), [Calendar view](../../app/%28protected%29/calendar/calendar-view.tsx).
+- Checks: [calendar-page.test.tsx](../../tests/calendar-page.test.tsx), [calendar-events.test.ts](../../tests/calendar-events.test.ts), [calendar-query.test.ts](../../tests/calendar-query.test.ts), [calendar-view.test.tsx](../../tests/calendar-view.test.tsx), [calendar-postgrest.integration.test.ts](../../tests/calendar-postgrest.integration.test.ts).
 - Related slices: [Events](events.md), [Tasks](tasks.md), [recurrence](recurrence.md), [Dashboard](dashboard.md), [Google Calendar integration](google-calendar-integration.md).

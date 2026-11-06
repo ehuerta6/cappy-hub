@@ -20,7 +20,7 @@ An Event's optional Signup sheet is only a URL. The native `event_officers` rost
 ## Sources
 
 - Canonical behavior: [Events and participation](../../docs/product/events.md), [Points](../../docs/product/points.md), [recurrence/lifecycles](../../docs/product/recurrence-lifecycles.md).
-- Application: `app/(protected)/events/actions.ts`, `app/(protected)/events/`, `app/(protected)/events/time-slot-actions.ts`.
-- Database evidence: `supabase/migrations/20261020120000_event_time_slots.sql`, `20261030165016_reconcile_event_participation.sql`, `20261031000000_event_delete_restore.sql`, `20261019190000_remove_event_waitlist_contracts.sql`, `20261030220000_retire_presenter_slots.sql`.
-- Checks: `tests/events-actions.test.ts`, `tests/event-roster-controls.test.tsx`, `tests/event-time-slots.test.ts`, `tests/google-calendar-sync.test.ts`.
+- Application: [Event actions](../../app/%28protected%29/events/actions.ts), [Event application files](../../app/%28protected%29/events/), [Time Slot actions](../../app/%28protected%29/events/time-slot-actions.ts).
+- Database evidence: [20261020120000_event_time_slots.sql](../../supabase/migrations/20261020120000_event_time_slots.sql), [20261030043612_reconcile_event_participation.sql](../../supabase/migrations/20261030043612_reconcile_event_participation.sql), [20261031000000_event_delete_restore.sql](../../supabase/migrations/20261031000000_event_delete_restore.sql), [20261019190000_remove_event_waitlist_contracts.sql](../../supabase/migrations/20261019190000_remove_event_waitlist_contracts.sql), [20261030220000_retire_presenter_slots.sql](../../supabase/migrations/20261030220000_retire_presenter_slots.sql).
+- Checks: [events-actions.test.ts](../../tests/events-actions.test.ts), [event-roster-controls.test.tsx](../../tests/event-roster-controls.test.tsx), [event-time-slots.test.ts](../../tests/event-time-slots.test.ts), [google-calendar-sync.test.ts](../../tests/google-calendar-sync.test.ts).
 - Related journey: [Event Delete/Restore and Points](../../docs/user-journeys/event-delete-restore.md).

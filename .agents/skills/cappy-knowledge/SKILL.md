@@ -18,15 +18,15 @@ Use this Cappy Hub-specific workflow when a task needs cross-domain product cont
 
 1. Record a note only for a genuinely useful, source-backed cross-domain relationship, consequential rationale, durable constraint, or verified implementation lesson. Routine PR progress stays in GitHub.
 2. Keep normative behavior in its canonical specification and approved decision in its Issue/spec. In the slice, summarize why the relationship matters and link the owner; never copy permission matrices, complete contracts, SQL, or Issue/PR histories.
-3. Update the existing slice and catalog entry when approved behavior changes, a new capability is approved, a status changes, or a capability is retired. Add a slice only for a meaningful end-to-end responsibility; combine related topics when a split would invent artificial modularity.
-4. Mark shipped-on-main, approved/planned, historical, and unresolved claims separately. State the inspected revision for implementation claims. Keep production/deployment status separate and label it unverified unless independently evidenced.
+3. Keep the catalog focused on capabilities shipped on `main` and historical workflows needed to explain current records or boundaries. Add or update an entry when an approved change ships, an existing capability status changes, or a workflow is retired. Do not add roadmap items, pending proposals, or capabilities that are not present on `main`. Add a slice only for a meaningful end-to-end responsibility; combine related topics when a split would invent artificial modularity.
+4. Mark shipped-on-main and historical claims distinctly. State the inspected revision for implementation claims. Keep production/deployment status separate and label it operationally unverified unless independently evidenced.
 
 ## Reconcile and audit coverage
 
 1. Compare claims with the source hierarchy in [`AGENTS.md`](../../../AGENTS.md): product specification, newest explicit decision, approved feature specs, active Issue/clarifications, repository docs/migrations, then code as implementation evidence.
 2. For coverage audits, start with the capability map and compare it with product/design docs, focused specs, routes/actions, migrations/functions/RLS, types, tests, and relevant Issues/PRs. Use code/tests to establish implementation evidence, not product approval.
-3. Check catalog-to-slice and slice-to-canonical links, status basis, aliases, cross-slice relationships, duplicated contracts, dead links, and retired/planned claims. Keep the audit revision and any unresolved gaps explicit.
-4. If approved sources materially conflict or intended behavior is unresolved, identify the evidence and ask the owner rather than selecting a product rule. Continue independent work that does not depend on that choice.
+3. Check catalog-to-slice and slice-to-canonical links, status basis, aliases, cross-slice relationships, duplicated contracts, dead links, and retired workflows. Keep the audit revision and operational evidence gaps explicit.
+4. If approved sources materially conflict, identify the evidence and ask the owner rather than selecting a product rule. Continue independent work that does not depend on that choice.
 
 ## Writing rules
 
@@ -36,4 +36,4 @@ Use this Cappy Hub-specific workflow when a task needs cross-domain product cont
 
 ## Completion
 
-A retrieval answer identifies the relevant capability and follows authoritative sources. A capture leaves one coherent, sourced note and an accurate catalog entry. A coverage audit reports the inspected revision, mapped capabilities, missing/stale/duplicate references, and unresolved decisions without inventing behavior.
+A retrieval answer identifies the relevant capability and follows authoritative sources. A capture leaves one coherent, sourced note and an accurate catalog entry. A coverage audit reports the inspected revision, mapped shipped and historical capabilities, missing/stale/duplicate references, and operational evidence gaps without inventing behavior.

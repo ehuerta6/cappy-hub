@@ -14,7 +14,7 @@ Warning decisions are not a Dashboard workflow. Audit history remains a cross-cu
 ## Sources
 
 - Canonical behavior: [Dashboard and internal Calendar](../../docs/product/dashboard-calendar.md), [academic periods](../../docs/product/recurrence-lifecycles.md).
-- Application: `app/(protected)/page.tsx`, `app/(protected)/dashboard-action-items.ts`, `app/(protected)/dashboard-limits.ts`.
-- Database evidence: `supabase/migrations/20260927012410_dashboard_summary.sql`, `20261101000000_academic_periods.sql`, `20261102000000_secure_period_views.sql`.
-- Checks: `tests/dashboard-action-items.test.tsx`, `tests/dashboard-events-layout.test.tsx`.
+- Application: [Dashboard page](../../app/%28protected%29/page.tsx), [Dashboard action items](../../app/%28protected%29/dashboard-action-items.ts), [Dashboard limits](../../app/%28protected%29/dashboard-limits.ts).
+- Database evidence: [20260927012410_dashboard_summary.sql](../../supabase/migrations/20260927012410_dashboard_summary.sql), [20261101000000_academic_periods.sql](../../supabase/migrations/20261101000000_academic_periods.sql), [20261102000000_secure_period_views.sql](../../supabase/migrations/20261102000000_secure_period_views.sql).
+- Checks: [dashboard-action-items.test.tsx](../../tests/dashboard-action-items.test.tsx), [dashboard-events-layout.test.tsx](../../tests/dashboard-events-layout.test.tsx).
 - Related slices: [Points](points.md), [Tasks](tasks.md), [Events](events.md), [internal Calendar](calendar.md).

@@ -15,7 +15,7 @@ The Points page brings together authorized transaction actions, period ranking, 
 ## Sources
 
 - Canonical behavior: [Points](../../docs/product/points.md), [Events](../../docs/product/events.md), [Tasks](../../docs/product/tasks.md), [recurrence/lifecycles](../../docs/product/recurrence-lifecycles.md).
-- Application: `app/(protected)/points/actions.ts`, `app/(protected)/points/page.tsx`.
-- Database evidence: `supabase/migrations/20261002205053_bulk_event_officers_points.sql`, `20261029233906_independent_manual_points.sql`, `20261030043612_reconcile_event_participation.sql`, `20261030173800_historical_task_corrections.sql`.
-- Checks: `tests/point-actions.test.tsx`, `tests/point-history.test.ts`, `tests/point-transaction-form.test.tsx`, `tests/database.test.ts`.
+- Application: [Point actions](../../app/%28protected%29/points/actions.ts), [Points page](../../app/%28protected%29/points/page.tsx).
+- Database evidence: [20261002205053_bulk_event_officers_points.sql](../../supabase/migrations/20261002205053_bulk_event_officers_points.sql), [20261029233906_independent_manual_points.sql](../../supabase/migrations/20261029233906_independent_manual_points.sql), [20261030043612_reconcile_event_participation.sql](../../supabase/migrations/20261030043612_reconcile_event_participation.sql), [20261030173800_historical_task_corrections.sql](../../supabase/migrations/20261030173800_historical_task_corrections.sql).
+- Checks: [point-actions.test.tsx](../../tests/point-actions.test.tsx), [point-history.test.ts](../../tests/point-history.test.ts), [point-transaction-form.test.tsx](../../tests/point-transaction-form.test.tsx), [database.test.ts](../../tests/database.test.ts).
 - Related slices: [Event participation](event-participation.md), [Tasks](tasks.md), [Dashboard](dashboard.md).

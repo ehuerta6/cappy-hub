@@ -16,8 +16,8 @@ Historical approval fields/audit entries are compatibility evidence. The retired
 ## Sources
 
 - Canonical behavior: [Tasks](../../docs/product/tasks.md), [Points](../../docs/product/points.md), [recurrence/lifecycles](../../docs/product/recurrence-lifecycles.md), [authorization](../../docs/product/authorization.md).
-- Application: `app/(protected)/tasks/actions.ts`, `app/(protected)/tasks/page.tsx`.
-- Database evidence: `supabase/migrations/20261004000000_task_officer_completion_workflow.sql`, `20261007120000_remove_legacy_task_assignment_projection.sql`, `20261008170000_task_event_links.sql`, `20261030183000_task_delete_restore.sql`.
-- Checks: `tests/tasks-actions.test.ts`, `tests/task-list-query.test.ts`, `tests/task-officer-controls.test.tsx`, `tests/task-list-postgrest.integration.test.ts`.
+- Application: [Task actions](../../app/%28protected%29/tasks/actions.ts), [Tasks page](../../app/%28protected%29/tasks/page.tsx).
+- Database evidence: [20261004000000_task_officer_completion_workflow.sql](../../supabase/migrations/20261004000000_task_officer_completion_workflow.sql), [20261007120000_remove_legacy_task_assignment_projection.sql](../../supabase/migrations/20261007120000_remove_legacy_task_assignment_projection.sql), [20261008170000_task_event_links.sql](../../supabase/migrations/20261008170000_task_event_links.sql), [20261030183000_task_delete_restore.sql](../../supabase/migrations/20261030183000_task_delete_restore.sql).
+- Checks: [tasks-actions.test.ts](../../tests/tasks-actions.test.ts), [task-list-query.test.ts](../../tests/task-list-query.test.ts), [task-officer-controls.test.tsx](../../tests/task-officer-controls.test.tsx), [task-list-postgrest.integration.test.ts](../../tests/task-list-postgrest.integration.test.ts).
 - Related journey: [Task completion and award reconciliation](../../docs/user-journeys/task-completion.md).
 - Related slices: [Points](points.md), [recurrence](recurrence.md), [Calendar](calendar.md), [Dashboard](dashboard.md).

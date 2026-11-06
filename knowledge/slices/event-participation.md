@@ -2,7 +2,7 @@
 
 **Status:** Shipped on the audited `main` snapshot (`2202dee9f0856dc43bc1a7b9a5a1673703ec5ef7`).
 **Actors:** Officers signing up; Event managers correcting rosters; trusted processing for awards.
-**Aliases:** Event signup, attendance, participation credit.
+**Aliases:** Event signup, participation credit.
 **Slice boundary:** Follows the roster-to-Point lifecycle across Event and Points; Event record administration and general Point history/actions remain in their own slices.
 
 ## End-to-end shape
@@ -14,7 +14,7 @@ The signup roster and participation awards are connected, while signup-sheet URL
 ## Sources
 
 - Canonical behavior: [Events and participation](../../docs/product/events.md), [Points](../../docs/product/points.md), [authorization](../../docs/product/authorization.md).
-- Application: `app/(protected)/events/actions.ts` (`changeSignup`, `selfSignup`, `bulkAddEventOfficers`), `app/(protected)/events/time-slot-actions.ts`, `app/(protected)/points/actions.ts`.
-- Database evidence: `supabase/migrations/20260928225832_automatic_participation.sql`, `20261020120000_event_time_slots.sql`, `20261030043612_reconcile_event_participation.sql`, `20261030165016_reconcile_legacy_event_participation.sql`, `20261031000000_event_delete_restore.sql`.
-- Checks: `tests/events-actions.test.ts`, `tests/event-time-slots.test.ts`, `tests/point-actions.test.tsx`, `tests/database.test.ts`.
+- Application: [Event actions](../../app/%28protected%29/events/actions.ts) (`changeSignup`, `selfSignup`, `bulkAddEventOfficers`), [Event Time Slot actions](../../app/%28protected%29/events/time-slot-actions.ts), [Point actions](../../app/%28protected%29/points/actions.ts).
+- Database evidence: [20260928225832_automatic_participation.sql](../../supabase/migrations/20260928225832_automatic_participation.sql), [20261020120000_event_time_slots.sql](../../supabase/migrations/20261020120000_event_time_slots.sql), [20261030043612_reconcile_event_participation.sql](../../supabase/migrations/20261030043612_reconcile_event_participation.sql), [20261030165016_reconcile_legacy_event_participation.sql](../../supabase/migrations/20261030165016_reconcile_legacy_event_participation.sql), [20261031000000_event_delete_restore.sql](../../supabase/migrations/20261031000000_event_delete_restore.sql).
+- Checks: [events-actions.test.ts](../../tests/events-actions.test.ts), [event-time-slots.test.ts](../../tests/event-time-slots.test.ts), [point-actions.test.tsx](../../tests/point-actions.test.tsx), [database.test.ts](../../tests/database.test.ts).
 - Related slices: [Events](events.md), [Points](points.md), [historical Event workflows](historical-event-workflows.md).

@@ -14,7 +14,7 @@ Event occurrences retain local wall-clock schedules in America/Denver; Task occu
 ## Sources
 
 - Canonical behavior: [recurrence/lifecycles](../../docs/product/recurrence-lifecycles.md), [recurring series operations](../../docs/recurring-series.md), [Events](../../docs/product/events.md), [Tasks](../../docs/product/tasks.md).
-- Application: `app/(protected)/events/actions.ts`, `app/(protected)/tasks/actions.ts`, `lib/recurrence.ts`, `lib/recurrence-mutation.ts`.
-- Database evidence: `supabase/migrations/20261003013000_recurring_event_task_occurrences.sql`, `20261003042248_recurring_series_scopes.sql`, `20261031120000_recurrence_delete_restore.sql`.
-- Checks: `tests/recurrence.test.ts`, `tests/recurrence-scopes.test.ts`, `tests/recurrence-fields.test.tsx`.
+- Application: [Event actions](../../app/%28protected%29/events/actions.ts), [Task actions](../../app/%28protected%29/tasks/actions.ts), [Recurrence rules](../../lib/recurrence.ts), [Recurrence mutations](../../lib/recurrence-mutation.ts).
+- Database evidence: [20261003013000_recurring_event_task_occurrences.sql](../../supabase/migrations/20261003013000_recurring_event_task_occurrences.sql), [20261003042248_recurring_series_scopes.sql](../../supabase/migrations/20261003042248_recurring_series_scopes.sql), [20261031120000_recurrence_delete_restore.sql](../../supabase/migrations/20261031120000_recurrence_delete_restore.sql).
+- Checks: [recurrence.test.ts](../../tests/recurrence.test.ts), [recurrence-scopes.test.ts](../../tests/recurrence-scopes.test.ts), [recurrence-fields.test.tsx](../../tests/recurrence-fields.test.tsx).
 - Related slices: [Events](events.md), [Tasks](tasks.md), [Calendar](calendar.md).

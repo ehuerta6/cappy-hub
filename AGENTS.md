@@ -44,7 +44,7 @@ Reusable project workflows live in `.agents/skills/`.
 
 When a workflow applies, read its `SKILL.md` before performing that workflow.
 
-Before changing established product behavior, inspect `knowledge/README.md` and search only for task-relevant decisions; follow canonical links and keep the source precedence above. For Cappy Hub capability discovery, slice maintenance, or coverage audits, use `.agents/skills/cappy-knowledge/SKILL.md` alongside the reusable `project-knowledge` workflow. At delivery, consider only genuinely new verified context that belongs in `knowledge/`; skip notes when a canonical source already owns it.
+Before changing established product behavior, inspect `knowledge/README.md` and search only for task-relevant decisions; follow canonical links and keep the source precedence above. For Cappy Hub capability discovery, slice maintenance, or coverage audits, use `.agents/skills/cappy-knowledge/SKILL.md` alongside the reusable `project-knowledge` workflow. At delivery, consider only genuinely new verified context that belongs in `knowledge/`; add capability entries only for behavior shipped on `main` or historical workflows needed to explain current records. Skip notes when a canonical source already owns it.
 
 - unresolved product or technical decisions → `.agents/skills/grill-me/SKILL.md`
 - resolved decisions needing a durable feature specification → `.agents/skills/to-spec/SKILL.md`
