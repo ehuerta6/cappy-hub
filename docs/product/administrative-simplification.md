@@ -1,6 +1,8 @@
 # Administrative simplification implementation roadmap
 
-Status: approved direction, with owner clarifications recorded 2026-10-30; #326 completed and #327 implemented in repository (production rollout separate). Parent: [#325](https://github.com/ehuerta6/cappy-hub/issues/325). The [canonical product specification, section 15](design-doc.md#15-planned--accepted-behavior) owns product requirements. This document records implementation conflicts and sequencing, not a second product contract.
+Status: approved direction, with owner clarifications recorded 2026-10-30; #326 completed and #327 implemented in repository (production rollout separate). Parent: [#325](https://github.com/ehuerta6/cappy-hub/issues/325). The [Approved decisions and implementation status](planned-accepted.md) owns product requirements. This document records implementation conflicts and sequencing, not a second product contract.
+
+> Historical planning snapshot: issue dependencies, blockers, and implementation-state statements below describe the plan as recorded on 2026-10-30 and the baseline commit named in the audit. They are not the live status of those Issues. For current approved decisions and verified `main` implementation status, use [Approved decisions and implementation status](planned-accepted.md) and the linked Issues/PRs. Production deployment remains a separate status.
 
 ## Implementation order
 
@@ -47,7 +49,7 @@ Database test paths above are relative to `supabase/tests/database/` unless pref
 
 ## Compatibility and decision boundaries
 
-- **Automatic transaction amount editing is resolved:** Option C, Source of Truth Wins, was approved on 2026-10-30 and is recorded in canonical spec section 15. It supersedes the earlier pending acceptance note in #328; the Issue text remains unchanged for traceability. Direct editing remains available; relevant Event/Task source changes replace automatic amounts with source-derived values and meaningful before/after audits. Independent manual transactions and intentional removals remain protected. PR #343 implements the Event behavior; #331/#341 owns Task behavior.
+- **Automatic transaction amount editing is resolved:** Option C, Source of Truth Wins, was approved on 2026-10-30 and is recorded in the canonical [Approved decisions and implementation status](planned-accepted.md) contract. It supersedes the earlier pending acceptance note in #328; the Issue text remains unchanged for traceability. Direct editing remains available; relevant Event/Task source changes replace automatic amounts with source-derived values and meaningful before/after audits. Independent manual transactions and intentional removals remain protected. PR #343 implements the Event behavior; #331/#341 owns Task behavior.
 - Historical rate verification and ambiguous lifecycle/removal classification are evidence gates. Unavailable production evidence is a blocker for destructive schema cleanup, not permission to infer history. No production access, migration or repair is performed by this roadmap.
 - Each Issue includes data preservation, trusted authorization, historical upgrade and meaningful regression requirements. Use synthetic local fixtures; never copy production data into development or deploy synthetic seeds.
 - Closed #180, #184, #185, #186 and #295 record earlier duplicate-award, lifecycle, catalog, Warning and Time Slot decisions. These new Issues intentionally supersede the conflicting policies; they do not reopen or erase those records. #29 remains the integration foundation.
