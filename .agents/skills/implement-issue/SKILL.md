@@ -39,7 +39,7 @@ If the Issue depends on unresolved product or technical decisions that materiall
 
 If sources materially conflict, report the conflict instead of silently choosing one.
 
-Before proposing or changing established behavior, inspect `knowledge/README.md`, search `knowledge/` for task-relevant decisions, and follow links to their canonical sources. Treat notes as context, not approval that overrides the source order in `AGENTS.md`. Do not elevate suggestions or agent inferences to approved product policy.
+Before proposing or changing established behavior, inspect `knowledge/README.md`, search `knowledge/` for task-relevant decisions, and follow links to their canonical sources. For Cappy Hub capability discovery or meaningful post-implementation slice/catalog updates, use `.agents/skills/cappy-knowledge/SKILL.md` alongside the reusable `project-knowledge` workflow. Treat notes as context, not approval that overrides the source order in `AGENTS.md`; do not elevate suggestions or agent inferences to approved product policy.
 
 ### 2. Inspect the repository
 

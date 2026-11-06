@@ -167,4 +167,4 @@ The breakdown is complete when:
 - no issue requires unresolved product decisions;
 - each issue can be understood by a fresh implementation agent.
 
-The resulting issues are ready for `implement-issue`.
+The resulting issues are ready for `implement-issue`. For Cappy Hub, after issue scope/status is approved, use `.agents/skills/cappy-knowledge/SKILL.md` to update the catalog or relevant slice when this introduces or materially changes a meaningful capability; GitHub remains the owner of active work and history.

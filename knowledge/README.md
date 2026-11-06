@@ -1,7 +1,17 @@
 # Project knowledge
 
-Use this directory only for durable decisions, rationale, constraints, or verified lessons that are likely to change future work or prevent repeated investigation. Invoke the [project-knowledge workflow](../.agents/skills/project-knowledge/SKILL.md) when that context matters, when preserving an approved decision, or when explicitly asked to review project knowledge.
+Use this directory for durable, complementary context—not a second product specification, a record of routine PR progress, or a replacement for implementation evidence.
 
-Before adding a note, search this directory for the relevant topic and check whether the information already belongs in a canonical source. Keep product behavior and terminology in [`docs/product/design-doc.md`](../docs/product/design-doc.md), approved feature details in their specifications, active work and its history in GitHub Issues and PRs, and verified technical behavior in the existing documentation or code. Link to those sources instead of copying them here. Keep routine progress in GitHub; do not capture every task.
+## Find capability context
 
-Agents discover this guide through `AGENTS.md`, then search relevant terms in this directory and follow links to the canonical sources. A note records its status, evidence, and source; it does not turn an officer suggestion or agent inference into an approved club decision. Product and technical decisions go through the normal Issue and Pull Request review. When sources conflict, use the precedence in `AGENTS.md`; surface unresolved conflicts between still-valid approvals instead of choosing intent from a knowledge note or implementation drift.
+- Start with the [capability map](capabilities.md) to locate a domain, status, canonical contract, and related slices.
+- Open only the relevant [slice documents](slices/). Follow their links to approved product/design contracts and then to Issues, migrations, routes, tests, or code as needed for the claim.
+- For repeatable discovery, capture, reconciliation, and coverage maintenance, use the local [`cappy-knowledge` skill](../.agents/skills/cappy-knowledge/SKILL.md). It complements the reusable [project-knowledge workflow](../.agents/skills/project-knowledge/SKILL.md).
+
+## Source ownership
+
+The Product & Technical Specification in [`docs/product/`](../docs/product/design-doc.md) owns product behavior, terminology, permissions, lifecycle rules, and current status. [`docs/design.md`](../docs/design.md) is the entry point for visual/interaction guidance. Focused specifications and approved Issues retain their established precedence. `supabase/migrations/` owns reproducible schema and database behavior; code and tests evidence repository implementation. Repository implementation does not prove production deployment.
+
+Knowledge notes explain relationships, rationale, and verified lessons when that context is useful. They link to their owning source instead of copying normative requirements. A note never approves a proposal or changes the implementation scope of an Issue.
+
+When a canonical specification changes, an approved capability ships on `main`, implementation status changes, or a workflow is retired, update the owning source first and then reconcile affected slices and the catalog in the same documentation follow-up. Do not add roadmap items or pending proposals to the capability map.

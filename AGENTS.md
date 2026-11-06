@@ -44,7 +44,7 @@ Reusable project workflows live in `.agents/skills/`.
 
 When a workflow applies, read its `SKILL.md` before performing that workflow.
 
-Before changing established product behavior, inspect `knowledge/README.md` and search only for task-relevant decisions; follow their canonical links and keep the source precedence above. At delivery of meaningful work, consider whether a genuinely new, verified durable lesson belongs in `knowledge/`. Skip notes when the Issue, PR, specification, documentation, or code already owns the information.
+Before changing established product behavior, inspect `knowledge/README.md` and search only for task-relevant decisions; follow canonical links and keep the source precedence above. For Cappy Hub capability discovery, slice maintenance, or coverage audits, use `.agents/skills/cappy-knowledge/SKILL.md` alongside the reusable `project-knowledge` workflow. At delivery, consider only genuinely new verified context that belongs in `knowledge/`; add capability entries only for behavior shipped on `main` or historical workflows needed to explain current records. Skip notes when a canonical source already owns it.
 
 - unresolved product or technical decisions → `.agents/skills/grill-me/SKILL.md`
 - resolved decisions needing a durable feature specification → `.agents/skills/to-spec/SKILL.md`
@@ -56,7 +56,7 @@ Before changing established product behavior, inspect `knowledge/README.md` and 
 - local Supabase or database-test state → `.agents/skills/local-database-workflow/SKILL.md`
 - final implementation validation → `.agents/skills/verify-change/SKILL.md`
 - independent implementation or Pull Request review → `.agents/skills/review-pr/SKILL.md`
-- retrieving, recording, reconciling, or reviewing durable project context → `.agents/skills/project-knowledge/SKILL.md`; preserve the source-of-truth order above and follow `knowledge/README.md`
+- retrieving, recording, reconciling, or reviewing durable project context → `.agents/skills/project-knowledge/SKILL.md`; for capability catalog/slices and coverage work, also use `.agents/skills/cappy-knowledge/SKILL.md` and follow `knowledge/README.md`
 - UI/UX shaping, critique, audit, hardening, or polish → `.agents/skills/impeccable/SKILL.md`
 - continuing unfinished work in another chat, agent, or session → `.agents/skills/handoff/SKILL.md`
 - writing or maintaining `AGENTS.md`, skills, or other agent instructions → `.agents/skills/writing-for-agents/SKILL.md`

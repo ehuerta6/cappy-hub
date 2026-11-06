@@ -24,6 +24,7 @@ This skill synthesizes decisions that already exist. It does not conduct another
 5. Write the specification using the structure below.
 6. Do not silently resolve unanswered questions. Record them under `Open questions`.
 7. Save or publish the spec where the project expects specifications to live.
+8. For Cappy Hub, after approval update the affected capability status/context through `.agents/skills/cappy-knowledge/SKILL.md` when the approved spec materially changes an existing capability or adds a distinct one. Keep the spec as the normative owner.
 
 ## Specification structure
 
