@@ -90,7 +90,7 @@ export default async function EventsPage({
   const deletedLead =
     status === "deleted" && isLead(actor) && !canSeeAllBranches(actor);
   const eventSelection =
-    "id,name,event_date,starts_at,ends_at,status,deleted_at,delete_points_suspended,max_volunteers,participation_points_per_hour_at_end,event_types(name),event_branches(branch_id,branches(name)),filter_branch:event_branches(branch_id),scope_branch:event_branches(branch_id),event_officers(officer_id,removed_at)";
+    "id,name,event_date,starts_at,ends_at,status,deleted_at,delete_points_suspended,max_volunteers,participation_points_per_hour_at_end,event_types(name),event_branches(branch_id,branches(name)),filter_branch:event_branches(branch_id),scope_branch:event_branches(branch_id),event_officers(officer_id,removed_at,participation_type)";
   const buildEventQuery = (includeFilters: boolean, countOnly = false) => {
     let query = supabase
       .from("events")
@@ -478,10 +478,11 @@ export default async function EventsPage({
                           </thead>
                           <tbody>
                             {group.events.map((event) => {
-                              const signedUp = event.event_officers.some(
+                              const personalSignup = event.event_officers.find(
                                 ({ officer_id, removed_at }) =>
                                   officer_id === actor.id && removed_at == null,
                               );
+                              const signedUp = personalSignup !== undefined;
                               const canAct =
                                 signupActionsOpen &&
                                 eventSignupOpen(event, now.getTime());
@@ -527,24 +528,37 @@ export default async function EventsPage({
                                   </td>
                                   {signupActionsOpen && (
                                     <td className="min-w-0">
-                                      {canAct &&
-                                        (signedUp ? (
-                                          <SignupForm
-                                            eventId={event.id}
-                                            officerId={actor.id}
-                                            remove
-                                          />
-                                        ) : (
+                                      {canAct && (
+                                        <div className="flex flex-nowrap items-center gap-1.5">
                                           <SelfSignupForm
                                             eventId={event.id}
                                             eventName={event.name}
+                                            compact
                                             full={
+                                              !signedUp &&
                                               event.max_volunteers != null &&
                                               (event.confirmed_count ?? 0) >=
                                                 event.max_volunteers
                                             }
+                                            currentType={
+                                              personalSignup?.participation_type ===
+                                              "attendee"
+                                                ? "attendee"
+                                                : signedUp
+                                                  ? "volunteer"
+                                                  : undefined
+                                            }
                                           />
-                                        ))}
+                                          {signedUp && (
+                                            <SignupForm
+                                              eventId={event.id}
+                                              officerId={actor.id}
+                                              remove
+                                              compact
+                                            />
+                                          )}
+                                        </div>
+                                      )}
                                     </td>
                                   )}
                                 </tr>

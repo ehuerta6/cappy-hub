@@ -269,7 +269,7 @@ export default async function EventDetailPage({
     eventPointsCountQuery,
     supabase
       .from("event_officers")
-      .select("officer_id", { count: "exact", head: true })
+      .select("officer_id,participation_type", { count: "exact" })
       .eq("event_id", event.id)
       .eq("officer_id", actor.id)
       .is("removed_at", null),
@@ -300,6 +300,8 @@ export default async function EventDetailPage({
   const taskCount = taskCountResult.count ?? 0;
   const pointCount = pointCountResult.count ?? 0;
   const confirmed = (personalRosterResult.count ?? 0) > 0;
+  const personalParticipationType =
+    personalRosterResult.data?.[0]?.participation_type ?? "volunteer";
   const eligibleForSelfSignup = (activeOfficerResult.count ?? 0) > 0;
   const full =
     event.max_volunteers !== null && confirmedCount >= event.max_volunteers;
@@ -379,7 +381,9 @@ export default async function EventDetailPage({
     section === "overview"
       ? supabase
           .from("event_officers")
-          .select("officer_id,officers!event_officers_officer_id_fkey(id,name)")
+          .select(
+            "officer_id,participation_type,officers!event_officers_officer_id_fkey(id,name)",
+          )
           .eq("event_id", event.id)
           .is("removed_at", null)
           .order("officers(name)")
@@ -389,7 +393,7 @@ export default async function EventDetailPage({
         ? supabase
             .from("event_officers")
             .select(
-              "officer_id,officers!event_officers_officer_id_fkey(id,name)",
+              "officer_id,participation_type,officers!event_officers_officer_id_fkey(id,name)",
             )
             .eq("event_id", event.id)
             .is("removed_at", null)
@@ -591,7 +595,12 @@ export default async function EventDetailPage({
             <section aria-label="Participation" className="min-w-0 space-y-3">
               <SectionHeading title="Participation" />
               <p className="text-sm">
-                Your participation: {confirmed ? "Confirmed" : "Not signed up"}
+                Your participation:{" "}
+                {confirmed
+                  ? personalParticipationType === "volunteer"
+                    ? "Volunteer"
+                    : "Attend"
+                  : "Not signed up"}
               </p>
               <p className="text-sm text-muted">
                 {event.max_volunteers === null
@@ -606,7 +615,22 @@ export default async function EventDetailPage({
               {personalSignup === "confirmed" &&
                 signupOpen &&
                 timeSlots.length === 0 && (
-                  <SignupForm eventId={event.id} officerId={actor.id} remove />
+                  <div className="space-y-2">
+                    <SelfSignupForm
+                      eventId={event.id}
+                      eventName={event.name}
+                      currentType={
+                        personalParticipationType === "attendee"
+                          ? "attendee"
+                          : "volunteer"
+                      }
+                    />
+                    <SignupForm
+                      eventId={event.id}
+                      officerId={actor.id}
+                      remove
+                    />
+                  </div>
                 )}
               {timeSlots.length === 0 &&
                 !canManage &&
@@ -788,81 +812,89 @@ export default async function EventDetailPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {rosterRows.map(({ officers: officer }) => (
-                    <tr key={officer.id}>
-                      <td>
-                        <Link
-                          href={withReturnTo(
-                            `/officers/${officer.id}`,
-                            contextualReturnTo,
-                          )}
-                          className="underline underline-offset-4"
-                        >
-                          {officer.name}
-                        </Link>
-                      </td>
-                      {timeSlots.length > 0 && (
+                  {rosterRows.map(
+                    ({ officers: officer, participation_type }) => (
+                      <tr key={officer.id}>
                         <td>
-                          {timeSlots
-                            .map((slot, index) => ({
-                              slot,
-                              index,
-                            }))
-                            .filter(({ slot }) =>
-                              slot.event_time_slot_officers.some(
-                                ({ officer_id, event_officers: signup }) =>
-                                  officer_id === officer.id &&
-                                  signup?.removed_at == null,
-                              ),
-                            )
-                            .map(
-                              ({ slot, index }) =>
-                                `Slot ${index + 1} (${formatEventSchedule(slot.starts_at, slot.ends_at)})`,
-                            )
-                            .join(", ") || "None"}
-                          {canManage && past && !event.deleted_at && (
-                            <CorrectHistoricalTimeSlotAssignmentsForm
-                              eventId={event.id}
-                              officerId={officer.id}
-                              officerName={officer.name}
-                              slots={timeSlots}
-                              selectedSlotIds={timeSlots
-                                .filter((slot) =>
-                                  slot.event_time_slot_officers.some(
-                                    ({ officer_id, event_officers: signup }) =>
-                                      officer_id === officer.id &&
-                                      signup?.removed_at == null,
-                                  ),
-                                )
-                                .map(({ id }) => id)}
-                            />
-                          )}
+                          <Link
+                            href={withReturnTo(
+                              `/officers/${officer.id}`,
+                              contextualReturnTo,
+                            )}
+                            className="underline underline-offset-4"
+                          >
+                            {officer.name}
+                          </Link>
                         </td>
-                      )}
-                      <td>
-                        {timeSlots.length > 0 &&
-                        (canManage ||
-                          (signupOpen && officer.id === actor.id)) ? (
-                          <LeaveAllTimeSlotsForm
-                            eventId={event.id}
-                            officerId={
-                              officer.id === actor.id ? undefined : officer.id
-                            }
-                          />
-                        ) : timeSlots.length === 0 &&
+                        {timeSlots.length > 0 && (
+                          <td>
+                            {timeSlots
+                              .map((slot, index) => ({
+                                slot,
+                                index,
+                              }))
+                              .filter(({ slot }) =>
+                                slot.event_time_slot_officers.some(
+                                  ({ officer_id, event_officers: signup }) =>
+                                    officer_id === officer.id &&
+                                    signup?.removed_at == null,
+                                ),
+                              )
+                              .map(
+                                ({ slot, index }) =>
+                                  `Slot ${index + 1} (${formatEventSchedule(slot.starts_at, slot.ends_at)})`,
+                              )
+                              .join(", ") || "None"}
+                            {canManage && past && !event.deleted_at && (
+                              <CorrectHistoricalTimeSlotAssignmentsForm
+                                eventId={event.id}
+                                officerId={officer.id}
+                                officerName={officer.name}
+                                slots={timeSlots}
+                                selectedSlotIds={timeSlots
+                                  .filter((slot) =>
+                                    slot.event_time_slot_officers.some(
+                                      ({
+                                        officer_id,
+                                        event_officers: signup,
+                                      }) =>
+                                        officer_id === officer.id &&
+                                        signup?.removed_at == null,
+                                    ),
+                                  )
+                                  .map(({ id }) => id)}
+                              />
+                            )}
+                          </td>
+                        )}
+                        <td>
+                          {participation_type === "volunteer"
+                            ? "Volunteer"
+                            : "Attend"}{" "}
+                          {timeSlots.length > 0 &&
                           (canManage ||
                             (signupOpen && officer.id === actor.id)) ? (
-                          <SignupForm
-                            eventId={event.id}
-                            officerId={officer.id}
-                            remove
-                          />
-                        ) : (
-                          "Closed"
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                            <LeaveAllTimeSlotsForm
+                              eventId={event.id}
+                              officerId={
+                                officer.id === actor.id ? undefined : officer.id
+                              }
+                            />
+                          ) : timeSlots.length === 0 &&
+                            (canManage ||
+                              (signupOpen && officer.id === actor.id)) ? (
+                            <SignupForm
+                              eventId={event.id}
+                              officerId={officer.id}
+                              remove
+                            />
+                          ) : (
+                            "Closed"
+                          )}
+                        </td>
+                      </tr>
+                    ),
+                  )}
                 </tbody>
               </table>
             </TableFrame>

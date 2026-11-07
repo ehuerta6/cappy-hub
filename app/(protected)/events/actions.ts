@@ -470,6 +470,7 @@ export async function changeSignup(
     event_id: formData.get("event_id") ?? "",
     officer_id: formData.get("officer_id") ?? "",
     remove: formData.get("remove") ?? "",
+    participation_type: formData.get("participation_type") ?? "volunteer",
   };
   const validationResult = changeSignupInputSchema.safeParse(rawSignupInput);
   if (!validationResult.success)
@@ -477,6 +478,7 @@ export async function changeSignup(
       "event_id",
       "officer_id",
       "remove",
+      "participation_type",
     ]);
   const validatedSignupInput = validationResult.data;
   const supabase = await createClient();
@@ -484,12 +486,13 @@ export async function changeSignup(
     p_event_id: validatedSignupInput.event_id,
     p_officer_id: validatedSignupInput.officer_id,
     p_remove: validatedSignupInput.remove,
+    p_participation_type: validatedSignupInput.participation_type,
   });
   if (error)
     return formFailure(
       mutationError(error.message),
       formData,
-      ["event_id", "officer_id", "remove"],
+      ["event_id", "officer_id", "remove", "participation_type"],
       undefined,
     );
   revalidatePath("/", "layout");
@@ -512,6 +515,10 @@ export async function selfSignup(
   const signup = new FormData();
   signup.set("event_id", String(formData.get("event_id") ?? ""));
   signup.set("officer_id", String(actor.id));
+  signup.set(
+    "participation_type",
+    String(formData.get("participation_type") ?? "volunteer"),
+  );
   if (typeof writablePeriod === "string")
     signup.set("writable_period", writablePeriod);
   const result = await changeSignup(previous, signup);
@@ -529,6 +536,7 @@ export async function bulkAddEventOfficers(
   const rawBulkAddEventOfficersInput = {
     event_id: formData.get("event_id") ?? "",
     officer_ids: formData.getAll("officer_ids"),
+    participation_type: formData.get("participation_type") ?? "volunteer",
   };
   const validationResult = bulkAddEventOfficersInputSchema.safeParse(
     rawBulkAddEventOfficersInput,
@@ -537,7 +545,7 @@ export async function bulkAddEventOfficers(
     return validationFailure(
       validationResult.error,
       formData,
-      ["event_id", "officer_ids"],
+      ["event_id", "officer_ids", "participation_type"],
       ["officer_ids"],
     );
   const validatedBulkAddEventOfficersInput = validationResult.data;
@@ -545,6 +553,7 @@ export async function bulkAddEventOfficers(
   const { data, error } = await supabase.rpc("bulk_add_event_officers", {
     p_event_id: validatedBulkAddEventOfficersInput.event_id,
     p_officer_ids: validatedBulkAddEventOfficersInput.officer_ids,
+    p_participation_type: validatedBulkAddEventOfficersInput.participation_type,
   });
   if (error)
     return formFailure(

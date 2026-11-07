@@ -31,6 +31,57 @@ it("requires finite nonzero points and a positive participation rate", () => {
   expect(
     manualPointTransactionInputSchema.safeParse({
       ...manualCredit,
+      award_type: "negative",
+      points: "-1",
+    }).success,
+  ).toBe(true);
+  expect(
+    manualPointTransactionInputSchema.safeParse({
+      ...manualCredit,
+      officer_id: "-1201",
+      event_id: "-2060",
+      task_id: "",
+      award_type: "negative",
+      points: "-1",
+    }).success,
+  ).toBe(true);
+  expect(
+    manualPointTransactionInputSchema.safeParse({
+      ...manualCredit,
+      officer_id: "0",
+      award_type: "negative",
+      points: "-1",
+    }).success,
+  ).toBe(false);
+  expect(
+    manualPointTransactionInputSchema.safeParse({
+      ...manualCredit,
+      officer_id: "-1201",
+      event_id: "",
+      task_id: "-8001",
+      award_type: "negative",
+      points: "-1",
+    }).success,
+  ).toBe(true);
+  expect(
+    manualPointTransactionInputSchema.safeParse({
+      ...manualCredit,
+      award_type: "negative",
+      points: "-2",
+    }).success,
+  ).toBe(false);
+  expect(
+    manualPointTransactionInputSchema.safeParse({
+      ...manualCredit,
+      award_type: "negative",
+      points: "-1",
+      task_id: "6",
+      event_id: "8",
+    }).success,
+  ).toBe(false);
+  expect(
+    manualPointTransactionInputSchema.safeParse({
+      ...manualCredit,
       reason: "  ",
     }).success,
   ).toBe(false);

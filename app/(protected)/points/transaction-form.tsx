@@ -27,13 +27,16 @@ import { addTransaction } from "./actions";
 import { EventSearchSelect } from "./event-search-select";
 
 type PointEvent = Pick<Tables<"events">, "id" | "name" | "event_date">;
+type PointTask = Pick<Tables<"tasks">, "id" | "title" | "due_date">;
 
 export default function TransactionForm({
   officers,
   events,
+  tasks = [],
 }: {
   officers: Pick<Tables<"officers">, "id" | "name">[];
   events: PointEvent[];
+  tasks?: PointTask[];
 }) {
   const router = useRouter();
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -104,14 +107,15 @@ export default function TransactionForm({
               id="add-transaction-description"
               className={dialogDescriptionClassName}
             >
-              Enter a signed amount and a reason; an optional Event link adds
-              context. Automatic participation Points remain separate.
+              Enter an amount and reason. A Negative Point is exactly -1 and may
+              link to one Event or Task. Automatic awards remain separate.
             </p>
           </header>
           <TransactionFields
             key={formKey}
             officers={officers}
             events={events}
+            tasks={tasks}
             dialogRef={dialogRef}
             onSuccess={handleSuccess}
           />
@@ -124,11 +128,13 @@ export default function TransactionForm({
 function TransactionFields({
   officers,
   events,
+  tasks,
   dialogRef,
   onSuccess,
 }: {
   officers: Pick<Tables<"officers">, "id" | "name">[];
   events: PointEvent[];
+  tasks: PointTask[];
   dialogRef: React.RefObject<HTMLDialogElement | null>;
   onSuccess: (message: string) => void;
 }) {
@@ -137,6 +143,15 @@ function TransactionFields({
     initialFormActionState,
   );
   const fieldErrors = state.fieldErrors ?? {};
+  const pointsInput = useRef<HTMLInputElement>(null);
+  const awardType = submittedValue(state.values, "award_type", "manual");
+
+  useEffect(() => {
+    if (!pointsInput.current) return;
+    const isNegative = awardType === "negative";
+    if (isNegative) pointsInput.current.value = "-1";
+    pointsInput.current.readOnly = isNegative;
+  }, [awardType]);
 
   useEffect(() => {
     if (state.success) onSuccess(state.success);
@@ -170,6 +185,7 @@ function TransactionFields({
         Signed Points
         <input
           name="points"
+          ref={pointsInput}
           type="number"
           step="any"
           inputMode="decimal"
@@ -214,11 +230,19 @@ function TransactionFields({
           aria-describedby={
             fieldErrors.award_type ? "transaction-award-type-error" : undefined
           }
-          defaultValue={submittedValue(state.values, "award_type", "manual")}
+          defaultValue={awardType}
           disabled={pending}
+          onChange={(event) => {
+            if (pointsInput.current) {
+              const isNegative = event.target.value === "negative";
+              if (isNegative) pointsInput.current.value = "-1";
+              pointsInput.current.readOnly = isNegative;
+            }
+          }}
         >
           <option value="manual">Manual</option>
           <option value="correction">Correction</option>
+          <option value="negative">Negative Point (-1)</option>
         </select>
         <FieldError id="transaction-award-type-error">
           {fieldErrors.award_type}
@@ -229,6 +253,19 @@ function TransactionFields({
         initialValue={submittedValue(state.values, "event_id")}
         error={fieldErrors.event_id}
         disabled={pending}
+        portalContainer={dialogRef}
+      />
+      <SearchableSelect
+        name="task_id"
+        label="Task (optional)"
+        options={tasks.map((task) => ({
+          id: String(task.id),
+          label: `${task.title} — ${task.due_date}`,
+        }))}
+        initialValue={submittedValue(state.values, "task_id")}
+        error={fieldErrors.task_id}
+        disabled={pending}
+        placeholder="Search Tasks"
         portalContainer={dialogRef}
       />
       {(state.error || state.success) && (

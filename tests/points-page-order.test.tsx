@@ -1,5 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { NegativePointValue } from "@/components/ui";
 
 const {
   getAuthorizationContext,
@@ -12,6 +14,7 @@ const {
   totalCount,
   totalRows,
   queriedTables,
+  limitCalls,
   periodSummaryCalls,
   activeOfficerRows,
 } = vi.hoisted(() => ({
@@ -27,6 +30,7 @@ const {
     value: null as null | { id: number; name: string; total_points: number }[],
   },
   queriedTables: [] as string[],
+  limitCalls: [] as { table: string; count: number }[],
   periodSummaryCalls: [] as number[],
   activeOfficerRows: [
     { id: 7, name: "First Officer", status: "active" },
@@ -72,6 +76,7 @@ beforeEach(() => {
   totalCount.officers = 0;
   totalRows.value = null;
   queriedTables.length = 0;
+  limitCalls.length = 0;
   periodSummaryCalls.length = 0;
   activeOfficerRows.splice(
     0,
@@ -134,7 +139,10 @@ beforeEach(() => {
           rangesByTable.set(table, ranges);
           return query;
         },
-        limit: () => query,
+        limit: (count: number) => {
+          limitCalls.push({ table, count });
+          return query;
+        },
         single: async () => ({
           data: { participation_points_per_hour: 1 },
           error: null,
@@ -176,11 +184,38 @@ it("orders Officer totals by points descending, then name ascending", async () =
   expect(queriedTables).not.toContain("point_history");
 });
 
+it("shows the Negative Points column as a red magnitude without a minus sign", () => {
+  const negative = renderToStaticMarkup(
+    createElement(NegativePointValue, { value: -2 }),
+  );
+  const zero = renderToStaticMarkup(
+    createElement(NegativePointValue, { value: 0 }),
+  );
+
+  expect(negative).toContain('class="tabular-nums font-medium text-danger"');
+  expect(negative).toContain(">2</span>");
+  expect(negative).not.toContain("-2");
+  expect(zero).toContain(">0</span>");
+  expect(zero).not.toContain("-0");
+});
+
 it("keeps History loading independent from Officer picker data", async () => {
   await PointsPage({ searchParams: Promise.resolve({ view: "history" }) });
 
   expect(ordersByTable.get("officers")).toBeUndefined();
   expect(activeOfficerFilters).toEqual([]);
+});
+
+it("loads every active Task for the searchable negative Point link", async () => {
+  canManagePoints.mockReturnValue(true);
+
+  await PointsPage({ searchParams: Promise.resolve({}) });
+
+  expect(queriedTables).toContain("tasks");
+  expect(limitCalls.some(({ table }) => table === "tasks")).toBe(false);
+  expect(ordersByTable.get("tasks")).toEqual([
+    { column: "due_date", ascending: false },
+  ]);
 });
 
 it("loads the period ranking from the database aggregate", async () => {
@@ -198,10 +233,10 @@ it("renders rank numbers from the sorted totals", async () => {
 
   expect(html).toContain('<th scope="col">Rank</th>');
   expect(html).toMatch(
-    /aria-label="Rank 1">1<\/span><\/td><td><a[^>]*>First Officer<\/a>/,
+    /class="tabular-nums text-muted">1<\/span><\/td><td><a[^>]*>First Officer<\/a>/,
   );
   expect(html).toMatch(
-    /aria-label="Rank 2">2<\/span><\/td><td><a[^>]*>Second Officer<\/a>/,
+    /class="tabular-nums text-muted">2<\/span><\/td><td><a[^>]*>Second Officer<\/a>/,
   );
   expect(html).toContain('class="points-total text-right"');
   expect(html).toContain("+12");
@@ -231,11 +266,10 @@ it("defaults to the Overview view and shows read-only rate to non-admins", async
   expect(html).toMatch(/<a aria-current="page"[^>]*>Overview<\/a>/);
   expect(html).not.toContain("Point history filters");
   expect(html).toContain(
-    "Event participation is calculated automatically after an event ends.",
+    "Event participation earns 2 Points per hour for Volunteers and 1 for Attendees.",
   );
-  expect(html).toContain("Point per eligible hour");
   expect(html).toContain("Officer ranking");
-  expect(html).toContain("Participation Points");
+  expect(html).not.toContain("Participation Points");
   expect(html).not.toContain("Point configuration");
   expect(html).not.toContain("Add adjustment");
   expect(periodSummaryCalls).toEqual([1]);
@@ -251,7 +285,9 @@ it("shows Admin configuration and Add adjustment in Overview", async () => {
 
   expect(html).toContain('aria-labelledby="add-transaction-title"');
   expect(html).toContain("Add adjustment");
-  expect(html).toContain("Participation Points");
+  expect(html).toContain(
+    "Event participation earns 2 Points per hour for Volunteers and 1 for Attendees.",
+  );
   expect(periodSummaryCalls).toEqual([1]);
   expect(queriedTables).not.toContain("point_history");
   expect(queriedTables).toContain("events");

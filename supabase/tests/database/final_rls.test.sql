@@ -189,6 +189,9 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       ,'public.assert_academic_period_writable(bigint)'::regprocedure
       ,'public.assert_academic_period_context_writable(text)'::regprocedure
       ,'public.academic_period_point_summary(bigint)'::regprocedure
+      ,'public.add_negative_point(bigint,bigint,bigint,text)'::regprocedure
+      ,'public.change_event_signup(bigint,bigint,boolean,text)'::regprocedure
+      ,'public.bulk_add_event_officers(bigint,bigint[],text)'::regprocedure
     )), 'authenticated has no unreviewed public RPC entry point');
 
 -- Fixtures are inserted as database owner. Every probe below changes to the

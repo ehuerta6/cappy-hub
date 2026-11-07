@@ -2,7 +2,7 @@ import * as zod from "zod";
 import {
   finiteNumberStringSchema,
   safeIntegerStringSchema,
-  optionalPositiveSafeIntegerStringSchema,
+  optionalSafeIntegerStringSchema,
   positiveSafeIntegerStringSchema,
   requiredTrimmedStringSchema,
 } from "@/lib/validation";
@@ -52,7 +52,9 @@ const pointHistoryPageSchema = pointHistorySearchParamValueSchema
 const pointHistoryAwardTypeSchema = pointHistorySearchParamValueSchema
   .transform((rawValue) => rawValue.trim())
   .transform((rawValue) =>
-    ["participation", "task", "manual", "correction"].includes(rawValue)
+    ["participation", "task", "manual", "correction", "negative"].includes(
+      rawValue,
+    )
       ? rawValue
       : undefined,
   );
@@ -133,22 +135,61 @@ export function resolvePointHistoryStatus(
   return isAdmin ? (requestedStatus ?? "active") : "active";
 }
 
-export const manualPointTransactionInputSchema = zod.object({
-  points: finiteNumberStringSchema(
-    "Enter a nonzero positive or negative point value",
-  ).refine(
-    (points) => points !== 0,
-    "Enter a nonzero positive or negative point value",
-  ),
-  award_type: zod.enum(["manual", "correction"], {
-    error: "Select manual or correction",
-  }),
-  reason: requiredTrimmedStringSchema("Enter a reason").transform((reason) =>
-    reason.trim(),
-  ),
-  officer_id: positiveSafeIntegerStringSchema("Select an officer"),
-  event_id: optionalPositiveSafeIntegerStringSchema("Select a valid event"),
-});
+export const manualPointTransactionInputSchema = zod
+  .object({
+    points: finiteNumberStringSchema(
+      "Enter a nonzero positive or negative point value",
+    ).refine(
+      (points) => points !== 0,
+      "Enter a nonzero positive or negative point value",
+    ),
+    award_type: zod.enum(["manual", "correction", "negative"], {
+      error: "Select manual, correction, or negative Point",
+    }),
+    reason: requiredTrimmedStringSchema("Enter a reason").transform((reason) =>
+      reason.trim(),
+    ),
+    officer_id: safeIntegerStringSchema("Select an officer").refine(
+      (identifier) => identifier !== 0,
+      "Select an officer",
+    ),
+    event_id: optionalSafeIntegerStringSchema("Select a valid event").refine(
+      (identifier) => identifier === undefined || identifier !== 0,
+      "Select a valid event",
+    ),
+    task_id: zod
+      .preprocess(
+        (value) => value ?? "",
+        optionalSafeIntegerStringSchema("Select a valid task"),
+      )
+      .refine(
+        (identifier) => identifier === undefined || identifier !== 0,
+        "Select a valid task",
+      ),
+  })
+  .superRefine((value, context) => {
+    if (value.award_type === "negative" && value.points !== -1) {
+      context.addIssue({
+        code: "custom",
+        path: ["points"],
+        message: "A negative Point is exactly -1",
+      });
+    }
+    if (value.event_id !== undefined && value.task_id !== undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["task_id"],
+        message: "Choose an Event or a Task, not both",
+      });
+    }
+    if (value.award_type !== "negative" && value.task_id !== undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["task_id"],
+        message: "Only a negative Point can link to a Task",
+      });
+    }
+  });
 
 export const participationRateInputSchema = zod.object({
   rate: finiteNumberStringSchema("Enter a finite positive rate").refine(

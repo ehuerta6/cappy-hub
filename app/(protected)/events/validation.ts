@@ -112,6 +112,9 @@ export const changeSignupInputSchema = zod.object({
   event_id: safeIntegerStringSchema("Select a valid event"),
   officer_id: safeIntegerStringSchema("Select a valid officer"),
   remove: zod.string().transform((value) => value === "true"),
+  participation_type: zod.enum(["volunteer", "attendee"], {
+    error: "Select Volunteer or Attend",
+  }),
 });
 
 export const bulkAddEventOfficersInputSchema = zod.object({
@@ -133,6 +136,9 @@ export const bulkAddEventOfficersInputSchema = zod.object({
         .refine(Number.isSafeInteger, "Select valid officers"),
     )
     .min(1, "Select at least one officer"),
+  participation_type: zod.enum(["volunteer", "attendee"], {
+    error: "Select Volunteer or Attend",
+  }),
 });
 
 export const eventRecordInputSchema = zod.object({

@@ -52,27 +52,101 @@ export function SelfSignupForm({
   eventId,
   eventName,
   full = false,
+  currentType,
+  compact = false,
 }: {
   eventId: number;
   eventName: string;
   full?: boolean;
+  currentType?: "volunteer" | "attendee";
+  compact?: boolean;
 }) {
   const [state, action, pending] = useActionState(selfSignup, {
     ...initialFormActionState,
   });
   return (
-    <form action={action} className="gap-2">
+    <form
+      action={action}
+      className={compact ? "compact-signup-form" : "space-y-2"}
+    >
       <AcademicPeriodWriteContextField />
       <input type="hidden" name="event_id" value={eventId} />
-      <button
-        disabled={pending || full}
-        aria-label={`${full ? "Sign up unavailable for" : "Sign up for"} ${eventName}`}
-        className="whitespace-nowrap px-3 py-1.5"
+      <div
+        role="group"
+        aria-label={`Choose signup type for ${eventName}`}
+        className={
+          compact
+            ? "inline-flex w-fit flex-nowrap gap-1"
+            : "flex flex-wrap gap-2"
+        }
       >
-        {pending ? "Signing up…" : full ? "Event full" : "Sign up"}
-      </button>
-      <ActionFeedback state={state} />
+        <SignupTypeButtons
+          eventName={eventName}
+          currentType={currentType}
+          pending={pending}
+          full={full}
+          compact={compact}
+        />
+      </div>
+      {(!compact || state.error) && <ActionFeedback state={state} />}
     </form>
+  );
+}
+
+function SignupTypeButtons({
+  eventName,
+  currentType,
+  pending,
+  full,
+  compact = false,
+}: {
+  eventName: string;
+  currentType?: "volunteer" | "attendee";
+  pending: boolean;
+  full: boolean;
+  compact?: boolean;
+}) {
+  return (
+    <>
+      <button
+        type="submit"
+        name="participation_type"
+        value="volunteer"
+        disabled={pending || full || currentType === "volunteer"}
+        aria-pressed={currentType === "volunteer"}
+        aria-label={`${currentType === "volunteer" ? "Signed up as Volunteer for" : "Sign Up as Volunteer for"} ${eventName} (2 Points per hour)`}
+        className={
+          compact
+            ? `compact-action-button ${currentType === "volunteer" ? "compact-action-button--primary" : "compact-action-button--option"}`
+            : `${currentType === "volunteer" ? "button-primary" : "button-secondary"} min-h-11 whitespace-nowrap px-3 py-1.5`
+        }
+      >
+        {pending
+          ? "Saving…"
+          : currentType === "volunteer"
+            ? "Signed up"
+            : "Sign Up"}
+      </button>
+      <button
+        type="submit"
+        name="participation_type"
+        value="attendee"
+        disabled={pending || full || currentType === "attendee"}
+        aria-pressed={currentType === "attendee"}
+        aria-label={`${currentType === "attendee" ? "Attending as an Attendee at" : "Attend as an Attendee at"} ${eventName} (1 Point per hour)`}
+        className={
+          compact
+            ? `compact-action-button ${currentType === "attendee" ? "compact-action-button--primary" : "compact-action-button--option"}`
+            : `${currentType === "attendee" ? "button-primary" : "button-secondary"} min-h-11 whitespace-nowrap px-3 py-1.5`
+        }
+      >
+        {pending
+          ? "Saving…"
+          : currentType === "attendee"
+            ? "Attending"
+            : "Attend"}
+      </button>
+    </>
   );
 }
 export function SignupForm({
@@ -80,18 +154,23 @@ export function SignupForm({
   officers,
   remove = false,
   officerId,
+  compact = false,
 }: {
   eventId: number;
   officers?: Pick<Tables<"officers">, "id" | "name">[];
   remove?: boolean;
   officerId?: number;
+  compact?: boolean;
 }) {
   const [state, action, pending] = useActionState(changeSignup, {
     ...initialFormActionState,
   });
   const fieldErrors = state.fieldErrors ?? {};
   return (
-    <form action={action}>
+    <form
+      action={action}
+      className={compact ? "compact-signup-form" : undefined}
+    >
       <AcademicPeriodWriteContextField />
       <input type="hidden" name="event_id" value={eventId} />
       <input type="hidden" name="remove" value={String(remove)} />
@@ -121,8 +200,30 @@ export function SignupForm({
           </FieldError>
         </label>
       )}
-      <ActionFeedback state={state} />
-      <button disabled={pending} className={remove ? "button-secondary" : ""}>
+      {!remove && (
+        <label>
+          Signup type
+          <select
+            name="participation_type"
+            defaultValue="volunteer"
+            disabled={pending}
+          >
+            <option value="volunteer">Volunteer</option>
+            <option value="attendee">Attend</option>
+          </select>
+        </label>
+      )}
+      {(!compact || state.error) && <ActionFeedback state={state} />}
+      <button
+        disabled={pending}
+        className={
+          compact
+            ? `compact-action-button ${remove ? "compact-action-button--remove" : ""}`
+            : remove
+              ? "button-secondary"
+              : ""
+        }
+      >
         {pending
           ? remove
             ? "Removing…"
@@ -177,6 +278,17 @@ export function BulkAddOfficersForm({
     <form action={action} className="mt-4 space-y-3">
       <AcademicPeriodWriteContextField />
       <input type="hidden" name="event_id" value={eventId} />
+      <label>
+        Signup type
+        <select
+          name="participation_type"
+          defaultValue="volunteer"
+          disabled={pending}
+        >
+          <option value="volunteer">Volunteer</option>
+          <option value="attendee">Attend</option>
+        </select>
+      </label>
       <fieldset
         aria-invalid={Boolean(fieldErrors.officer_ids)}
         aria-describedby={

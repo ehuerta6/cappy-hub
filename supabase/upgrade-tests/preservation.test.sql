@@ -3,7 +3,7 @@ create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 select no_plan();
 
-select results_eq($$select e.id,to_jsonb(e)-'delete_points_suspended'
+select results_eq($$select e.id,to_jsonb(e)-'delete_points_suspended'-'participation_rate_version'
   from public.events e join upgrade_fixture.pre_event_delete_events old using(id) order by e.id$$,
   $$select id,original from upgrade_fixture.pre_event_delete_events order by id$$,
   'Event Delete migration preserves legacy cancelled and archived Event fields');
@@ -69,7 +69,7 @@ select results_eq($$select officer_id,branch_id from officer_branches order by o
  'recoverable catalogs preserve all Officer Branch memberships');
 
 -- Direct Admin management changes new writes only, never legacy history.
-select results_eq($$select id,to_jsonb(w)-'deleted_at'-'deleted_by' from officer_warnings w order by id$$,
+select results_eq($$select id,to_jsonb(w)-'deleted_at'-'deleted_by'-'origin' from officer_warnings w order by id$$,
  $$select id,original from upgrade_fixture.pre_direct_admin_warnings order by id$$,
  'direct Admin migration preserves every Warning including pending/rejected/voided states');
 select results_eq($$select warning_id,approver_id,to_jsonb(a) from warning_approvals a order by warning_id,approver_id$$,
@@ -93,10 +93,10 @@ select results_eq($$select p.id,to_jsonb(p)-'participation_superseded_at'-'parti
 select results_eq($$select id,to_jsonb(a) from audit_logs a order by id$$,
  $$select id,original from upgrade_fixture.pre_independent_manual_audit order by id$$,
  'independent manual migration preserves every audit row and actor');
-select results_eq($$select id,to_jsonb(e)-'delete_points_suspended' from events e order by id$$,
+select results_eq($$select id,to_jsonb(e)-'delete_points_suspended'-'participation_rate_version' from events e order by id$$,
  $$select id,original from upgrade_fixture.pre_independent_manual_events order by id$$,
  'independent manual migration preserves rates, processing markers and lifecycle combinations');
-select results_eq($$select to_jsonb(eo) from event_officers eo order by event_id,officer_id$$,
+select results_eq($$select to_jsonb(eo)-'participation_type' from event_officers eo order by event_id,officer_id$$,
  $$select original || jsonb_build_object('removed_at',null) from upgrade_fixture.pre_independent_manual_signups order by (original->>'event_id')::bigint,(original->>'officer_id')::bigint$$,
  'independent manual migration preserves canonical signups');
 select results_eq($$select to_jsonb(s) from event_time_slot_officers s order by slot_id,officer_id$$,
@@ -311,7 +311,7 @@ select results_eq(
   $$select e.id,e.event_type_id,t.name from events e join event_types t on t.id=e.event_type_id where e.id between 90004 and 90006 order by e.id$$,
   $$select (e.row->>'id')::bigint,(e.row->>'event_type_id')::bigint,t.row->>'name' from upgrade_fixture.pre_hardening_events e join upgrade_fixture.pre_hardening_event_types t on (t.row->>'id')::bigint=(e.row->>'event_type_id')::bigint where (e.row->>'id')::bigint between 90004 and 90006 order by (e.row->>'id')::bigint$$,
   'historical Events retain their exact type IDs and labels');
-select is((select jsonb_agg(to_jsonb(e)-'deleted_by_officer_id'-'signup_sheet_url'-'max_volunteers'-'delete_points_suspended' order by id)
+select is((select jsonb_agg(to_jsonb(e)-'deleted_by_officer_id'-'signup_sheet_url'-'max_volunteers'-'delete_points_suspended'-'participation_rate_version' order by id)
   from events e where exists(select 1 from upgrade_fixture.pre_hardening_events f
     where (f.row->>'id')::bigint=e.id)),
   (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.pre_hardening_events),
@@ -421,15 +421,15 @@ select lives_ok($$select save_event_with_links('Accepted Workshop','Description'
   'trusted Event API accepts Workshop');
 reset role;
 select private.process_finished_events();
-select is((select total_points from officer_point_totals where id=90001),11.25::numeric,
-  'historical signed point total includes active Event and Task history, excluding the removed award');
+select is((select total_points from officer_point_totals where id=90001),12.25::numeric,
+  'historical signed Point history stays intact and newly processed Volunteer participation uses2/hour');
 select throws_ok($$insert into officers(name,position_id,personal_email) values
   ('Duplicate historical contact',(select id from positions where name='Officer'),'HISTORY@MINERS.UTEP.EDU')$$,
   '23505',null,'historical UTEP contact is protected across email fields');
 select hasnt_column('positions','can_manage_branch_events','obsolete capability flag is gone');
 select hasnt_column('events','flyer_status','flyer event column is gone');
 select hasnt_column('application_config','flyer_completion_points','flyer configuration is gone');
-select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),30::bigint,
+select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),31::bigint,
   'final schema includes manager-scoped Calendar recovery without the retired Waitlist table');
 select is((select count(*) from events where recurrence_series_id is not null and id not in (90680,90681)),0::bigint,
   'existing Events remain standalone after the additive recurrence migration');
@@ -438,7 +438,7 @@ select is((select count(*) from tasks where recurrence_series_id is not null and
 select has_column('events','recurrence_key','Event occurrence identity is additive');
 select has_column('tasks','recurrence_key','Task occurrence identity is additive');
 select has_column('tasks','due_time','Task due time is optional and additive');
-select is((select jsonb_agg(to_jsonb(e)-'deleted_by_officer_id'-'signup_sheet_url'-'max_volunteers'-'delete_points_suspended' order by id) from events e where id in (90680,90681)),
+select is((select jsonb_agg(to_jsonb(e)-'deleted_by_officer_id'-'signup_sheet_url'-'max_volunteers'-'delete_points_suspended'-'participation_rate_version' order by id) from events e where id in (90680,90681)),
  (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.recurring_events),'scope migration preserves existing recurring Event rows including cancellation');
 select is((select jsonb_agg(to_jsonb(t)-'due_time' order by id) from tasks t where id in (90680,90681)),
  (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.recurring_tasks),'scope migration preserves existing recurring Task rows');

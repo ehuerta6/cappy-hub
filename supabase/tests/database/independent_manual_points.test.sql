@@ -27,11 +27,11 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000003271'
 set local role authenticated;
 select lives_ok($$select add_manual_transaction(-3273,3,' Additional contribution ','manual',-3271)$$,
  'Admin can add independent manual credit alongside participation');
-select is((select total_points from officer_point_totals where id=-3273),5::numeric,
- 'two automatic plus three manual Points contribute five');
+select is((select total_points from officer_point_totals where id=-3273),7::numeric,
+ 'four automatic Volunteer plus three manual Points contribute seven');
 select lives_ok($$select add_manual_transaction(-3273,-1,'Independent deduction','manual',-3271)$$,
  'a second signed manual entry may reference the same Officer and Event');
-select is((select total_points from officer_point_totals where id=-3273),4::numeric,
+select is((select total_points from officer_point_totals where id=-3273),6::numeric,
  'independent negative manual Points subtract from the active total');
 select lives_ok($$select add_manual_transaction(-3273,-0.5,'Legacy correction','correction',-3271)$$,
  'correction type remains supported alongside both categories');
@@ -55,7 +55,7 @@ reset role;
 select set_config('request.jwt.claim.sub','',true);
 update events set participation_points_per_hour_at_end=null where id=-3272;
 select is(private.process_finished_events(),1,'manual credit does not suppress ordinary processing');
-select is((select sum(points) from point_transactions where event_id=-3272 and removed_at is null),5::numeric,
+select is((select sum(points) from point_transactions where event_id=-3272 and removed_at is null),7::numeric,
  'manual-first order also retains both amounts');
 select is(private.process_finished_events(),0,'exact automatic retry creates no duplicate awards');
 select is((select count(*) from point_transactions where event_id=-3272 and award_type='participation'),1::bigint,

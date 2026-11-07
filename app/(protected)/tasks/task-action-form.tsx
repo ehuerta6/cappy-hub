@@ -12,11 +12,11 @@ export default function TaskSelfAssignForm({ taskId }: { taskId: number }) {
     initialFormActionState,
   );
   return (
-    <form action={action} className="gap-2">
+    <form action={action} className="flex flex-wrap items-center gap-1">
       <AcademicPeriodWriteContextField />
       <input type="hidden" name="task_id" value={taskId} />
       <button
-        className="whitespace-nowrap px-3 py-1.5"
+        className="compact-action-button compact-action-button--primary"
         type="submit"
         disabled={pending}
         aria-label="Assign this task to me"
