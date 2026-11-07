@@ -1476,57 +1476,20 @@ select.header-control {
   padding-bottom: 0.55rem;
 }
 
-.points-overview-grid {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: minmax(0, 1fr) minmax(19rem, 0.38fr);
-  align-items: start;
-  gap: 1.25rem;
-}
-
-.points-ranking-panel,
-.points-side-panel {
-  min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: 0.6rem;
-  background: var(--surface);
-  padding: 1.1rem;
-}
-
-.points-ranking-panel > .section-heading,
-.points-side-panel > .section-heading,
-.points-admin-tools > .section-heading {
-  margin-top: 0;
-}
-
-.points-ranking-panel > .section-heading {
-  margin-bottom: 1rem;
-}
-
-.points-ranking-table-wrap {
-  overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: 0.45rem;
+.points-ranking-wrap {
+  max-width: 76rem;
 }
 
 .points-ranking-table {
-  min-width: 34rem;
+  width: 100%;
+  min-width: 54rem;
+  max-width: 76rem;
   table-layout: fixed;
 }
 
 .points-ranking-table th,
 .points-ranking-table td {
-  padding: 0.7rem 0.85rem;
-}
-
-.points-ranking-table th:first-child,
-.points-ranking-table td:first-child {
-  width: 4.5rem;
-}
-
-.points-ranking-table th:last-child,
-.points-ranking-table td:last-child {
-  width: 8.5rem;
+  padding: 0.65rem 0.75rem;
 }
 
 .points-ranking-table tbody tr:last-child td {
@@ -1535,26 +1498,6 @@ select.header-control {
 
 .points-ranking-table tbody tr:hover {
   background: color-mix(in srgb, var(--hover) 38%, transparent);
-}
-
-.points-rank {
-  display: inline-grid;
-  width: 1.8rem;
-  height: 1.8rem;
-  place-items: center;
-  border: 1px solid var(--border);
-  border-radius: 0.35rem;
-  background: var(--surface-muted);
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.points-rank--top {
-  border-color: var(--brand-border);
-  background: var(--brand-bg);
-  color: var(--brand);
 }
 
 .points-officer-link {
@@ -1585,63 +1528,6 @@ select.header-control {
   padding: 1.25rem;
   color: var(--muted);
   font-size: 0.875rem;
-}
-
-.points-rule-copy,
-.points-admin-tools > p {
-  margin: 0.75rem 0 0;
-  color: var(--muted);
-  font-size: 0.84rem;
-  line-height: 1.55;
-}
-
-.points-rule-rate {
-  display: flex;
-  min-height: 5rem;
-  align-items: center;
-  gap: 0.75rem;
-  margin-top: 1rem;
-  border: 1px solid var(--brand-border);
-  border-radius: 0.45rem;
-  background: var(--brand-bg);
-  padding: 0.75rem 1rem;
-  color: var(--brand);
-}
-
-.points-rule-rate strong {
-  font-size: 2.15rem;
-  font-weight: 650;
-  letter-spacing: -0.055em;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-
-.points-rule-rate span {
-  max-width: 9rem;
-  color: var(--secondary);
-  font-size: 0.85rem;
-  line-height: 1.35;
-}
-
-.points-admin-tools {
-  margin-top: 1.25rem;
-  border-top: 1px solid var(--border);
-  padding-top: 1rem;
-}
-
-.points-admin-tools > .section-heading {
-  border: 0;
-  padding-bottom: 0;
-}
-
-.points-admin-tools > div {
-  align-items: stretch;
-  margin-top: 0.9rem;
-}
-
-.points-admin-tools button {
-  width: 100%;
-  justify-content: center;
 }
 
 .points-readonly-note {
@@ -1918,6 +1804,56 @@ button:disabled,
   color: var(--subtle);
   cursor: not-allowed;
   transform: none;
+}
+
+button.compact-action-button {
+  display: inline-flex;
+  width: auto;
+  height: 2.25rem;
+  min-height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  padding: 0 0.625rem;
+  color: var(--secondary);
+  font-size: 0.82rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+form.compact-signup-form {
+  display: flex;
+  width: fit-content;
+  max-width: none;
+  align-items: center;
+  gap: 0.25rem;
+}
+button.compact-action-button--option:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--foreground);
+}
+button.compact-action-button--primary,
+button.compact-action-button--primary:disabled {
+  border: 0;
+  background: var(--brand-bg);
+  color: var(--brand);
+}
+button.compact-action-button--option:disabled {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+button.compact-action-button--remove {
+  color: var(--danger);
+}
+button.compact-action-button--remove:hover:not(:disabled) {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+button.compact-action-button:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }
 
 .status-badge {

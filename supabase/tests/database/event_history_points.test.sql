@@ -62,7 +62,7 @@ select lives_ok($$select save_event_with_links('Edited past event','Metadata cha
  '2020-09-20 09:00-06','2020-09-20 11:00-06',
  array[(select id from branches where name='intro')]::bigint[],-901,null,null)$$,
  'Admin schedule correction reconciles processed participation');
-select is((select points from point_transactions where event_id=-901),2::numeric,'corrected two-hour schedule earns two Points');
+select is((select points from point_transactions where event_id=-901),4::numeric,'corrected two-hour Volunteer schedule earns four Points');
 select is(remove_event(-901),true,'admin logically removes past event');
 select is((select count(*) from event_officers where event_id=-901),1::bigint,
  'removed event retains signup');

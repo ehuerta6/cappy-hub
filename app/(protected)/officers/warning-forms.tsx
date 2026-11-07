@@ -220,9 +220,11 @@ function WarningFields({
 export function DeleteWarningForm({
   warningId,
   officerId,
+  origin = "manual",
 }: {
   warningId: number;
   officerId: number;
+  origin?: "manual" | "automatic";
 }) {
   const [state, action, pending] = useActionState(deleteWarning, initial);
   return (
@@ -232,7 +234,11 @@ export function DeleteWarningForm({
       <input type="hidden" name="officer_id" value={officerId} />
       <ConfirmationDialog
         title="Delete warning?"
-        description="This removes the warning from active totals. Its status and approval history are preserved, and an Admin can restore it later."
+        description={
+          origin === "automatic"
+            ? "This removes the Warning and its three linked negative Points from active totals. An Admin can restore the linked Points and Warning later if the group has not changed."
+            : "This removes the Warning from active totals without changing Point history. Its status and approval history are preserved, and an Admin can restore it later."
+        }
         triggerLabel={pending ? "Deleting…" : "Delete"}
         confirmLabel="Delete warning"
         destructive
@@ -247,9 +253,11 @@ export function DeleteWarningForm({
 export function RestoreWarningForm({
   warningId,
   officerId,
+  origin = "manual",
 }: {
   warningId: number;
   officerId: number;
+  origin?: "manual" | "automatic";
 }) {
   const [state, action, pending] = useActionState(restoreWarning, initial);
   return (
@@ -259,7 +267,11 @@ export function RestoreWarningForm({
       <input type="hidden" name="officer_id" value={officerId} />
       <ConfirmationDialog
         title="Restore warning?"
-        description="This returns the warning to its previous status. Rejected and pending Warnings remain inactive."
+        description={
+          origin === "automatic"
+            ? "This restores the Warning and its three linked negative Points. Restore is unavailable if those Points now belong to another Warning."
+            : "This returns the Warning to its previous status. Rejected and pending Warnings remain inactive."
+        }
         triggerLabel={pending ? "Restoring…" : "Restore"}
         confirmLabel="Restore warning"
         pending={pending}

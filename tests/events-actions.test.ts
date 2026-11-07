@@ -196,6 +196,7 @@ it("submits a selected officer group to the trusted RPC", async () => {
   expect(rpc).toHaveBeenCalledWith("bulk_add_event_officers", {
     p_event_id: 12,
     p_officer_ids: [3, 4, 3],
+    p_participation_type: "volunteer",
   });
 });
 
@@ -582,6 +583,7 @@ it.each(["current", "9001"])(
       p_event_id: 12,
       p_officer_id: 8,
       p_remove: false,
+      p_participation_type: "volunteer",
     });
     expect(result.error).toBe("");
     expect(syncGoogleCalendarEvents).not.toHaveBeenCalled();
@@ -597,7 +599,12 @@ it("self signup reports closed-event RPC errors without claiming success or reva
   expect(result).toEqual({
     error: "Signups are closed for this event",
     success: "",
-    values: { event_id: "12", officer_id: "8", remove: "" },
+    values: {
+      event_id: "12",
+      officer_id: "8",
+      remove: "",
+      participation_type: "volunteer",
+    },
   });
   expect(revalidatePath).not.toHaveBeenCalled();
 });

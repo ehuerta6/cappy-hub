@@ -590,7 +590,7 @@ it("serializes schedule corrections with processing and retries without duplicat
       runSql(
         `select count(*),sum(points)::numeric(10,2) from public.point_transactions where event_id=${id} and removed_at is null;`,
       ).trim(),
-    ).toBe("1|1.50");
+    ).toBe("1|3.00");
     expect(
       runSql(
         `select count(*) from public.point_transactions where event_id=${id};`,
@@ -1049,7 +1049,10 @@ it("serializes concurrent Warning creation at the three-warning threshold", asyn
       secondCreation.closed,
     ]);
     expect(firstResult.code, firstResult.errors).toBe(0);
-    expect(secondResult.code, secondResult.errors).toBe(0);
+    expect(secondResult.code).not.toBe(0);
+    expect(secondResult.errors).toContain(
+      "Officer already has 3 active Warnings",
+    );
     expect(
       runSql(`select count(*) from public.notifications
         where kind='warning.threshold' and recipient_officer_id=${leadId}

@@ -3,7 +3,7 @@
 ## Page composition
 
 - **Dashboard:** Match the Events and Tasks page header. Summarize current counts and activity; keep action items, upcoming Events, and recent point activity easy to scan.
-- **Events and Tasks:** Keep page headers, filters, section headings, list density, tags, and action placement aligned. Their create/edit pages share the same form composition.
+- **Events and Tasks:** Keep page headers, filters, section headings, list density, tags, and action placement aligned. Their compact row actions share the same button geometry and blue primary treatment. Event participation keeps Volunteer and Attend visible as choices, labels the selected signup as “Signed up” or “Attending,” and uses color only as a reinforcing selected state. Their create/edit pages share the same form composition.
 - **Event and Task details:** Use the shared back link, PageHeader, tabs, sections, status treatment, and contextual return behavior.
 - **Calendar:** Preserve the existing month grid and Event/Task visibility controls. The default date follows the current or explicitly selected period rules above.
 - **Officers:** Use the same list, detail, form, tab, badge, and dialog patterns. Officer role and branch controls follow the existing authorization rules.

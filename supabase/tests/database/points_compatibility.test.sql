@@ -39,8 +39,8 @@ select set_participation_rate(1);
 reset role;
 select set_config('request.jwt.claim.sub','',true);
 select is(private.process_finished_events(),1,'wrong past schedule processes the synthetic Event');
-select is((select count(*) from point_transactions where event_id=-32601 and points=2),5::bigint,
- 'five premature awards use the original two-hour schedule');
+select is((select count(*) from point_transactions where event_id=-32601 and points=4),5::bigint,
+ 'five new Volunteer awards use the two-Point hourly rate');
 select is((select count(*) from audit_logs where action='points.participation_created'
  and details->>'event_id'='-32601' and actor_id is null),5::bigint,'System creation audit exists for all five awards');
 
@@ -90,7 +90,7 @@ select results_eq($$select to_jsonb(s) from event_officers s where event_id=-326
 select is(private.process_finished_events(),0,'corrected future schedule does not process');
 select is((select coalesce(sum(points),0) from point_transactions where event_id=-32601 and removed_at is null),
  0::numeric,'premature removed awards do not count before corrected end');
-select is((select participation_points_per_hour_at_end from events where id=-32601),1::numeric,
+select is((select participation_points_per_hour_at_end from events where id=-32601),2::numeric,
  'original processing snapshot remains historical evidence');
 
 -- An Admin supplies explicit verified intent for each removed award. No
@@ -120,8 +120,8 @@ reset role;
 select set_config('request.jwt.claim.sub','',true);
 select is(private.process_finished_events(),0,'schedule correction already reconciled ended Event atomically');
 select is(private.process_finished_events(),0,'reconciled processing is stable on retry');
-select is((select count(*) from point_transactions where event_id=-32601 and removed_at is null and points=2),5::bigint,
- 'all five retained signups earn exactly two legitimate Points after corrected end');
+select is((select count(*) from point_transactions where event_id=-32601 and removed_at is null and points=4),5::bigint,
+ 'all five retained signups earn four legitimate Points after corrected end');
 select results_eq($$select to_jsonb(p)-'participation_superseded_at' from point_transactions p where event_id=-32601 and participation_superseded_at is not null order by id$$,
  $$select row-'participation_superseded_at' from premature_history order by (row->>'id')::bigint$$,
  'old transaction IDs, amounts, timestamps and removal attribution remain intact');
@@ -186,7 +186,7 @@ select remove_event(-32603);
 reset role;
 select is((select count(*) from point_transactions where event_id=-32603 and award_type='manual' and removed_at is null),
  1::bigint,'cancelled and archived Event-linked manual transaction remains active in history');
-select is((select total_points from officer_point_totals where id=-32614),5::numeric,
+select is((select total_points from officer_point_totals where id=-32614),7::numeric,
  'cancelled and archived Event-linked manual credit sums with independent automatic participation');
 select set_config('request.jwt.claim.sub','',true);
 select is(private.process_finished_events(),0,'legacy cancelled/archived Event is not processed');

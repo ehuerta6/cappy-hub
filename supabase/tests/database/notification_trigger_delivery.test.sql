@@ -97,9 +97,10 @@ values(-9403301,2,'Synthetic notification test','manual','00000000-0000-4000-800
 select is((select count(*) from public.notifications where kind='point.changed'
   and recipient_officer_id=-9403301),1::bigint,
   'a personal Points change creates a notification');
-insert into public.officer_warnings(officer_id,reason)
-values(-9403301,'Synthetic warning one'),(-9403301,'Synthetic warning two'),
-      (-9403301,'Synthetic warning three');
+insert into public.officer_warnings(officer_id,reason,status)
+values(-9403301,'Synthetic warning one','approved'),
+      (-9403301,'Synthetic warning two','approved'),
+      (-9403301,'Synthetic warning three','approved');
 select is((select count(*) from public.notifications where kind='warning.changed'
   and recipient_officer_id=-9403301),3::bigint,
   'personal Warning changes create notifications');

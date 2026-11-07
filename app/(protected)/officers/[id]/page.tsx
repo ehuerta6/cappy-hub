@@ -658,6 +658,9 @@ export default async function OfficerDetailPage({
           >
             <div className="flex flex-wrap items-center gap-3">
               <StatusBadge status={warning.status} />
+              <span className="text-sm text-muted">
+                {warning.origin === "automatic" ? "Automatic" : "Manual"}
+              </span>
               {warning.deleted_at !== null && (
                 <span className="text-sm font-medium text-muted">Deleted</span>
               )}
@@ -680,11 +683,17 @@ export default async function OfficerDetailPage({
                   <DeleteWarningForm
                     warningId={warning.id}
                     officerId={officer.id}
+                    origin={
+                      warning.origin === "automatic" ? "automatic" : "manual"
+                    }
                   />
                 ) : (
                   <RestoreWarningForm
                     warningId={warning.id}
                     officerId={officer.id}
+                    origin={
+                      warning.origin === "automatic" ? "automatic" : "manual"
+                    }
                   />
                 )}
               </>
@@ -932,6 +941,11 @@ export default async function OfficerDetailPage({
                     >
                       <div className="flex flex-wrap gap-3">
                         <StatusBadge status={warning.status} />
+                        <span className="text-sm text-muted">
+                          {warning.origin === "automatic"
+                            ? "Automatic"
+                            : "Manual"}
+                        </span>
                         <time dateTime={warning.created_at}>
                           {formatDate(warning.created_at)}
                         </time>
@@ -950,11 +964,21 @@ export default async function OfficerDetailPage({
                             <DeleteWarningForm
                               warningId={warning.id}
                               officerId={officer.id}
+                              origin={
+                                warning.origin === "automatic"
+                                  ? "automatic"
+                                  : "manual"
+                              }
                             />
                           ) : (
                             <RestoreWarningForm
                               warningId={warning.id}
                               officerId={officer.id}
+                              origin={
+                                warning.origin === "automatic"
+                                  ? "automatic"
+                                  : "manual"
+                              }
                             />
                           )}
                         </>

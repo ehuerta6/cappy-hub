@@ -102,6 +102,46 @@ export type Database = {
           },
         ];
       };
+      automatic_warning_point_links: {
+        Row: {
+          point_transaction_id: number;
+          released_at: string | null;
+          warning_id: number;
+        };
+        Insert: {
+          point_transaction_id: number;
+          released_at?: string | null;
+          warning_id: number;
+        };
+        Update: {
+          point_transaction_id?: number;
+          released_at?: string | null;
+          warning_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "automatic_warning_point_links_point_transaction_id_fkey";
+            columns: ["point_transaction_id"];
+            isOneToOne: false;
+            referencedRelation: "point_history";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "automatic_warning_point_links_point_transaction_id_fkey";
+            columns: ["point_transaction_id"];
+            isOneToOne: false;
+            referencedRelation: "point_transactions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "automatic_warning_point_links_warning_id_fkey";
+            columns: ["warning_id"];
+            isOneToOne: false;
+            referencedRelation: "officer_warnings";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       branches: {
         Row: {
           created_at: string;
@@ -250,16 +290,19 @@ export type Database = {
         Row: {
           event_id: number;
           officer_id: number;
+          participation_type: string;
           removed_at: string | null;
         };
         Insert: {
           event_id: number;
           officer_id: number;
+          participation_type?: string;
           removed_at?: string | null;
         };
         Update: {
           event_id?: number;
           officer_id?: number;
+          participation_type?: string;
           removed_at?: string | null;
         };
         Relationships: [
@@ -503,6 +546,7 @@ export type Database = {
           meeting_notes_url: string | null;
           name: string;
           participation_points_per_hour_at_end: number | null;
+          participation_rate_version: string;
           recurrence_key: string | null;
           recurrence_series_id: number | null;
           signup_sheet_url: string | null;
@@ -527,6 +571,7 @@ export type Database = {
           meeting_notes_url?: string | null;
           name: string;
           participation_points_per_hour_at_end?: number | null;
+          participation_rate_version?: string;
           recurrence_key?: string | null;
           recurrence_series_id?: number | null;
           signup_sheet_url?: string | null;
@@ -551,6 +596,7 @@ export type Database = {
           meeting_notes_url?: string | null;
           name?: string;
           participation_points_per_hour_at_end?: number | null;
+          participation_rate_version?: string;
           recurrence_key?: string | null;
           recurrence_series_id?: number | null;
           signup_sheet_url?: string | null;
@@ -703,6 +749,7 @@ export type Database = {
           deleted_by: number | null;
           id: number;
           officer_id: number;
+          origin: string;
           reason: string;
           status: string;
           voided_at: string | null;
@@ -714,6 +761,7 @@ export type Database = {
           deleted_by?: number | null;
           id?: number;
           officer_id: number;
+          origin?: string;
           reason: string;
           status?: string;
           voided_at?: string | null;
@@ -725,6 +773,7 @@ export type Database = {
           deleted_by?: number | null;
           id?: number;
           officer_id?: number;
+          origin?: string;
           reason?: string;
           status?: string;
           voided_at?: string | null;
@@ -1646,6 +1695,15 @@ export type Database = {
         };
         Returns: undefined;
       };
+      add_negative_point: {
+        Args: {
+          p_event_id?: number;
+          p_officer_id: number;
+          p_reason?: string;
+          p_task_id?: number;
+        };
+        Returns: number;
+      };
       add_presenter_slot: { Args: { p_event_id: number }; Returns: number };
       assert_academic_period_context_writable: {
         Args: { p_period_context: string };
@@ -1655,10 +1713,19 @@ export type Database = {
         Args: { p_period_id: number };
         Returns: undefined;
       };
-      bulk_add_event_officers: {
-        Args: { p_event_id: number; p_officer_ids: number[] };
-        Returns: Json;
-      };
+      bulk_add_event_officers:
+        | {
+            Args: { p_event_id: number; p_officer_ids: number[] };
+            Returns: Json;
+          }
+        | {
+            Args: {
+              p_event_id: number;
+              p_officer_ids: number[];
+              p_participation_type: string;
+            };
+            Returns: Json;
+          };
       bulk_add_event_officers_to_slots: {
         Args: {
           p_event_id: number;
@@ -1672,10 +1739,24 @@ export type Database = {
         Returns: Json;
       };
       cancel_event: { Args: { p_event_id: number }; Returns: undefined };
-      change_event_signup: {
-        Args: { p_event_id: number; p_officer_id: number; p_remove?: boolean };
-        Returns: undefined;
-      };
+      change_event_signup:
+        | {
+            Args: {
+              p_event_id: number;
+              p_officer_id: number;
+              p_remove?: boolean;
+            };
+            Returns: undefined;
+          }
+        | {
+            Args: {
+              p_event_id: number;
+              p_officer_id: number;
+              p_participation_type: string;
+              p_remove: boolean;
+            };
+            Returns: boolean;
+          };
       change_event_time_slot_signup: {
         Args: {
           p_event_id: number;

@@ -68,7 +68,10 @@ import { createClient } from "@/lib/supabase/server";
 import EventsPage from "@/app/(protected)/events/page";
 import DashboardPage from "@/app/(protected)/page";
 import ProtectedLayout from "@/app/(protected)/layout";
-import { SelfSignupForm } from "@/app/(protected)/events/event-controls";
+import {
+  SelfSignupForm,
+  SignupForm,
+} from "@/app/(protected)/events/event-controls";
 
 const actor = {
   id: 8,
@@ -92,7 +95,11 @@ const upcoming: Pick<
 > & {
   event_types: { name: string };
   event_branches: { branches: { name: string } }[];
-  event_officers: { officer_id: number; removed_at?: string | null }[];
+  event_officers: {
+    officer_id: number;
+    removed_at?: string | null;
+    participation_type?: string;
+  }[];
 } = {
   id: 1,
   name: "Participating event",
@@ -105,7 +112,7 @@ const upcoming: Pick<
   max_volunteers: null,
   event_types: { name: "Meeting" },
   event_branches: [],
-  event_officers: [{ officer_id: 8 }],
+  event_officers: [{ officer_id: 8, participation_type: "volunteer" }],
 };
 let events: (typeof upcoming)[];
 let transactions: {
@@ -451,8 +458,11 @@ it("renders bounded Events in period tables grouped by participation", async () 
   const your = html.split("Participating event</a>")[1].split("</tr>")[0];
   const other = html.split("Available event</a>")[1].split("</tr>")[0];
   expect(html).not.toContain('scope="rowgroup"');
-  expect(your).not.toContain("Sign up for");
-  expect(other).toContain('aria-label="Sign up for Available event"');
+  expect(your).toContain('aria-pressed="true"');
+  expect(your).toContain('value="attendee"');
+  expect(other).toContain(
+    'aria-label="Sign Up as Volunteer for Available event (2 Points per hour)"',
+  );
   expect(other).toContain("Upcoming");
   expect(html).toContain('<th scope="col">Action</th>');
   expect(html).not.toMatch(/Your participation|Your signup/i);
@@ -496,9 +506,11 @@ it("offers signup while happening, but never for past, cancelled, removed or pro
     },
   ];
   const html = await renderEvents();
-  expect(html).toContain('aria-label="Sign up for Happening"');
+  expect(html).toContain(
+    'aria-label="Sign Up as Volunteer for Happening (2 Points per hour)"',
+  );
   for (const name of ["Past", "Cancelled", "Removed", "Processed"])
-    expect(html).not.toContain(`aria-label="Sign up for ${name}"`);
+    expect(html).not.toContain(`aria-label="Sign Up as Volunteer for ${name}`);
 });
 
 it("shows useful empty messages without empty tables", async () => {
@@ -624,13 +636,61 @@ it("places the single sign out form and officer context inside the protected hea
   ).toContain('href="/admin"');
 });
 
-it("renders a real accessible self-signup form with only the event ID", () => {
+it("renders two accessible self-signup choices that share one form", () => {
   const html = renderToStaticMarkup(
     createElement(SelfSignupForm, { eventId: 2, eventName: "Available event" }),
   );
   expect(html).toContain('name="event_id" value="2"');
-  expect(html).toContain("<button");
+  expect(html).toContain('value="volunteer"');
+  expect(html).toContain('value="attendee"');
+  expect(html.match(/name="participation_type"/g)).toHaveLength(2);
+  expect(html).toContain(">Sign Up</button>");
+  expect(html).toContain(">Attend</button>");
   expect(html).not.toContain('name="officer_id"');
+});
+
+it("shows the selected participation type in the compact Event actions", () => {
+  const volunteerHtml = renderToStaticMarkup(
+    createElement(SelfSignupForm, {
+      eventId: 2,
+      eventName: "Available event",
+      compact: true,
+      currentType: "volunteer",
+    }),
+  );
+  expect(volunteerHtml).toContain(">Signed up</button>");
+  expect(volunteerHtml).toContain("compact-action-button--primary");
+  expect(volunteerHtml).toContain('class="compact-signup-form"');
+  expect(volunteerHtml).toContain('disabled="" aria-pressed="true"');
+  expect(volunteerHtml).toContain(">Attend</button>");
+
+  const attendeeHtml = renderToStaticMarkup(
+    createElement(SelfSignupForm, {
+      eventId: 2,
+      eventName: "Available event",
+      compact: true,
+      currentType: "attendee",
+    }),
+  );
+  expect(attendeeHtml).toContain(">Attending</button>");
+  expect(attendeeHtml).toContain("compact-action-button--primary");
+  expect(attendeeHtml).toContain('class="compact-signup-form"');
+  expect(attendeeHtml).toContain('disabled="" aria-pressed="true"');
+  expect(attendeeHtml).toContain(">Sign Up</button>");
+});
+
+it("keeps the compact remove action sized to its button", () => {
+  const html = renderToStaticMarkup(
+    createElement(SignupForm, {
+      eventId: 2,
+      officerId: 8,
+      remove: true,
+      compact: true,
+    }),
+  );
+  expect(html).toContain('class="compact-signup-form"');
+  expect(html).toContain("compact-action-button--remove");
+  expect(html).toContain(">Remove signup</button>");
 });
 
 it("disables the row button while signup is pending and exposes accessible result text", () => {
@@ -643,7 +703,7 @@ it("disables the row button while signup is pending and exposes accessible resul
     createElement(SelfSignupForm, { eventId: 2, eventName: "Available event" }),
   );
   expect(pending).toContain("disabled");
-  expect(pending).toContain("Signing up…");
+  expect(pending).toContain("Saving…");
   vi.mocked(useActionState).mockReturnValue([
     { error: "Signups are closed for this event", success: "" },
     vi.fn(),

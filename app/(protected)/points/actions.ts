@@ -30,6 +30,7 @@ export async function addTransaction(
       "reason",
       "officer_id",
       "event_id",
+      "task_id",
       "award_type",
     ]);
   const rawPointTransactionInput = {
@@ -38,6 +39,7 @@ export async function addTransaction(
     reason: formData.get("reason") ?? "",
     officer_id: formData.get("officer_id") ?? "",
     event_id: formData.get("event_id") ?? "",
+    task_id: formData.get("task_id") ?? "",
   };
   const validationResult = manualPointTransactionInputSchema.safeParse(
     rawPointTransactionInput,
@@ -48,23 +50,37 @@ export async function addTransaction(
       "reason",
       "officer_id",
       "event_id",
+      "task_id",
       "award_type",
     ]);
   const validatedPointTransactionInput = validationResult.data;
   const supabase = await createClient();
-  const { error } = await supabase.rpc("add_manual_transaction", {
-    p_officer_id: validatedPointTransactionInput.officer_id,
-    p_event_id: validatedPointTransactionInput.event_id,
-    p_points: validatedPointTransactionInput.points,
-    p_reason: validatedPointTransactionInput.reason,
-    p_award_type: validatedPointTransactionInput.award_type,
-  });
+  const { error } =
+    validatedPointTransactionInput.award_type === "negative"
+      ? await supabase.rpc("add_negative_point", {
+          p_officer_id: validatedPointTransactionInput.officer_id,
+          p_reason: validatedPointTransactionInput.reason,
+          ...(validatedPointTransactionInput.event_id === undefined
+            ? {}
+            : { p_event_id: validatedPointTransactionInput.event_id }),
+          ...(validatedPointTransactionInput.task_id === undefined
+            ? {}
+            : { p_task_id: validatedPointTransactionInput.task_id }),
+        })
+      : await supabase.rpc("add_manual_transaction", {
+          p_officer_id: validatedPointTransactionInput.officer_id,
+          p_event_id: validatedPointTransactionInput.event_id,
+          p_points: validatedPointTransactionInput.points,
+          p_reason: validatedPointTransactionInput.reason,
+          p_award_type: validatedPointTransactionInput.award_type,
+        });
   if (error)
     return formFailure(mutationError(error.message), formData, [
       "points",
       "reason",
       "officer_id",
       "event_id",
+      "task_id",
       "award_type",
     ]);
   revalidatePath("/", "layout");

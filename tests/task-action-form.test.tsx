@@ -12,7 +12,9 @@ it("renders the compact Assign to me row action", () => {
 
   expect(html).toContain('name="task_id" value="17"');
   expect(html).toContain('aria-label="Assign this task to me"');
-  expect(html).toContain('class="whitespace-nowrap px-3 py-1.5"');
+  expect(html).toContain(
+    'class="compact-action-button compact-action-button--primary"',
+  );
   expect(html).toContain(">Assign to me</button>");
   expect(html).not.toContain("Self-assign");
 });

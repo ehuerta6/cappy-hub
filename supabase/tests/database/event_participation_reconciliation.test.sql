@@ -13,7 +13,7 @@ insert into events(id,name,description,location,event_type_id,starts_at,ends_at)
 insert into event_officers(event_id,officer_id) values(-32801,-32802);
 update application_config set participation_points_per_hour=9 where id=1;
 select is(private.process_finished_events(),1,'new processing uses approved calculation');
-select is((select points from point_transactions where event_id=-32801),2::numeric,'legacy config9 does not change new two-hour award');
+select is((select points from point_transactions where event_id=-32801),4::numeric,'legacy config9 does not change new two-hour Volunteer award');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032801',true);
 set local role authenticated;
 select add_manual_transaction(-32802,3,'Independent manual credit','manual',-32801);
@@ -21,8 +21,8 @@ reset role;
 create temp table retained_manual as select to_jsonb(p) original from point_transactions p where award_type='manual';
 create temp table retained_signups as select to_jsonb(eo) original from event_officers eo where event_id=-32801;
 update events set ends_at='2020-01-01 12:30-07' where id=-32801;
-select is((select points from point_transactions where event_id=-32801 and award_type='participation'),3.5::numeric,'duration correction earns fractional hours');
-select is((select total_points from officer_point_totals where id=-32802),6.5::numeric,'signed independent credit adds to corrected participation');
+select is((select points from point_transactions where event_id=-32801 and award_type='participation'),7::numeric,'duration correction earns fractional Volunteer hours');
+select is((select total_points from officer_point_totals where id=-32802),10::numeric,'signed independent credit adds to corrected participation');
 create temp table before_description as select to_jsonb(p) original from point_transactions p where event_id=-32801;
 update events set description='Description correction only' where id=-32801;
 select results_eq($$select to_jsonb(p) from point_transactions p where event_id=-32801 order by id$$,
@@ -35,14 +35,14 @@ select is(private.process_finished_events(),0,'future schedule cannot grant cred
 select results_eq($$select to_jsonb(eo) from event_officers eo where event_id=-32801$$,
  $$select original from retained_signups$$,'corrected future schedule preserves signup identity');
 update events set event_date='2021-01-01',starts_at='2021-01-01 09:00-07',ends_at='2021-01-01 10:15-07' where id=-32801;
-select is((select total_points from officer_point_totals where id=-32802),4.25::numeric,'mechanical suspension reconciles after corrected end');
+select is((select total_points from officer_point_totals where id=-32802),5.5::numeric,'mechanical suspension reconciles after corrected end');
 select is((select count(*) from point_transactions where event_id=-32801 and award_type='participation'),1::bigint,'mechanical correction retains automatic identity without duplicate');
 select is(private.process_finished_events(),0,'retry is a no-op');
 select results_eq($$select to_jsonb(p) from point_transactions p where award_type='manual'$$,
  $$select original from retained_manual$$,'manual amount, ID, reason and audit actors stay unchanged');
 select is((select count(*) from audit_logs where action='points.participation_suspended' and entity_id in
  (select id::text from point_transactions where event_id=-32801)),1::bigint,'suspension is audited once');
-select ok(exists(select 1 from audit_logs where action='points.participation_reconciled' and details->>'rate'='1'),'reconciliation explains source-derived amount');
+select ok(exists(select 1 from audit_logs where action='points.participation_reconciled' and details->>'rate'='2'),'reconciliation explains source-derived amount');
 -- A future withdrawal makes the suspended award ineligible. Cron must
 -- settle with no repeat processing/audit noise even though history survives.
 insert into events(id,name,description,location,event_type_id,starts_at,ends_at)
@@ -70,8 +70,8 @@ insert into event_time_slots(id,event_id,starts_at,ends_at) values
  (-328042,-32804,'2020-03-01 10:00-07','2020-03-01 10:45-07');
 insert into event_time_slot_officers(event_id,slot_id,officer_id) values(-32804,-328041,-32802),(-32804,-328042,-32802);
 select is(private.process_finished_events(),1,'fractional slot Event processes');
-select is((select sum(points) from point_transactions where event_id=-32804),1.25::numeric,
- '30 and45 minute slots earn1.25 Points excluding interior gap and unused schedule');
+select is((select sum(points) from point_transactions where event_id=-32804),2.5::numeric,
+ '30 and45 minute Volunteer slots earn2.5 Points excluding interior gap and unused schedule');
 select is((select count(*) from point_transactions where event_id=-32804),2::bigint,'each selected slot retains automatic identity');
 
 -- Required audits are atomic with schedule/amount reconciliation.
@@ -80,7 +80,7 @@ alter table audit_logs add constraint reconciliation_test_audit_failure
 select throws_ok($$update events set ends_at='2021-01-01 11:00-07' where id=-32801$$,
  '23514',null,'failed reconciliation audit rejects the source correction');
 select is((select ends_at from events where id=-32801),'2021-01-01 10:15-07'::timestamptz,'audit failure rolls back schedule');
-select is((select points from point_transactions where event_id=-32801 and award_type='participation'),1.25::numeric,
+select is((select points from point_transactions where event_id=-32801 and award_type='participation'),2.5::numeric,
  'audit failure rolls back changed participation amount');
 alter table audit_logs drop constraint reconciliation_test_audit_failure;
 
@@ -142,13 +142,13 @@ select lives_ok($$update events set event_date='2021-01-01',starts_at='2021-01-0
  'eligible corrected schedule recalculates the directly edited automatic award');
 select is((select ends_at from events where id=-32801),'2021-01-01 11:00-07'::timestamptz,
  'corrected schedule is saved');
-select is((select points from point_transactions where event_id=-32801 and award_type='participation'),2::numeric,
+select is((select points from point_transactions where event_id=-32801 and award_type='participation'),4::numeric,
  'corrected Event duration is the source of truth for automatic Points');
 select is((select removed_at from point_transactions where event_id=-32801 and award_type='participation'),null::timestamptz,
  'eligible reconciliation restores only the mechanically suspended transaction');
 select is((select count(*) from audit_logs where action='points.participation_reconciled'
  and entity_id=(select id::text from point_transactions where event_id=-32801 and award_type='participation')
- and (details->>'before_points')::numeric=7 and (details->>'after_points')::numeric=2),1::bigint,
+ and (details->>'before_points')::numeric=7 and (details->>'after_points')::numeric=4),1::bigint,
  'directly edited amount replacement has an attributable before/after reconciliation audit');
 select results_eq($$select to_jsonb(p) from point_transactions p where event_id=-32801 and award_type='manual'$$,
  $$select original from retained_manual$$,

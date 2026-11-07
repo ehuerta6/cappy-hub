@@ -149,7 +149,7 @@ set local role authenticated;
 select lives_ok($$select public.change_event_signup(-32911,-32906,false)$$,
  'single manager signup can first process an ended Event');
 reset role;
-select is((select participation_points_per_hour_at_end from public.events where id=-32911),1::numeric,
+select is((select participation_points_per_hour_at_end from public.events where id=-32911),2::numeric,
  'single signup establishes the first participation snapshot');
 select is((select count(*) from public.point_transactions where event_id=-32911
   and award_type='participation' and removed_at is null),3::bigint,
@@ -161,7 +161,7 @@ select lives_ok($$select public.change_event_signup(-32913,-32908,true)$$,
 select lives_ok($$select public.change_event_signup(-32913,-32908,false)$$,
  'restoring an ordinary signup can establish its first processing snapshot');
 reset role;
-select is((select participation_points_per_hour_at_end from public.events where id=-32913),1::numeric,
+select is((select participation_points_per_hour_at_end from public.events where id=-32913),2::numeric,
  'ordinary restore establishes the first participation snapshot');
 select is((select count(*) from public.point_transactions where event_id=-32913
   and award_type='participation' and removed_at is null),3::bigint,

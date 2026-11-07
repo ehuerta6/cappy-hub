@@ -19,7 +19,11 @@ export type EventListItem = Pick<
   delete_points_suspended?: boolean;
   event_types: { name: string };
   event_branches: { branches: { name: string } }[];
-  event_officers: { officer_id: number; removed_at?: string | null }[];
+  event_officers: {
+    officer_id: number;
+    removed_at?: string | null;
+    participation_type?: string;
+  }[];
   confirmed_count?: number;
 };
 

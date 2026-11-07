@@ -6,7 +6,8 @@ begin;
 select pg_catalog.set_config('cappy.seed_loading','on',true);
 
 insert into auth.users(id,email) values
-  ('00000000-0000-4000-8000-000000000999','seed-history@cappy.test');
+  ('00000000-0000-4000-8000-000000000999','seed-history@cappy.test')
+on conflict (id) do nothing;
 
 update public.application_config
 set participation_points_per_hour = 2.5,
@@ -48,6 +49,21 @@ values
   (-1030, 'Blair Thompson', 'blair.thompson@cappy.test', null, (select id from public.positions where name = 'Officer'), 'senior', 'active', 'officer'),
   (-1031, 'Kai Bennett', 'kai.bennett@cappy.test', null, (select id from public.positions where name = 'Officer'), 'sophomore', 'active', 'officer'),
   (-1032, 'Emery Diaz', 'emery.diaz@cappy.test', null, (select id from public.positions where name = 'Officer'), null, 'active', 'officer');
+
+-- Dedicated Issue #402 synthetic Officers keep the new Points and Warning
+-- scenarios easy to identify without changing the existing local accounts.
+insert into public.officers(id,name,utep_email,position_id,classification,status,application_role)
+values
+  (-1201,'Mock: Two negative Points','negative-two@cappy.test',(select id from public.positions where name='Officer'),'junior','active','officer'),
+  (-1202,'Mock: Automatic Warning group','negative-three@cappy.test',(select id from public.positions where name='Officer'),'junior','active','officer'),
+  (-1203,'Mock: Two automatic Warning groups','negative-six@cappy.test',(select id from public.positions where name='Officer'),'senior','active','officer'),
+  (-1204,'Mock: Warning limit with extra Points','warning-limit@cappy.test',(select id from public.positions where name='Officer'),'senior','active','officer'),
+  (-1205,'Mock: Third Warning notification','warning-threshold@cappy.test',(select id from public.positions where name='Officer'),'senior','active','officer'),
+  (-1206,'Mock: Mixed manual and automatic','warning-mixed@cappy.test',(select id from public.positions where name='Officer'),'junior','active','officer'),
+  (-1207,'Mock: Negative Point leaderboard','negative-ranking@cappy.test',(select id from public.positions where name='Officer'),'freshman','active','officer');
+insert into public.officer_branches(officer_id,branch_id)
+select id,(select id from public.branches where name='general')
+from public.officers where id between -1207 and -1201;
 
 insert into public.officer_branches (officer_id, branch_id)
 values
@@ -135,6 +151,12 @@ values
   (-2050,'Mock: Reminder Scope — This and Following','First occurrence keeps its own default reminders.',(select id from public.event_types where name='Session'),'CCSB G.0208',(now() at time zone 'America/Denver')::date+8,(((now() at time zone 'America/Denver')::date+8+time '17:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+8+time '18:00') at time zone 'America/Denver'),'upcoming',null),
   (-2051,'Mock: Reminder Scope — This and Following','Following occurrences share customized reminders.',(select id from public.event_types where name='Session'),'CCSB G.0208',(now() at time zone 'America/Denver')::date+15,(((now() at time zone 'America/Denver')::date+15+time '17:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+15+time '18:00') at time zone 'America/Denver'),'upcoming',null),
   (-2052,'Mock: Reminder Scope — This and Following','Following occurrences share customized reminders.',(select id from public.event_types where name='Session'),'CCSB G.0208',(now() at time zone 'America/Denver')::date+22,(((now() at time zone 'America/Denver')::date+22+time '17:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+22+time '18:00') at time zone 'America/Denver'),'upcoming',null);
+insert into public.events(id,name,description,event_type_id,location,event_date,starts_at,ends_at,status,participation_points_per_hour_at_end)
+values
+  (-2060,'Mock: Issue 402 Volunteer and Attendee awards','Completed two-hour Event. Volunteers earn 4 Points and Attendees earn 2 without an attendance check.',(select id from public.event_types where name='Workshop'),'CCSB G.0208',(now() at time zone 'America/Denver')::date-1,(((now() at time zone 'America/Denver')::date-1+time '10:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date-1+time '12:00') at time zone 'America/Denver'),'past',2),
+  (-2061,'Mock: Issue 402 choose Volunteer or Attend','Upcoming Event for trying either one-choice signup type.',(select id from public.event_types where name='Workshop'),'CCSB G.0208',(now() at time zone 'America/Denver')::date+5,(((now() at time zone 'America/Denver')::date+5+time '10:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+5+time '12:00') at time zone 'America/Denver'),'upcoming',null),
+  (-2062,'Mock: Missed commitment — remove award','Separate synthetic case for removing the related positive participation award.',(select id from public.event_types where name='Meeting'),'CCSB G.0208',(now() at time zone 'America/Denver')::date-2,(((now() at time zone 'America/Denver')::date-2+time '13:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date-2+time '14:00') at time zone 'America/Denver'),'past',1),
+  (-2063,'Mock: Missed commitment — add negative Point','Separate synthetic case for adding one negative Point instead of removing an award.',(select id from public.event_types where name='Meeting'),'CCSB G.0208',(now() at time zone 'America/Denver')::date-2,(((now() at time zone 'America/Denver')::date-2+time '15:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date-2+time '16:00') at time zone 'America/Denver'),'past',1);
 update public.events set recurrence_series_id=-2201,
   recurrence_key=(now() at time zone 'America/Denver')::date+15 where id=-2030;
 update public.events set recurrence_series_id=-2201,
@@ -178,7 +200,11 @@ values
   (-2041, (select id from public.branches where name = 'icpc')),
   (-2050, (select id from public.branches where name = 'intro')),
   (-2051, (select id from public.branches where name = 'intro')),
-  (-2052, (select id from public.branches where name = 'intro'));
+  (-2052, (select id from public.branches where name = 'intro')),
+  (-2060, (select id from public.branches where name = 'general')),
+  (-2061, (select id from public.branches where name = 'general')),
+  (-2062, (select id from public.branches where name = 'general')),
+  (-2063, (select id from public.branches where name = 'general'));
 
 insert into public.event_officers (event_id, officer_id)
 values
@@ -206,7 +232,11 @@ values
   (-2030, -1006), (-2030, -1025),
   (-2031, -1026),
   (-2040, -1025), (-2041, -1025),
-  (-2050, -1010), (-2051, -1010), (-2052, -1010);
+  (-2050, -1010), (-2051, -1010), (-2052, -1010),
+  (-2060, -1201), (-2060, -1202),
+  (-2062, -1207), (-2063, -1207);
+update public.event_officers set participation_type='attendee' where event_id=-2060 and officer_id=-1202;
+update public.events set participation_rate_version='volunteer_attendee' where id=-2060;
 
 insert into public.event_time_slots (id,event_id,starts_at,ends_at,capacity)
 values
@@ -382,6 +412,59 @@ values
 insert into public.point_transactions(officer_id,task_id,points,reason,award_type,created_by_officer_id)
 values (-1031,-8012,5,'Task completion: Refresh ICPC practice guide','task',-1006);
 
+-- Issue #402 fixtures: manual and automatic Warning origins, complete groups,
+-- an incomplete group, the three-Warning cap, and extra ungrouped negatives.
+insert into public.point_transactions(id,officer_id,event_id,task_id,points,reason,award_type,created_at)
+values
+  (-4511,-1201,null,-8001,-1,'Mock #402 negative linked to Task','negative',now()-interval '2 days'),
+  (-4512,-1201,-2063,null,-1,'Mock #402 second negative Point','negative',now()-interval '1 day'),
+  (-4521,-1202,-2060,null,-1,'Mock #402 group A point one','negative',now()-interval '6 days'),
+  (-4522,-1202,null,-8001,-1,'Mock #402 group A point two','negative',now()-interval '5 days'),
+  (-4523,-1202,null,-8002,-1,'Mock #402 group A point three','negative',now()-interval '4 days'),
+  (-4531,-1203,null,-8001,-1,'Mock #402 first group point one','negative',now()-interval '12 days'),
+  (-4532,-1203,null,-8002,-1,'Mock #402 first group point two','negative',now()-interval '11 days'),
+  (-4533,-1203,null,-8003,-1,'Mock #402 first group point three','negative',now()-interval '10 days'),
+  (-4534,-1203,null,-8004,-1,'Mock #402 second group point one','negative',now()-interval '9 days'),
+  (-4535,-1203,null,-8005,-1,'Mock #402 second group point two','negative',now()-interval '8 days'),
+  (-4536,-1203,null,-8006,-1,'Mock #402 second group point three','negative',now()-interval '7 days'),
+  (-4541,-1204,null,-8001,-1,'Mock #402 over-limit point one','negative',now()-interval '4 days'),
+  (-4542,-1204,null,-8002,-1,'Mock #402 over-limit point two','negative',now()-interval '3 days'),
+  (-4543,-1204,null,-8003,-1,'Mock #402 over-limit point three','negative',now()-interval '2 days'),
+  (-4544,-1204,null,-8004,-1,'Mock #402 extra point beyond Warning limit','negative',now()-interval '1 day'),
+  (-4551,-1205,null,-8001,-1,'Mock #402 third-warning point one','negative',now()-interval '3 days'),
+  (-4552,-1205,null,-8002,-1,'Mock #402 third-warning point two','negative',now()-interval '2 days'),
+  (-4553,-1205,null,-8003,-1,'Mock #402 third-warning point three','negative',now()-interval '1 day'),
+  (-4561,-1206,null,-8001,-1,'Mock #402 mixed warning point one','negative',now()-interval '2 days'),
+  (-4562,-1206,null,-8002,-1,'Mock #402 mixed warning point two','negative',now()-interval '1 day'),
+  (-4571,-1207,-2063,null,-1,'Mock #402 missed commitment: negative Point selected','negative',now()-interval '1 day'),
+  (-4581,-1207,null,null,12,'Mock #402 leaderboard normal Points','manual',now()-interval '4 days');
+insert into public.point_transactions(id,officer_id,event_id,points,reason,award_type,created_at,removed_at,removed_by,removed_by_officer_id)
+values (-4583,-1207,-2062,4,'Mock #402 missed commitment: positive award removed','participation',
+  now()-interval '3 days',now()-interval '1 day','00000000-0000-4000-8000-000000000999',-1001);
+insert into public.point_transactions(id,officer_id,event_id,points,reason,award_type,created_at)
+values
+  (-4590,-1201,-2060,4,'Mock #402 Volunteer participation: 2 Points per hour','participation',now()-interval '1 day'),
+  (-4591,-1202,-2060,2,'Mock #402 Attendee participation: 1 Point per hour','participation',now()-interval '1 day');
+insert into public.officer_warnings(id,officer_id,reason,status,created_at,origin)
+values
+  (-3201,-1202,'Mock #402 automatic Warning from three linked negative Points','approved',now()-interval '4 days','automatic'),
+  (-3202,-1203,'Mock #402 automatic Warning group one','approved',now()-interval '10 days','automatic'),
+  (-3203,-1203,'Mock #402 automatic Warning group two','approved',now()-interval '7 days','automatic'),
+  (-3204,-1204,'Mock #402 manual Warning one of three','approved',now()-interval '30 days','manual'),
+  (-3205,-1204,'Mock #402 manual Warning two of three','approved',now()-interval '20 days','manual'),
+  (-3206,-1204,'Mock #402 manual Warning three of three','approved',now()-interval '10 days','manual'),
+  (-3207,-1205,'Mock #402 manual Warning one','approved',now()-interval '30 days','manual'),
+  (-3208,-1205,'Mock #402 manual Warning two','approved',now()-interval '20 days','manual'),
+  (-3209,-1205,'Mock #402 automatic third Warning','approved',now()-interval '1 day','automatic'),
+  (-3210,-1206,'Mock #402 manual Warning paired with two negatives','approved',now()-interval '5 days','manual');
+update public.officer_warnings set deleted_at=now()-interval '1 day',deleted_by=-1001 where id=-3207;
+insert into public.automatic_warning_point_links(warning_id,point_transaction_id)
+values
+  (-3201,-4521),(-3201,-4522),(-3201,-4523),
+  (-3202,-4531),(-3202,-4532),(-3202,-4533),
+  (-3203,-4534),(-3203,-4535),(-3203,-4536),
+  (-3209,-4551),(-3209,-4552),(-3209,-4553);
+
 -- Recurring reminder settings show the saved result of each edit scope:
 -- one occurrence, this-and-following occurrences, and all occurrences.
 insert into public.task_series
@@ -529,6 +612,14 @@ values
   (-1010,'warning.changed','Warning updated','A Warning on your record changed.','warning',-3001,'/officers/-1010','important',now()-interval '3 days',null,null,'seed403:warning.changed:3001:1010'),
   (-1027,'warning.changed','Warning removed','A Warning was removed from your record.','warning',-3010,'/officers/-1027','important',now()-interval '4 days',now()-interval '3 days',null,'seed403:warning.removed:3010:1027'),
   (-1001,'warning.threshold','Officer reached 3 active Warnings','Review the Officer record.','warning',-3006,'/officers/-1015','important',now()-interval '1 day',null,null,'seed403:warning.threshold:3006:1001'),
+  (-1001,'warning.threshold','Officer reached 3 active Warnings','Review the Officer record.','warning',-3209,'/officers/-1205','important',now()-interval '20 hours',null,null,'seed402:warning.threshold:3209:1001'),
+  (-1002,'warning.threshold','Officer reached 3 active Warnings','Review the Officer record.','warning',-3209,'/officers/-1205','important',now()-interval '20 hours',null,null,'seed402:warning.threshold:3209:1002'),
+  (-1003,'warning.threshold','Officer reached 3 active Warnings','Review the Officer record.','warning',-3209,'/officers/-1205','important',now()-interval '20 hours',null,null,'seed402:warning.threshold:3209:1003'),
+  (-1004,'warning.threshold','Officer reached 3 active Warnings','Review the Officer record.','warning',-3209,'/officers/-1205','important',now()-interval '20 hours',null,null,'seed402:warning.threshold:3209:1004'),
+  (-1005,'warning.threshold','Officer reached 3 active Warnings','Review the Officer record.','warning',-3209,'/officers/-1205','important',now()-interval '20 hours',null,null,'seed402:warning.threshold:3209:1005'),
+  (-1006,'warning.threshold','Officer reached 3 active Warnings','Review the Officer record.','warning',-3209,'/officers/-1205','important',now()-interval '20 hours',null,null,'seed402:warning.threshold:3209:1006'),
+  (-1007,'warning.threshold','Officer reached 3 active Warnings','Review the Officer record.','warning',-3209,'/officers/-1205','important',now()-interval '20 hours',null,null,'seed402:warning.threshold:3209:1007'),
+  (-1008,'warning.threshold','Officer reached 3 active Warnings','Review the Officer record.','warning',-3209,'/officers/-1205','important',now()-interval '20 hours',null,null,'seed402:warning.threshold:3209:1008'),
   (-1005,'task.completed','Task completed: Refresh ICPC practice guide','An Officer completed a Task for your Branch.','task',-8003,'/tasks/-8003','important',now()-interval '6 hours',null,null,'seed403:task.completed:8003:1005'),
   (-1013,'task.changed','Task updated: Draft outreach recap','The Task details or due date changed.','task',-8011,'/tasks/-8011','important',now()-interval '7 hours',now()-interval '6 hours',null,'seed403:task.changed:8011:1013'),
   (-1001,'event.cancelled','Event cancelled: Mock: Cancelled Meeting','The Event was cancelled.','event',-2005,'/events/-2005','important',now()-interval '10 days',null,null,'seed403:event.cancelled:2005:1001'),

@@ -148,11 +148,11 @@ select is((select count(*) from point_transactions where event_id=-2951 and offi
   and event_time_slot_id is not null and award_type='participation'),2::bigint,
   'automatic processing creates a separate participation transaction for each selected slot');
 select is((select points from point_transactions where event_id=-2951 and officer_id=-2952
-  and event_time_slot_id=-295101 and award_type='participation'),2::numeric,
-  'first slot earns exactly two Points at1/hour');
+  and event_time_slot_id=-295101 and award_type='participation'),4::numeric,
+  'first Volunteer slot earns four Points at2/hour');
 select is((select points from point_transactions where event_id=-2951 and officer_id=-2952
-  and event_time_slot_id=-295102 and award_type='participation'),2.5::numeric,
-  'second slot earns exactly2.5 Points at1/hour');
+  and event_time_slot_id=-295102 and award_type='participation'),5::numeric,
+  'second Volunteer slot earns five Points at2/hour');
 select is((select count(*) from point_transactions where event_id=-2951 and officer_id=-2953
   and award_type='participation'),2::bigint,'independent manual credit does not suppress either slot award');
 select is(private.process_finished_events(),0,'automatic slot processing is idempotent');

@@ -51,6 +51,7 @@ export default function PointHistoryFilterControls({
           <option value="task">Task</option>
           <option value="manual">Manual</option>
           <option value="correction">Correction</option>
+          <option value="negative">Negative</option>
         </select>
       </label>
       {isAdmin && (

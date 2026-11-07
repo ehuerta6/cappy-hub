@@ -227,6 +227,16 @@ export function PointValue({ value }: { value: number }) {
   );
 }
 
+export function NegativePointValue({ value }: { value: number }) {
+  return (
+    <span
+      className={`tabular-nums font-medium ${value === 0 ? "text-secondary" : "text-danger"}`}
+    >
+      {Math.abs(value).toLocaleString("en-US", { maximumFractionDigits: 6 })}
+    </span>
+  );
+}
+
 export function TableFrame({
   children,
   compact = false,
