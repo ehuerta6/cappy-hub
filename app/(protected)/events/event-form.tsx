@@ -19,10 +19,12 @@ import {
 import { RecurrenceFields } from "@/components/recurrence-fields";
 import { EventLocationAutocomplete } from "@/components/event-location-autocomplete";
 import TimeSlotsEditor, { type TimeSlotDraft } from "./time-slots-editor";
+import NotificationSettingsFields from "@/components/notification-settings-fields";
 
 export default function EventForm({
   returnTo,
   branches,
+  positions = [],
   eventTypes,
   locations,
   event,
@@ -33,9 +35,11 @@ export default function EventForm({
   mutationRequestKey,
   timeSlots = [],
   canEnableTimeSlots = true,
+  notificationSettings,
 }: {
   returnTo?: string;
   branches: Pick<Tables<"branches">, "id" | "name">[];
+  positions?: Pick<Tables<"positions">, "id" | "name">[];
   eventTypes: (Pick<Tables<"event_types">, "id" | "name"> & {
     available_for_new_events?: boolean;
   })[];
@@ -48,6 +52,12 @@ export default function EventForm({
   mutationRequestKey?: string;
   timeSlots?: TimeSlotDraft[];
   canEnableTimeSlots?: boolean;
+  notificationSettings?: {
+    allActive: boolean;
+    branchIds: number[];
+    positionIds: number[];
+    reminderOffsets: number[];
+  };
 }) {
   const [state, action, pending] = useActionState(
     saveEvent,
@@ -618,6 +628,17 @@ export default function EventForm({
           </details>
         </div>
       )}
+
+      <NotificationSettingsFields
+        branches={branches}
+        positions={positions}
+        isEvent
+        values={state.values}
+        allActive={notificationSettings?.allActive}
+        selectedBranchIds={notificationSettings?.branchIds}
+        selectedPositionIds={notificationSettings?.positionIds}
+        reminderOffsets={notificationSettings?.reminderOffsets}
+      />
 
       <div className="col-span-2">
         <ActionFeedback state={state} />

@@ -3,6 +3,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { migrationSqlForUpgradeTest } from "./upgrade-test-migration.mjs";
 
 process.env.SUPABASE_TELEMETRY_DISABLED = "true";
+const databaseContainer =
+  process.env.CAPPY_TEST_DB_CONTAINER ?? "supabase_db_cappy-hub";
 
 // Deliberately no URL/linked-project option: resets ONLY the local development DB.
 const cli = (args) =>
@@ -13,7 +15,7 @@ const psql = (sql) =>
     [
       "exec",
       "-i",
-      "supabase_db_cappy-hub",
+      databaseContainer,
       "psql",
       "-U",
       "postgres",
@@ -33,7 +35,7 @@ const capturePsql = (sql) => {
         [
           "exec",
           "-i",
-          "supabase_db_cappy-hub",
+          databaseContainer,
           "psql",
           "-U",
           "postgres",

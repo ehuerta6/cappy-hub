@@ -3,6 +3,7 @@
 -- removed-record attribution valid; login-capable users are created separately.
 
 begin;
+select pg_catalog.set_config('cappy.seed_loading','on',true);
 
 insert into auth.users(id,email) values
   ('00000000-0000-4000-8000-000000000999','seed-history@cappy.test');
@@ -89,6 +90,14 @@ values
   (-2201,'00000000-0000-4000-8000-000000002201',
    'RRULE:FREQ=WEEKLY;INTERVAL=1;COUNT=2',-1002,
    (now() at time zone 'America/Denver')::date+15,
+   (now() at time zone 'America/Denver')::date+22),
+  (-2202,'00000000-0000-4000-8000-000000002202',
+   'RRULE:FREQ=WEEKLY;INTERVAL=1;COUNT=2',-1006,
+   (now() at time zone 'America/Denver')::date+8,
+   (now() at time zone 'America/Denver')::date+15),
+  (-2203,'00000000-0000-4000-8000-000000002203',
+   'RRULE:FREQ=WEEKLY;INTERVAL=1;COUNT=3',-1005,
+   (now() at time zone 'America/Denver')::date+8,
    (now() at time zone 'America/Denver')::date+22);
 
 insert into public.events
@@ -120,11 +129,26 @@ values
   (-2024,'Mock: Full Capacity Workshop','Each Time Slot is full; there is no Event-wide Max volunteers limit.',(select id from public.event_types where name='Workshop'),'CCSB G.0208',(now() at time zone 'America/Denver')::date+12,(((now() at time zone 'America/Denver')::date+12+time '10:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+12+time '12:00') at time zone 'America/Denver'),'upcoming',null),
   (-2025,'Mock: Event Capacity Workshop','Unslotted Event with an Event-wide Max volunteers limit.',(select id from public.event_types where name='Workshop'),'CCSB G.0208',(now() at time zone 'America/Denver')::date+13,(((now() at time zone 'America/Denver')::date+13+time '10:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+13+time '12:00') at time zone 'America/Denver'),'upcoming',null),
   (-2030,'Mock: Weekly Coding Workshop','First occurrence of an independently slotted weekly Event.',(select id from public.event_types where name='Workshop'),'CCSB 1.0410',(now() at time zone 'America/Denver')::date+15,(((now() at time zone 'America/Denver')::date+15+time '16:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+15+time '18:00') at time zone 'America/Denver'),'upcoming',null),
-  (-2031,'Mock: Weekly Coding Workshop','Following occurrence owns its own slots and selections.',(select id from public.event_types where name='Workshop'),'CCSB 1.0410',(now() at time zone 'America/Denver')::date+22,(((now() at time zone 'America/Denver')::date+22+time '16:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+22+time '18:00') at time zone 'America/Denver'),'upcoming',null);
+  (-2031,'Mock: Weekly Coding Workshop','Following occurrence owns its own slots and selections.',(select id from public.event_types where name='Workshop'),'CCSB 1.0410',(now() at time zone 'America/Denver')::date+22,(((now() at time zone 'America/Denver')::date+22+time '16:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+22+time '18:00') at time zone 'America/Denver'),'upcoming',null),
+  (-2040,'Mock: Reminder Scope — All Occurrences','Synthetic recurring Event with shared reminder settings.',(select id from public.event_types where name='Workshop'),'CCSB 1.0410',(now() at time zone 'America/Denver')::date+8,(((now() at time zone 'America/Denver')::date+8+time '16:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+8+time '17:00') at time zone 'America/Denver'),'upcoming',null),
+  (-2041,'Mock: Reminder Scope — All Occurrences','Second occurrence shares the all-occurrences reminder settings.',(select id from public.event_types where name='Workshop'),'CCSB 1.0410',(now() at time zone 'America/Denver')::date+15,(((now() at time zone 'America/Denver')::date+15+time '16:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+15+time '17:00') at time zone 'America/Denver'),'upcoming',null),
+  (-2050,'Mock: Reminder Scope — This and Following','First occurrence keeps its own default reminders.',(select id from public.event_types where name='Session'),'CCSB G.0208',(now() at time zone 'America/Denver')::date+8,(((now() at time zone 'America/Denver')::date+8+time '17:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+8+time '18:00') at time zone 'America/Denver'),'upcoming',null),
+  (-2051,'Mock: Reminder Scope — This and Following','Following occurrences share customized reminders.',(select id from public.event_types where name='Session'),'CCSB G.0208',(now() at time zone 'America/Denver')::date+15,(((now() at time zone 'America/Denver')::date+15+time '17:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+15+time '18:00') at time zone 'America/Denver'),'upcoming',null),
+  (-2052,'Mock: Reminder Scope — This and Following','Following occurrences share customized reminders.',(select id from public.event_types where name='Session'),'CCSB G.0208',(now() at time zone 'America/Denver')::date+22,(((now() at time zone 'America/Denver')::date+22+time '17:00') at time zone 'America/Denver'),(((now() at time zone 'America/Denver')::date+22+time '18:00') at time zone 'America/Denver'),'upcoming',null);
 update public.events set recurrence_series_id=-2201,
   recurrence_key=(now() at time zone 'America/Denver')::date+15 where id=-2030;
 update public.events set recurrence_series_id=-2201,
   recurrence_key=(now() at time zone 'America/Denver')::date+22 where id=-2031;
+update public.events set recurrence_series_id=-2202,
+  recurrence_key=(now() at time zone 'America/Denver')::date+8 where id=-2040;
+update public.events set recurrence_series_id=-2202,
+  recurrence_key=(now() at time zone 'America/Denver')::date+15 where id=-2041;
+update public.events set recurrence_series_id=-2203,
+  recurrence_key=(now() at time zone 'America/Denver')::date+8 where id=-2050;
+update public.events set recurrence_series_id=-2203,
+  recurrence_key=(now() at time zone 'America/Denver')::date+15 where id=-2051;
+update public.events set recurrence_series_id=-2203,
+  recurrence_key=(now() at time zone 'America/Denver')::date+22 where id=-2052;
 update public.events set max_volunteers=3 where id=-2025;
 insert into public.event_branches (event_id, branch_id)
 values
@@ -149,7 +173,12 @@ values
   (-2024, (select id from public.branches where name = 'intro')),
   (-2025, (select id from public.branches where name = 'general')),
   (-2030, (select id from public.branches where name = 'icpc')),
-  (-2031, (select id from public.branches where name = 'icpc'));
+  (-2031, (select id from public.branches where name = 'icpc')),
+  (-2040, (select id from public.branches where name = 'icpc')),
+  (-2041, (select id from public.branches where name = 'icpc')),
+  (-2050, (select id from public.branches where name = 'intro')),
+  (-2051, (select id from public.branches where name = 'intro')),
+  (-2052, (select id from public.branches where name = 'intro'));
 
 insert into public.event_officers (event_id, officer_id)
 values
@@ -175,7 +204,9 @@ values
   (-2024, -1025), (-2024, -1026),
   (-2025, -1010),
   (-2030, -1006), (-2030, -1025),
-  (-2031, -1026);
+  (-2031, -1026),
+  (-2040, -1025), (-2041, -1025),
+  (-2050, -1010), (-2051, -1010), (-2052, -1010);
 
 insert into public.event_time_slots (id,event_id,starts_at,ends_at,capacity)
 values
@@ -351,6 +382,30 @@ values
 insert into public.point_transactions(officer_id,task_id,points,reason,award_type,created_by_officer_id)
 values (-1031,-8012,5,'Task completion: Refresh ICPC practice guide','task',-1006);
 
+-- Recurring reminder settings show the saved result of each edit scope:
+-- one occurrence, this-and-following occurrences, and all occurrences.
+insert into public.task_series
+  (id,request_key,recurrence_rule,created_by,starts_on,ends_on)
+values
+  (-2301,'00000000-0000-4000-8000-000000002301','RRULE:FREQ=WEEKLY;INTERVAL=1;COUNT=2',-1006,(now() at time zone 'America/Denver')::date+5,(now() at time zone 'America/Denver')::date+12),
+  (-2302,'00000000-0000-4000-8000-000000002302','RRULE:FREQ=WEEKLY;INTERVAL=1;COUNT=3',-1006,(now() at time zone 'America/Denver')::date+8,(now() at time zone 'America/Denver')::date+22),
+  (-2303,'00000000-0000-4000-8000-000000002303','RRULE:FREQ=WEEKLY;INTERVAL=1;COUNT=2',-1005,(now() at time zone 'America/Denver')::date+10,(now() at time zone 'America/Denver')::date+17);
+insert into public.tasks
+  (id,title,description,task_type,branch_id,due_date,points,approval_required,created_by,recurrence_series_id,recurrence_key)
+values
+  (-8301,'Mock: Reminder Scope — This Occurrence','Only this occurrence has a custom reminder.','Post',(select id from public.branches where name='icpc'),(now() at time zone 'America/Denver')::date+5,1,false,-1006,-2301,(now() at time zone 'America/Denver')::date+5),
+  (-8302,'Mock: Reminder Scope — This Occurrence','Following occurrence keeps the shared default reminder.','Post',(select id from public.branches where name='icpc'),(now() at time zone 'America/Denver')::date+12,1,false,-1006,-2301,(now() at time zone 'America/Denver')::date+12),
+  (-8303,'Mock: Reminder Scope — This and Following','First occurrence keeps the shared default reminder.','Post',(select id from public.branches where name='intro'),(now() at time zone 'America/Denver')::date+8,1,false,-1006,-2302,(now() at time zone 'America/Denver')::date+8),
+  (-8304,'Mock: Reminder Scope — This and Following','Selected and following occurrences share a custom reminder.','Post',(select id from public.branches where name='intro'),(now() at time zone 'America/Denver')::date+15,1,false,-1006,-2302,(now() at time zone 'America/Denver')::date+15),
+  (-8305,'Mock: Reminder Scope — This and Following','Selected and following occurrences share a custom reminder.','Post',(select id from public.branches where name='intro'),(now() at time zone 'America/Denver')::date+22,1,false,-1006,-2302,(now() at time zone 'America/Denver')::date+22),
+  (-8310,'Mock: Reminder Scope — All Occurrences','Every occurrence shares the same custom reminder.','Story',(select id from public.branches where name='social'),(now() at time zone 'America/Denver')::date+10,1,false,-1007,-2303,(now() at time zone 'America/Denver')::date+10),
+  (-8311,'Mock: Reminder Scope — All Occurrences','Every occurrence shares the same custom reminder.','Story',(select id from public.branches where name='social'),(now() at time zone 'America/Denver')::date+17,1,false,-1007,-2303,(now() at time zone 'America/Denver')::date+17);
+insert into public.task_officer_assignments(task_id,officer_id,assigned_by)
+values
+  (-8301,-1025,-1006),(-8302,-1025,-1006),
+  (-8303,-1010,-1006),(-8304,-1010,-1006),(-8305,-1010,-1006),
+  (-8310,-1017,-1007),(-8311,-1017,-1007);
+
 -- Academic-period scenarios are synthetic and fixed so the same four views
 -- remain available after every local reset. Ranges are inclusive and adjacent.
 insert into public.academic_periods (id,name,starts_on,ends_on)
@@ -419,5 +474,68 @@ values
   (-7202,-1102,-3102,4,'Demo: Spring task completion','task','2026-04-20 18:01-06',-1005),
   (-7203,-1103,-3103,2,'Demo: Summer task completion','task','2026-07-20 18:01-06',-1007),
   (-7204,-1104,-3104,5,'Demo: Fall task completion','task','2026-10-20 18:01-06',-1006);
+
+-- Issue #403: personal in-app history, audience configuration, shared
+-- reminders, and Dashboard action states. These fixtures remain synthetic.
+update public.tasks set due_time='15:00' where id=-8013;
+insert into public.event_notification_targets(event_id,all_active,branch_id,position_id)
+values
+  (-2010,false,(select id from public.branches where name='intro'),null),
+  (-2010,false,null,(select id from public.positions where code='lead')),
+  (-2012,true,null,null),
+  (-2030,false,null,(select id from public.positions where code='lead')),
+  (-2031,false,(select id from public.branches where name='icpc'),null),
+  (-2040,false,(select id from public.branches where name='icpc'),null),
+  (-2041,false,(select id from public.branches where name='icpc'),null),
+  (-2050,false,(select id from public.branches where name='intro'),null),
+  (-2051,false,(select id from public.branches where name='intro'),null),
+  (-2052,false,(select id from public.branches where name='intro'),null);
+insert into public.event_reminder_offsets(event_id,minutes_before)
+values (-2010,1440),(-2010,60),(-2012,120),(-2030,30),(-2031,1440);
+insert into public.event_reminder_offsets(event_id,minutes_before)
+values
+  (-2040,60),(-2041,60),
+  (-2050,1440),(-2050,60),(-2051,120),(-2052,120);
+insert into public.task_notification_targets(task_id,all_active,branch_id,position_id)
+values
+  (-8001,true,null,null),
+  (-8002,false,(select id from public.branches where name='general'),null),
+  (-8002,false,null,(select id from public.positions where code='officer')),
+  (-8003,false,null,(select id from public.positions where code='lead')),
+  (-8013,false,(select id from public.branches where name='icpc'),null),
+  (-8301,false,null,(select id from public.positions where code='officer')),
+  (-8302,false,null,(select id from public.positions where code='officer')),
+  (-8303,false,(select id from public.branches where name='intro'),null),
+  (-8304,false,(select id from public.branches where name='intro'),null),
+  (-8305,false,(select id from public.branches where name='intro'),null);
+insert into public.task_reminder_offsets(task_id,minutes_before)
+values (-8001,1440),(-8002,1440),(-8011,60),(-8011,15),(-8013,120);
+insert into public.task_reminder_offsets(task_id,minutes_before)
+values
+  (-8301,30),(-8302,1440),
+  (-8303,1440),(-8304,120),(-8305,120),
+  (-8310,60),(-8311,60);
+
+insert into public.notifications
+  (recipient_officer_id,kind,title,message,entity_type,entity_id,href,priority,created_at,read_at,reviewed_at,dedupe_key)
+values
+  (-1010,'event.created','New Event: Mock: Intro Hash Maps','Tomorrow · CCSB G.0208','event',-2010,'/events/-2010','important',now()-interval '2 minutes',null,null,'seed403:event.created:2010:1010'),
+  (-1010,'event.changed','Event updated: Mock: Intro Hash Maps','The date or location changed.','event',-2010,'/events/-2010','important',now()-interval '1 hour',now()-interval '55 minutes',null,'seed403:event.changed:2010:1010'),
+  (-1010,'event.signup','Event signup confirmed','Mock: Intro Hash Maps','event',-2010,'/events/-2010','confirmation',now()-interval '3 hours',now()-interval '2 hours',null,'seed403:event.signup:2010:1010'),
+  (-1010,'event.reminder','Event reminder: Mock: Intro Hash Maps','Tomorrow','event',-2010,'/events/-2010','important',now()-interval '4 hours',null,null,'seed403:event.reminder:2010:1010'),
+  (-1010,'task.assigned','Task assigned: Make intro flyer','You have a Task to complete.','task',-8001,'/tasks/-8001','important',now()-interval '5 hours',null,null,'seed403:task.assigned:8001:1010'),
+  (-1010,'task.reminder','Task reminder: Make intro flyer','Due soon','task',-8001,'/tasks/-8001','important',now()-interval '1 day',null,null,'seed403:task.reminder:8001:1010'),
+  (-1010,'point.changed','Points updated','5 Points','point',-4001,'/points','important',now()-interval '2 days',now()-interval '2 days',null,'seed403:point.changed:4001:1010'),
+  (-1010,'warning.changed','Warning updated','A Warning on your record changed.','warning',-3001,'/officers/-1010','important',now()-interval '3 days',null,null,'seed403:warning.changed:3001:1010'),
+  (-1027,'warning.changed','Warning removed','A Warning was removed from your record.','warning',-3010,'/officers/-1027','important',now()-interval '4 days',now()-interval '3 days',null,'seed403:warning.removed:3010:1027'),
+  (-1001,'warning.threshold','Officer reached 3 active Warnings','Review the Officer record.','warning',-3006,'/officers/-1015','important',now()-interval '1 day',null,null,'seed403:warning.threshold:3006:1001'),
+  (-1005,'task.completed','Task completed: Refresh ICPC practice guide','An Officer completed a Task for your Branch.','task',-8003,'/tasks/-8003','important',now()-interval '6 hours',null,null,'seed403:task.completed:8003:1005'),
+  (-1013,'task.changed','Task updated: Draft outreach recap','The Task details or due date changed.','task',-8011,'/tasks/-8011','important',now()-interval '7 hours',now()-interval '6 hours',null,'seed403:task.changed:8011:1013'),
+  (-1001,'event.cancelled','Event cancelled: Mock: Cancelled Meeting','The Event was cancelled.','event',-2005,'/events/-2005','important',now()-interval '10 days',null,null,'seed403:event.cancelled:2005:1001'),
+  (-1026,'point.changed','Points removed','2.5 Points','point',-4104,'/points','important',now()-interval '5 days',null,null,'seed403:point.removed:4104:1026'),
+  (-1010,'event.left','Event signup removed','Mock: Cancelled Meeting','event',-2005,'/events/-2005','confirmation',now()-interval '15 days',now()-interval '14 days',null,'seed403:event.left:2005:1010');
+
+update public.notifications set reviewed_at=read_at
+where dedupe_key='seed403:event.changed:2010:1010';
 
 commit;

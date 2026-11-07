@@ -21,19 +21,23 @@ import { createTask, editRecurringTask, editStandaloneTask } from "./actions";
 import { RecurrenceFields } from "@/components/recurrence-fields";
 import { TaskEventCombobox } from "@/components/task-event-combobox";
 import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
+import NotificationSettingsFields from "@/components/notification-settings-fields";
 
 export default function TaskCreateForm({
   returnTo,
   branches,
+  positions = [],
   taskTypes = [],
   events = [],
   taskEventIds = [],
   recurrenceRequestKey,
   task,
   series,
+  notificationSettings,
 }: {
   returnTo?: string;
   branches: { id: number; name: string }[];
+  positions?: { id: number; name: string }[];
   taskTypes?: { name: string }[];
   events?: {
     id: number;
@@ -46,6 +50,12 @@ export default function TaskCreateForm({
   recurrenceRequestKey: string;
   task?: Tables<"tasks">;
   series?: RecurrenceSeries;
+  notificationSettings?: {
+    allActive: boolean;
+    branchIds: number[];
+    positionIds: number[];
+    reminderOffsets: number[];
+  };
 }) {
   const [state, action, pending] = useActionState(
     task ? (series ? editRecurringTask : editStandaloneTask) : createTask,
@@ -262,6 +272,18 @@ export default function TaskCreateForm({
             </FieldError>
           </label>
           <label className={fieldLabelClassName}>
+            Due time (optional)
+            <input
+              name="due_time"
+              type="time"
+              defaultValue={submittedValue(
+                state.values,
+                "due_time",
+                task?.due_time?.slice(0, 5) ?? "",
+              )}
+            />
+          </label>
+          <label className={fieldLabelClassName}>
             Points
             <input
               name="points"
@@ -302,6 +324,16 @@ export default function TaskCreateForm({
           />
         </div>
       )}
+      <NotificationSettingsFields
+        branches={branches}
+        positions={positions}
+        isEvent={false}
+        values={state.values}
+        allActive={notificationSettings?.allActive}
+        selectedBranchIds={notificationSettings?.branchIds}
+        selectedPositionIds={notificationSettings?.positionIds}
+        reminderOffsets={notificationSettings?.reminderOffsets}
+      />
       <div className="col-span-2 flex flex-wrap items-start gap-4">
         {(state.error || state.success) && <ActionFeedback state={state} />}
         <button disabled={pending}>

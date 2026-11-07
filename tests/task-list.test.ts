@@ -1,6 +1,10 @@
 import { expect, it } from "vitest";
 import { organizeTaskList } from "@/lib/task-list";
-import { formatTaskDueDate } from "@/lib/presentation";
+import {
+  formatTaskDeadline,
+  formatTaskDueDate,
+  formatTaskDueTime,
+} from "@/lib/presentation";
 
 const task = (
   id: number,
@@ -94,4 +98,15 @@ it("formats Task due dates as concise Denver calendar dates without UTC shifts",
   expect(
     formatTaskDueDate("2026-01-01", new Date("2026-01-01T07:30:00Z")),
   ).toBe("Jan 1");
+});
+
+it("formats optional Task due times as local Denver clock times", () => {
+  const now = new Date("2026-10-05T06:00:00.000Z");
+
+  expect(formatTaskDueTime("09:05:00")).toBe("9:05 AM");
+  expect(formatTaskDueTime("16:30:00")).toBe("4:30 PM");
+  expect(formatTaskDeadline("2026-10-07", "16:30:00", now)).toBe(
+    "Oct 7 · 4:30 PM",
+  );
+  expect(formatTaskDeadline("2026-10-07", null, now)).toBe("Oct 7");
 });

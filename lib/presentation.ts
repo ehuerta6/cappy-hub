@@ -47,6 +47,27 @@ export function formatTaskDueDate(value: string, now = new Date()) {
     : formatted;
 }
 
+/** Format a SQL time without applying a timezone conversion to the clock time. */
+export function formatTaskDueTime(value: string) {
+  const match = /^(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/.exec(value);
+  if (!match) return value;
+  const [, hour, minute] = match;
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(2000, 0, 1, Number(hour), Number(minute))));
+}
+
+/** Format the Task's Denver calendar date and optional Denver wall-clock deadline. */
+export function formatTaskDeadline(
+  date: string,
+  time?: string | null,
+  now = new Date(),
+) {
+  return `${formatTaskDueDate(date, now)}${time ? ` · ${formatTaskDueTime(time)}` : ""}`;
+}
+
 export function formatEventFilterOption(name: string, eventDate: string) {
   return `${name} — ${formatCalendarDate(eventDate)}`;
 }

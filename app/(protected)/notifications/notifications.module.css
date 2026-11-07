@@ -1,0 +1,99 @@
+.page {
+  display: grid;
+  gap: 1rem;
+}
+
+.list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item,
+.empty {
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+
+.item {
+  overflow: hidden;
+}
+
+.unread {
+  border-color: var(--brand-border);
+  background: var(--surface-muted);
+}
+
+.open {
+  display: grid;
+  width: 100%;
+  gap: 0.4rem;
+  border: 0;
+  background: transparent;
+  padding: 0.9rem 1rem;
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+}
+
+.open:hover {
+  background: var(--hover);
+}
+
+.open:focus-visible,
+.pagination a:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.unreadLabel {
+  border-radius: 999px;
+  background: var(--brand-bg);
+  padding: 0.12rem 0.5rem;
+  color: var(--brand);
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.empty {
+  padding: 1.5rem;
+}
+
+.empty h2,
+.empty p {
+  margin: 0;
+}
+
+.empty p {
+  margin-top: 0.35rem;
+  color: var(--muted);
+}
+
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.pagination a {
+  color: var(--brand);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}

@@ -22,6 +22,11 @@ import {
 } from "@/lib/recurrence-mutation";
 import { recurrenceInput } from "@/lib/recurrence-validation";
 import {
+  readNotificationSettings,
+  saveTaskDueTime,
+  saveTaskNotificationSettings,
+} from "@/lib/notification-settings";
+import {
   bulkTaskAssignmentInputSchema,
   createTaskInputSchema,
   removeTaskAssignmentInputSchema,
@@ -37,6 +42,7 @@ const taskFormFields = [
   "task_type",
   "branch_id",
   "due_date",
+  "due_time",
   "points",
   "event_ids",
   "recurrence_frequency",
@@ -45,9 +51,18 @@ const taskFormFields = [
   "recurrence_end_mode",
   "recurrence_count",
   "recurrence_until",
+  "notification_all_active",
+  "notification_branches",
+  "notification_positions",
+  "reminder_offsets",
 ] as const;
 const taskFieldErrors = taskFormFields;
-const taskMultipleFields = ["recurrence_weekdays", "event_ids"] as const;
+const taskMultipleFields = [
+  "recurrence_weekdays",
+  "event_ids",
+  "notification_branches",
+  "notification_positions",
+] as const;
 
 function validatedTaskEventIds(formData: FormData) {
   return taskEventIdsSchema.safeParse(
@@ -81,6 +96,19 @@ export async function createTask(
     recurrence_count: formData.get("recurrence_count") ?? "12",
     recurrence_until: formData.get("recurrence_until") ?? "2099-12-31",
   };
+  const notificationSettings = readNotificationSettings(formData, [1440]);
+  if (!notificationSettings.success)
+    return formFailure(
+      notificationSettings.error.issues[0]?.message ??
+        "Review reminder settings",
+      formData,
+      taskFormFields,
+      undefined,
+      taskMultipleFields,
+    );
+  const dueTime = String(formData.get("due_time") ?? "");
+  if (dueTime && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(dueTime))
+    return formFailure("Enter a valid due time", formData, taskFormFields);
   const validationResult = createTaskInputSchema.safeParse(rawTaskInput);
   if (!validationResult.success)
     return validationFailure(
@@ -136,6 +164,27 @@ export async function createTask(
         undefined,
         taskMultipleFields,
       );
+    try {
+      await saveTaskNotificationSettings(
+        supabase,
+        data,
+        formData,
+        notificationSettings.data,
+      );
+      await saveTaskDueTime(supabase, data, formData);
+    } catch (settingsError) {
+      return formFailure(
+        mutationError(
+          settingsError instanceof Error
+            ? settingsError.message
+            : "Could not save Task notification settings",
+        ),
+        formData,
+        taskFormFields,
+        undefined,
+        taskMultipleFields,
+      );
+    }
     revalidatePath("/tasks");
     revalidatePath("/events/[id]", "page");
     redirect(withSuccessNotice(`/tasks#task-${data}`, "task-created"));
@@ -158,6 +207,27 @@ export async function createTask(
       undefined,
       taskMultipleFields,
     );
+  try {
+    await saveTaskNotificationSettings(
+      supabase,
+      data,
+      formData,
+      notificationSettings.data,
+    );
+    await saveTaskDueTime(supabase, data, formData);
+  } catch (settingsError) {
+    return formFailure(
+      mutationError(
+        settingsError instanceof Error
+          ? settingsError.message
+          : "Could not save Task notification settings",
+      ),
+      formData,
+      taskFormFields,
+      undefined,
+      taskMultipleFields,
+    );
+  }
   revalidatePath("/tasks");
   revalidatePath("/events/[id]", "page");
   redirect(withSuccessNotice(`/tasks#task-${data}`, "task-created"));
@@ -422,6 +492,19 @@ export async function editStandaloneTask(
       ["task_id", ...taskFormFields],
       taskMultipleFields,
     );
+  const notificationSettings = readNotificationSettings(form, [1440]);
+  if (!notificationSettings.success)
+    return formFailure(
+      notificationSettings.error.issues[0]?.message ??
+        "Review reminder settings",
+      form,
+      taskFormFields,
+      undefined,
+      taskMultipleFields,
+    );
+  const dueTime = String(form.get("due_time") ?? "");
+  if (dueTime && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(dueTime))
+    return formFailure("Enter a valid due time", form, taskFormFields);
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_task_details_with_events", {
     p_task_id: id.data.task_id,
@@ -438,6 +521,27 @@ export async function editStandaloneTask(
       "task_id",
       ...taskFormFields.slice(0, 6),
     ]);
+  try {
+    await saveTaskNotificationSettings(
+      supabase,
+      id.data.task_id,
+      form,
+      notificationSettings.data,
+    );
+    await saveTaskDueTime(supabase, id.data.task_id, form);
+  } catch (settingsError) {
+    return formFailure(
+      mutationError(
+        settingsError instanceof Error
+          ? settingsError.message
+          : "Could not save Task notification settings",
+      ),
+      form,
+      taskFormFields,
+      undefined,
+      taskMultipleFields,
+    );
+  }
   revalidatePath("/", "layout");
   revalidatePath("/events/[id]", "page");
   redirect(
@@ -484,6 +588,20 @@ export async function editRecurringTask(
       ["task_id", ...taskFieldErrors],
       taskMultipleFields,
     );
+  const notificationSettings = readNotificationSettings(form, [1440]);
+  if (!notificationSettings.success)
+    return formFailure(
+      notificationSettings.error.issues[0]?.message ??
+        "Review reminder settings",
+      form,
+      taskFormFields,
+      undefined,
+      taskMultipleFields,
+    );
+  const dueTime = String(form.get("due_time") ?? "");
+  if (dueTime && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(dueTime))
+    return formFailure("Enter a valid due time", form, taskFormFields);
+  const supabase = await createClient();
   try {
     const recurrenceForm = new FormData();
     for (const [name, value] of form.entries()) {
@@ -497,7 +615,6 @@ export async function editRecurringTask(
       "edit",
       validation.data,
     );
-    const supabase = await createClient();
     const eventLinksChanged = form
       .getAll("edited_fields")
       .includes("event_ids");
@@ -518,6 +635,27 @@ export async function editRecurringTask(
       recurrenceMutationError(error),
       form,
       ["task_id", ...taskFormFields],
+      undefined,
+      taskMultipleFields,
+    );
+  }
+  try {
+    await saveTaskNotificationSettings(
+      supabase,
+      id.data.task_id,
+      form,
+      notificationSettings.data,
+    );
+    await saveTaskDueTime(supabase, id.data.task_id, form);
+  } catch (settingsError) {
+    return formFailure(
+      mutationError(
+        settingsError instanceof Error
+          ? settingsError.message
+          : "Could not save Task notification settings",
+      ),
+      form,
+      taskFormFields,
       undefined,
       taskMultipleFields,
     );

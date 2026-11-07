@@ -16,7 +16,7 @@ import {
   TableFrame,
 } from "@/components/ui";
 import { ListPagination } from "@/components/list-pagination";
-import { formatLabel, formatTaskDueDate } from "@/lib/presentation";
+import { formatLabel, formatTaskDeadline } from "@/lib/presentation";
 import { currentDenverWeek } from "@/lib/current-denver-week";
 import { organizeTaskList } from "@/lib/task-list";
 import {
@@ -221,7 +221,7 @@ export default async function TasksPage({
                       </Link>
                     </td>
                     <td className="whitespace-nowrap">
-                      {formatTaskDueDate(task.due_date)}
+                      {formatTaskDeadline(task.due_date, task.due_time)}
                     </td>
                     <td>
                       <Badge tone="teal">{formatLabel(task.task_type)}</Badge>

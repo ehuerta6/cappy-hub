@@ -1,5 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
+vi.mock("server-only", () => ({}));
 vi.mock("@/lib/authorization", () => ({
   getAuthorizationContext: vi.fn(),
   canManageEvent: (
@@ -406,12 +407,17 @@ it("trims a free-entry location before the trusted Event RPC", async () => {
   } as never);
   const data = eventForm();
   data.set("location", "  CCSB   1.032  ");
+  rpc.mockResolvedValue({ data: 12, error: null });
   await saveEvent({ error: "", success: "" }, data);
   expect(rpc).toHaveBeenCalledWith(
     "save_event_with_capacity_and_time_slots",
     expect.objectContaining({ p_location: "CCSB   1.032" }),
   );
-  expect(rpc).toHaveBeenCalledTimes(1);
+  expect(rpc).toHaveBeenCalledTimes(2);
+  expect(rpc).toHaveBeenCalledWith(
+    "set_event_notification_settings",
+    expect.objectContaining({ p_event_id: 12 }),
+  );
 });
 
 it("rejects blank free-entry locations before calling a trusted Event RPC", async () => {

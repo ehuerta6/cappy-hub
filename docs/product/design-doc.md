@@ -14,6 +14,7 @@ This directory contains Cappy Hub’s canonical product contracts. These documen
 - [Warnings](warnings.md)
 - [Dashboard and internal Calendar](dashboard-calendar.md)
 - [Administration and audit history](administration-audit.md)
+- [Notifications and reminders](notifications.md)
 - [Recurrence and entity lifecycles](recurrence-lifecycles.md)
 - [Approved decisions and implementation status](planned-accepted.md)
 

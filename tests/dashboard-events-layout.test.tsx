@@ -207,10 +207,22 @@ const from = vi.fn((table: string) => {
             return event.ends_at <= String(args[1]);
           if (method === "eq" && args[0] === "status")
             return event.status === args[1];
+          if (method === "eq" && args[0] === "active_signup.officer_id")
+            return !event.event_officers.some(
+              (signup) =>
+                signup.officer_id === args[1] && signup.removed_at == null,
+            );
           if (method === "neq" && args[0] === "status")
             return event.status !== args[1];
           if (method === "is" && args[0] === "deleted_at")
             return event.deleted_at === args[1];
+          if (method === "is" && args[0] === "active_signup.removed_at")
+            return true;
+          if (method === "is" && args[0] === "active_signup")
+            return !event.event_officers.some(
+              (signup) =>
+                signup.officer_id === actor.id && signup.removed_at == null,
+            );
           return true;
         }),
       );
@@ -534,7 +546,15 @@ it("preserves all three summary metric values and the existing summary/activity 
     ["single", []],
   ]);
   expect(operations("events")).toEqual([
-    ["select", ["*,event_types(name),event_officers(officer_id,removed_at)"]],
+    [
+      "select",
+      [
+        "*,event_types(name),active_signup:event_officers!left(officer_id,removed_at)",
+      ],
+    ],
+    ["eq", ["active_signup.officer_id", actor.id]],
+    ["is", ["active_signup.removed_at", null]],
+    ["is", ["active_signup", null]],
     ["neq", ["status", "cancelled"]],
     ["is", ["deleted_at", null]],
     ["gt", ["starts_at", expect.any(String)]],
@@ -659,7 +679,7 @@ it("keeps main pages free of contextual navigation and shows the compact upcomin
   expect(html).toContain("Jan 1 · 5:00–6:00 AM");
 });
 
-it("shows a bounded upcoming-event preview with signup context and full-page links", async () => {
+it("shows a bounded upcoming-event preview of Events without an active signup", async () => {
   events = Array.from({ length: 12 }, (_, index) => ({
     ...upcoming,
     id: index + 1,
@@ -672,15 +692,13 @@ it("shows a bounded upcoming-event preview with signup context and full-page lin
     .split("</section>")[0];
   expect(list).toContain("<ul");
   expect(list.match(/<li\b/g)).toHaveLength(5);
-  expect(list).toContain('href="/events/5"');
-  expect(list).not.toContain('href="/events/6"');
-  expect(list).toContain("Signed up");
+  expect(list).toContain('href="/events/6"');
+  expect(list).not.toContain('href="/events/7"');
+  expect(list).not.toContain("Signed up");
   expect(list).toContain("Not signed up");
-  expect(list).toContain("Signed up");
-  expect(list).toContain("Not signed up");
-  expect(list).toContain("1 officer");
+  expect(list).toContain("0 officers");
   expect(list).toContain('href="/events"');
-  expect(countedEventIds).toEqual([1, 2, 3, 4, 5]);
+  expect(countedEventIds).toEqual([2, 3, 4, 5, 6]);
   expect(html).toContain('href="/points?view=history"');
   expect(html).not.toContain("<table");
   expect(html).toContain('data-page-width="wide"');

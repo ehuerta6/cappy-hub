@@ -1,14 +1,18 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
-const { pathState } = vi.hoisted(() => ({
-  pathState: { current: "/calendar", search: "" },
-}));
-
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/authorization", () => ({ getAuthorizationContext: vi.fn() }));
+vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/navigation", () => ({
   usePathname: () => pathState.current,
   useSearchParams: () => new URLSearchParams(pathState.search),
   useRouter: () => ({ push: vi.fn() }),
+  redirect: vi.fn(),
+}));
+
+const { pathState } = vi.hoisted(() => ({
+  pathState: { current: "/calendar", search: "" },
 }));
 
 import SiteNavigation from "@/components/site-navigation";
@@ -62,7 +66,9 @@ it("shows Calendar in the protected navigation and marks it active", () => {
   expect(html).toMatch(/aria-current="page"[^>]*href="\/calendar"/);
   expect(html).toContain(">Calendar</a>");
   expect(html).toMatch(/aria-current="page"[^>]*href="\/calendar"/);
-  expect(html).not.toContain("<details");
+  expect(html).toContain('aria-label="Notifications"');
+  expect(html).toContain("Recent notifications");
+  expect(html).toContain('href="/notifications"');
   expect(html).toContain('aria-label="Main navigation"');
   for (const href of [
     "/",

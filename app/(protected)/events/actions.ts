@@ -18,6 +18,10 @@ import {
   recurrenceMutationError,
 } from "@/lib/recurrence-mutation";
 import { recurrenceInput } from "@/lib/recurrence-validation";
+import {
+  readNotificationSettings,
+  saveEventNotificationSettings,
+} from "@/lib/notification-settings";
 import { revalidatePath } from "next/cache";
 import { withReturnTo } from "@/lib/return-context";
 import { withSuccessNotice } from "@/lib/mutation-feedback";
@@ -57,8 +61,18 @@ const eventFormFields = [
   "recurrence_end_mode",
   "recurrence_count",
   "recurrence_until",
+  "notification_all_active",
+  "notification_branches",
+  "notification_positions",
+  "reminder_offsets",
 ] as const;
 const eventFieldErrors = eventFormFields;
+const eventMultipleFields = [
+  "branches",
+  "recurrence_weekdays",
+  "notification_branches",
+  "notification_positions",
+] as const;
 const calendarSyncWarning =
   "Cappy Hub saved this Event, but Google Calendar could not be updated.";
 export async function saveEvent(
@@ -116,6 +130,16 @@ export async function saveEvent(
       ["branches", "recurrence_weekdays"],
     );
   const validatedEventInput = validationResult.data;
+  const notificationSettings = readNotificationSettings(formData, [1440, 60]);
+  if (!notificationSettings.success)
+    return formFailure(
+      notificationSettings.error.issues[0]?.message ??
+        "Review reminder settings",
+      formData,
+      eventFormFields,
+      undefined,
+      eventMultipleFields,
+    );
   const timeSlotsValidation = eventTimeSlotsInputSchema.safeParse(
     formData.get("time_slots"),
   );
@@ -200,6 +224,26 @@ export async function saveEvent(
           undefined,
           ["branches", "recurrence_weekdays"],
         );
+      try {
+        await saveEventNotificationSettings(
+          supabase,
+          validatedEventInput.id,
+          formData,
+          notificationSettings.data,
+        );
+      } catch (settingsError) {
+        return formFailure(
+          mutationError(
+            settingsError instanceof Error
+              ? settingsError.message
+              : "Could not save Event notification settings",
+          ),
+          formData,
+          eventFormFields,
+          undefined,
+          eventMultipleFields,
+        );
+      }
     } catch (error) {
       return formFailure(
         recurrenceMutationError(error),
@@ -310,6 +354,26 @@ export async function saveEvent(
         undefined,
         ["branches", "recurrence_weekdays"],
       );
+    try {
+      await saveEventNotificationSettings(
+        supabase,
+        data,
+        formData,
+        notificationSettings.data,
+      );
+    } catch (settingsError) {
+      return formFailure(
+        mutationError(
+          settingsError instanceof Error
+            ? settingsError.message
+            : "Could not save Event notification settings",
+        ),
+        formData,
+        eventFormFields,
+        undefined,
+        eventMultipleFields,
+      );
+    }
     revalidatePath("/", "layout");
     const eventIds = await recurringEventIdsFromFirstOccurrence(supabase, data);
     const synced = await syncGoogleCalendarEvents(eventIds ?? [data], supabase);
@@ -357,6 +421,26 @@ export async function saveEvent(
       undefined,
       ["branches", "recurrence_weekdays"],
     );
+  try {
+    await saveEventNotificationSettings(
+      supabase,
+      data,
+      formData,
+      notificationSettings.data,
+    );
+  } catch (settingsError) {
+    return formFailure(
+      mutationError(
+        settingsError instanceof Error
+          ? settingsError.message
+          : "Could not save Event notification settings",
+      ),
+      formData,
+      eventFormFields,
+      undefined,
+      eventMultipleFields,
+    );
+  }
   revalidatePath("/", "layout");
   const synced = await syncGoogleCalendarEvents([data], supabase);
   if (!synced)

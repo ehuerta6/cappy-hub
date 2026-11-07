@@ -54,7 +54,7 @@ Database test paths above are relative to `supabase/tests/database/` unless pref
 - Each Issue includes data preservation, trusted authorization, historical upgrade and meaningful regression requirements. Use synthetic local fixtures; never copy production data into development or deploy synthetic seeds.
 - Closed #180, #184, #185, #186 and #295 record earlier duplicate-award, lifecycle, catalog, Warning and Time Slot decisions. These new Issues intentionally supersede the conflicting policies; they do not reopen or erase those records. #29 remains the integration foundation.
 - Existing notification proposals in #267/#268 and #271–#276 remain outside this effort and are not dependencies of Presenter Slot retirement. #293 attendance check-in is separate, not a prerequisite. Officer lifecycle and last-Admin safeguards remain unchanged.
-- No generic lifecycle framework, notification subsystem, queue, or audit editing surface is approved. Task Types are the one explicitly approved additional manageable catalog; do not generalize it into a catalog framework. Reuse existing architecture and narrow vertical slices.
+- No generic lifecycle framework, queue, or audit editing surface is approved. The earlier notification proposals #267/#268 and #271–#276 remain outside this roadmap; the separate, newer [Issue #403](https://github.com/ehuerta6/cappy-hub/issues/403) explicitly approves a focused in-app notification and shared-reminder feature. Task Types are the one explicitly approved additional manageable catalog in this roadmap; do not generalize it into a catalog framework. Reuse existing architecture and narrow vertical slices.
 
 ## Owner-confirmed follow-up impact (2026-10-30)
 

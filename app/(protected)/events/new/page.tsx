@@ -30,7 +30,7 @@ export default async function NewEventPage({
   )
     redirect("/access-denied");
   const supabase = await createClient();
-  const [branches, eventTypes, locations] = await Promise.all([
+  const [branches, eventTypes, locations, positions] = await Promise.all([
     supabase
       .from("branches")
       .select("id,name")
@@ -46,8 +46,9 @@ export default async function NewEventPage({
       .select("id,name")
       .eq("is_active", true)
       .order("name"),
+    supabase.from("positions").select("id,name").order("name"),
   ]);
-  if (branches.error || eventTypes.error || locations.error)
+  if (branches.error || eventTypes.error || locations.error || positions.error)
     throw new Error("Failed to load event form");
   return (
     <div data-form-page="event" className="space-y-6">
@@ -71,6 +72,7 @@ export default async function NewEventPage({
                 actor.branchIds.includes(branch.id),
               )
         }
+        positions={positions.data}
         eventTypes={eventTypes.data}
         locations={locations.data}
       />
