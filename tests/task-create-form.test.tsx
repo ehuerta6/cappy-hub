@@ -68,8 +68,13 @@ it("keeps the task title compact and describes recurrence as optional", () => {
   expect(html).not.toContain("<legend>Repeat</legend>");
   expect(html).toContain('name="recurrence_frequency"');
   expect(html).toContain("Does not repeat");
+  expect(html).toContain("Task reminders");
+  expect(html).toContain("Remind me");
+  expect(html).toContain("day before");
+  expect(html).toContain('name="reminder_offsets" value="1440"');
+  expect(html).not.toContain("Reminder offsets, in minutes");
   expect(html).not.toContain('aria-label="Schedule preview"');
-  expect(html.match(/required=""/g)).toHaveLength(6);
+  expect(html.match(/required=""/g)).toHaveLength(7);
   for (const field of [
     "title",
     "description",
@@ -104,6 +109,7 @@ it("prefills an existing historical Event link when editing a Task", () => {
     task_type: "Flyer",
     branch_id: -1,
     due_date: "2026-10-20",
+    due_time: null,
     points: 1,
     approval_required: false,
     created_by: -2,
@@ -136,6 +142,7 @@ it("keeps a deleted type selected while offering only available choices", () => 
     task_type: "Legacy type",
     branch_id: -1,
     due_date: "2026-10-20",
+    due_time: null,
     points: 1,
     approval_required: false,
     created_by: -2,

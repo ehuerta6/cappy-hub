@@ -211,24 +211,37 @@
 }
 
 .actionStatusLabel {
+  display: inline-flex;
   max-width: 11rem;
-  overflow-wrap: anywhere;
-  color: var(--warning);
-  font-size: 0.75rem;
-  font-weight: 550;
+  min-height: 1.55rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  padding: 0.2rem 0.55rem;
+  color: var(--secondary);
+  font-size: 0.7rem;
+  font-weight: 600;
   text-align: right;
 }
 
-.actionStatusLabel[data-status="needs-approval"] {
-  color: var(--danger);
+.actionStatusLabel[data-status="needs-review"] {
+  border-color: var(--warning-border);
+  background: var(--warning-bg);
+  color: var(--warning);
 }
 
-.actionStatusLabel[data-status="in-progress"] {
+.actionStatusLabel[data-status="reminder-due"] {
+  border-color: var(--info-border);
+  background: var(--info-bg);
   color: var(--info);
 }
 
-.actionStatusLabel[data-status="open"] {
-  color: var(--warning);
+.actionStatusLabel[data-status="signed-up"] {
+  border-color: var(--success-border);
+  background: var(--success-bg);
+  color: var(--success);
 }
 
 .listFootnote {

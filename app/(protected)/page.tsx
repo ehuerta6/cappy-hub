@@ -1,14 +1,15 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import type { Route } from "next";
 import {
   formatCalendarDate,
   formatDate,
   formatEventSchedule,
+  formatTaskDueTime,
 } from "@/lib/presentation";
 import { requireCurrentOfficer } from "@/lib/current-officer";
 import { createClient } from "@/lib/supabase/server";
 import { displayPoints } from "@/lib/participation";
-import { participationLabel } from "@/lib/event-status";
 import { eventSignupCountLabel } from "@/lib/event-list";
 import { PageHeader, PointValue, SectionHeading } from "@/components/ui";
 import { loadDashboardActionItems } from "./dashboard-action-items";
@@ -174,7 +175,12 @@ export default async function DashboardPage({
       supabase.from("dashboard_summary").select("*").single(),
       supabase
         .from("events")
-        .select("*,event_types(name),event_officers(officer_id,removed_at)")
+        .select(
+          "*,event_types(name),active_signup:event_officers!left(officer_id,removed_at)",
+        )
+        .eq("active_signup.officer_id", officer.id)
+        .is("active_signup.removed_at", null)
+        .is("active_signup", null)
         .neq("status", "cancelled")
         .is("deleted_at", null)
         .gt("starts_at", new Date().toISOString())
@@ -198,10 +204,11 @@ export default async function DashboardPage({
       loadDashboardActionItems(supabase, officer),
     ],
   );
-  const countsResult = events.data?.length
+  const discoveryEvents = events.data ?? [];
+  const countsResult = discoveryEvents.length
     ? await supabase.rpc("event_signup_counts").in(
         "event_id",
-        events.data.map((event) => event.id),
+        discoveryEvents.map((event) => event.id),
       )
     : { data: [], error: null };
   const signupCounts = new Map(
@@ -287,29 +294,42 @@ export default async function DashboardPage({
             </Link>
           }
         />
-        {actionItems.unavailableSources.tasks ? (
+        {Object.values(actionItems.unavailableSources).some(Boolean) ? (
           <div className={styles.alertBox} role="alert">
-            <span>Task actions are unavailable. Reload to retry.</span>
+            <span>Some action items are unavailable. Reload to retry.</span>
             <span>Showing available items only.</span>
           </div>
-        ) : actionItems.items.length === 0 ? (
+        ) : null}
+        {actionItems.items.length === 0 ? (
           <div className={styles.emptyState}>
-            <p>You&apos;re all caught up.</p>
+            <p>
+              {Object.values(actionItems.unavailableSources).some(Boolean)
+                ? "Available action items may be incomplete. Reload to retry."
+                : "You’re all caught up."}
+            </p>
           </div>
         ) : (
           <ul className={styles.actionList}>
             {actionItems.items.map((item) => (
               <li key={item.key}>
-                <Link href={item.href} className={styles.actionRow}>
+                <Link href={item.href as Route} className={styles.actionRow}>
                   <span className={styles.actionMain}>
                     <span className={styles.actionTitle}>{item.title}</span>
                     <span className={styles.actionMeta}>
                       {item.dueDate ? (
                         <time dateTime={item.dueDate}>
                           {formatCalendarDate(item.dueDate)}
+                          {item.dueTime
+                            ? ` · ${formatTaskDueTime(item.dueTime)}`
+                            : ""}
                         </time>
+                      ) : item.reminder ? (
+                        <span>{item.reminder}</span>
                       ) : (
                         <span>Needs your attention</span>
+                      )}
+                      {item.dueDate && item.reminder && (
+                        <span aria-label="Reminder due"> · Reminder</span>
                       )}
                     </span>
                   </span>
@@ -326,8 +346,8 @@ export default async function DashboardPage({
         )}
         {actionItems.hasMore && (
           <p className={styles.listFootnote}>
-            Showing the first {DASHBOARD_PREVIEW_LIMIT} items. View Tasks for
-            the full list.
+            Showing the first {DASHBOARD_PREVIEW_LIMIT} items. Open the related
+            Event, Task, Points, or Officer record for details.
           </p>
         )}
       </section>
@@ -346,18 +366,13 @@ export default async function DashboardPage({
             <div className={styles.alertBox} role="alert">
               Upcoming events unavailable. Reload this page to retry.
             </div>
-          ) : !events.data.length ? (
+          ) : !discoveryEvents.length ? (
             <div className={styles.emptyState}>
               <p>No upcoming events.</p>
             </div>
           ) : (
             <ul className={styles.eventList}>
-              {events.data.map((event) => {
-                const isSignedUp = event.event_officers.some(
-                  (signup) =>
-                    signup.officer_id === officer.id &&
-                    signup.removed_at == null,
-                );
+              {discoveryEvents.map((event) => {
                 return (
                   <li key={event.id}>
                     <Link
@@ -382,14 +397,8 @@ export default async function DashboardPage({
                                 ),
                               })}
                         </span>
-                        <span
-                          className={
-                            isSignedUp
-                              ? styles.statusBlue
-                              : styles.statusNeutral
-                          }
-                        >
-                          {participationLabel(isSignedUp)}
+                        <span className={styles.statusNeutral}>
+                          Not signed up
                         </span>
                       </span>
                     </Link>

@@ -92,6 +92,133 @@
   gap: 0.45rem;
 }
 
+.notificationMenu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.notificationBell {
+  display: inline-flex;
+  min-height: 2.2rem;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+  padding: 0.3rem 0.5rem;
+  color: var(--foreground);
+  font-size: 0.76rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.notificationBell::-webkit-details-marker {
+  display: none;
+}
+
+.notificationBell:hover,
+.notificationBell:focus-visible {
+  background: var(--hover);
+}
+
+.notificationCount {
+  display: inline-grid;
+  min-width: 1.15rem;
+  min-height: 1.15rem;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--brand-bg);
+  color: var(--brand);
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.notificationPopover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  width: min(24rem, calc(100vw - 2rem));
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.7rem;
+  background: var(--surface);
+  box-shadow: 0 0.7rem 2rem rgb(0 0 0 / 0.28);
+}
+
+.notificationPopoverTitle,
+.allNotifications {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.75rem 0.85rem;
+  font-size: 0.8rem;
+}
+
+.notificationPopoverTitle a,
+.allNotifications {
+  color: var(--brand);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.notificationPreviewList {
+  max-height: 22rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notificationPreviewList li {
+  border-top: 1px solid var(--border);
+}
+
+.notificationPreviewButton {
+  display: grid;
+  width: 100%;
+  gap: 0.2rem;
+  border: 0;
+  background: transparent;
+  padding: 0.7rem 0.85rem;
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+}
+
+.notificationPreviewButton:hover {
+  background: var(--hover);
+}
+
+.notificationPreviewTitle,
+.notificationPreviewMessage {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.notificationPreviewTitle {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.notificationPreviewMessage,
+.notificationEmpty {
+  color: var(--muted);
+  font-size: 0.73rem;
+}
+
+.notificationEmpty {
+  margin: 0;
+  padding: 0.75rem 0.85rem;
+}
+
+.allNotifications {
+  justify-content: center;
+  border-top: 1px solid var(--border);
+}
+
 .account {
   display: flex;
   min-width: 0;

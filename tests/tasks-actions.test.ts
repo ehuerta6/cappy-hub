@@ -1,5 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
+vi.mock("server-only", () => ({}));
 vi.mock("@/lib/authorization", () => ({
   getAuthorizationContext: vi.fn(),
 }));
@@ -26,6 +27,18 @@ import {
 } from "@/app/(protected)/tasks/actions";
 
 const rpc = vi.fn();
+const from = vi.fn((table: string) => {
+  const query = {
+    select: () => query,
+    eq: () => query,
+    single: async () => ({
+      data:
+        table === "task_series" ? { revision: 2 } : { recurrence_series_id: 3 },
+      error: null,
+    }),
+  };
+  return query;
+});
 const taskForm = () => {
   const data = new FormData();
   data.set("title", " Flyer ");
@@ -42,7 +55,7 @@ const taskForm = () => {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getAuthorizationContext).mockResolvedValue({ id: 8 } as never);
-  vi.mocked(createClient).mockResolvedValue({ rpc } as never);
+  vi.mocked(createClient).mockResolvedValue({ rpc, from } as never);
   rpc.mockResolvedValue({ data: 9, error: null });
 });
 

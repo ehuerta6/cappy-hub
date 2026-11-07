@@ -200,6 +200,52 @@ export type Database = {
         };
         Relationships: [];
       };
+      event_notification_targets: {
+        Row: {
+          all_active: boolean;
+          branch_id: number | null;
+          event_id: number;
+          id: number;
+          position_id: number | null;
+        };
+        Insert: {
+          all_active?: boolean;
+          branch_id?: number | null;
+          event_id: number;
+          id?: never;
+          position_id?: number | null;
+        };
+        Update: {
+          all_active?: boolean;
+          branch_id?: number | null;
+          event_id?: number;
+          id?: never;
+          position_id?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_notification_targets_branch_id_fkey";
+            columns: ["branch_id"];
+            isOneToOne: false;
+            referencedRelation: "branches";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_notification_targets_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_notification_targets_position_id_fkey";
+            columns: ["position_id"];
+            isOneToOne: false;
+            referencedRelation: "positions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       event_officers: {
         Row: {
           event_id: number;
@@ -236,6 +282,29 @@ export type Database = {
             columns: ["officer_id"];
             isOneToOne: false;
             referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      event_reminder_offsets: {
+        Row: {
+          event_id: number;
+          minutes_before: number;
+        };
+        Insert: {
+          event_id: number;
+          minutes_before: number;
+        };
+        Update: {
+          event_id?: number;
+          minutes_before?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_reminder_offsets_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
             referencedColumns: ["id"];
           },
         ];
@@ -523,6 +592,69 @@ export type Database = {
             columns: ["recurrence_series_id"];
             isOneToOne: false;
             referencedRelation: "event_series";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      notifications: {
+        Row: {
+          created_at: string;
+          dedupe_key: string;
+          entity_id: number | null;
+          entity_type: string;
+          href: string;
+          id: number;
+          kind: string;
+          message: string;
+          priority: string;
+          read_at: string | null;
+          recipient_officer_id: number;
+          reviewed_at: string | null;
+          title: string;
+        };
+        Insert: {
+          created_at?: string;
+          dedupe_key: string;
+          entity_id?: number | null;
+          entity_type: string;
+          href: string;
+          id?: never;
+          kind: string;
+          message?: string;
+          priority?: string;
+          read_at?: string | null;
+          recipient_officer_id: number;
+          reviewed_at?: string | null;
+          title: string;
+        };
+        Update: {
+          created_at?: string;
+          dedupe_key?: string;
+          entity_id?: number | null;
+          entity_type?: string;
+          href?: string;
+          id?: never;
+          kind?: string;
+          message?: string;
+          priority?: string;
+          read_at?: string | null;
+          recipient_officer_id?: number;
+          reviewed_at?: string | null;
+          title?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notifications_recipient_officer_id_fkey";
+            columns: ["recipient_officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notifications_recipient_officer_id_fkey";
+            columns: ["recipient_officer_id"];
+            isOneToOne: false;
+            referencedRelation: "officers";
             referencedColumns: ["id"];
           },
         ];
@@ -965,6 +1097,52 @@ export type Database = {
           },
         ];
       };
+      task_notification_targets: {
+        Row: {
+          all_active: boolean;
+          branch_id: number | null;
+          id: number;
+          position_id: number | null;
+          task_id: number;
+        };
+        Insert: {
+          all_active?: boolean;
+          branch_id?: number | null;
+          id?: never;
+          position_id?: number | null;
+          task_id: number;
+        };
+        Update: {
+          all_active?: boolean;
+          branch_id?: number | null;
+          id?: never;
+          position_id?: number | null;
+          task_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "task_notification_targets_branch_id_fkey";
+            columns: ["branch_id"];
+            isOneToOne: false;
+            referencedRelation: "branches";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_notification_targets_position_id_fkey";
+            columns: ["position_id"];
+            isOneToOne: false;
+            referencedRelation: "positions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_notification_targets_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       task_officer_assignments: {
         Row: {
           approved_at: string | null;
@@ -1065,6 +1243,29 @@ export type Database = {
           },
         ];
       };
+      task_reminder_offsets: {
+        Row: {
+          minutes_before: number;
+          task_id: number;
+        };
+        Insert: {
+          minutes_before: number;
+          task_id: number;
+        };
+        Update: {
+          minutes_before?: number;
+          task_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "task_reminder_offsets_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       task_series: {
         Row: {
           created_at: string;
@@ -1152,6 +1353,7 @@ export type Database = {
           created_by: number;
           description: string;
           due_date: string;
+          due_time: string | null;
           id: number;
           points: number;
           recurrence_key: string | null;
@@ -1168,6 +1370,7 @@ export type Database = {
           created_by: number;
           description: string;
           due_date: string;
+          due_time?: string | null;
           id?: number;
           points: number;
           recurrence_key?: string | null;
@@ -1184,6 +1387,7 @@ export type Database = {
           created_by?: number;
           description?: string;
           due_date?: string;
+          due_time?: string | null;
           id?: number;
           points?: number;
           recurrence_key?: string | null;
@@ -1632,6 +1836,18 @@ export type Database = {
           event_id: number;
         }[];
       };
+      mark_notification_opened: {
+        Args: { p_notification_id: number };
+        Returns: undefined;
+      };
+      mark_notification_read: {
+        Args: { p_notification_id: number };
+        Returns: undefined;
+      };
+      mark_notifications_reviewed: {
+        Args: { p_entity_id: number; p_entity_type: string };
+        Returns: undefined;
+      };
       mutate_recurring_event: {
         Args: {
           p_dates?: string[];
@@ -1917,6 +2133,19 @@ export type Database = {
         Args: { p_id: number; p_is_active: boolean };
         Returns: undefined;
       };
+      set_event_notification_settings: {
+        Args: {
+          p_all_active: boolean;
+          p_branch_ids: number[];
+          p_event_id: number;
+          p_position_ids: number[];
+          p_reminder_offsets: number[];
+          p_scope?: string;
+          p_series_id?: number;
+          p_series_revision?: number;
+        };
+        Returns: undefined;
+      };
       set_officer_application_role: {
         Args: { p_officer_id: number; p_role: string };
         Returns: undefined;
@@ -1930,8 +2159,31 @@ export type Database = {
         Args: { p_completed: boolean; p_officer_id: number; p_task_id: number };
         Returns: undefined;
       };
+      set_task_due_time: {
+        Args: {
+          p_due_time: string;
+          p_scope?: string;
+          p_series_id?: number;
+          p_series_revision?: number;
+          p_task_id: number;
+        };
+        Returns: undefined;
+      };
       set_task_event_links: {
         Args: { p_event_ids: number[]; p_task_ids: number[] };
+        Returns: undefined;
+      };
+      set_task_notification_settings: {
+        Args: {
+          p_all_active: boolean;
+          p_branch_ids: number[];
+          p_position_ids: number[];
+          p_reminder_offsets: number[];
+          p_scope?: string;
+          p_series_id?: number;
+          p_series_revision?: number;
+          p_task_id: number;
+        };
         Returns: undefined;
       };
       update_point_transaction: {

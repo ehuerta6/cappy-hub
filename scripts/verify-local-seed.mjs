@@ -1,8 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 
-const PROJECT_ID = "cappy-hub";
-
 function run(args, options = {}) {
   const result = spawnSync("docker", args, {
     cwd: process.cwd(),
@@ -28,7 +26,8 @@ function run(args, options = {}) {
   return result.stdout ?? "";
 }
 
-const container = `supabase_db_${PROJECT_ID}`;
+const container =
+  process.env.CAPPY_TEST_DB_CONTAINER ?? "supabase_db_cappy-hub";
 const seed = await readFile("supabase/seed.sql", "utf8");
 
 console.log("Loading synthetic seed into disposable CI database...");
@@ -82,7 +81,20 @@ const output = run(
       "(select count(*) from public.task_officer_assignments where task_id=-8002 and completed_at is not null),",
       "(select count(*) from public.point_transactions where task_id=-8005 and officer_id=-1013 and award_type='task' and removed_at is null),",
       "(select count(*) from public.task_officer_assignments a where a.task_id=-8007 and a.completed_at is null",
-      "  and not exists (select 1 from public.point_transactions p where p.task_id=a.task_id and p.officer_id=a.officer_id and p.award_type='task'));",
+      "  and not exists (select 1 from public.point_transactions p where p.task_id=a.task_id and p.officer_id=a.officer_id and p.award_type='task')),",
+      "(select count(*) from public.notifications),",
+      "(select count(distinct kind) from public.notifications),",
+      "(select count(*) from public.event_notification_targets),",
+      "(select count(*) from public.task_notification_targets),",
+      "(select count(*) from public.event_reminder_offsets),",
+      "(select count(*) from public.task_reminder_offsets),",
+      "(select count(*) from public.tasks where due_time is not null),",
+      "(select count(*) from public.notifications where read_at is null),",
+      "(select count(*) from public.notifications where read_at is not null),",
+      "(select count(*) from public.notifications where recipient_officer_id=-1011),",
+      "(select count(*) from public.notifications where reviewed_at is not null),",
+      "(select count(*) from public.tasks where id between -8311 and -8301 and recurrence_series_id is not null),",
+      "(select count(distinct recurrence_series_id) from public.events where recurrence_series_id in (-2201,-2202,-2203));",
     ].join(" "),
   ],
   { capture: true },
@@ -109,6 +121,19 @@ const [
   completedInMultiTask,
   pastTaskAward,
   pastNotCompletedNoAward,
+  notifications,
+  notificationKinds,
+  eventAudienceRules,
+  taskAudienceRules,
+  eventReminders,
+  taskReminders,
+  tasksWithDueTime,
+  unreadNotifications,
+  readNotifications,
+  inactiveOfficerNotifications,
+  reviewedNotifications,
+  recurringTaskOccurrences,
+  recurringEventScopes,
 ] = output.split("|").map((value) => Number(value));
 
 if (
@@ -143,7 +168,26 @@ if (
     `Task seed verification failed: unassigned=${unassignedTask}, single=${singleOfficerTask}, multi=${multiOfficerTask}, completedInMulti=${completedInMultiTask}, pastAward=${pastTaskAward}, pastNotCompletedNoAward=${pastNotCompletedNoAward}`,
   );
 }
+if (
+  notifications < 15 ||
+  notificationKinds < 13 ||
+  eventAudienceRules < 5 ||
+  taskAudienceRules < 5 ||
+  eventReminders < 5 ||
+  taskReminders < 5 ||
+  tasksWithDueTime < 1 ||
+  unreadNotifications < 1 ||
+  readNotifications < 1 ||
+  reviewedNotifications < 1 ||
+  recurringTaskOccurrences !== 7 ||
+  recurringEventScopes !== 3 ||
+  inactiveOfficerNotifications !== 0
+) {
+  throw new Error(
+    `Notification seed verification failed: notifications=${notifications}, kinds=${notificationKinds}, eventAudiences=${eventAudienceRules}, taskAudiences=${taskAudienceRules}, eventReminders=${eventReminders}, taskReminders=${taskReminders}, tasksWithDueTime=${tasksWithDueTime}, unread=${unreadNotifications}, read=${readNotifications}, reviewed=${reviewedNotifications}, recurringTaskOccurrences=${recurringTaskOccurrences}, recurringEventScopes=${recurringEventScopes}, inactiveRecipient=${inactiveOfficerNotifications}`,
+  );
+}
 
 console.log(
-  `Synthetic seed verified: ${officers} officers, ${events} events, ${points} point transactions, ${warnings} warnings, ${timeSlots} Time Slots, ${slotSelections} slot selections; includes separate active and removed slot awards, equal and custom capacities, recurring occurrences, and the existing Task scenarios.`,
+  `Synthetic seed verified: ${officers} officers, ${events} events, ${points} point transactions, ${warnings} warnings, ${timeSlots} Time Slots, ${slotSelections} slot selections, ${notifications} notifications, and ${notificationKinds} notification kinds; includes active and removed slot awards, custom capacities, recurring Event/Task reminder scopes, and read/reviewed notification examples.`,
 );

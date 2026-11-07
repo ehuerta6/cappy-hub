@@ -6,7 +6,7 @@ Use this index to find the canonical contract, screen guidance, journey, or data
 
 - [Product & Technical Specification](product/design-doc.md) is the entry point for approved product requirements, terminology, status, permissions, and technical boundaries.
 - [Authorization](product/authorization.md), [Officers](product/officers.md), [Events](product/events.md), [Tasks](product/tasks.md), [Points](product/points.md), [Warnings](product/warnings.md), and [Dashboard and Calendar](product/dashboard-calendar.md) are the domain contracts.
-- [Administration and audit history](product/administration-audit.md), [recurrence and lifecycles](product/recurrence-lifecycles.md), [approved decisions and implementation status](product/planned-accepted.md), [domain model](product/domain-model.md), and [scope and architecture](product/scope-architecture.md) cover cross-domain rules.
+- [Administration and audit history](product/administration-audit.md), [notifications and reminders](product/notifications.md), [recurrence and lifecycles](product/recurrence-lifecycles.md), [approved decisions and implementation status](product/planned-accepted.md), [domain model](product/domain-model.md), and [scope and architecture](product/scope-architecture.md) cover cross-domain rules.
 
 ## Visual guidance and journeys
 

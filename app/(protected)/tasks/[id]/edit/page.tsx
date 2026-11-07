@@ -45,7 +45,16 @@ export default async function EditTaskPage({
   )
     notFound();
   if (!canManageEvent(actor, [task.data.branch_id])) redirect("/access-denied");
-  const [series, branches, links, eventOptions, taskTypes] = await Promise.all([
+  const [
+    series,
+    branches,
+    links,
+    eventOptions,
+    taskTypes,
+    positions,
+    notificationTargets,
+    reminderOffsets,
+  ] = await Promise.all([
     task.data.recurrence_series_id === null
       ? Promise.resolve({ data: null, error: null })
       : supabase
@@ -64,13 +73,26 @@ export default async function EditTaskPage({
       .select("name")
       .eq("available_for_new_tasks", true)
       .order("name"),
+    supabase.from("positions").select("id,name").order("name"),
+    supabase
+      .from("task_notification_targets")
+      .select("all_active,branch_id,position_id")
+      .eq("task_id", task.data.id),
+    supabase
+      .from("task_reminder_offsets")
+      .select("minutes_before")
+      .eq("task_id", task.data.id)
+      .order("minutes_before", { ascending: false }),
   ]);
   if (
     series.error ||
     branches.error ||
     links.error ||
     eventOptions.error ||
-    taskTypes.error
+    taskTypes.error ||
+    positions.error ||
+    notificationTargets.error ||
+    reminderOffsets.error
   )
     throw new Error("Failed to load Task edit form");
   const linkedIds = links.data.map(({ event_id }) => event_id);
@@ -88,7 +110,22 @@ export default async function EditTaskPage({
       <TaskCreateForm
         returnTo={returnTo}
         taskTypes={taskTypes.data}
+        positions={positions.data}
         task={task.data}
+        notificationSettings={{
+          allActive: notificationTargets.data.some(
+            (target) => target.all_active,
+          ),
+          branchIds: notificationTargets.data.flatMap((target) =>
+            target.branch_id === null ? [] : [target.branch_id],
+          ),
+          positionIds: notificationTargets.data.flatMap((target) =>
+            target.position_id === null ? [] : [target.position_id],
+          ),
+          reminderOffsets: reminderOffsets.data.map(
+            (row) => row.minutes_before,
+          ),
+        }}
         series={series.data ?? undefined}
         branches={branches.data.filter(
           (branch) => branch.is_active || branch.id === task.data.branch_id,

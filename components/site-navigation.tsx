@@ -4,11 +4,13 @@ import type { ReactNode } from "react";
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { Bell } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 import ThemeToggle from "@/components/theme-toggle";
 import AcademicPeriodSelector from "@/components/academic-period-selector";
 import type { AcademicPeriodData } from "@/lib/academic-periods";
 import styles from "./site-navigation.module.css";
+import { openNotification } from "@/app/(protected)/notifications/actions";
 
 const links = [
   { href: "/", label: "Dashboard" },
@@ -23,12 +25,24 @@ const adminLinks = [...links, { href: "/admin", label: "Admin" }] as const;
 export default function SiteNavigation({
   isAdmin,
   account,
+  recentNotifications,
+  unreadNotificationCount,
   academicPeriods = { periods: [], currentDate: "", currentPeriodId: null },
 }: {
   isAdmin: boolean;
   account: ReactNode;
+  recentNotifications?: {
+    id: number;
+    title: string;
+    message: string;
+    created_at: string;
+    read_at: string | null;
+  }[];
+  unreadNotificationCount?: number;
   academicPeriods?: AcademicPeriodData;
 }) {
+  recentNotifications ??= [];
+  unreadNotificationCount ??= 0;
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const periodQuery = searchParams.get("period");
@@ -74,6 +88,66 @@ export default function SiteNavigation({
           })}
         </nav>
         <div className={styles.controls}>
+          <details className={styles.notificationMenu}>
+            <summary
+              className={styles.notificationBell}
+              aria-label={`Notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ""}`}
+            >
+              <Bell aria-hidden="true" size={16} />
+              <span>Notifications</span>
+              {unreadNotificationCount > 0 && (
+                <span className={styles.notificationCount}>
+                  {unreadNotificationCount > 99
+                    ? "99+"
+                    : unreadNotificationCount}
+                </span>
+              )}
+            </summary>
+            <div className={styles.notificationPopover}>
+              <div className={styles.notificationPopoverTitle}>
+                <strong>Recent notifications</strong>
+                <Link href="/notifications">Inbox</Link>
+              </div>
+              {recentNotifications.length === 0 ? (
+                <p className={styles.notificationEmpty}>
+                  You’re all caught up.
+                </p>
+              ) : (
+                <ul className={styles.notificationPreviewList}>
+                  {recentNotifications.map((notification) => (
+                    <li key={notification.id}>
+                      <form action={openNotification}>
+                        <input
+                          type="hidden"
+                          name="notification_id"
+                          value={notification.id}
+                        />
+                        <button
+                          className={styles.notificationPreviewButton}
+                          type="submit"
+                        >
+                          <span className={styles.notificationPreviewTitle}>
+                            {!notification.read_at && (
+                              <span aria-label="Unread">• </span>
+                            )}
+                            {notification.title}
+                          </span>
+                          {notification.message && (
+                            <span className={styles.notificationPreviewMessage}>
+                              {notification.message}
+                            </span>
+                          )}
+                        </button>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Link className={styles.allNotifications} href="/notifications">
+                View all notifications
+              </Link>
+            </div>
+          </details>
           <AcademicPeriodSelector {...academicPeriods} />
           <ThemeToggle />
           <div className={styles.account}>{account}</div>

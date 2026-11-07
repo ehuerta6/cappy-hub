@@ -2,7 +2,8 @@ import { execFileSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
 
-const databaseContainer = "supabase_db_cappy-hub";
+const databaseContainer =
+  process.env.CAPPY_TEST_DB_CONTAINER ?? "supabase_db_cappy-hub";
 const concurrentFixtureId = -9821801;
 
 const psqlArgs = [
@@ -898,6 +899,8 @@ it("serializes concurrent recurring lifecycle requests using the series revision
         where delete_request_key in ('${firstRequest}','${restoreRequest}');
       delete from private.recurrence_lifecycle_mutations
         where request_key in ('${firstRequest}','${restoreRequest}');
+      delete from private.recurrence_mutations
+        where request_key in ('${firstRequest}','${secondRequest}','${restoreRequest}');
       delete from public.audit_logs where entity_id in ('${id}','${id - 1}')
         or details->>'event_id' in ('${id}','${id - 1}');
       delete from public.point_transactions where event_id in (${id},${id - 1});
@@ -905,6 +908,160 @@ it("serializes concurrent recurring lifecycle requests using the series revision
       delete from public.event_series where id=${id};
       delete from public.officers where id=${id};
       delete from auth.users where id='${actor}';
+    `);
+  }
+}, 30_000);
+
+it("locks recurring reminder settings in the same order as Event edits", async () => {
+  const seriesId = -333300;
+  const actor = "00000000-0000-4000-8000-000000333300";
+  const requestKey = "00000000-0000-4000-8000-000000333301";
+  const applicationName = "cappy-403-settings-lock-order";
+  runSql(`
+    insert into auth.users(id,email) values('${actor}','settings-lock-order@example.test');
+    insert into public.officers(id,name,utep_email,position_id,status,application_role,auth_user_id)
+      values(${seriesId},'Settings lock-order Admin','settings-lock-order@example.test',
+        (select id from public.positions where name='Officer'),'active','admin','${actor}');
+    insert into public.event_series(id,request_key,recurrence_rule,created_by,starts_on,ends_on)
+      values(${seriesId},'${requestKey}','RRULE:FREQ=DAILY;INTERVAL=1;COUNT=2',${seriesId},
+        current_date+2,current_date+3);
+    insert into public.events(id,name,description,location,event_type_id,event_date,starts_at,ends_at,status,
+      recurrence_series_id,recurrence_key)
+      select ${seriesId}-n,'Settings lock-order Event','Synthetic','Campus',
+        (select id from public.event_types where name='Meeting'),current_date+2+n,
+        (((current_date+2+n)+time '10:00') at time zone 'America/Denver'),
+        (((current_date+2+n)+time '11:00') at time zone 'America/Denver'),'upcoming',${seriesId},current_date+2+n
+      from generate_series(0,1) n;
+  `);
+  try {
+    const seriesEdit = startSql(`
+      begin;
+      select id from public.event_series where id=${seriesId} for update;
+      \\echo SETTINGS_SERIES_LOCKED
+      select pg_catalog.pg_sleep(3);
+      update public.events set name='Concurrent Settings Event' where id=${seriesId};
+      commit;
+    `);
+    await seriesEdit.waitFor("SETTINGS_SERIES_LOCKED");
+    const settingsEdit = startSql(`
+      begin;
+      select set_config('application_name','${applicationName}',true);
+      set local role authenticated;
+      select set_config('request.jwt.claim.sub','${actor}',true);
+      select public.set_event_notification_settings(${seriesId},false,'{}','{}','{120}',
+        'series',${seriesId},0);
+      commit;
+    `);
+    const waitDeadline = Date.now() + 15_000;
+    let blockedOnSeries = false;
+    while (!blockedOnSeries && Date.now() < waitDeadline) {
+      blockedOnSeries =
+        runSql(`select count(*) from pg_catalog.pg_stat_activity
+          where application_name='${applicationName}' and wait_event_type='Lock';`).trim() ===
+        "1";
+      if (!blockedOnSeries)
+        await new Promise((resolve) => setTimeout(resolve, 40));
+    }
+    expect(blockedOnSeries).toBe(true);
+    const [seriesResult, settingsResult] = await Promise.all([
+      seriesEdit.closed,
+      settingsEdit.closed,
+    ]);
+    expect(seriesResult.code, seriesResult.errors).toBe(0);
+    expect(settingsResult.code, settingsResult.errors).toBe(0);
+    expect(
+      runSql(`select count(*) from public.event_reminder_offsets
+        where event_id in (${seriesId},${seriesId - 1}) and minutes_before=120;`).trim(),
+    ).toBe("2");
+  } finally {
+    runSql(`
+      delete from public.notifications where entity_type='event'
+        and entity_id in (${seriesId},${seriesId - 1});
+      delete from public.audit_logs where entity_id in ('${seriesId}','${seriesId - 1}')
+        or details->>'event_id' in ('${seriesId}','${seriesId - 1}');
+      delete from public.events where recurrence_series_id=${seriesId};
+      delete from public.event_series where id=${seriesId};
+      delete from public.officers where id=${seriesId};
+      delete from auth.users where id='${actor}';
+    `);
+  }
+}, 30_000);
+
+it("serializes concurrent Warning creation at the three-warning threshold", async () => {
+  const officerId = -333400;
+  const leadId = -333401;
+  const firstAdminId = -333402;
+  const secondAdminId = -333403;
+  const firstActor = "00000000-0000-4000-8000-000000333402";
+  const secondActor = "00000000-0000-4000-8000-000000333403";
+  const applicationName = "cappy-403-warning-threshold";
+  runSql(`
+    insert into auth.users(id,email) values
+      ('${firstActor}','warning-threshold-admin-a@example.test'),
+      ('${secondActor}','warning-threshold-admin-b@example.test');
+    insert into public.officers(id,name,utep_email,position_id,status,application_role,auth_user_id)
+    values
+      (${officerId},'Warning threshold Officer','warning-threshold-target@example.test',
+        (select id from public.positions where name='Officer'),'active','officer',null),
+      (${leadId},'Warning threshold Lead','warning-threshold-lead@example.test',
+        (select id from public.positions where name='Lead'),'active','officer',null),
+      (${firstAdminId},'Warning threshold Admin A','warning-threshold-admin-a@example.test',
+        (select id from public.positions where name='Officer'),'active','admin','${firstActor}'),
+      (${secondAdminId},'Warning threshold Admin B','warning-threshold-admin-b@example.test',
+        (select id from public.positions where name='Officer'),'active','admin','${secondActor}');
+    insert into public.officer_warnings(officer_id,reason,status) values
+      (${officerId},'Existing warning one','approved'),
+      (${officerId},'Existing warning two','approved');
+  `);
+  try {
+    const firstCreation = startSql(`
+      begin;
+      select set_config('application_name','${applicationName}-a',true);
+      set local role authenticated;
+      select set_config('request.jwt.claim.sub','${firstActor}',true);
+      select public.create_warning(${officerId},'Concurrent warning A');
+      \\echo WARNING_CREATED_A
+      select pg_catalog.pg_sleep(2);
+      commit;
+    `);
+    await firstCreation.waitFor("WARNING_CREATED_A");
+    const secondCreation = startSql(`
+      begin;
+      select set_config('application_name','${applicationName}-b',true);
+      set local role authenticated;
+      select set_config('request.jwt.claim.sub','${secondActor}',true);
+      select public.create_warning(${officerId},'Concurrent warning B');
+      commit;
+    `);
+    const waitDeadline = Date.now() + 15_000;
+    let waitingForThresholdLock = false;
+    while (!waitingForThresholdLock && Date.now() < waitDeadline) {
+      waitingForThresholdLock =
+        runSql(`select count(*) from pg_catalog.pg_stat_activity
+          where application_name='${applicationName}-b' and wait_event_type='Lock';`).trim() ===
+        "1";
+      if (!waitingForThresholdLock)
+        await new Promise((resolve) => setTimeout(resolve, 40));
+    }
+    expect(waitingForThresholdLock).toBe(true);
+    const [firstResult, secondResult] = await Promise.all([
+      firstCreation.closed,
+      secondCreation.closed,
+    ]);
+    expect(firstResult.code, firstResult.errors).toBe(0);
+    expect(secondResult.code, secondResult.errors).toBe(0);
+    expect(
+      runSql(`select count(*) from public.notifications
+        where kind='warning.threshold' and recipient_officer_id=${leadId}
+          and href='/officers/${officerId}';`).trim(),
+    ).toBe("1");
+  } finally {
+    runSql(`
+      delete from public.officer_warnings where officer_id=${officerId};
+      delete from public.notifications where href='/officers/${officerId}';
+      delete from public.audit_logs where details->>'officer_id'='${officerId}';
+      delete from public.officers where id in (${officerId},${leadId},${firstAdminId},${secondAdminId});
+      delete from auth.users where id in ('${firstActor}','${secondActor}');
     `);
   }
 }, 30_000);

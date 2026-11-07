@@ -28,7 +28,7 @@ import {
   formatCalendarDate,
   formatDateTime,
   formatLabel,
-  formatTaskDueDate,
+  formatTaskDeadline,
 } from "@/lib/presentation";
 import { taskStatusFromCounts } from "@/lib/task-status";
 import Link from "next/link";
@@ -383,8 +383,8 @@ export default async function TaskDetailPage({
               <dd>
                 <BranchBadges branches={[task.branches.name]} />
               </dd>
-              <dt>Due date</dt>
-              <dd>{formatTaskDueDate(task.due_date)}</dd>
+              <dt>Due</dt>
+              <dd>{formatTaskDeadline(task.due_date, task.due_time)}</dd>
               <dt>Points</dt>
               <dd>
                 <PointValue value={task.points} />

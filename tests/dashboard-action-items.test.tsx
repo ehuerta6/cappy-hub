@@ -46,6 +46,7 @@ const task = (id: number, assignments = [assignment()], changes = {}) => ({
   id,
   title: `Task ${id}`,
   due_date: "2026-10-05",
+  due_time: null,
   task_officer_assignments: assignments,
   removed_at: null,
   ...changes,
@@ -60,6 +61,15 @@ const warning = (id: number, changes = {}) => ({
 });
 let tasks: ReturnType<typeof task>[];
 let warnings: ReturnType<typeof warning>[];
+let discoveryEventRows: {
+  id: number;
+  name: string;
+  event_date: string;
+  starts_at: string;
+  ends_at: string;
+  max_volunteers: number;
+  event_officers: { officer_id: number; removed_at: string | null }[];
+}[];
 let urls: URL[];
 let queryError: boolean;
 let failingTables: Set<string>;
@@ -78,6 +88,31 @@ const mockFetch = async (input: RequestInfo | URL) => {
     return Response.json({ active_officer_count: 12, half_year_points: 42 });
   if (table === "officer_point_totals")
     return Response.json({ total_points: 7 });
+  if (table === "events") {
+    const rows = discoveryEventRows
+      .filter(
+        (event) =>
+          !event.event_officers.some(
+            (signup) =>
+              signup.officer_id === actor.id && signup.removed_at === null,
+          ),
+      )
+      .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
+      .slice(0, Number(url.searchParams.get("limit")));
+    return Response.json(
+      rows.map(
+        ({ id, name, event_date, starts_at, ends_at, max_volunteers }) => ({
+          id,
+          name,
+          event_date,
+          starts_at,
+          ends_at,
+          max_volunteers,
+          active_signup: [],
+        }),
+      ),
+    );
+  }
   if (table !== "tasks" && table !== "officer_warnings")
     return Response.json([]);
   const source = table === "tasks" ? tasks : warnings;
@@ -137,6 +172,7 @@ beforeEach(() => {
   actor = { ...officer, branchIds: [...officer.branchIds] };
   tasks = [];
   warnings = [];
+  discoveryEventRows = [];
   urls = [];
   queryError = false;
   failingTables = new Set();
@@ -175,6 +211,141 @@ it("does not add manager approval tasks to the dashboard", async () => {
   expect(dashboardActionItems(actor, [managerTask]).items).toEqual([]);
 });
 
+it("shows an optional Task due time on its dashboard action item", () => {
+  const result = dashboardActionItems(actor, [
+    task(12, [assignment()], { due_time: "15:00:00" }),
+  ]);
+  expect(result.items[0]).toMatchObject({
+    dueDate: "2026-10-05",
+    dueTime: "15:00:00",
+  });
+});
+
+it("merges signed-up Events and their reminders into the personal action list", () => {
+  const result = dashboardActionItems(
+    actor,
+    [],
+    [
+      {
+        id: 42,
+        name: "Workshop",
+        event_date: "2026-11-08",
+        starts_at: "2026-11-08T18:00:00Z",
+      },
+    ],
+    [
+      {
+        id: 7,
+        title: "Event reminder: Workshop",
+        kind: "event.reminder",
+        entity_type: "event",
+        entity_id: 42,
+        href: "/events/42",
+        created_at: "2026-11-07T12:00:00Z",
+      },
+    ],
+  );
+
+  expect(result.items).toEqual([
+    expect.objectContaining({
+      key: "event:42",
+      title: "Workshop",
+      href: "/events/42",
+      status: "Reminder due",
+      reminder: "Reminder due",
+    }),
+  ]);
+});
+
+it("keeps important Event updates actionable without a signup row", () => {
+  const result = dashboardActionItems(
+    actor,
+    [],
+    [],
+    [
+      {
+        id: 70,
+        title: "New Event: Officer Meeting",
+        kind: "event.created",
+        entity_type: "event",
+        entity_id: 42,
+        href: "/events/42",
+        created_at: "2026-11-07T12:00:00Z",
+      },
+    ],
+  );
+
+  expect(result.items).toEqual([
+    expect.objectContaining({
+      key: "notification-event:42",
+      title: "New Event: Officer Meeting",
+      href: "/events/42",
+      status: "Needs review",
+    }),
+  ]);
+});
+
+it("keeps important Task updates actionable without an assignment row", () => {
+  const result = dashboardActionItems(
+    actor,
+    [],
+    [],
+    [
+      {
+        id: 71,
+        title: "Task completed: Update website",
+        kind: "task.completed",
+        entity_type: "task",
+        entity_id: 43,
+        href: "/tasks/43",
+        created_at: "2026-11-07T12:00:00Z",
+      },
+    ],
+  );
+
+  expect(result.items).toEqual([
+    expect.objectContaining({
+      key: "notification-task:43",
+      title: "Task completed: Update website",
+      href: "/tasks/43",
+      status: "Needs review",
+    }),
+  ]);
+});
+
+it("keeps Points and Warning updates actionable until reviewed", () => {
+  const result = dashboardActionItems(
+    actor,
+    [],
+    [],
+    [
+      {
+        id: 8,
+        title: "Points updated",
+        kind: "point.changed",
+        entity_type: "point",
+        entity_id: 4001,
+        href: "/points",
+        created_at: "2026-11-07T12:00:00Z",
+      },
+      {
+        id: 9,
+        title: "Warning updated",
+        kind: "warning.changed",
+        entity_type: "warning",
+        entity_id: 3001,
+        href: "/officers/8",
+        created_at: "2026-11-07T11:00:00Z",
+      },
+    ],
+  );
+
+  expect(result.items.map((item) => [item.title, item.href])).toEqual([
+    ["Warning updated", "/officers/8"],
+    ["Points updated", "/points"],
+  ]);
+});
+
 it("does not query or prompt for leadership Warning decisions, including legacy pending records", async () => {
   actor.applicationRole = "admin";
   warnings = [
@@ -189,7 +360,7 @@ it("does not query or prompt for leadership Warning decisions, including legacy 
   expect(html).not.toContain("Warning for Alex");
   expect(html).not.toContain("Needs decision");
   expect(html).not.toContain("View warning decisions");
-  expect(html).toContain("You&#x27;re all caught up.");
+  expect(html).toContain("You’re all caught up.");
 });
 
 it("orders personal Tasks by due date and ID", async () => {
@@ -215,7 +386,7 @@ it("caps the Task preview at five with a bounded source query", async () => {
   expect(section).toContain('href="/tasks/5"');
   expect(section).not.toContain('href="/tasks/6"');
   expect(section).toContain(
-    "Showing the first 5 items. View Tasks for the full list.",
+    "Showing the first 5 items. Open the related Event, Task, Points, or Officer record for details.",
   );
   for (const url of urls.filter((url) => url.pathname.endsWith("tasks"))) {
     expect(url.searchParams.get("limit")).toBe("6");
@@ -238,7 +409,7 @@ it("renders personal completion status with canonical links", async () => {
 
 it("keeps the empty state lightweight and preserves profile and summary content", async () => {
   const html = await render();
-  expect(html).toContain("You&#x27;re all caught up.");
+  expect(html).toContain("You’re all caught up.");
   expect(html).not.toContain("<ul");
   expect(html).not.toContain("<table");
   for (const label of [
@@ -261,6 +432,33 @@ it("keeps the empty state lightweight and preserves profile and summary content"
   );
 });
 
+it("filters signed-up Events before the five-item discovery limit", async () => {
+  discoveryEventRows = Array.from({ length: 6 }, (_, index) => ({
+    id: index + 1,
+    name: `Discovery Event ${index + 1}`,
+    event_date: "2026-11-10",
+    starts_at: `2026-11-${String(index + 10).padStart(2, "0")}T18:00:00Z`,
+    ends_at: `2026-11-${String(index + 10).padStart(2, "0")}T19:00:00Z`,
+    max_volunteers: 10,
+    event_officers:
+      index < 5 ? [{ officer_id: actor.id, removed_at: null }] : [],
+  }));
+
+  const html = await render();
+  const eventQuery = urls.find((url) => url.pathname.endsWith("/events"));
+
+  expect(eventQuery?.searchParams.get("limit")).toBe("5");
+  expect(eventQuery?.searchParams.get("active_signup.officer_id")).toBe(
+    `eq.${actor.id}`,
+  );
+  expect(eventQuery?.searchParams.get("active_signup.removed_at")).toBe(
+    "is.null",
+  );
+  expect(eventQuery?.searchParams.get("active_signup")).toBe("is.null");
+  expect(html).toContain("Discovery Event 6");
+  expect(html).not.toContain("Discovery Event 1");
+});
+
 it("preserves other Dashboard content when recent point activity is unavailable", async () => {
   failingTables.add("point_transactions");
   const html = await render();
@@ -279,9 +477,15 @@ it("reports Task source failures without a false empty-state success", async () 
     .split('aria-labelledby="action-items-title"')[1]
     .split("</section>")[0];
   expect(result.items).toEqual([]);
-  expect(result.unavailableSources).toEqual({ tasks: true });
-  expect(section).not.toContain("You&#x27;re all caught up.");
-  expect(section).toContain("Task actions are unavailable. Reload to retry.");
+  expect(result.unavailableSources).toEqual({
+    tasks: true,
+    events: false,
+    notifications: false,
+  });
+  expect(section).not.toContain("You’re all caught up.");
+  expect(section).toContain(
+    "Some action items are unavailable. Reload to retry.",
+  );
   expect(section).toContain("Showing available items only.");
   expect(section).not.toContain("Warning decisions");
 });
