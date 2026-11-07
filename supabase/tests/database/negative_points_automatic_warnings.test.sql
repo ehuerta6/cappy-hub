@@ -95,9 +95,10 @@ select is((select count(*) from officer_warnings where officer_id=-40202 and ori
 select is((select count(*) from officer_warnings where id=current_setting('test.auto_warning')::bigint and deleted_at is not null),1::bigint,
  'reconstituted group has a new Warning identity');
 
-select update_point_transaction((select id from point_transactions where officer_id=-40202 and reason='Third negative Point'),-2);
-select is((select points from point_transactions where officer_id=-40202 and reason='Third negative Point'),-2::numeric,
- 'an existing negative Point may be edited while remaining negative');
+select throws_ok($$select update_point_transaction((select id from point_transactions where officer_id=-40202 and reason='Third negative Point'),-2)$$,
+ '23514',null,'negative Point database constraint rejects changing its value below minus one');
+select is((select points from point_transactions where officer_id=-40202 and reason='Third negative Point'),-1::numeric,
+ 'a rejected negative Point edit leaves the transaction at exactly minus one');
 select throws_ok($$select update_point_transaction((select id from point_transactions where officer_id=-40202 and reason='Third negative Point'),1)$$,
  '23514',null,'negative Point database constraint prevents changing its sign');
 
@@ -150,10 +151,33 @@ insert into officer_warnings(officer_id,reason,status)
 values(-40204,'Transition warning three','pending');
 select set_config('test.pending_warning',(select id::text from officer_warnings
   where officer_id=-40204 and reason='Transition warning three'),true);
-update officer_warnings set status='approved' where id=current_setting('test.pending_warning')::bigint;
+insert into warning_approvals(warning_id,approver_id,approver_officer_id,approver_role)
+values(current_setting('test.pending_warning')::bigint,
+  '00000000-0000-4000-8000-000000040201',-40201,'President');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000040201',true);
+set local role authenticated;
+select lives_ok(format('select decide_warning(%s,''approved'')',current_setting('test.pending_warning')::bigint),
+ 'assigned approver can approve a historical pending Warning when it brings the active count to three');
+reset role;
 select is((select count(*) from notifications where kind='warning.threshold'
   and entity_id=current_setting('test.pending_warning')::bigint)>0,true,
- 'approving the third active Warning sends the leadership notice');
+ 'approving the third active Warning through the decision RPC sends the leadership notice');
+insert into officer_warnings(officer_id,reason,status)
+values(-40204,'Legacy pending Warning beyond the cap','pending');
+select set_config('test.over_limit_pending_warning',(select id::text from officer_warnings
+  where officer_id=-40204 and reason='Legacy pending Warning beyond the cap'),true);
+insert into warning_approvals(warning_id,approver_id,approver_officer_id,approver_role)
+values(current_setting('test.over_limit_pending_warning')::bigint,
+  '00000000-0000-4000-8000-000000040201',-40201,'President');
+set local role authenticated;
+select throws_ok(format('select decide_warning(%s,''approved'')',current_setting('test.over_limit_pending_warning')::bigint),
+ 'P0001','Officer already has 3 active Warnings',
+ 'legacy approval cannot bypass the three-active-Warning limit');
+reset role;
+select is((select status from officer_warnings where id=current_setting('test.over_limit_pending_warning')::bigint),'pending',
+ 'a rejected over-limit approval leaves the legacy Warning pending');
+select is((select decision from warning_approvals where warning_id=current_setting('test.over_limit_pending_warning')::bigint),'pending',
+ 'a rejected over-limit approval does not consume the approver decision');
 set local role authenticated;
 select delete_warning(current_setting('test.transition_warning')::bigint);
 select restore_warning(current_setting('test.transition_warning')::bigint);

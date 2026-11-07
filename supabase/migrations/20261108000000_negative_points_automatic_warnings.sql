@@ -159,7 +159,7 @@ alter table public.point_transactions
     or (award_type in ('manual','correction','negative') and task_id is not null and event_id is null)
   ),
   add constraint negative_point_shape_check check (
-    (award_type='negative' and points<0)
+    (award_type='negative' and points=-1)
     or (award_type<>'negative' and true)
   ),
   add constraint participation_positive_check check (
@@ -329,6 +329,68 @@ begin
   return saved_id;
 end;
 $$;
+
+-- Keep the legacy approval RPC inside the same serialized Warning-cap path as
+-- direct creation, automatic grouping, deletion, and restoration. Old pending
+-- Warning snapshots are still decidable, but cannot become a fourth active one.
+create or replace function private.decide_warning(p_warning_id bigint,p_decision text)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  warning public.officer_warnings;
+  approval public.warning_approvals;
+  actor_id bigint := private.current_active_officer_id();
+  target_officer_id bigint;
+  resulting_status text;
+begin
+  if actor_id is null then raise exception 'Unauthorized'; end if;
+  if p_decision is null or p_decision not in ('approved','rejected') then
+    raise exception 'Invalid warning decision';
+  end if;
+  select officer_id into target_officer_id from public.officer_warnings where id=p_warning_id;
+  if not found then raise exception 'Warning not found'; end if;
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('warning.threshold:'||target_officer_id::text,91));
+  perform 1 from public.officers where id=target_officer_id for update;
+  select * into warning from public.officer_warnings where id=p_warning_id for update;
+  if not found then raise exception 'Warning not found'; end if;
+  if warning.voided_at is not null then raise exception 'This warning is voided'; end if;
+  if warning.deleted_at is not null then raise exception 'This warning is deleted'; end if;
+  if warning.status<>'pending' then raise exception 'This warning is already closed'; end if;
+  select * into approval from public.warning_approvals
+    where warning_id=p_warning_id and approver_officer_id=actor_id for update;
+  if not found then raise exception 'You are not an approver for this warning'; end if;
+  if approval.decision<>'pending' then
+    raise exception 'This approval has already been decided'; end if;
+  update public.warning_approvals set decision=p_decision,decided_at=pg_catalog.now()
+    where warning_id=p_warning_id and approver_officer_id=actor_id;
+  if exists(select 1 from public.warning_approvals
+      where warning_id=p_warning_id and decision='rejected') then
+    resulting_status := 'rejected';
+  elsif not exists(select 1 from public.warning_approvals
+      where warning_id=p_warning_id and decision<>'approved') then
+    resulting_status := 'approved';
+  else
+    resulting_status := 'pending';
+  end if;
+  if resulting_status='approved' and
+     (select count(*) from public.officer_warnings w where w.officer_id=warning.officer_id
+       and w.id<>warning.id and w.status='approved'
+       and w.voided_at is null and w.deleted_at is null)>=3 then
+    raise exception 'Officer already has 3 active Warnings';
+  end if;
+  update public.officer_warnings set status=resulting_status where id=p_warning_id;
+  perform private.write_audit_log(
+    case when p_decision='approved' then 'warning.approved_by_approver'
+      else 'warning.rejected_by_approver' end,
+    'warning',p_warning_id::text,
+    pg_catalog.jsonb_build_object('warning_id',p_warning_id,
+      'officer_id',warning.officer_id,'approver_id',auth.uid(),
+      'approver_officer_id',actor_id,
+      'decision',p_decision,'status',resulting_status));
+end;
+$$;
+revoke all on function private.decide_warning(bigint,text) from public,anon,authenticated;
+grant execute on function private.decide_warning(bigint,text) to authenticated;
 
 -- The #403 notice threshold follows the active Warning definition: approved,
 -- not voided, and not deleted. Pending/rejected legacy rows do not count.
@@ -535,8 +597,6 @@ grant execute on function public.academic_period_point_summary(bigint) to authen
 
 -- Change signup only through the trusted existing RPC. A Time Slot signup is
 -- always a Volunteer; regular signup switches atomically between the choices.
-drop function public.change_event_signup(bigint,bigint,boolean);
-drop function private.change_event_signup(bigint,bigint,boolean);
 create or replace function private.change_event_signup(
   p_event_id bigint,p_officer_id bigint,p_remove boolean,p_participation_type text
 ) returns boolean language plpgsql security definer set search_path = '' as $$
@@ -654,23 +714,23 @@ $$;
 revoke all on function public.change_event_signup(bigint,bigint,boolean,text) from public,anon,authenticated;
 grant execute on function public.change_event_signup(bigint,bigint,boolean,text) to authenticated;
 
-create function public.change_event_signup(p_event_id bigint,p_officer_id bigint,p_remove boolean default false)
-returns void language sql security invoker set search_path = '' as $$
-  select public.change_event_signup($1,$2,$3,'volunteer')
+create or replace function public.change_event_signup(p_event_id bigint,p_officer_id bigint,p_remove boolean default false)
+returns void language plpgsql security invoker set search_path = '' as $$
+begin
+  perform public.change_event_signup($1,$2,$3,'volunteer');
+end;
 $$;
 revoke all on function public.change_event_signup(bigint,bigint,boolean) from public,anon,authenticated;
 grant execute on function public.change_event_signup(bigint,bigint,boolean) to authenticated;
 
 -- Existing Time Slot helpers call the private three-argument form; preserve
 -- that internal contract and make those signups Volunteers by definition.
-create function private.change_event_signup(p_event_id bigint,p_officer_id bigint,p_remove boolean)
-returns boolean language plpgsql security definer set search_path = '' as $$
-declare result boolean;
+create or replace function private.change_event_signup(p_event_id bigint,p_officer_id bigint,p_remove boolean)
+returns void language plpgsql security definer set search_path = '' as $$
 begin
   perform pg_catalog.set_config('cappy.time_slot_signup','on',true);
-  result:=private.change_event_signup($1,$2,$3,'volunteer');
+  perform private.change_event_signup($1,$2,$3,'volunteer');
   perform pg_catalog.set_config('cappy.time_slot_signup','off',true);
-  return result;
 end;
 $$;
 revoke all on function private.change_event_signup(bigint,bigint,boolean) from public,anon,authenticated;
