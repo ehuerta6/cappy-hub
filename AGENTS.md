@@ -47,6 +47,7 @@ When a workflow applies, read its `SKILL.md` before performing that workflow.
 Before changing established product behavior, inspect `knowledge/README.md` and search only for task-relevant decisions; follow canonical links and keep the source precedence above. For Cappy Hub capability discovery, slice maintenance, or coverage audits, use `.agents/skills/cappy-knowledge/SKILL.md` alongside the reusable `project-knowledge` workflow. At delivery, consider only genuinely new verified context that belongs in `knowledge/`; add capability entries only for behavior shipped on `main` or historical workflows needed to explain current records. Skip notes when a canonical source already owns it.
 
 - unresolved product or technical decisions → `.agents/skills/grill-me/SKILL.md`
+- planning dependencies and execution batches across existing GitHub Issues → `.agents/skills/issue-flow/SKILL.md`
 - resolved decisions needing a durable feature specification → `.agents/skills/to-spec/SKILL.md`
 - approved work needing GitHub Issues → `.agents/skills/to-issues/SKILL.md`
 - implementing one approved Issue → `.agents/skills/implement-issue/SKILL.md`
@@ -76,6 +77,13 @@ Project-specific requirements, repository documentation, and explicit user decis
 - Before considering meaningful implementation complete, verify the requested behavior, run the applicable repository checks, and inspect the final diff for unintended changes.
 - Do not merge unless explicitly authorized.
 - Keep the application and its documentation understandable for future CIC officers.
+
+## Documentation maintenance
+
+- Keep evergreen documentation free of editorial creation/last-updated dates and date-stamped filenames. Preserve dates that define product behavior, migration identity, or necessary historical evidence.
+- Track active plans and execution status in GitHub Issues and Pull Requests, not temporary plan documents in the repository.
+- After implementation, remove task-specific plans and execution notes unless they contain unique approved decisions, constraints, or evidence; move only that durable context into its canonical source or `knowledge/` first.
+- Do not remove an authoritative source or unique historical evidence just because it is old. Check its owner, references, and continuing use before pruning it.
 
 ## Testing policy
 

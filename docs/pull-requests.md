@@ -1,13 +1,15 @@
 # Pull Requests
 
-Every Pull Request should explain:
+Every Pull Request should begin with a plain-language `## Description` that explains what changed, why, and the result. Keep it short enough to understand the scope at a glance, then explain:
 
 - The problem it solves
 - What changed
-- How it was tested
+- The related Issue
+- Documentation impact, including why no update was needed when applicable
+- Checks performed and their outcomes, or why a relevant check was not run
 - Important implementation decisions
 
-Use the repository's [Pull Request template](../.github/PULL_REQUEST_TEMPLATE.md). Confirm whether the database changes; if yes, include a migration and briefly describe changes to schema, RLS, RPCs, or other database behavior. Mark the checks you ran and report their outcomes.
+Use the repository's [Pull Request template](../.github/PULL_REQUEST_TEMPLATE.md). Confirm whether the database changes; if yes, include a migration and briefly describe changes to schema, RLS, RPCs, or other database behavior. Report each relevant check's outcome. GitHub Actions remains the source of truth for hosted check status; template entries are not evidence that CI passed.
 
 Include screenshots when they help reviewers understand a UI change.
 

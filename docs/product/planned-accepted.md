@@ -4,7 +4,7 @@ This reference records approved product direction, implementation progress, and 
 
 ## Administrative simplification — Issue #325 (approved 2026-10-29)
 
-**Approved direction; delivered portions are identified below.** [#325](https://github.com/ehuerta6/cappy-hub/issues/325) records the maintainer's confirmed decisions. These decisions set the target for the Event, Task, Points, Warning, and lifecycle contracts and supersede the earlier Cancel/Archive mirror direction in #29. Domain references describe current repository behavior and distinguish accepted direction where work remains. The [implementation roadmap](administrative-simplification.md) records conflicts, dependencies, and verification gates.
+**Approved direction; delivered portions are identified below.** [#325](https://github.com/ehuerta6/cappy-hub/issues/325) records the maintainer's confirmed decisions. These decisions set the target for the Event, Task, Points, Warning, and lifecycle contracts and supersede the earlier Cancel/Archive mirror direction in #29. Domain references describe current repository behavior and distinguish accepted direction where work remains. GitHub Issues and PRs retain implementation dependencies, delivery status, and verification history.
 
 #### Purpose and principles
 

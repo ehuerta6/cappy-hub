@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Cappy Hub documentation
+    url: https://github.com/ehuerta6/cappy-hub/tree/main/docs
+    about: Check product, contributor, and development guidance before opening an Issue.

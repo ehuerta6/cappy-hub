@@ -107,7 +107,11 @@ Ask for approval when the user has not already explicitly authorized creating th
 
 Create blockers before dependent issues so dependency references can use real issue numbers.
 
-Use this structure:
+Use this structure, with the description as the first section after the title:
+
+## Description
+
+In a few natural sentences, explain what should change, why it matters, and the intended result or scope. Keep it clear and easy to scan; do not make readers infer the goal from the acceptance criteria.
 
 ## Parent
 
@@ -133,6 +137,8 @@ Use `None` when the issue can start immediately.
 Include only implementation constraints or decisions needed to preserve the spec.
 
 Omit this section when unnecessary.
+
+For Issues created through GitHub Issue Forms, make the first submitted field `Description` and keep it in plain, natural language. GitHub renders its generated heading as `### Description`; Markdown-only form fields are not submitted. Capture the need and result without requiring contributors to prescribe implementation details.
 
 ### 8. Connect the graph
 

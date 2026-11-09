@@ -18,7 +18,7 @@ Use this index to find the canonical contract, screen guidance, journey, or data
 - [Database reference](database/README.md) summarizes core entities and relationships. `supabase/migrations/` remains authoritative for database behavior; `lib/database.types.ts` is generated evidence.
 - [High-level architecture](architecture.md) describes application boundaries.
 - [Database development](database-development.md), [local development](local-development.md), [development workflow](development-workflow.md), [pull requests](pull-requests.md), and [maintainers](maintainers.md) retain their operational ownership.
-- [Recurring series](recurring-series.md), [Google Calendar](google-calendar.md), and [administrative simplification](product/administrative-simplification.md) keep their focused responsibilities.
+- [Recurring series](recurring-series.md) and [Google Calendar](google-calendar.md) keep their focused operational responsibilities.
 
 ## Authority and maintenance
 

@@ -126,7 +126,11 @@ Do not use production data for development or testing.
 
 Schema changes must be reproducible through migrations.
 
-### 6. Verify acceptance criteria
+### 6. Check documentation impact
+
+For each changed behavior or maintained procedure, identify its owning canonical document. Update that source when approved behavior or operational guidance changes. Update navigation only when the available paths change. Keep `knowledge/` complementary to canonical sources and update only the affected capability entries or slices. If no documentation update is needed, record a brief reason in the Pull Request.
+
+### 7. Verify acceptance criteria
 
 Before considering implementation complete:
 
@@ -144,7 +148,7 @@ When database behavior changed, also perform the applicable checks defined by `d
 
 Do not claim any command or check passed unless it actually ran successfully.
 
-### 7. Review the final diff
+### 8. Review the final diff
 
 Inspect the complete diff.
 
@@ -168,7 +172,7 @@ Remove unrelated changes before delivery.
 
 If additional work is discovered that is useful but outside the Issue, report it separately rather than silently implementing it.
 
-### 8. Prepare delivery
+### 9. Prepare delivery
 
 Use `github-flow` for Git and GitHub delivery tasks. Follow the repository's current development, Pull Request, validation, and database documentation for Cappy Hub conventions.
 
