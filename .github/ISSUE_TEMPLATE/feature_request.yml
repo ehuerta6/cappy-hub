@@ -1,0 +1,28 @@
+name: Feature or workflow request
+description: Propose a change to a Cappy Hub workflow or capability.
+title: "feat: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: In a few natural sentences, explain what should change, why it matters, and the intended result or scope. Describe the need; you do not need to prescribe an implementation.
+      placeholder: Describe the request and intended result in your own words.
+    validations:
+      required: true
+  - type: textarea
+    id: users
+    attributes:
+      label: Who and which workflow does this affect?
+      description: Include the people and workflow involved, if known.
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Helpful context
+      description: Add examples, screenshots, constraints, or related Issues.
+    validations:
+      required: false

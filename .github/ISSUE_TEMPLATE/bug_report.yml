@@ -1,0 +1,29 @@
+name: Bug report
+description: Report behavior that does not work as intended.
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: In a few natural sentences, explain what happened, what you expected, and the result you need. Keep the scope clear; you do not need to prescribe an implementation.
+      placeholder: Describe the issue and intended result in your own words.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How can someone see this?
+      description: Include the steps and relevant page or workflow, if known.
+      placeholder: 1. Open… 2. Choose… 3. Observe…
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Helpful context
+      description: Add relevant screenshots, error messages, or other details.
+    validations:
+      required: false

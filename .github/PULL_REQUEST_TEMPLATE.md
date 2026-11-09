@@ -1,37 +1,38 @@
-## Summary
+## Description
 
-Briefly explain what this Pull Request changes and why.
+In a few natural sentences, explain what changed, why it changed, and the result. Make the scope easy to understand before the reader gets to the details below.
+
+## Related Issue
+
+#123 <!-- Use "Closes #123" when this PR completes the Issue. -->
 
 ## Changes
 
 -
--
 
-## Testing
+## Documentation impact
 
-How did you verify the change?
+- [ ] Updated the owning documentation: <!-- link the file(s) -->
+- [ ] No documentation change was needed because: <!-- explain briefly -->
 
-- [ ] `npm run lint`
-- [ ] `npm run format:check`
-- [ ] `npm run typecheck`
-- [ ] `npm test`
-- [ ] `npm run build`
+## Checks
 
-## Database Changes
+Report the outcome for each check you ran. GitHub Actions is the source of truth for hosted check status; these notes are not proof that CI passed.
 
-Does this PR change the database?
+| Check                                                                          | Outcome (passed / failed / not run) | Reason if not run |
+| ------------------------------------------------------------------------------ | ----------------------------------- | ----------------- |
+| `npm run lint`                                                                 |                                     |                   |
+| `npm run format:check`                                                         |                                     |                   |
+| `npm run typecheck`                                                            |                                     |                   |
+| `npm test`                                                                     |                                     |                   |
+| `npm run build`                                                                |                                     |                   |
+| Other relevant checks (for example, migration/upgrade or database type checks) |                                     |                   |
 
-- [ ] No
-- [ ] Yes — migration included
+## Database impact
 
-If yes, briefly explain the migration:
-
-<!-- Describe the schema, RLS, RPC, or database behavior change here. -->
+- Does this change the database? <!-- Yes / No -->
+- If yes, describe the migration and any schema, RLS, RPC, or other database behavior changes:
 
 ## Screenshots
 
-<!-- Add screenshots for UI changes when useful. Delete this section if not applicable. -->
-
-## Notes
-
-<!-- Anything reviewers should know? Delete this section if not applicable. -->
+<!-- Add screenshots when they help reviewers understand a UI change; remove this section when not applicable. -->

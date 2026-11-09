@@ -24,8 +24,12 @@ This scenario checks retrieval and selective capture. Documentation changes alon
 
 ## Issue hygiene
 
-Before opening an Issue, search both open and closed Issues for the same requirement. Extend the canonical open Issue when the scope is genuinely the same. Create a new Issue when the requirement can be implemented independently or intentionally changes a settled product decision. Keep one canonical Issue responsible for one implementation scope.
+Before opening an Issue, search both open and closed Issues for the same requirement. Extend the canonical open Issue when the scope is genuinely the same. Create a new Issue when the requirement can be implemented independently or intentionally changes a settled product decision. Keep one canonical Issue responsible for one implementation scope. Start its body with a short, natural-language Description of what should change, why, and the intended result; contributors should describe the need without prescribing implementation details. GitHub Issue Forms render the field as a `### Description` heading.
 
 For a true duplicate, close the duplicate with GitHub's duplicate reason when available and link the canonical Issue. Keep one acceptance-criteria list rather than maintaining parallel lists. When a newer decision supersedes an older one, leave the older Issue closed as historical evidence; link the newer Issue where practical and state which decision it supersedes.
 
 After accepted behavior is implemented, update the Product & Technical Specification when it materially changes product behavior. Keep `docs/design.md` focused on visual and UI guidance; it does not define product semantics. The active Issue is the implementation boundary. Surface unrelated work separately instead of bundling nearby cleanup.
+
+Use the `to-issues` workflow to break an approved specification into focused, connected Issues, and the optional `issue-flow` workflow when planning batches across existing Issues. Neither replaces GitHub as the source of truth for scope and dependencies; keep each implementation bounded by its own Issue.
+
+Keep long-lived documentation evergreen: do not add editorial creation or last-updated dates, or date-stamped filenames. Track active plans and progress in Issues and PRs. After delivery, remove task-specific plans from the repository unless they contain unique approved decisions or evidence; move only durable context to its canonical document or `knowledge/`. Preserve dates that are part of product behavior or necessary historical evidence.

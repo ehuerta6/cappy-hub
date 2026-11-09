@@ -23,7 +23,7 @@ This directory contains Cappy Hub’s canonical product contracts. These documen
 - [Visual and interaction guidance](../design.md)
 - [User journeys](../user-journeys/README.md)
 - [Database reference](../database/README.md); migrations remain authoritative for schema and database behavior.
-- [Administrative simplification roadmap](administrative-simplification.md) records implementation sequencing; [Points compatibility assessment](points-compatibility.md) records historical-data evidence.
+- [Points compatibility assessment](points-compatibility.md) records historical-data evidence and the remaining safe-verification boundary.
 - [Recurring series operations](../recurring-series.md) and [Google Calendar integration](../google-calendar.md) retain their focused operational responsibilities.
 
 Product requirements, permission rules, and technical contracts belong here. Design documents describe visual and interaction guidance and do not establish product policy.

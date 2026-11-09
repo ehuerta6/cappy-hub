@@ -19,7 +19,7 @@ Use this Cappy Hub-specific workflow when a task needs cross-domain product cont
 1. Record a note only for a genuinely useful, source-backed cross-domain relationship, consequential rationale, durable constraint, or verified implementation lesson. Routine PR progress stays in GitHub.
 2. Keep normative behavior in its canonical specification and approved decision in its Issue/spec. In the slice, summarize why the relationship matters and link the owner; never copy permission matrices, complete contracts, SQL, or Issue/PR histories.
 3. Keep the catalog focused on capabilities shipped on `main` and historical workflows needed to explain current records or boundaries. Add or update an entry when an approved change ships, an existing capability status changes, or a workflow is retired. Do not add roadmap items, pending proposals, or capabilities that are not present on `main`. Add a slice only for a meaningful end-to-end responsibility; combine related topics when a split would invent artificial modularity.
-4. Mark shipped-on-main and historical claims distinctly. State the inspected revision for implementation claims. Keep production/deployment status separate and label it operationally unverified unless independently evidenced.
+4. Mark shipped-on-main and historical claims distinctly. State the inspected commit SHA for implementation claims. Do not add editorial authored/updated dates or date-stamped filenames; preserve dates only when needed to explain product behavior or unique historical evidence. Keep production/deployment status separate and label it operationally unverified unless independently evidenced.
 
 ## Reconcile and audit coverage
 
@@ -33,6 +33,7 @@ Use this Cappy Hub-specific workflow when a task needs cross-domain product cont
 - Give each note a descriptive title, recognizable aliases, explicit status and status basis, concise purpose/boundaries, useful end-to-end relationships, and direct canonical/evidence links.
 - Write focused headings and self-contained passages that remain meaningful when retrieved alone.
 - Keep notes succinct and complementary. Do not create runtime indexing, generated catalogs, embeddings, vector search, RAG infrastructure, or agent personas.
+- Keep active execution plans in GitHub Issues/PRs. After work ships, remove temporary plan notes; migrate only unique approved context to its canonical source or a useful knowledge slice.
 
 ## Completion
 

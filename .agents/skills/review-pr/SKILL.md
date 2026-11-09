@@ -62,7 +62,11 @@ Report requirement mismatches separately from code-quality findings.
 
 Do not treat an unrelated improvement as required work unless the Issue or approved specification requires it.
 
-### 3. Review engineering quality
+### 3. Review documentation impact
+
+For behavior or maintained procedures changed by the PR, check that the owning canonical document was updated where needed. Check navigation only when paths changed, and confirm that `knowledge/` remains a complementary summary rather than a competing contract. If the PR reports no documentation update, assess whether its reason fits the diff.
+
+### 4. Review engineering quality
 
 Check for:
 
@@ -89,7 +93,7 @@ For UI changes, respect `docs/design.md` and existing Cappy Hub interaction patt
 
 For nontrivial changes, consider whether fewer concepts, branches, wrappers, or layers would materially improve maintainability. Report structural concerns only with a concrete failure mode or readability benefit. A large module can signal a cohesion problem, but size alone is not a finding. Preserve the existing architecture unless the requested change justifies changing it; do not propose broad refactors merely to shorten code.
 
-### 4. Review database and authorization changes
+### 5. Review database and authorization changes
 
 When a change affects Supabase, PostgreSQL, authentication, authorization, schema, or database behavior, also check:
 
@@ -109,7 +113,7 @@ When a change affects Supabase, PostgreSQL, authentication, authorization, schem
 
 Use the project's database-specific workflows and documentation as the authority for expected database verification.
 
-### 5. Evaluate verification
+### 6. Evaluate verification
 
 Check whether the evidence actually demonstrates the changed behavior.
 
@@ -130,7 +134,7 @@ Verification claims must match what was actually run.
 
 For nontrivial cross-boundary or high-risk changes, identify critical assumptions and plausible regression paths beyond the diff. Verify the most consequential ones against current code or tests when feasible, and report what could not be checked. Keep the review focused; trivial changes do not need an exhaustive audit.
 
-### 6. Report findings
+### 7. Report findings
 
 Order findings by severity.
 
@@ -148,7 +152,7 @@ Do not manufacture findings to make the review look thorough.
 
 If no actionable findings exist, say so.
 
-### 7. Report residual risk
+### 8. Report residual risk
 
 After findings, note meaningful verification gaps or areas not exercised.
 

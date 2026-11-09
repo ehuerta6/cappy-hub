@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-The in-app notification and shared-reminder behavior below is approved by [Issue #403](https://github.com/ehuerta6/cappy-hub/issues/403). The work is being implemented by that Issue; repository implementation and production deployment are tracked separately. This contract supersedes the earlier 2026-10-30 planning statement that no notification subsystem was approved.
+The in-app notification and shared-reminder behavior below was approved by [Issue #403](https://github.com/ehuerta6/cappy-hub/issues/403) and implemented in the repository by [PR #405](https://github.com/ehuerta6/cappy-hub/pull/405). Production deployment and configuration are tracked separately. This contract supersedes earlier unapproved planning language that no notification subsystem was approved.
 
 Notifications are personal history. The signed-in Officer can see only their own inbox, including read and unread entries. The header bell shows recent entries and links to the full inbox. Opening an entry marks it read and opens the related Event, Task, Points transaction, or Warning when that record is available. Important updates stay on the Dashboard action list until the Officer opens the related record; the notification remains in inbox history. Low-priority signup and departure confirmations stay in the inbox and do not become action items.
 
