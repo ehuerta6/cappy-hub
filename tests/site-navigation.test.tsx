@@ -67,8 +67,8 @@ it("shows Calendar in the protected navigation and marks it active", () => {
   expect(html).toContain(">Calendar</a>");
   expect(html).toMatch(/aria-current="page"[^>]*href="\/calendar"/);
   expect(html).toContain('aria-label="Notifications"');
-  expect(html).toContain("Recent notifications");
-  expect(html).toContain('href="/notifications"');
+  expect(html).toContain('aria-expanded="false"');
+  expect(html).not.toContain("Recent notifications");
   expect(html).toContain('aria-label="Main navigation"');
   for (const href of [
     "/",
@@ -82,6 +82,20 @@ it("shows Calendar in the protected navigation and marks it active", () => {
   expect(html).not.toContain(">Admin</a>");
   expect(html).toContain('aria-label="Switch to light theme"');
   expect(html).toContain(">Officer</span>");
+});
+
+it("renders the notification preview behind an accessible disclosure button", () => {
+  const html = renderToStaticMarkup(
+    <SiteNavigation
+      isAdmin={false}
+      account={<span>Officer</span>}
+      unreadNotificationCount={2}
+    />,
+  );
+  expect(html).toContain('aria-expanded="false"');
+  expect(html).toContain('aria-controls="notification-preview"');
+  expect(html).toContain('aria-label="Notifications, 2 unread"');
+  expect(html).not.toContain("<details");
 });
 
 it("shows the Admin navigation item only to application admins", () => {

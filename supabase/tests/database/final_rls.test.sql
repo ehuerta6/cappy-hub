@@ -135,6 +135,7 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       'public.set_task_notification_settings(bigint,boolean,bigint[],bigint[],integer[],text,bigint,integer)'::regprocedure,
       'public.set_task_due_time(bigint,time,text,bigint,integer)'::regprocedure,
       'public.mark_notification_read(bigint)'::regprocedure,
+      'public.set_notification_read_status(bigint,boolean)'::regprocedure,
       'public.mark_notification_opened(bigint)'::regprocedure,
       'public.mark_notifications_reviewed(text,bigint)'::regprocedure,
       'public.void_warning(bigint)'::regprocedure,

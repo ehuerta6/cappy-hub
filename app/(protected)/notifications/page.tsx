@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/ui";
-import { openNotification } from "./actions";
+import NotificationList from "./notification-list";
 import { getAuthorizationContext } from "@/lib/authorization";
-import { formatDateTime } from "@/lib/presentation";
 import { createClient } from "@/lib/supabase/server";
 import styles from "./notifications.module.css";
 
@@ -46,38 +45,7 @@ export default async function NotificationsPage({
           <p>New notifications will appear here.</p>
         </section>
       ) : (
-        <ol className={styles.list} aria-label="Notification history">
-          {notifications.data.map((notification) => (
-            <li
-              key={notification.id}
-              className={`${styles.item} ${notification.read_at ? "" : styles.unread}`}
-            >
-              <form action={openNotification}>
-                <input
-                  type="hidden"
-                  name="notification_id"
-                  value={notification.id}
-                />
-                <button className={styles.open} type="submit">
-                  <span className={styles.titleRow}>
-                    <strong>{notification.title}</strong>
-                    {!notification.read_at && (
-                      <span className={styles.unreadLabel}>Unread</span>
-                    )}
-                  </span>
-                  {notification.message && <span>{notification.message}</span>}
-                  <span className={styles.meta}>
-                    {notification.priority === "confirmation"
-                      ? "Confirmation"
-                      : "Needs attention"}
-                    {" · "}
-                    {formatDateTime(notification.created_at)}
-                  </span>
-                </button>
-              </form>
-            </li>
-          ))}
-        </ol>
+        <NotificationList notifications={notifications.data} />
       )}
       {pages > 1 && (
         <nav className={styles.pagination} aria-label="Notification pages">
