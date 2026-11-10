@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { formatNotificationMessage } from "@/lib/presentation";
 import ThemeToggle from "@/components/theme-toggle";
 import AcademicPeriodSelector from "@/components/academic-period-selector";
 import type { AcademicPeriodData } from "@/lib/academic-periods";
@@ -35,6 +36,7 @@ export default function SiteNavigation({
     id: number;
     title: string;
     message: string;
+    kind: string;
     created_at: string;
     read_at: string | null;
   }[];
@@ -119,8 +121,7 @@ export default function SiteNavigation({
               aria-label={`Notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ""}`}
               onClick={() => setNotificationsOpen((open) => !open)}
             >
-              <Bell aria-hidden="true" size={16} />
-              <span>Notifications</span>
+              <Bell aria-hidden="true" size={18} />
               {unreadNotificationCount > 0 && (
                 <span className={styles.notificationCount}>
                   {unreadNotificationCount > 99
@@ -135,7 +136,14 @@ export default function SiteNavigation({
                 className={styles.notificationPopover}
               >
                 <div className={styles.notificationPopoverTitle}>
-                  <strong>Recent notifications</strong>
+                  <span className={styles.notificationPopoverHeading}>
+                    <strong>Notifications</strong>
+                    <span>
+                      {unreadNotificationCount === 0
+                        ? "All caught up"
+                        : `${unreadNotificationCount} unread`}
+                    </span>
+                  </span>
                   <Link
                     href="/notifications"
                     onClick={() => setNotificationsOpen(false)}
@@ -158,21 +166,26 @@ export default function SiteNavigation({
                             value={notification.id}
                           />
                           <button
-                            className={styles.notificationPreviewButton}
+                            className={`${styles.notificationPreviewButton} ${notification.read_at ? "" : styles.notificationPreviewUnread}`}
                             type="submit"
                             onClick={() => setNotificationsOpen(false)}
                           >
                             <span className={styles.notificationPreviewTitle}>
-                              {!notification.read_at && (
-                                <span aria-label="Unread">• </span>
-                              )}
                               {notification.title}
                             </span>
+                            {!notification.read_at && (
+                              <span className={styles.notificationUnreadLabel}>
+                                Unread
+                              </span>
+                            )}
                             {notification.message && (
                               <span
                                 className={styles.notificationPreviewMessage}
                               >
-                                {notification.message}
+                                {formatNotificationMessage(
+                                  notification.kind,
+                                  notification.message,
+                                )}
                               </span>
                             )}
                           </button>

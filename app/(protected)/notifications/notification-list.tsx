@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { formatDateTime } from "@/lib/presentation";
+import { formatDateTime, formatNotificationMessage } from "@/lib/presentation";
 import { openNotification, setNotificationReadStatus } from "./actions";
 import styles from "./notifications.module.css";
 
@@ -10,6 +10,7 @@ type Notification = {
   id: number;
   title: string;
   message: string;
+  kind: string;
   priority: string;
   created_at: string;
   read_at: string | null;
@@ -77,7 +78,12 @@ export default function NotificationList({
                       )}
                     </span>
                     {notification.message && (
-                      <span>{notification.message}</span>
+                      <span>
+                        {formatNotificationMessage(
+                          notification.kind,
+                          notification.message,
+                        )}
+                      </span>
                     )}
                     <span className={styles.meta}>
                       {notification.priority === "confirmation"

@@ -51,6 +51,7 @@ it("keeps the preview open for inside clicks, dismisses it, and restores focus o
             id: 1,
             title: "Event update",
             message: "Location changed.",
+            kind: "event.changed",
             created_at: "2026-11-09T12:00:00Z",
             read_at: null,
           },

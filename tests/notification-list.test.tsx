@@ -17,6 +17,7 @@ it("offers a separate per-item status action without replacing the open action",
           id: 41,
           title: "Event updated",
           message: "The location changed.",
+          kind: "event.changed",
           priority: "important",
           created_at: "2026-11-09T12:00:00Z",
           read_at: null,
@@ -25,9 +26,19 @@ it("offers a separate per-item status action without replacing the open action",
           id: 42,
           title: "Signup confirmed",
           message: "You signed up.",
+          kind: "event.signup_confirmed",
           priority: "confirmation",
           created_at: "2026-11-09T11:00:00Z",
           read_at: "2026-11-09T11:30:00Z",
+        },
+        {
+          id: 43,
+          title: "Points updated",
+          message: "2.00000 Points",
+          kind: "point.changed",
+          priority: "important",
+          created_at: "2026-11-09T10:00:00Z",
+          read_at: null,
         },
       ]}
     />,
@@ -38,6 +49,8 @@ it("offers a separate per-item status action without replacing the open action",
   expect(html).toContain("Unread");
   expect(html).toContain("Mark as read");
   expect(html).toContain("Mark as unread");
+  expect(html).toContain("2 Points");
+  expect(html).not.toContain("2.00000 Points");
   expect(html).toContain('name="notification_id" value="41"');
   expect(html).toContain('name="notification_id" value="42"');
 });
