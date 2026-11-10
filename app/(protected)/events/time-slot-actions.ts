@@ -1,6 +1,10 @@
 "use server";
 
-import { canManageEvent, getAuthorizationContext } from "@/lib/authorization";
+import {
+  canEditEvent,
+  canManageEvent,
+  getAuthorizationContext,
+} from "@/lib/authorization";
 import { mutationError } from "@/lib/mutation-error";
 import {
   formFailure,
@@ -58,7 +62,7 @@ export async function changeTimeSlotSignup(
   const { event_id, officer_id, mode, slot_ids } = validation.data;
   const supabase = await createClient();
   if (officer_id !== undefined && officer_id !== actor.id) {
-    if (!canManageEvent(actor))
+    if (!canEditEvent(actor))
       return formFailure("Event outside branch scope", formData);
   }
 
@@ -132,7 +136,7 @@ export async function assignBulkOfficersToTimeSlots(
     );
   const { event_id, officer_ids, slot_ids } = validation.data;
   const supabase = await createClient();
-  if (!canManageEvent(actor))
+  if (!canEditEvent(actor))
     return formFailure("Event outside branch scope", formData);
 
   const { data, error } = await supabase.rpc(
@@ -200,7 +204,17 @@ export async function correctHistoricalTimeSlotAssignments(
 
   const { event_id, officer_id, slot_ids } = validation.data;
   const supabase = await createClient();
-  if (!canManageEvent(actor))
+  const { data: eventBranches, error: branchError } = await supabase
+    .from("event_branches")
+    .select("branch_id")
+    .eq("event_id", event_id);
+  if (
+    branchError ||
+    !canManageEvent(
+      actor,
+      eventBranches.map(({ branch_id }) => branch_id),
+    )
+  )
     return formFailure("Event outside branch scope", formData);
 
   const { error } = await supabase.rpc("correct_historical_event_time_slots", {

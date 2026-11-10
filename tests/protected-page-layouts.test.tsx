@@ -11,6 +11,7 @@ vi.mock("@/lib/authorization", () => ({
   getAuthorizationContext: vi.fn(),
   canManageOfficers: () => true,
   isAdmin: () => true,
+  canEditEvent: vi.fn(() => true),
   canManageEvent: vi.fn(() => true),
   canManageTask: vi.fn(() => true),
   canSeeAllBranches: () => true,

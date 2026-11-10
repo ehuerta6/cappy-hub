@@ -1,9 +1,5 @@
 import ContextualBackLink from "@/components/contextual-back-link";
-import {
-  getAuthorizationContext,
-  canSeeAllBranches,
-  isLead,
-} from "@/lib/authorization";
+import { getAuthorizationContext, canEditEvent } from "@/lib/authorization";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import EventForm from "../event-form";
@@ -24,7 +20,7 @@ export default async function NewEventPage({
   );
   if (periodSelection.isHistorical) redirect(`/events?period=${params.period}`);
   const actor = await getAuthorizationContext();
-  if (!canSeeAllBranches(actor) && !isLead(actor)) redirect("/access-denied");
+  if (!canEditEvent(actor)) redirect("/access-denied");
   const supabase = await createClient();
   const [branches, eventTypes, locations, positions] = await Promise.all([
     supabase
@@ -60,7 +56,7 @@ export default async function NewEventPage({
       <PageHeader title="New event" />
       <EventForm
         recurrenceRequestKey={crypto.randomUUID()}
-        allowGlobal={canSeeAllBranches(actor) || isLead(actor)}
+        allowGlobal={canEditEvent(actor)}
         branches={branches.data}
         positions={positions.data}
         eventTypes={eventTypes.data}

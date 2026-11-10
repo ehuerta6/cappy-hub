@@ -55,10 +55,10 @@ select throws_ok($$select remove_participation_award(0)$$,'P0001','Admin require
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032603',true);
 select throws_ok($$select remove_participation_award(0)$$,'P0001','Admin required','ordinary Officer cannot remove awards');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032602',true);
-select lives_ok($$select save_event_with_links('Synthetic premature processing','Issue 326 regression',
+select throws_ok($$select save_event_with_links('Synthetic premature processing','Issue 326 regression',
  (select id from event_types where name='Meeting'),'TBA','2099-09-20',
  '2099-09-20 09:00-06','2099-09-20 11:00-06',array[(select id from branches where name='icpc')],-32601)$$,
- 'Lead can correct the Event schedule across Branches');
+ 'P0001','Event outside branch scope','out-of-scope Lead cannot correct the Event');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032601',true);
 select results_eq($$select remove_participation_award(id) from point_transactions where event_id=-32601 order by id$$,
  $$values (true),(true),(true),(true),(true)$$,'Admin removes the five premature awards');

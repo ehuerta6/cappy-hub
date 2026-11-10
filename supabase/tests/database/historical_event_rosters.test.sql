@@ -76,10 +76,11 @@ reset role;
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000032902',true);
 set local role authenticated;
-select lives_ok($$select public.change_event_signup(-32903,-32906,false)$$,
- 'Lead can correct a roster outside their Branches');
-select lives_ok($$select public.bulk_add_event_officers(-32903,array[-32906]::bigint[])$$,
- 'Lead can add to a roster outside their Branches');
+select throws_ok($$select public.change_event_signup(-32903,-32906,false)$$,
+ 'P0001','Cannot manage another officer signup for this event',
+ 'Lead cannot correct a roster outside managed branches');
+select throws_ok($$select public.bulk_add_event_officers(-32903,array[-32906]::bigint[])$$,
+ 'P0001','Event outside branch scope','Lead cannot add a signup outside managed branches');
 select lives_ok($$select public.change_event_signup(-32901,-32904,true)$$,
  'scoped Lead can remove an inactive Officer from a historical roster');
 reset role;

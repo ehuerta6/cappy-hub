@@ -10,14 +10,16 @@ insert into auth.users(id,email) values
  ('00000000-0000-4000-8000-000000000303','officer-pr3@example.org'),
  ('00000000-0000-4000-8000-000000000304','admin2-pr3@example.org'),
  ('00000000-0000-4000-8000-000000000305','president-pr3@example.org'),
- ('00000000-0000-4000-8000-000000000306','multi-lead-pr3@example.org');
+ ('00000000-0000-4000-8000-000000000306','multi-lead-pr3@example.org'),
+ ('00000000-0000-4000-8000-000000000307','no-branches-lead-pr3@example.org');
 insert into officers(id,name,utep_email,position_id,application_role,auth_user_id) values
  (-301,'Admin PR3','admin-pr3@example.org',17::bigint,'admin','00000000-0000-4000-8000-000000000301'),
  (-302,'Lead PR3','lead-pr3@example.org',16::bigint,'officer','00000000-0000-4000-8000-000000000302'),
  (-303,'Officer PR3','officer-pr3@example.org',17::bigint,'officer','00000000-0000-4000-8000-000000000303'),
  (-304,'Admin Two PR3','admin2-pr3@example.org',1::bigint,'admin','00000000-0000-4000-8000-000000000304'),
  (-305,'President PR3','president-pr3@example.org',(select id from positions where name='President'),'officer','00000000-0000-4000-8000-000000000305'),
- (-306,'Multi Lead PR3','multi-lead-pr3@example.org',16::bigint,'officer','00000000-0000-4000-8000-000000000306');
+ (-306,'Multi Lead PR3','multi-lead-pr3@example.org',16::bigint,'officer','00000000-0000-4000-8000-000000000306'),
+ (-307,'No Branches Lead PR3','no-branches-lead-pr3@example.org',16::bigint,'officer','00000000-0000-4000-8000-000000000307');
 insert into officer_branches(officer_id,branch_id)
  select -302,id from branches where name='intro';
 insert into events(id,name,description,location,event_type_id,starts_at,ends_at) values
@@ -82,7 +84,7 @@ select lives_ok($$select save_event_with_links('Lead edit','Test event',(select 
  'Lead may edit an Event in their own Branch');
 select lives_ok($$select save_event_with_links('Lead takeover','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 09:00-06','2099-09-20 10:00-06',array[(select id from branches where name='general')],-303,null,null)$$,
  'Lead may edit an Event in another Branch');
-select lives_ok($$select save_event_with_links('Lead global takeover','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 10:00-06','2099-09-20 11:00-06',array[1::bigint],-301,null,null)$$,
+select lives_ok($$select save_event_with_links('Lead global takeover','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 10:00-06','2099-09-20 11:00-06',null,-305,null,null)$$,
  'Lead may edit a global Event');
 select lives_ok($$select save_event_with_links('Lead makes global','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 09:00-06','2099-09-20 10:00-06',null,-302,null,null)$$,
  'Lead may make an Event global');
@@ -94,11 +96,22 @@ select lives_ok($$select change_event_signup(-306,-301,false)$$,'Lead can manage
 select lives_ok($$select change_event_signup(-303,-301,false)$$,
  'Lead can manage signups for an Event outside their Branches');
 select lives_ok($$select change_event_signup(-305,-302,false)$$,'Lead can self-signup to global event');
-select lives_ok($$select cancel_event(-302)$$,'Lead can cancel managed event');
-select throws_ok($$select change_event_signup(-302,-302,false)$$,'P0001','Signups are closed for this event',
- 'signup remains closed after cancellation');
+select throws_ok($$select cancel_event(-305)$$,'P0001','Event outside branch scope',
+ 'Lead Event editing scope does not grant cancellation');
+select lives_ok($$select change_event_signup(-305,-302,false)$$,
+ 'Lead can manage a current signup on a global Event');
 select throws_ok($$select change_event_signup(-304,-302,false)$$,'P0001','Signups are closed for this event',
  'signup remains closed after scheduled end');
+
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000307',true);
+select lives_ok($$select save_event_with_links('Unassigned Lead create','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-23'::date,'2099-09-23 09:00-06','2099-09-23 10:00-06',array[(select id from branches where name='icpc')],null,null,null)$$,
+ 'active Lead without Branch memberships can create an Event in any Branch');
+select lives_ok($$select save_event_with_links('No branches Lead edit','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 10:00-06','2099-09-20 11:00-06',null,-305,null,null)$$,
+ 'active Lead without Branch memberships can edit a global Event');
+select lives_ok($$select public.set_event_notification_settings(-305,false,'{}'::bigint[],'{}'::bigint[],'{60}'::integer[])$$,
+ 'the Lead Event edit save action can persist notification settings for a global Event');
+select is((select count(*) from event_reminder_offsets where event_id=-305 and minutes_before=60),
+  1::bigint,'the global Event edit save persisted its reminder setting');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000306',true);
 select lives_ok($$select change_event_signup(-303,-301,false)$$,

@@ -18,6 +18,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import {
+  canEditEvent,
   canManageEvent,
   canManageTask,
   getAuthorizationContext,
@@ -40,12 +41,15 @@ const actor = (
   positionName = "",
 ) => ({ positionCode, positionName, branchIds, applicationRole }) as never;
 
-describe("canManageEvent branch authorization", () => {
+describe("Event editing and manager authorization", () => {
   it("allows a Lead to manage Events across Branches, including global Events", () => {
     const lead = actor("lead", [1]);
 
-    expect(canManageEvent(lead)).toBe(true);
-    expect(canManageEvent(actor("lead", [1, 3]))).toBe(true);
+    expect(canEditEvent(lead)).toBe(true);
+    expect(canEditEvent(actor("lead", []))).toBe(true);
+    expect(canManageEvent(lead, [1])).toBe(true);
+    expect(canManageEvent(lead, [3])).toBe(false);
+    expect(canManageEvent(lead, [])).toBe(false);
   });
 
   it("keeps Task manager access Branch-scoped for Leads", () => {
@@ -56,33 +60,36 @@ describe("canManageEvent branch authorization", () => {
   });
 
   it("preserves admin and Event executive access", () => {
-    expect(canManageEvent(actor("Officer", [], "admin"))).toBe(true);
+    expect(canEditEvent(actor("Officer", [], "admin"))).toBe(true);
+    expect(canManageEvent(actor("Officer", [], "admin"), [])).toBe(true);
     for (const position of [
       "president",
       "vice_president_operations",
       "vice_president_academics",
     ]) {
-      expect(canManageEvent(actor(position, []))).toBe(true);
+      expect(canEditEvent(actor(position, []))).toBe(true);
+      expect(canManageEvent(actor(position, []), [])).toBe(true);
     }
   });
 
   it("does not grant privileges based on a deceptive display name", () => {
-    expect(canManageEvent(actor("custom_lead", [1], "officer", "Lead"))).toBe(
+    expect(canEditEvent(actor("custom_lead", [1], "officer", "Lead"))).toBe(
       false,
     );
     expect(
-      canManageEvent(actor("custom_president", [], "officer", "President")),
+      canEditEvent(actor("custom_president", [], "officer", "President")),
     ).toBe(false);
-    expect(canManageEvent(actor("lead", [1], "officer", "Branch Lead"))).toBe(
+    expect(canEditEvent(actor("lead", [1], "officer", "Branch Lead"))).toBe(
       true,
     );
     expect(
-      canManageEvent(actor("president", [], "officer", "Club President")),
+      canEditEvent(actor("president", [], "officer", "Club President")),
     ).toBe(true);
   });
 
   it("does not grant Event management to ordinary Officers", () => {
-    expect(canManageEvent(actor("officer", [1]))).toBe(false);
+    expect(canEditEvent(actor("officer", [1]))).toBe(false);
+    expect(canManageEvent(actor("officer", [1]), [1])).toBe(false);
   });
 });
 

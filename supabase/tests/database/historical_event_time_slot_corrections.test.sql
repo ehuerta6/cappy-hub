@@ -70,8 +70,8 @@ values
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000035804',true);
 set local role authenticated;
-select lives_ok($$select public.correct_historical_event_time_slots(-35801,-35802,array[-358103]::bigint[])$$,
-  'a Lead can correct historical Time Slots across Event Branches');
+select throws_ok($$select public.correct_historical_event_time_slots(-35801,-35802,array[-358103]::bigint[])$$,
+  'P0001','Event outside branch scope','a Lead cannot correct an Event outside managed branches');
 reset role;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000035802',true);
 set local role authenticated;
@@ -156,8 +156,8 @@ select is((select count(*) from public.event_time_slot_officers where event_id=-
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000035801',true);
 set local role authenticated;
-select lives_ok($$select public.correct_historical_event_time_slots(-35803,-35802,array[-358301]::bigint[])$$,
-  'the trusted RPC allows a Lead to correct an Event across Branches');
+select throws_ok($$select public.correct_historical_event_time_slots(-35803,-35802,array[-358301]::bigint[])$$,
+  'P0001','Event outside branch scope','the trusted RPC rejects an out-of-scope manager');
 select throws_ok($$select public.correct_historical_event_time_slots(-35804,-35802,array[-358401]::bigint[])$$,
   'P0001','Cancelled Events cannot be corrected','historical slot correction does not change legacy cancellation state');
 reset role;

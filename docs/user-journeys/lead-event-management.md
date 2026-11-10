@@ -3,9 +3,9 @@
 **Actor:** a Lead. **Entry:** an Event action available in the Events workflow.
 
 1. The Lead's trusted authorization context is resolved from the active Officer record and system Position code.
-2. An active Lead may create and edit Events across all Branches, including global Events with no Branches.
-3. The server/database mutation enforces the same Event scope; hiding an action in the interface is not the authorization boundary.
-4. Event executives retain global Event management, and Admins retain application-wide administration within product boundaries.
+2. An active Lead may create and edit Events across all Branches, including global Events with no Branches. Recurrence edits and current roster/signup and Time Slot management use that scope where those workflows already permit them.
+3. Other Event administration, historical corrections, Task management, Points, Warnings, and catalog administration keep their existing permissions.
+4. The server/database mutation enforces each scope; hiding an action in the interface is not the authorization boundary. Event executives retain global Event management, and Admins retain application-wide administration within product boundaries.
 
 **Important boundaries:** a display name, Event signup, or Task assignment does not grant additional permissions. Task management remains limited to a Lead's Branches.
 

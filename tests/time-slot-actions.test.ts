@@ -2,8 +2,15 @@ import { beforeEach, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/authorization", () => ({
   getAuthorizationContext: vi.fn(),
-  canManageEvent: (actor: { positionCode?: string }) =>
+  canEditEvent: (actor: { positionCode?: string }) =>
     actor.positionCode === "president" || actor.positionCode === "lead",
+  canManageEvent: (
+    actor: { positionCode?: string; branchIds?: number[] },
+    eventBranches: number[],
+  ) =>
+    actor.positionCode === "president" ||
+    (actor.positionCode === "lead" &&
+      eventBranches.some((branchId) => actor.branchIds?.includes(branchId))),
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -200,7 +207,7 @@ it("keeps an empty historical selection so managers can remove all slots", async
   });
 });
 
-it("allows a Lead to correct historical slot assignments across Branches", async () => {
+it("keeps historical slot correction within the existing Branch scope", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 5,
     positionCode: "lead",
@@ -210,10 +217,6 @@ it("allows a Lead to correct historical slot assignments across Branches", async
     initial,
     form({ event_id: "12", officer_id: "9", slot_ids: ["4"] }),
   );
-  expect(result.error).toBe("");
-  expect(rpc).toHaveBeenCalledWith("correct_historical_event_time_slots", {
-    p_event_id: 12,
-    p_officer_id: 9,
-    p_slot_ids: [4],
-  });
+  expect(result.error).toBe("Event outside branch scope");
+  expect(rpc).not.toHaveBeenCalled();
 });

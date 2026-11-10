@@ -69,10 +69,10 @@ select lives_ok($$select record_google_calendar_sync_results(array[-3341]::bigin
  'a failure for the current Event version is recorded');
 select is((select count(*) from event_calendar_sync_failures where event_id=-3341),1::bigint,
  'current failure remains visible before authorization check');
-select lives_ok($$select record_google_calendar_sync_results(array[-3341,-3342]::bigint[],array[-3342]::bigint[],jsonb_build_object('-3341',pg_temp.calendar_event_state(-3341),'-3342',pg_temp.calendar_event_state(-3342)))$$,
- 'Lead can retry Calendar sync across Event Branches');
-select is((select count(*) from event_calendar_sync_failures where event_id=-3341),0::bigint,
- 'authorized cross-Branch retry clears the current Event failure');
+select throws_ok($$select record_google_calendar_sync_results(array[-3341,-3342]::bigint[],array[-3342]::bigint[],jsonb_build_object('-3341',pg_temp.calendar_event_state(-3341),'-3342',pg_temp.calendar_event_state(-3342)))$$,
+ 'P0001','Event outside branch scope','every Event in a batch must be authorized');
+select is((select count(*) from event_calendar_sync_failures where event_id=-3341),1::bigint,
+ 'an unauthorized partial batch does not update even its in-scope Event');
 select lives_ok($$select record_google_calendar_sync_results(array[-3341]::bigint[],array[]::bigint[],jsonb_build_object('-3341',pg_temp.calendar_event_state(-3341)))$$,
  'a Lead can clear the failure after a successful retry');
 select is((select count(*) from event_calendar_sync_failures where event_id=-3341),0::bigint,

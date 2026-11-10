@@ -3,6 +3,7 @@ import {
   getAuthorizationContext,
   isLead,
   canSeeAllBranches,
+  canEditEvent,
   canManageEvent,
 } from "@/lib/authorization";
 import { listReturnUrl, withReturnTo } from "@/lib/return-context";
@@ -57,7 +58,8 @@ export default async function EventsPage({
     Number.isSafeInteger(requestedCalendarPage) && requestedCalendarPage > 0
       ? requestedCalendarPage
       : 1;
-  const mayBrowseDeleted = canSeeAllBranches(actor) || isLead(actor);
+  const mayBrowseDeleted =
+    canSeeAllBranches(actor) || (isLead(actor) && actor.branchIds.length > 0);
   const status =
     filters.status === "deleted" && !mayBrowseDeleted
       ? undefined
@@ -86,8 +88,10 @@ export default async function EventsPage({
     return (serialized ? `/events?${serialized}` : "/events") as Route;
   };
 
+  const deletedLead =
+    status === "deleted" && isLead(actor) && !canSeeAllBranches(actor);
   const eventSelection =
-    "id,name,event_date,starts_at,ends_at,status,deleted_at,delete_points_suspended,max_volunteers,participation_points_per_hour_at_end,event_types(name),event_branches(branch_id,branches(name)),filter_branch:event_branches(branch_id),event_officers(officer_id,removed_at,participation_type)";
+    "id,name,event_date,starts_at,ends_at,status,deleted_at,delete_points_suspended,max_volunteers,participation_points_per_hour_at_end,event_types(name),event_branches(branch_id,branches(name)),filter_branch:event_branches(branch_id),scope_branch:event_branches(branch_id),event_officers(officer_id,removed_at,participation_type)";
   const buildEventQuery = (includeFilters: boolean, countOnly = false) => {
     let query = supabase
       .from("events")
@@ -99,6 +103,10 @@ export default async function EventsPage({
       status === "deleted"
         ? query.not("deleted_at", "is", null)
         : query.is("deleted_at", null);
+    if (deletedLead)
+      query = query
+        .in("scope_branch.branch_id", actor.branchIds)
+        .not("scope_branch", "is", null);
 
     if (selectedPeriod && status !== "cancelled" && status !== "deleted")
       query = query
@@ -204,7 +212,12 @@ export default async function EventsPage({
   if (calendarFailuresResult.error)
     throw new Error("Failed to load Calendar recovery items");
   const calendarFailures = (calendarFailuresResult.data ?? []).filter(
-    (failure) => failure.event && canManageEvent(actor),
+    (failure) =>
+      failure.event &&
+      canManageEvent(
+        actor,
+        failure.event.event_branches.map((branch) => branch.branch_id),
+      ),
   );
   const calendarFailurePageCount = Math.ceil(
     (calendarFailuresResult.count ?? 0) / CALENDAR_FAILURES_PAGE_SIZE,
@@ -281,8 +294,7 @@ export default async function EventsPage({
         title="Events"
         description="Club events and participation."
         action={
-          !periodSelection.isHistorical &&
-          (canSeeAllBranches(actor) || isLead(actor)) ? (
+          !periodSelection.isHistorical && canEditEvent(actor) ? (
             <ActionLink
               href={
                 `/events/new${params.period ? `?period=${params.period}` : ""}` as Route

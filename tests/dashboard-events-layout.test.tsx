@@ -17,6 +17,7 @@ vi.mock("@/lib/authorization", () => ({
     actor.applicationRole === "admin",
   isLead: () => false,
   canSeeAllBranches: () => false,
+  canEditEvent: () => false,
   canManageEvent: () => false,
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));

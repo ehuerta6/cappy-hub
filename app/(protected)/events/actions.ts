@@ -1,6 +1,10 @@
 "use server";
 
-import { getAuthorizationContext, canManageEvent } from "@/lib/authorization";
+import {
+  getAuthorizationContext,
+  canEditEvent,
+  canManageEvent,
+} from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import { mutationError } from "@/lib/mutation-error";
 import {
@@ -80,7 +84,7 @@ export async function saveEvent(
     enforceWritablePeriod: true,
     periodContext: formData.get("writable_period"),
   });
-  if (!formData.get("id") && !canManageEvent(actor))
+  if (!formData.get("id") && !canEditEvent(actor))
     return formFailure(
       "Event outside branch scope",
       formData,
@@ -745,11 +749,16 @@ export async function retryGoogleCalendarSync(
   const supabase = await createClient();
   const { data: event, error: eventError } = await supabase
     .from("events")
-    .select("id")
+    .select("id,event_branches(branch_id)")
     .eq("id", validation.data.event_id)
     .maybeSingle();
   if (eventError || !event) return { error: "Event not found", success: "" };
-  if (!canManageEvent(actor))
+  if (
+    !canManageEvent(
+      actor,
+      event.event_branches.map((row) => row.branch_id),
+    )
+  )
     return { error: "Event outside branch scope", success: "" };
 
   const synced = await syncGoogleCalendarEvents([event.id], supabase);
