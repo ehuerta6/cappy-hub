@@ -20,6 +20,11 @@ import { RecurrenceFields } from "@/components/recurrence-fields";
 import { EventLocationAutocomplete } from "@/components/event-location-autocomplete";
 import TimeSlotsEditor, { type TimeSlotDraft } from "./time-slots-editor";
 import NotificationSettingsFields from "@/components/notification-settings-fields";
+import ResourceLinksEditor from "@/components/resource-links-editor";
+import {
+  resourceLinksForForm,
+  type ResourceLinkView,
+} from "@/lib/resource-links";
 
 export default function EventForm({
   returnTo,
@@ -36,6 +41,7 @@ export default function EventForm({
   timeSlots = [],
   canEnableTimeSlots = true,
   notificationSettings,
+  resourceLinks = [],
 }: {
   returnTo?: string;
   branches: Pick<Tables<"branches">, "id" | "name">[];
@@ -58,6 +64,7 @@ export default function EventForm({
     positionIds: number[];
     reminderOffsets: number[];
   };
+  resourceLinks?: ResourceLinkView[];
 }) {
   const [state, action, pending] = useActionState(
     saveEvent,
@@ -81,7 +88,12 @@ export default function EventForm({
   if (locationDraft.source !== restoredLocation) {
     setLocationDraft({ source: restoredLocation, value: restoredLocation });
   }
-  const [resourcesChanged, setResourcesChanged] = useState(false);
+  const initialResourceLinks = resourceLinksForForm(resourceLinks);
+  const resourceLinksValue = submittedValue(
+    state.values,
+    "resource_links",
+    JSON.stringify(initialResourceLinks),
+  );
   const initialStartTime = submittedValue(
     state.values,
     "start_time",
@@ -102,17 +114,6 @@ export default function EventForm({
     ),
   );
 
-  const resourceFields = [
-    ["slides_url", event?.slides_url],
-    ["meeting_notes_url", event?.meeting_notes_url],
-    ["signup_sheet_url", event?.signup_sheet_url],
-  ] as const;
-  const resourcesNeedReveal = resourceFields.some(
-    ([name, existingValue]) =>
-      Boolean(submittedValue(state.values, name, existingValue ?? "")) ||
-      Boolean(fieldErrors[name]),
-  );
-
   const [editedFields, setEditedFields] = useState<string[]>([]);
   const formRef = useRef<HTMLFormElement>(null);
   const originalTimeSlots = timeSlots.length
@@ -129,9 +130,7 @@ export default function EventForm({
         description: event.description,
         location: event.location ?? "",
         event_type_id: String(event.event_type_id),
-        slides_url: event.slides_url ?? "",
-        meeting_notes_url: event.meeting_notes_url ?? "",
-        signup_sheet_url: event.signup_sheet_url ?? "",
+        resource_links: JSON.stringify(initialResourceLinks),
         max_volunteers: event.max_volunteers?.toString() ?? "",
         event_date: event.event_date,
         start_time: denverParts(event.starts_at).time,
@@ -398,91 +397,15 @@ export default function EventForm({
         {fieldErrors.time_slots}
       </FieldError>
 
-      <details
-        className="event-form-resources col-span-2"
-        open={resourcesChanged || resourcesNeedReveal}
-        onToggle={(toggleEvent) =>
-          setResourcesChanged(toggleEvent.currentTarget.open)
-        }
-        onChange={() => setResourcesChanged(true)}
-      >
-        <summary>Resources (optional)</summary>
-        <div className="event-form-resources-content">
-          <p className="event-form-section-description">
-            Add links that are useful for this event. All resource links are
-            optional.
-          </p>
-          <div className="event-form-fields event-form-resource-fields">
-            <label>
-              Slides URL (optional)
-              <input
-                name="slides_url"
-                type="url"
-                aria-invalid={Boolean(fieldErrors.slides_url)}
-                aria-describedby={
-                  fieldErrors.slides_url ? "event-slides-url-error" : undefined
-                }
-                defaultValue={submittedValue(
-                  state.values,
-                  "slides_url",
-                  event?.slides_url ?? "",
-                )}
-              />
-              <FieldError id="event-slides-url-error">
-                {fieldErrors.slides_url}
-              </FieldError>
-            </label>
-
-            <label>
-              Meeting notes URL (optional)
-              <input
-                name="meeting_notes_url"
-                type="url"
-                aria-invalid={Boolean(fieldErrors.meeting_notes_url)}
-                aria-describedby={
-                  fieldErrors.meeting_notes_url
-                    ? "event-meeting-notes-url-error"
-                    : undefined
-                }
-                defaultValue={submittedValue(
-                  state.values,
-                  "meeting_notes_url",
-                  event?.meeting_notes_url ?? "",
-                )}
-              />
-              <FieldError id="event-meeting-notes-url-error">
-                {fieldErrors.meeting_notes_url}
-              </FieldError>
-            </label>
-
-            <label>
-              External roster / signup sheet URL (optional)
-              <input
-                name="signup_sheet_url"
-                type="url"
-                aria-invalid={Boolean(fieldErrors.signup_sheet_url)}
-                aria-describedby={
-                  fieldErrors.signup_sheet_url
-                    ? "event-signup-sheet-url-error"
-                    : undefined
-                }
-                defaultValue={submittedValue(
-                  state.values,
-                  "signup_sheet_url",
-                  event?.signup_sheet_url ?? "",
-                )}
-              />
-              <span className="text-sm text-muted">
-                External Google Sheet resource. Cappy Hub signups, capacity, and
-                participation are managed separately.
-              </span>
-              <FieldError id="event-signup-sheet-url-error">
-                {fieldErrors.signup_sheet_url}
-              </FieldError>
-            </label>
-          </div>
-        </div>
-      </details>
+      <ResourceLinksEditor
+        key={resourceLinksValue}
+        initialValue={resourceLinksValue}
+        error={fieldErrors.resource_links}
+        onChange={(value) => {
+          if (formRef.current)
+            updateEditedFields(formRef.current, { resource_links: value });
+        }}
+      />
 
       <fieldset className="event-form-section">
         <legend>Participation and capacity</legend>

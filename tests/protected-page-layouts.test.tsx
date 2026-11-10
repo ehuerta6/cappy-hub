@@ -107,6 +107,7 @@ let historicalPresentationRows: Record<string, unknown>[];
 let eventRosterCount = 0;
 let personalRosterCount = 0;
 let eventTaskRows: Record<string, unknown>[];
+let resourceLinkRows: Record<string, unknown>[];
 let eventTaskCount = 0;
 let eventPointCount = 0;
 let eventPointRanges: [number, number][];
@@ -124,6 +125,28 @@ beforeEach(() => {
   eventRosterCount = 0;
   personalRosterCount = 0;
   eventTaskRows = [];
+  resourceLinkRows = [
+    {
+      id: 1,
+      event_id: 7,
+      task_id: null,
+      kind: "slides",
+      label: "Slides",
+      url: "https://example.com/slides",
+      legacy_key: "slides",
+      sort_order: 1,
+    },
+    {
+      id: 2,
+      event_id: 7,
+      task_id: null,
+      kind: "meeting_notes",
+      label: "Meeting notes",
+      url: "https://example.com/notes",
+      legacy_key: "meeting_notes",
+      sort_order: 2,
+    },
+  ];
   eventTaskCount = 0;
   eventPointCount = 0;
   eventPointRanges = [];
@@ -267,7 +290,15 @@ beforeEach(() => {
                               query.rangeStart,
                               query.rangeEnd + 1,
                             )
-                          : [],
+                          : table === "resource_links"
+                            ? resourceLinkRows.filter(
+                                (row) =>
+                                  (filters.has("event_id") &&
+                                    row.event_id === filters.get("event_id")) ||
+                                  (filters.has("task_id") &&
+                                    row.task_id === filters.get("task_id")),
+                              )
+                            : [],
             count:
               table === "officers"
                 ? officersForList.length
@@ -699,9 +730,9 @@ it("groups Event details, files and participation while retaining management con
   for (const text of [
     "Synthetic Room",
     "Meeting",
-    "Links and files",
-    "Open slides",
-    "Open notes",
+    "Resource links",
+    "Slides",
+    "Meeting notes",
     "Delete Event",
   ])
     expect(details).toContain(text);

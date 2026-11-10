@@ -45,6 +45,7 @@ const taskFormFields = [
   "due_time",
   "points",
   "event_ids",
+  "resource_links",
   "recurrence_frequency",
   "recurrence_interval",
   "recurrence_weekdays",
@@ -87,6 +88,7 @@ export async function createTask(
     branch_id: formData.get("branch_id") ?? "",
     due_date: formData.get("due_date") ?? "",
     points: formData.get("points") ?? "",
+    resource_links: formData.get("resource_links") ?? "[]",
     recurrence_frequency: formData.get("recurrence_frequency") ?? "none",
     recurrence_request_key:
       formData.get("recurrence_request_key") ?? crypto.randomUUID(),
@@ -142,7 +144,7 @@ export async function createTask(
       );
     }
     const { data, error } = await supabase.rpc(
-      "create_recurring_task_with_events",
+      "create_recurring_task_with_resources",
       {
         p_title: validatedTaskInput.title,
         p_description: validatedTaskInput.description,
@@ -154,6 +156,7 @@ export async function createTask(
         p_recurrence_rule: canonicalRecurrenceRule(recurrence),
         p_due_dates: dates,
         p_event_ids: eventIds.data,
+        p_resource_links: validatedTaskInput.resource_links,
       },
     );
     if (error)
@@ -189,7 +192,7 @@ export async function createTask(
     revalidatePath("/events/[id]", "page");
     redirect(withSuccessNotice(`/tasks#task-${data}`, "task-created"));
   }
-  const { data, error } = await supabase.rpc("save_task_with_events", {
+  const { data, error } = await supabase.rpc("save_task_with_resources", {
     p_title: validatedTaskInput.title,
     p_description: validatedTaskInput.description,
     p_task_type: validatedTaskInput.task_type,
@@ -198,6 +201,7 @@ export async function createTask(
     p_points: validatedTaskInput.points,
     p_approval_required: false,
     p_event_ids: eventIds.data,
+    p_resource_links: validatedTaskInput.resource_links,
   });
   if (error)
     return formFailure(
@@ -506,7 +510,7 @@ export async function editStandaloneTask(
   if (dueTime && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(dueTime))
     return formFailure("Enter a valid due time", form, taskFormFields);
   const supabase = await createClient();
-  const { error } = await supabase.rpc("update_task_details_with_events", {
+  const { error } = await supabase.rpc("update_task_details_with_resources", {
     p_task_id: id.data.task_id,
     p_title: validation.data.title,
     p_description: validation.data.description,
@@ -515,6 +519,7 @@ export async function editStandaloneTask(
     p_due_date: validation.data.due_date,
     p_points: validation.data.points,
     p_event_ids: eventIds.data,
+    p_resource_links: validation.data.resource_links,
   });
   if (error)
     return formFailure(mutationError(error.message), form, [
@@ -606,7 +611,8 @@ export async function editRecurringTask(
     const recurrenceForm = new FormData();
     for (const [name, value] of form.entries()) {
       if (name !== "edited_fields") recurrenceForm.append(name, value);
-      else if (value !== "event_ids") recurrenceForm.append(name, value);
+      else if (value !== "event_ids" && value !== "resource_links")
+        recurrenceForm.append(name, value);
     }
     const args = await recurrenceMutation(
       "task",
@@ -618,10 +624,19 @@ export async function editRecurringTask(
     const eventLinksChanged = form
       .getAll("edited_fields")
       .includes("event_ids");
-    const { error } = await supabase.rpc("mutate_recurring_task_with_events", {
-      ...args,
-      ...(eventLinksChanged ? { p_event_ids: eventIds.data } : {}),
-    });
+    const resourceLinksChanged = form
+      .getAll("edited_fields")
+      .includes("resource_links");
+    const { error } = await supabase.rpc(
+      "mutate_recurring_task_with_resources",
+      {
+        ...args,
+        ...(eventLinksChanged ? { p_event_ids: eventIds.data } : {}),
+        ...(resourceLinksChanged
+          ? { p_resource_links: validation.data.resource_links }
+          : {}),
+      },
+    );
     if (error)
       return formFailure(
         mutationError(error.message),

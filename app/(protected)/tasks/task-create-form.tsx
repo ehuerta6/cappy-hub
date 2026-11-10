@@ -22,6 +22,11 @@ import { RecurrenceFields } from "@/components/recurrence-fields";
 import { TaskEventCombobox } from "@/components/task-event-combobox";
 import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 import NotificationSettingsFields from "@/components/notification-settings-fields";
+import ResourceLinksEditor from "@/components/resource-links-editor";
+import {
+  resourceLinksForForm,
+  type ResourceLinkView,
+} from "@/lib/resource-links";
 
 export default function TaskCreateForm({
   returnTo,
@@ -34,6 +39,7 @@ export default function TaskCreateForm({
   task,
   series,
   notificationSettings,
+  resourceLinks = [],
 }: {
   returnTo?: string;
   branches: { id: number; name: string }[];
@@ -56,6 +62,7 @@ export default function TaskCreateForm({
     positionIds: number[];
     reminderOffsets: number[];
   };
+  resourceLinks?: ResourceLinkView[];
 }) {
   const [state, action, pending] = useActionState(
     task ? (series ? editRecurringTask : editStandaloneTask) : createTask,
@@ -69,6 +76,12 @@ export default function TaskCreateForm({
     taskEventIds.map(String),
   );
   const selectedEventIds = useRef(initialEventIds);
+  const initialResourceLinks = resourceLinksForForm(resourceLinks);
+  const resourceLinksValue = submittedValue(
+    state.values,
+    "resource_links",
+    JSON.stringify(initialResourceLinks),
+  );
   const formRef = useRef<HTMLFormElement>(null);
   const original: Record<string, string | string[]> = task
     ? {
@@ -79,14 +92,20 @@ export default function TaskCreateForm({
         due_date: task.due_date,
         points: String(task.points),
         event_ids: taskEventIds.map(String),
+        resource_links: JSON.stringify(initialResourceLinks),
       }
     : {};
 
-  function updateEditedFields() {
+  function updateEditedFields(resourceValue?: string) {
     if (!task || !formRef.current) return;
     const changed = changedFormFields(formRef.current, original).filter(
-      (field) => field !== "event_ids",
+      (field) => field !== "event_ids" && field !== "resource_links",
     );
+    if (
+      resourceValue !== undefined &&
+      resourceValue !== original.resource_links
+    )
+      changed.push("resource_links");
     const originalEventIds = [...(original.event_ids as string[])].sort();
     if (
       JSON.stringify([...selectedEventIds.current].sort()) !==
@@ -102,7 +121,7 @@ export default function TaskCreateForm({
       ref={formRef}
       action={action}
       className="event-form task-form"
-      onChange={updateEditedFields}
+      onChange={() => updateEditedFields()}
     >
       <AcademicPeriodWriteContextField />
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
@@ -314,6 +333,12 @@ export default function TaskCreateForm({
           />
         </div>
       </fieldset>
+      <ResourceLinksEditor
+        key={resourceLinksValue}
+        initialValue={resourceLinksValue}
+        error={fieldErrors.resource_links}
+        onChange={(value) => updateEditedFields(value)}
+      />
       {!task && (
         <div className="col-span-2">
           <RecurrenceFields

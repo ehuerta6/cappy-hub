@@ -16,7 +16,7 @@ import {
   getAcademicPeriodData,
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
-import EventResourceLinks from "../event-resource-links";
+import { ResourceLinksList } from "@/components/resource-links-list";
 import {
   eventStatus,
   eventSignupOpen,
@@ -256,6 +256,7 @@ export default async function EventDetailPage({
     personalRosterResult,
     activeOfficerResult,
     series,
+    resourceLinksResult,
   ] = await Promise.all([
     supabase
       .from("event_officers")
@@ -285,6 +286,12 @@ export default async function EventDetailPage({
           .select("id,revision,recurrence_rule,starts_on")
           .eq("id", event.recurrence_series_id)
           .single(),
+    supabase
+      .from("resource_links")
+      .select("id,kind,label,url,legacy_key,sort_order")
+      .eq("event_id", event.id)
+      .order("sort_order")
+      .order("id"),
   ]);
   if (
     rosterCountResult.error ||
@@ -295,6 +302,8 @@ export default async function EventDetailPage({
   )
     throw new Error("Failed to load event participation counts");
   if (series?.error) throw new Error("Failed to load recurring series");
+  if (resourceLinksResult.error)
+    throw new Error("Failed to load Event resource links");
 
   const confirmedCount = rosterCountResult.count ?? 0;
   const taskCount = taskCountResult.count ?? 0;
@@ -560,11 +569,7 @@ export default async function EventDetailPage({
               ) : (
                 <p className="text-sm text-muted">No description.</p>
               )}
-              <EventResourceLinks
-                slidesUrl={event.slides_url}
-                meetingNotesUrl={event.meeting_notes_url}
-                signupSheetUrl={event.signup_sheet_url}
-              />
+              <ResourceLinksList resources={resourceLinksResult.data} />
               {canManage && hasCalendarSyncFailure && (
                 <div
                   role="alert"

@@ -145,6 +145,19 @@ try {
         create table upgrade_fixture.pre_hardening_positions as select to_jsonb(p) row from public.positions p;
         create table upgrade_fixture.pre_hardening_event_types as select to_jsonb(t) row from public.event_types t;`);
     }
+    if (migration === "20261110184834_flexible_event_task_resource_links.sql") {
+      const longLegacyUrl = `https://upgrade.example.org/${"x".repeat(2050)}`;
+      psql(`create table upgrade_fixture.pre_resource_link_backfill(event_id bigint not null);
+        with inserted as (
+          insert into public.events(name,description,event_type_id,location,event_date,starts_at,ends_at,
+            slides_url,meeting_notes_url,signup_sheet_url)
+          values('Resource link migration fixture','Created before resource-link migration',
+            (select id from public.event_types order by id limit 1),'TBA','2099-11-10',
+            '2099-11-10 16:00Z','2099-11-10 17:00Z','${longLegacyUrl}',
+            'https://upgrade.example.org/notes','https://upgrade.example.org/signup')
+          returning id
+        ) insert into upgrade_fixture.pre_resource_link_backfill(event_id) select id from inserted;`);
+    }
     if (migration === "20261007000000_position_machine_identity.sql") {
       psql(`create table upgrade_fixture.pre_position_machine_positions as
         select to_jsonb(p) row from public.positions p;
@@ -203,6 +216,31 @@ try {
       psql("delete from public.point_transactions where id=-180180;");
     }
     psql(readFileSync(`supabase/migrations/${migration}`));
+    if (migration === "20261110184834_flexible_event_task_resource_links.sql") {
+      const longLegacyUrl = `https://upgrade.example.org/${"x".repeat(2050)}`;
+      psql(`do $$ declare fixture_id bigint; found_links jsonb;
+        begin
+          select event_id into fixture_id from upgrade_fixture.pre_resource_link_backfill;
+          select coalesce(jsonb_agg(jsonb_build_object('legacy_key',legacy_key,'url',url)
+            order by legacy_key),'[]'::jsonb) into found_links
+          from public.resource_links where event_id=fixture_id;
+          if found_links is distinct from '${JSON.stringify([
+            {
+              legacy_key: "meeting_notes",
+              url: "https://upgrade.example.org/notes",
+            },
+            {
+              legacy_key: "signup_sheet",
+              url: "https://upgrade.example.org/signup",
+            },
+            { legacy_key: "slides", url: longLegacyUrl },
+          ])}'::jsonb then
+            raise exception 'Resource link migration did not preserve all preexisting Event URLs: %',found_links;
+          end if;
+        end $$;
+        delete from public.events where id=(select event_id from upgrade_fixture.pre_resource_link_backfill);
+        drop table upgrade_fixture.pre_resource_link_backfill;`);
+    }
   }
   cli([
     "test",

@@ -5,6 +5,7 @@ import {
 } from "@/lib/validation";
 import { recurrenceFieldsSchema } from "@/lib/recurrence-validation";
 import { taskTypeSchema } from "@/lib/task-types";
+import { taskResourceLinksInputSchema } from "@/lib/resource-links";
 
 export const createTaskInputSchema = zod
   .object({
@@ -24,6 +25,7 @@ export const createTaskInputSchema = zod
       (points) => points > 0,
       "Enter a positive point value",
     ),
+    resource_links: taskResourceLinksInputSchema,
   })
   .extend(recurrenceFieldsSchema.shape);
 
@@ -44,6 +46,7 @@ export const taskDetailsInputSchema = zod.object({
     (points) => points > 0,
     "Enter a positive point value",
   ),
+  resource_links: taskResourceLinksInputSchema,
 });
 
 export const taskEventIdsSchema = zod

@@ -47,6 +47,7 @@ const taskForm = () => {
   data.set("branch_id", "-5");
   data.set("due_date", "2026-10-15");
   data.set("points", "1.5");
+  data.set("resource_links", "[]");
   data.set("recurrence_request_key", "00000000-0000-4000-8000-000000000002");
   data.set("writable_period", "current");
   return data;
@@ -73,7 +74,7 @@ it("rejects malformed task points before calling the RPC", async () => {
 
 it("submits task creation values and optional Event links to the trusted RPC", async () => {
   await createTask({ error: "", success: "" }, taskForm());
-  expect(rpc).toHaveBeenCalledWith("save_task_with_events", {
+  expect(rpc).toHaveBeenCalledWith("save_task_with_resources", {
     p_title: " Flyer ",
     p_description: " Prepare the flyer ",
     p_task_type: "Flyer",
@@ -82,6 +83,7 @@ it("submits task creation values and optional Event links to the trusted RPC", a
     p_points: 1.5,
     p_approval_required: false,
     p_event_ids: [],
+    p_resource_links: [],
   });
   expect(revalidatePath).toHaveBeenCalledWith("/tasks");
   expect(redirect).toHaveBeenCalledWith("/tasks?feedback=task-created#task-9");
@@ -93,8 +95,8 @@ it("validates and submits multiple Event links through the atomic Task mutation"
   form.append("event_ids", "22");
   await createTask({ error: "", success: "" }, form);
   expect(rpc).toHaveBeenCalledWith(
-    "save_task_with_events",
-    expect.objectContaining({ p_event_ids: [21, 22] }),
+    "save_task_with_resources",
+    expect.objectContaining({ p_event_ids: [21, 22], p_resource_links: [] }),
   );
 });
 
@@ -126,7 +128,7 @@ it("creates separate recurring Task due-date rows", async () => {
   recurring.set("recurrence_end_mode", "count");
   recurring.set("recurrence_count", "3");
   await createTask({ error: "", success: "" }, recurring);
-  expect(rpc).toHaveBeenCalledWith("create_recurring_task_with_events", {
+  expect(rpc).toHaveBeenCalledWith("create_recurring_task_with_resources", {
     p_title: " Flyer ",
     p_description: " Prepare the flyer ",
     p_task_type: "Flyer",
@@ -137,6 +139,7 @@ it("creates separate recurring Task due-date rows", async () => {
     p_request_key: "00000000-0000-4000-8000-000000000002",
     p_due_dates: ["2026-10-15", "2026-10-17", "2026-10-19"],
     p_event_ids: [],
+    p_resource_links: [],
   });
 });
 
@@ -241,7 +244,7 @@ it("edits standalone Task details and preserves the filtered-list return path", 
   form.set("task_id", "9");
   form.set("returnTo", "/tasks?q=flyer&branch=2");
   await editStandaloneTask({ error: "", success: "" }, form);
-  expect(rpc).toHaveBeenCalledWith("update_task_details_with_events", {
+  expect(rpc).toHaveBeenCalledWith("update_task_details_with_resources", {
     p_task_id: 9,
     p_title: " Flyer ",
     p_description: " Prepare the flyer ",
@@ -250,6 +253,7 @@ it("edits standalone Task details and preserves the filtered-list return path", 
     p_due_date: "2026-10-15",
     p_points: 1.5,
     p_event_ids: [],
+    p_resource_links: [],
   });
   expect(redirect).toHaveBeenCalledWith(
     "/tasks/9?returnTo=%2Ftasks%3Fq%3Dflyer%26branch%3D2&feedback=task-updated",
@@ -321,7 +325,7 @@ it("recurring Task editing submits only changed fields to its trusted RPC", asyn
   data.set("mutation_request_key", "00000000-0000-4000-8000-000000000068");
   data.append("edited_fields", "title");
   await editRecurringTask({ error: "", success: "" }, data);
-  expect(rpc).toHaveBeenCalledWith("mutate_recurring_task_with_events", {
+  expect(rpc).toHaveBeenCalledWith("mutate_recurring_task_with_resources", {
     p_selected_id: 9,
     p_scope: "series",
     p_operation: "edit",
@@ -346,8 +350,11 @@ it("applies changed Event links through the selected recurring edit scope", asyn
   data.append("edited_fields", "event_ids");
   await editRecurringTask({ error: "", success: "" }, data);
   expect(rpc).toHaveBeenCalledWith(
-    "mutate_recurring_task_with_events",
-    expect.objectContaining({ p_scope: "following", p_event_ids: [21, 22] }),
+    "mutate_recurring_task_with_resources",
+    expect.objectContaining({
+      p_scope: "following",
+      p_event_ids: [21, 22],
+    }),
   );
 });
 
@@ -371,7 +378,7 @@ it.each(["occurrence", "following", "series"])(
         : "/tasks/9?returnTo=%2Ftasks%3Fq%3Dflyer%26branch%3D2%26assignee%3D7&feedback=task-updated",
     );
     expect(rpc).toHaveBeenCalledWith(
-      "mutate_recurring_task_with_events",
+      "mutate_recurring_task_with_resources",
       expect.objectContaining({
         p_scope: scope,
         p_patch: { title: " Flyer " },

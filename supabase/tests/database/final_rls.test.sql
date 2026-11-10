@@ -193,6 +193,13 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       ,'public.add_negative_point(bigint,bigint,bigint,text)'::regprocedure
       ,'public.change_event_signup(bigint,bigint,boolean,text)'::regprocedure
       ,'public.bulk_add_event_officers(bigint,bigint[],text)'::regprocedure
+      ,'public.save_event_with_resources(text,text,bigint,text,date,timestamptz,timestamptz,bigint[],text,integer,bigint,text,text,jsonb,jsonb)'::regprocedure
+      ,'public.create_recurring_event_with_resources(text,text,bigint,text,bigint[],text,text,text,integer,uuid,text,date[],timestamptz[],timestamptz[],jsonb,jsonb)'::regprocedure
+      ,'public.mutate_recurring_event_with_resources(bigint,text,text,uuid,bigint,integer,jsonb,text,date[],boolean,integer,jsonb)'::regprocedure
+      ,'public.save_task_with_resources(text,text,text,bigint,date,numeric,boolean,bigint[],jsonb)'::regprocedure
+      ,'public.create_recurring_task_with_resources(text,text,text,bigint,numeric,boolean,uuid,text,date[],bigint[],jsonb)'::regprocedure
+      ,'public.update_task_details_with_resources(bigint,text,text,text,bigint,date,numeric,bigint[],jsonb)'::regprocedure
+      ,'public.mutate_recurring_task_with_resources(bigint,text,text,uuid,bigint,integer,jsonb,text,date[],bigint[],jsonb)'::regprocedure
     )), 'authenticated has no unreviewed public RPC entry point');
 
 -- Fixtures are inserted as database owner. Every probe below changes to the

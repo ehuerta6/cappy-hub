@@ -50,9 +50,7 @@ const eventFormFields = [
   "start_time",
   "end_time",
   "branches",
-  "slides_url",
-  "meeting_notes_url",
-  "signup_sheet_url",
+  "resource_links",
   "max_volunteers",
   "time_slots",
   "recurrence_frequency",
@@ -108,9 +106,7 @@ export async function saveEvent(
     start_time: formData.get("start_time") ?? "",
     end_time: formData.get("end_time") ?? "",
     branches: formData.getAll("branches"),
-    slides_url: formData.get("slides_url") ?? "",
-    meeting_notes_url: formData.get("meeting_notes_url") ?? "",
-    signup_sheet_url: formData.get("signup_sheet_url") ?? "",
+    resource_links: formData.get("resource_links") ?? "[]",
     max_volunteers: formData.get("max_volunteers") ?? "",
     recurrence_frequency: formData.get("recurrence_frequency") ?? "none",
     recurrence_request_key:
@@ -130,6 +126,13 @@ export async function saveEvent(
       ["branches", "recurrence_weekdays"],
     );
   const validatedEventInput = validationResult.data;
+  const legacyUrl = (key: "slides" | "meeting_notes" | "signup_sheet") =>
+    validatedEventInput.resource_links.find(
+      (resource) => resource.legacy_key === key,
+    )?.url ?? "";
+  const resourceLinksChanged = formData
+    .getAll("edited_fields")
+    .includes("resource_links");
   const notificationSettings = readNotificationSettings(formData, [1440, 60]);
   if (!notificationSettings.success)
     return formFailure(
@@ -189,10 +192,15 @@ export async function saveEvent(
       false,
     );
     try {
+      const recurrenceForm = new FormData();
+      for (const [name, value] of formData.entries()) {
+        if (name !== "edited_fields" || value !== "resource_links")
+          recurrenceForm.append(name, value);
+      }
       const args = await recurrenceMutation(
         "event",
         validatedEventInput.id,
-        formData,
+        recurrenceForm,
         "edit",
         {
           name: validatedEventInput.name,
@@ -203,9 +211,9 @@ export async function saveEvent(
           start_time: validatedEventInput.start_time,
           end_time: validatedEventInput.end_time,
           branch_ids: validatedEventInput.branches,
-          slides_url: validatedEventInput.slides_url,
-          meeting_notes_url: validatedEventInput.meeting_notes_url,
-          signup_sheet_url: validatedEventInput.signup_sheet_url,
+          slides_url: legacyUrl("slides"),
+          meeting_notes_url: legacyUrl("meeting_notes"),
+          signup_sheet_url: legacyUrl("signup_sheet"),
           max_volunteers: usesTimeSlots
             ? null
             : (validatedEventInput.max_volunteers ?? null),
@@ -213,8 +221,13 @@ export async function saveEvent(
         },
       );
       const { error } = await supabase.rpc(
-        "mutate_recurring_event_with_capacity_and_time_slots",
-        args,
+        "mutate_recurring_event_with_resources",
+        {
+          ...args,
+          ...(resourceLinksChanged
+            ? { p_resource_links: validatedEventInput.resource_links }
+            : {}),
+        },
       );
       if (error)
         return formFailure(
@@ -325,16 +338,16 @@ export async function saveEvent(
         ["branches", "recurrence_weekdays"],
       );
     const { data, error } = await supabase.rpc(
-      "create_recurring_event_with_capacity_and_time_slots",
+      "create_recurring_event_with_resources",
       {
         p_name: validatedEventInput.name,
         p_description: validatedEventInput.description,
         p_event_type_id: validatedEventInput.event_type_id,
         p_location: validatedEventInput.location,
         p_branch_ids: validatedEventInput.branches,
-        p_slides_url: validatedEventInput.slides_url,
-        p_meeting_notes_url: validatedEventInput.meeting_notes_url,
-        p_signup_sheet_url: validatedEventInput.signup_sheet_url,
+        p_slides_url: legacyUrl("slides"),
+        p_meeting_notes_url: legacyUrl("meeting_notes"),
+        p_signup_sheet_url: legacyUrl("signup_sheet"),
         p_max_volunteers: usesTimeSlots
           ? 0
           : (validatedEventInput.max_volunteers ?? 0),
@@ -344,6 +357,7 @@ export async function saveEvent(
         p_starts_at: starts as string[],
         p_ends_at: ends as string[],
         p_time_slots: timeSlots,
+        p_resource_links: validatedEventInput.resource_links,
       },
     );
     if (error)
@@ -392,27 +406,27 @@ export async function saveEvent(
       ),
     );
   }
-  const { data, error } = await supabase.rpc(
-    "save_event_with_capacity_and_time_slots",
-    {
-      p_event_id: validatedEventInput.id,
-      p_name: validatedEventInput.name,
-      p_description: validatedEventInput.description,
-      p_event_type_id: validatedEventInput.event_type_id,
-      p_location: validatedEventInput.location,
-      p_event_date: validatedEventInput.event_date,
-      p_starts_at: start,
-      p_ends_at: end,
-      p_branch_ids: validatedEventInput.branches,
-      p_slides_url: validatedEventInput.slides_url,
-      p_meeting_notes_url: validatedEventInput.meeting_notes_url,
-      p_signup_sheet_url: validatedEventInput.signup_sheet_url,
-      p_max_volunteers: usesTimeSlots
-        ? 0
-        : (validatedEventInput.max_volunteers ?? 0),
-      p_time_slots: timeSlots,
-    },
-  );
+  const { data, error } = await supabase.rpc("save_event_with_resources", {
+    ...(validatedEventInput.id !== undefined
+      ? { p_event_id: validatedEventInput.id }
+      : {}),
+    p_name: validatedEventInput.name,
+    p_description: validatedEventInput.description,
+    p_event_type_id: validatedEventInput.event_type_id,
+    p_location: validatedEventInput.location,
+    p_event_date: validatedEventInput.event_date,
+    p_starts_at: start,
+    p_ends_at: end,
+    p_branch_ids: validatedEventInput.branches,
+    p_slides_url: legacyUrl("slides"),
+    p_meeting_notes_url: legacyUrl("meeting_notes"),
+    p_signup_sheet_url: legacyUrl("signup_sheet"),
+    p_max_volunteers: usesTimeSlots
+      ? 0
+      : (validatedEventInput.max_volunteers ?? 0),
+    p_time_slots: timeSlots,
+    p_resource_links: validatedEventInput.resource_links,
+  });
   if (error)
     return formFailure(
       mutationError(error.message),
