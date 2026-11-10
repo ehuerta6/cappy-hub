@@ -37,13 +37,10 @@ export const isEventExecutive = (actor: AuthorizationContext) =>
   ].includes(actor.positionCode ?? "");
 export const canSeeAllBranches = (actor: AuthorizationContext) =>
   isAdmin(actor) || isEventExecutive(actor);
-export const canManageEvent = (
-  actor: AuthorizationContext,
-  branches: number[],
-) =>
+export const canManageEvent = (actor: AuthorizationContext) =>
+  canSeeAllBranches(actor) || isLead(actor);
+export const canManageTask = (actor: AuthorizationContext, branchId: number) =>
   canSeeAllBranches(actor) ||
-  (isLead(actor) &&
-    branches.length > 0 &&
-    branches.some((id) => actor.branchIds.includes(id)));
+  (isLead(actor) && actor.branchIds.includes(branchId));
 export const canManageOfficers = isAdmin;
 export const canManagePoints = isAdmin;

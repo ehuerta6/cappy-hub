@@ -12,6 +12,7 @@ vi.mock("@/lib/authorization", () => ({
   canManageOfficers: () => true,
   isAdmin: () => true,
   canManageEvent: vi.fn(() => true),
+  canManageTask: vi.fn(() => true),
   canSeeAllBranches: () => true,
   isLead: () => false,
 }));
@@ -35,7 +36,11 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import { createClient } from "@/lib/supabase/server";
-import { canManageEvent, getAuthorizationContext } from "@/lib/authorization";
+import {
+  canManageEvent,
+  canManageTask,
+  getAuthorizationContext,
+} from "@/lib/authorization";
 import TaskEdit from "@/app/(protected)/tasks/[id]/edit/page";
 import HistoryTable from "@/app/(protected)/points/history-table";
 import type { Tables } from "@/lib/database.types";
@@ -161,6 +166,7 @@ beforeEach(() => {
   ] as never);
   vi.mocked(getAuthorizationContext).mockResolvedValue({ id: 1 } as never);
   vi.mocked(canManageEvent).mockReturnValue(true);
+  vi.mocked(canManageTask).mockReturnValue(true);
   vi.mocked(createClient).mockResolvedValue({
     rpc: () => {
       const query = {
@@ -464,7 +470,7 @@ it("shows per-Officer completion controls to managers and read-only state to Off
   );
   expect(assignmentRows?.[2]).toContain("Remove assignment");
 
-  vi.mocked(canManageEvent).mockReturnValue(false);
+  vi.mocked(canManageTask).mockReturnValue(false);
   const officerHtml = renderToStaticMarkup(await TaskDetail(props));
   expect(officerHtml).toContain("Not completed");
   expect(officerHtml).toContain("Completed");
@@ -480,7 +486,7 @@ it("lets an unassigned Officer self-assign without exposing completion controls"
   Object.assign(task, {
     task_officer_assignments: [previousAssignments[0]],
   });
-  vi.mocked(canManageEvent).mockReturnValue(false);
+  vi.mocked(canManageTask).mockReturnValue(false);
   const html = renderToStaticMarkup(
     await TaskDetail({
       params: Promise.resolve({ id: "7" }),

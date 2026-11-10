@@ -308,9 +308,8 @@ select throws_ok($$insert into event_branches(event_id,branch_id) values(-403,1)
   '42501',null,'Lead cannot take over unrelated event by raw branch insert');
 select lives_ok($$select change_event_signup(-402,-403,false)$$,
   'Lead can manage another signup through trusted scoped RPC');
-select throws_ok($$select change_event_signup(-403,-403,false)$$,
-  'P0001','Cannot manage another officer signup for this event',
-  'Lead trusted RPC still rejects unrelated signup management');
+select lives_ok($$select change_event_signup(-403,-403,false)$$,
+  'Lead trusted RPC can manage signups across Event Branches');
 select lives_ok($$select cancel_event(-402)$$,'Lead can cancel managed event via trusted RPC');
 
 -- Admin: broad reads and checked RPC writes; raw writes stay denied.

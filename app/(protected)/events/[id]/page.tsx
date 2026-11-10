@@ -226,12 +226,7 @@ export default async function EventDetailPage({
   const status = eventStatus(event);
   const signupOpen = !event.deleted_at && eventSignupOpen(event);
   const past = status === "past";
-  const canManage =
-    !periodSelection.isHistorical &&
-    canManageEvent(
-      actor,
-      event.event_branches.map((eventBranch) => eventBranch.branch_id),
-    );
+  const canManage = !periodSelection.isHistorical && canManageEvent(actor);
   if (event.deleted_at && !canManage) notFound();
   const calendarSyncFailure = canManage
     ? await supabase

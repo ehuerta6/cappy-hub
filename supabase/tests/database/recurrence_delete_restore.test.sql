@@ -109,8 +109,8 @@ update tasks set branch_id=(select id from branches where name='icpc') where id=
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033302',true);
 set local role authenticated;
-select throws_ok($$select mutate_recurring_event_lifecycle(-33301,'series','delete',gen_random_uuid(),-33301,2)$$,
- 'P0001','Event outside branch scope','Lead scope is checked across every Event in the requested series');
+select lives_ok($$select mutate_recurring_event_lifecycle(-33301,'series','delete',gen_random_uuid(),-33301,2)$$,
+ 'Lead can delete a recurrence spanning Event Branches');
 select throws_ok($$select mutate_recurring_task_lifecycle(-33340,'series','delete',gen_random_uuid(),-33302,0)$$,
  'P0001','Task outside branch scope','Lead cannot mutate an out-of-branch Task series');
 reset role;

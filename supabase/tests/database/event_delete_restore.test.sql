@@ -50,8 +50,8 @@ values(-330106,-3303,-3301,3,'Task award','task');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000003302',true);
 set local role authenticated;
-select throws_ok($$select delete_event(-3302)$$,'P0001','Event outside branch scope',
- 'Lead cannot delete an Event outside their branch scope');
+select lives_ok($$select delete_event(-3302)$$,
+ 'Lead can reversibly delete an Event outside their Branches');
 select lives_ok($$select delete_event(-3301)$$,'Lead can delete one Event in their branch scope');
 select is((select delete_event(-3301)),false,'repeated Event deletion is idempotent');
 select is((select deleted_at is not null and delete_points_suspended from events where id=-3301),true,

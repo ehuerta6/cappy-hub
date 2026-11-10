@@ -76,21 +76,23 @@ select throws_ok($$select add_manual_transaction(-303,1,'No','manual')$$,'P0001'
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000302',true);
 select lives_ok($$select save_event_with_links('Lead shared','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-22'::date,'2099-09-22 09:00-06','2099-09-22 10:00-06',array[(select id from branches where name='intro'),(select id from branches where name='icpc')],null,null)$$,
  'Lead can create a multi-branch Event with an overlapping branch');
-select throws_ok($$select save_event_with_links('Lead global','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-22'::date,'2099-09-22 09:00-06','2099-09-22 10:00-06',null,null,null,null)$$,
- 'P0001','Event outside branch scope','Lead cannot create global event');
+select lives_ok($$select save_event_with_links('Lead global','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-22'::date,'2099-09-22 09:00-06','2099-09-22 10:00-06',null,null,null,null)$$,
+ 'Lead can create a global Event');
 select lives_ok($$select save_event_with_links('Lead edit','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 09:00-06','2099-09-20 10:00-06',array[1::bigint],-302,null,null)$$,
- 'Lead may edit currently managed event');
-select throws_ok($$select save_event_with_links('Lead takeover','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 09:00-06','2099-09-20 10:00-06',array[1::bigint],-303,null,null)$$,
- 'P0001','Event outside branch scope','Lead cannot take unrelated event by replacing branches');
-select throws_ok($$select save_event_with_links('Lead global takeover','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 09:00-06','2099-09-20 10:00-06',array[1::bigint],-301,null,null)$$,
- 'P0001','Event outside branch scope','Lead cannot take global event by adding own branch');
-select throws_ok($$select save_event_with_links('Lead makes global','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 09:00-06','2099-09-20 10:00-06',null,-302,null,null)$$,
- 'P0001','Event outside branch scope','Lead cannot convert managed event to global');
+ 'Lead may edit an Event in their own Branch');
+select lives_ok($$select save_event_with_links('Lead takeover','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 09:00-06','2099-09-20 10:00-06',array[(select id from branches where name='general')],-303,null,null)$$,
+ 'Lead may edit an Event in another Branch');
+select lives_ok($$select save_event_with_links('Lead global takeover','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 10:00-06','2099-09-20 11:00-06',array[1::bigint],-301,null,null)$$,
+ 'Lead may edit a global Event');
+select lives_ok($$select save_event_with_links('Lead makes global','Test event',(select id from event_types where name='Meeting'),'TBA','2099-09-20'::date,'2099-09-20 09:00-06','2099-09-20 10:00-06',null,-302,null,null)$$,
+ 'Lead may make an Event global');
+select throws_ok($$select save_task('Lead task restriction','Description','Flyer',(select id from branches where name='icpc'),'2099-09-23',3,false)$$,
+ 'P0001','Task outside branch scope','Lead Event scope does not expand Task management beyond their Branches');
 select lives_ok($$select change_event_signup(-302,-301,false)$$,'Lead can assign another officer on managed event');
 select lives_ok($$select change_event_signup(-302,-301,true)$$,'Lead can remove another officer on managed event');
 select lives_ok($$select change_event_signup(-306,-301,false)$$,'Lead can manage participation on multi-branch Event with overlap');
-select throws_ok($$select change_event_signup(-303,-301,false)$$,'P0001','Cannot manage another officer signup for this event',
- 'Lead cannot manage unrelated event signups');
+select lives_ok($$select change_event_signup(-303,-301,false)$$,
+ 'Lead can manage signups for an Event outside their Branches');
 select lives_ok($$select change_event_signup(-305,-302,false)$$,'Lead can self-signup to global event');
 select lives_ok($$select cancel_event(-302)$$,'Lead can cancel managed event');
 select throws_ok($$select change_event_signup(-302,-302,false)$$,'P0001','Signups are closed for this event',

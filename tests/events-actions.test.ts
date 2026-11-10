@@ -3,14 +3,8 @@ import { beforeEach, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/authorization", () => ({
   getAuthorizationContext: vi.fn(),
-  canManageEvent: (
-    actor: { positionCode?: string; branchIds?: number[] },
-    branches: number[],
-  ) =>
-    actor.positionCode === "president" ||
-    (actor.positionCode === "lead" &&
-      branches.length > 0 &&
-      branches.some((branchId) => actor.branchIds?.includes(branchId))),
+  canManageEvent: (actor: { positionCode?: string }) =>
+    actor.positionCode === "president" || actor.positionCode === "lead",
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/google-calendar-sync", () => ({
@@ -157,7 +151,7 @@ it("retries a manager-authorized Event by ID against canonical state", async () 
   );
 });
 
-it("rejects an out-of-scope retry and does not call Google", async () => {
+it("allows a Lead to retry a Google Calendar sync for another Branch", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 8,
     positionCode: "lead",
@@ -167,7 +161,7 @@ it("rejects an out-of-scope retry and does not call Google", async () => {
     select: () => ({
       eq: () => ({
         maybeSingle: async () => ({
-          data: { id: 12, event_branches: [{ branch_id: 1 }] },
+          data: { id: 12 },
           error: null,
         }),
       }),
@@ -182,8 +176,8 @@ it("rejects an out-of-scope retry and does not call Google", async () => {
     data,
   );
 
-  expect(result.error).toBe("Event outside branch scope");
-  expect(syncGoogleCalendarEvents).not.toHaveBeenCalled();
+  expect(result.success).toBe("Google Calendar is up to date");
+  expect(syncGoogleCalendarEvents).toHaveBeenCalled();
 });
 
 it("explains when a requested retry cannot run because sync is disabled", async () => {

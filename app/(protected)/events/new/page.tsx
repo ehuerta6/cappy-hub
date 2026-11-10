@@ -24,11 +24,7 @@ export default async function NewEventPage({
   );
   if (periodSelection.isHistorical) redirect(`/events?period=${params.period}`);
   const actor = await getAuthorizationContext();
-  if (
-    !canSeeAllBranches(actor) &&
-    (!isLead(actor) || actor.branchIds.length === 0)
-  )
-    redirect("/access-denied");
+  if (!canSeeAllBranches(actor) && !isLead(actor)) redirect("/access-denied");
   const supabase = await createClient();
   const [branches, eventTypes, locations, positions] = await Promise.all([
     supabase
@@ -64,14 +60,8 @@ export default async function NewEventPage({
       <PageHeader title="New event" />
       <EventForm
         recurrenceRequestKey={crypto.randomUUID()}
-        allowGlobal={canSeeAllBranches(actor)}
-        branches={
-          canSeeAllBranches(actor)
-            ? branches.data
-            : branches.data.filter((branch) =>
-                actor.branchIds.includes(branch.id),
-              )
-        }
+        allowGlobal={canSeeAllBranches(actor) || isLead(actor)}
+        branches={branches.data}
         positions={positions.data}
         eventTypes={eventTypes.data}
         locations={locations.data}

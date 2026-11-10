@@ -102,10 +102,8 @@ select is((select count(*) from point_transactions
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000004303',true);
 set local role authenticated;
-select throws_ok($$select restore_event(-4302)$$,'P0001',
-  'Event outside branch scope','a Lead cannot restore outside their branch scope');
-select throws_ok($$select restore_event(-4305)$$,'P0001',
-  'Event outside branch scope','a Lead cannot restore an unrelated branch Event');
+select lives_ok($$select restore_event(-4305)$$,
+  'a Lead can restore a cancelled Event outside their Branches');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000004304',true);
 select throws_ok($$select restore_event(-4303)$$,'P0001',

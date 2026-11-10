@@ -34,7 +34,6 @@ import {
   bulkAddEventOfficersInputSchema,
   changeSignupInputSchema,
   eventTimeSlotsInputSchema,
-  eventBranchIdsInputSchema,
   eventRecordInputSchema,
   restoreEventInputSchema,
   saveEventInputSchema,
@@ -81,13 +80,7 @@ export async function saveEvent(
     enforceWritablePeriod: true,
     periodContext: formData.get("writable_period"),
   });
-  const rawBranchIds = formData.getAll("branches");
-  const branchValidationResult =
-    eventBranchIdsInputSchema.safeParse(rawBranchIds);
-  const branchIdsForAuthorization = branchValidationResult.success
-    ? branchValidationResult.data
-    : [];
-  if (!formData.get("id") && !canManageEvent(actor, branchIdsForAuthorization))
+  if (!formData.get("id") && !canManageEvent(actor))
     return formFailure(
       "Event outside branch scope",
       formData,
@@ -752,16 +745,11 @@ export async function retryGoogleCalendarSync(
   const supabase = await createClient();
   const { data: event, error: eventError } = await supabase
     .from("events")
-    .select("id,event_branches(branch_id)")
+    .select("id")
     .eq("id", validation.data.event_id)
     .maybeSingle();
   if (eventError || !event) return { error: "Event not found", success: "" };
-  if (
-    !canManageEvent(
-      actor,
-      event.event_branches.map((row) => row.branch_id),
-    )
-  )
+  if (!canManageEvent(actor))
     return { error: "Event outside branch scope", success: "" };
 
   const synced = await syncGoogleCalendarEvents([event.id], supabase);
