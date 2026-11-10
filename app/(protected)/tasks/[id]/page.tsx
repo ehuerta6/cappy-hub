@@ -34,6 +34,7 @@ import { taskStatusFromCounts } from "@/lib/task-status";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { TaskDeleteForm, TaskRestoreForm } from "../task-remove-form";
+import { ResourceLinksList } from "@/components/resource-links-list";
 import TaskSelfAssignForm from "../task-action-form";
 import {
   BulkTaskOfficersForm,
@@ -182,6 +183,7 @@ export default async function TaskDetailPage({
     actorAssignmentResult,
     assignedOfficerIdsResult,
     officersResult,
+    resourceLinksResult,
   ] = await Promise.all([
     supabase
       .from("task_officer_assignments")
@@ -233,6 +235,12 @@ export default async function TaskDetailPage({
           .eq("status", "active")
           .order("name")
       : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from("resource_links")
+      .select("id,kind,label,url,legacy_key,sort_order")
+      .eq("task_id", task.id)
+      .order("sort_order")
+      .order("id"),
   ]);
   if (
     assignmentsResult.error ||
@@ -241,6 +249,7 @@ export default async function TaskDetailPage({
     actorAssignmentResult.error ||
     assignedOfficerIdsResult.error ||
     officersResult.error ||
+    resourceLinksResult.error ||
     assignmentsResult.count === null ||
     eventsResult.count === null ||
     incompleteAssignmentsResult.count === null
@@ -376,6 +385,7 @@ export default async function TaskDetailPage({
             <p className="whitespace-pre-wrap break-words">
               {task.description || "No description"}
             </p>
+            <ResourceLinksList resources={resourceLinksResult.data} />
             <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm [&>dt]:mt-0 [&>dd]:mt-0 [&>dd]:min-w-0 [&>dd]:break-words">
               <dt>Type</dt>
               <dd>{formatLabel(task.task_type)}</dd>

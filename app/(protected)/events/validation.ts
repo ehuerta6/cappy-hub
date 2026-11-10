@@ -7,6 +7,7 @@ import {
   safeIntegerStringSchema,
 } from "@/lib/validation";
 import { recurrenceFieldsSchema } from "@/lib/recurrence-validation";
+import { eventResourceLinksInputSchema } from "@/lib/resource-links";
 
 const eventDateInputSchema = zod
   .string()
@@ -19,24 +20,6 @@ const eventTimeInputSchema = zod
     "Choose a same-day range from 6:00 AM through 11:59 PM",
   );
 
-const optionalHttpUrlSchema = zod
-  .string()
-  .transform((url) => url.trim())
-  .refine((value) => {
-    if (!value) return true;
-    try {
-      const url = new URL(value);
-      return (
-        (url.protocol === "http:" || url.protocol === "https:") &&
-        Boolean(url.hostname)
-      );
-    } catch {
-      return false;
-    }
-  }, "Enter a valid HTTP or HTTPS URL")
-  .optional()
-  .default("");
-
 export const saveEventInputSchema = zod
   .object({
     id: optionalSafeIntegerStringSchema("Select a valid event"),
@@ -48,9 +31,7 @@ export const saveEventInputSchema = zod
     start_time: eventTimeInputSchema,
     end_time: eventTimeInputSchema,
     branches: zod.array(safeIntegerStringSchema("Select valid branches")),
-    slides_url: optionalHttpUrlSchema,
-    meeting_notes_url: optionalHttpUrlSchema,
-    signup_sheet_url: optionalHttpUrlSchema,
+    resource_links: eventResourceLinksInputSchema,
     max_volunteers: optionalPositiveSafeIntegerStringSchema(
       "Enter a positive whole number or leave Max volunteers blank",
     ),

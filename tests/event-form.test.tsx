@@ -37,6 +37,20 @@ const renderEventForm = (editing = false, recurring = false, location = "") =>
             } as never)
           : undefined
       }
+      resourceLinks={
+        editing
+          ? ([
+              {
+                id: 1,
+                kind: "signup_sheet",
+                label: "Signup sheet",
+                url: "https://example.com/signup",
+                legacy_key: "signup_sheet",
+                sort_order: 3,
+              },
+            ] as never)
+          : []
+      }
       series={
         recurring
           ? ({
@@ -67,17 +81,20 @@ it("uses the Event Location Autocomplete while keeping location as required text
   expect(editHtml).toContain('value="Custom campus room"');
 });
 
-it("clarifies the external sheet in create/edit forms and displays the saved URL", () => {
+it("offers flexible resource links and keeps the external sheet boundary clear", () => {
   const createHtml = renderEventForm();
   const html = renderEventForm(true);
   for (const formHtml of [createHtml, html]) {
-    expect(formHtml).toContain("External roster / signup sheet URL (optional)");
-    expect(formHtml).toContain(
-      "External Google Sheet resource. Cappy Hub signups, capacity, and participation are managed separately.",
-    );
+    expect(formHtml).toContain("<legend>Resource links</legend>");
+    expect(formHtml).toContain('name="resource_links"');
   }
+  expect(createHtml).not.toContain(
+    "Cappy Hub signups, capacity, and participation remain separate.",
+  );
+  expect(html).toContain(
+    "Cappy Hub signups, capacity, and participation remain separate.",
+  );
   expect(html).toContain('<option value="9">Session</option>');
-  expect(html).toContain('name="signup_sheet_url"');
   expect(html).toContain('value="https://example.com/signup"');
   expect(html).toContain("Max volunteers (optional)");
   expect(html).toContain('name="max_volunteers"');
@@ -106,10 +123,8 @@ it("uses per-slot capacity on slotted Events and keeps the Branch selector", () 
 
 it("uses a full-row Event name and the shared optional recurrence controls", () => {
   const html = renderEventForm();
-  expect(html).toContain("Resources (optional)");
-  expect(html).toContain(
-    "Add links that are useful for this event. All resource links are optional.",
-  );
+  expect(html).toContain("<legend>Resource links</legend>");
+  expect(html).toContain("Add optional links for this Event or Task.");
   expect(html).toContain('<label class="col-span-full">Name');
   expect(html).toContain("<legend>Optional recurrence</legend>");
   expect(html).toContain('class="recurrence-fields"');

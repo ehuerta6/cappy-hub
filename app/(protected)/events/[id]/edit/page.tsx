@@ -19,6 +19,7 @@ import {
   getAcademicPeriodData,
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
+import { parseResourceLinkViews } from "@/lib/resource-links";
 export default async function EditEventPage({
   params,
   searchParams,
@@ -49,6 +50,7 @@ export default async function EditEventPage({
     positions,
     notificationTargets,
     reminderOffsets,
+    resourceLinks,
   ] = await Promise.all([
     supabase
       .from("events")
@@ -84,6 +86,12 @@ export default async function EditEventPage({
       .select("minutes_before")
       .eq("event_id", eventId)
       .order("minutes_before", { ascending: false }),
+    supabase
+      .from("resource_links")
+      .select("id,kind,label,url,legacy_key,sort_order")
+      .eq("event_id", eventId)
+      .order("sort_order")
+      .order("id"),
   ]);
   if (
     event.error ||
@@ -94,7 +102,8 @@ export default async function EditEventPage({
     timeSlots.error ||
     positions.error ||
     notificationTargets.error ||
-    reminderOffsets.error
+    reminderOffsets.error ||
+    resourceLinks.error
   )
     throw new Error("Failed to load event form");
   if (!event.data || event.data.deleted_at) notFound();
@@ -135,6 +144,7 @@ export default async function EditEventPage({
         mutationRequestKey={crypto.randomUUID()}
         allowGlobal={canSeeAllBranches(actor)}
         event={currentEvent}
+        resourceLinks={parseResourceLinkViews(resourceLinks.data ?? [])}
         positions={positions.data}
         notificationSettings={{
           allActive: notificationTargets.data.some(

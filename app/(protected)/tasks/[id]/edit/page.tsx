@@ -13,6 +13,7 @@ import {
   getAcademicPeriodData,
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
+import { parseResourceLinkViews } from "@/lib/resource-links";
 
 export default async function EditTaskPage({
   params,
@@ -54,6 +55,7 @@ export default async function EditTaskPage({
     positions,
     notificationTargets,
     reminderOffsets,
+    resourceLinks,
   ] = await Promise.all([
     task.data.recurrence_series_id === null
       ? Promise.resolve({ data: null, error: null })
@@ -83,6 +85,12 @@ export default async function EditTaskPage({
       .select("minutes_before")
       .eq("task_id", task.data.id)
       .order("minutes_before", { ascending: false }),
+    supabase
+      .from("resource_links")
+      .select("id,kind,label,url,legacy_key,sort_order")
+      .eq("task_id", task.data.id)
+      .order("sort_order")
+      .order("id"),
   ]);
   if (
     series.error ||
@@ -92,7 +100,8 @@ export default async function EditTaskPage({
     taskTypes.error ||
     positions.error ||
     notificationTargets.error ||
-    reminderOffsets.error
+    reminderOffsets.error ||
+    resourceLinks.error
   )
     throw new Error("Failed to load Task edit form");
   const linkedIds = links.data.map(({ event_id }) => event_id);
@@ -112,6 +121,7 @@ export default async function EditTaskPage({
         taskTypes={taskTypes.data}
         positions={positions.data}
         task={task.data}
+        resourceLinks={parseResourceLinkViews(resourceLinks.data ?? [])}
         notificationSettings={{
           allActive: notificationTargets.data.some(
             (target) => target.all_active,

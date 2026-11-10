@@ -429,8 +429,8 @@ select throws_ok($$insert into officers(name,position_id,personal_email) values
 select hasnt_column('positions','can_manage_branch_events','obsolete capability flag is gone');
 select hasnt_column('events','flyer_status','flyer event column is gone');
 select hasnt_column('application_config','flyer_completion_points','flyer configuration is gone');
-select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),31::bigint,
-  'final schema includes manager-scoped Calendar recovery without the retired Waitlist table');
+select is((select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'),32::bigint,
+  'final schema includes Calendar recovery and Event/Task Resource links without the retired Waitlist table');
 select is((select count(*) from events where recurrence_series_id is not null and id not in (90680,90681)),0::bigint,
   'existing Events remain standalone after the additive recurrence migration');
 select is((select count(*) from tasks where recurrence_series_id is not null and id not in (90680,90681)),0::bigint,
