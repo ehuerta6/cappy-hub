@@ -6,7 +6,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { formatNotificationMessage } from "@/lib/presentation";
+import {
+  formatDateTime,
+  formatNotificationDestination,
+  formatNotificationMessage,
+} from "@/lib/presentation";
 import ThemeToggle from "@/components/theme-toggle";
 import AcademicPeriodSelector from "@/components/academic-period-selector";
 import type { AcademicPeriodData } from "@/lib/academic-periods";
@@ -37,6 +41,7 @@ export default function SiteNavigation({
     title: string;
     message: string;
     kind: string;
+    entity_type: string;
     created_at: string;
     read_at: string | null;
   }[];
@@ -188,6 +193,16 @@ export default function SiteNavigation({
                                 )}
                               </span>
                             )}
+                            <span className={styles.notificationPreviewMeta}>
+                              <span>
+                                {formatNotificationDestination(
+                                  notification.entity_type,
+                                )}
+                              </span>
+                              <time dateTime={notification.created_at}>
+                                {formatDateTime(notification.created_at)}
+                              </time>
+                            </span>
                           </button>
                         </form>
                       </li>

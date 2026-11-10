@@ -52,6 +52,7 @@ it("keeps the preview open for inside clicks, dismisses it, and restores focus o
             title: "Event update",
             message: "Location changed.",
             kind: "event.changed",
+            entity_type: "event",
             created_at: "2026-11-09T12:00:00Z",
             read_at: null,
           },
@@ -66,6 +67,11 @@ it("keeps the preview open for inside clicks, dismisses it, and restores focus o
   )!;
   act(() => bell.click());
   expect(container.querySelector("#notification-preview")).not.toBeNull();
+  expect(container.querySelector("#notification-preview ul li")).not.toBeNull();
+  expect(container.textContent).toContain("Event");
+  expect(
+    container.querySelector('time[datetime="2026-11-09T12:00:00Z"]'),
+  ).not.toBeNull();
 
   act(() => {
     container

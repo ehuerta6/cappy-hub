@@ -12,7 +12,7 @@ export default async function ProtectedLayout({ children }: LayoutProps<"/">) {
   const [recentNotifications, unreadNotifications] = await Promise.all([
     supabase
       .from("notifications")
-      .select("id,title,message,kind,created_at,read_at")
+      .select("id,title,message,kind,entity_type,created_at,read_at")
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
       .limit(5),

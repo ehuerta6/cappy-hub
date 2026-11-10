@@ -22,7 +22,7 @@ export default async function NotificationsPage({
   const [notifications, count] = await Promise.all([
     supabase
       .from("notifications")
-      .select("id,title,message,kind,priority,created_at,read_at")
+      .select("id,title,message,kind,entity_type,priority,created_at,read_at")
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
       .range(from, from + PAGE_SIZE - 1),

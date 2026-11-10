@@ -50,6 +50,7 @@ it("updates read state after success and keeps it on screen after failure", asyn
             title: "Event updated",
             message: "The location changed.",
             kind: "event.changed",
+            entity_type: "event",
             priority: "important",
             created_at: "2026-11-09T12:00:00Z",
             read_at: null,
