@@ -11,6 +11,7 @@ select ok(has_table_privilege('authenticated','public.notifications','SELECT')
   and not has_table_privilege('authenticated','public.notifications','DELETE'),
   'authenticated Officers can read but cannot write notification history directly');
 select ok(has_function_privilege('authenticated','public.mark_notification_opened(bigint)','EXECUTE')
+  and has_function_privilege('authenticated','public.set_notification_read_status(bigint,boolean)','EXECUTE')
   and not has_function_privilege('authenticated','private.process_due_reminders()','EXECUTE'),
   'acknowledgement is exposed while reminder processing remains private');
 
@@ -42,6 +43,19 @@ reset role;
 select is((select read_at is not null and reviewed_at is not null
     from public.notifications where id=9403001),true,
   'opening an important notification marks it read and reviewed');
+select lives_ok($$select public.set_notification_read_status(9403001,false)$$,
+  'the recipient can independently mark a notification unread');
+select is((select read_at is null and reviewed_at is not null
+    from public.notifications where id=9403001),true,
+  'changing inbox read status preserves the existing reviewed state');
+select lives_ok($$select public.set_notification_read_status(9403001,true)$$,
+  'the recipient can independently mark a notification read');
+select is((select read_at is not null and reviewed_at is not null
+    from public.notifications where id=9403001),true,
+  'read status changes do not undo or create Dashboard review state');
+select throws_ok($$select public.set_notification_read_status(9403002,false)$$,
+  'P0001','Notification not found',
+  'another Officer cannot change a notification read status');
 select is((select read_at is null and reviewed_at is null
     from public.notifications where id=9403002),true,
   'a rejected cross-recipient acknowledgement leaves the row untouched');

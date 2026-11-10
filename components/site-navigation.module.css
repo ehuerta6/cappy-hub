@@ -111,10 +111,6 @@
   list-style: none;
 }
 
-.notificationBell::-webkit-details-marker {
-  display: none;
-}
-
 .notificationBell:hover,
 .notificationBell:focus-visible {
   background: var(--hover);

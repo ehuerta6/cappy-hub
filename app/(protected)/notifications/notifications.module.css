@@ -22,6 +22,17 @@
   overflow: hidden;
 }
 
+.row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.6rem;
+}
+
+.row form {
+  min-width: 0;
+  flex: 1;
+}
+
 .unread {
   border-color: var(--brand-border);
   background: var(--surface-muted);
@@ -39,6 +50,41 @@
   cursor: pointer;
 }
 
+.statusButton {
+  align-self: center;
+  flex: 0 0 auto;
+  margin: 0 0.8rem 0 0;
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+  background: var(--surface);
+  padding: 0.45rem 0.65rem;
+  color: var(--brand);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.statusButton:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.statusButton:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.statusButton:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.error {
+  margin: 0;
+  border-left: 3px solid var(--danger, #b42318);
+  padding: 0.55rem 0.75rem;
+  color: var(--danger, #b42318);
+}
+
 .open:hover {
   background: var(--hover);
 }
@@ -47,6 +93,18 @@
 .pagination a:focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: -2px;
+}
+
+@media (max-width: 36rem) {
+  .row {
+    display: grid;
+    gap: 0;
+  }
+
+  .statusButton {
+    justify-self: start;
+    margin: 0 0 0.75rem 1rem;
+  }
 }
 
 .titleRow {

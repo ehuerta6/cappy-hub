@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -53,6 +53,27 @@ export default function SiteNavigation({
     return `${href}?${params.toString()}` as Route;
   };
   const visibleLinks = isAdmin ? adminLinks : links;
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notificationMenuRef = useRef<HTMLDivElement>(null);
+  const notificationBellRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!notificationsOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!notificationMenuRef.current?.contains(event.target as Node))
+        setNotificationsOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setNotificationsOpen(false);
+      notificationBellRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [notificationsOpen]);
   const active = (href: string) =>
     href === "/"
       ? pathname === href
@@ -88,10 +109,15 @@ export default function SiteNavigation({
           })}
         </nav>
         <div className={styles.controls}>
-          <details className={styles.notificationMenu}>
-            <summary
+          <div className={styles.notificationMenu} ref={notificationMenuRef}>
+            <button
+              ref={notificationBellRef}
               className={styles.notificationBell}
+              type="button"
+              aria-expanded={notificationsOpen}
+              aria-controls="notification-preview"
               aria-label={`Notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ""}`}
+              onClick={() => setNotificationsOpen((open) => !open)}
             >
               <Bell aria-hidden="true" size={16} />
               <span>Notifications</span>
@@ -102,52 +128,69 @@ export default function SiteNavigation({
                     : unreadNotificationCount}
                 </span>
               )}
-            </summary>
-            <div className={styles.notificationPopover}>
-              <div className={styles.notificationPopoverTitle}>
-                <strong>Recent notifications</strong>
-                <Link href="/notifications">Inbox</Link>
-              </div>
-              {recentNotifications.length === 0 ? (
-                <p className={styles.notificationEmpty}>
-                  You’re all caught up.
-                </p>
-              ) : (
-                <ul className={styles.notificationPreviewList}>
-                  {recentNotifications.map((notification) => (
-                    <li key={notification.id}>
-                      <form action={openNotification}>
-                        <input
-                          type="hidden"
-                          name="notification_id"
-                          value={notification.id}
-                        />
-                        <button
-                          className={styles.notificationPreviewButton}
-                          type="submit"
-                        >
-                          <span className={styles.notificationPreviewTitle}>
-                            {!notification.read_at && (
-                              <span aria-label="Unread">• </span>
-                            )}
-                            {notification.title}
-                          </span>
-                          {notification.message && (
-                            <span className={styles.notificationPreviewMessage}>
-                              {notification.message}
+            </button>
+            {notificationsOpen && (
+              <div
+                id="notification-preview"
+                className={styles.notificationPopover}
+              >
+                <div className={styles.notificationPopoverTitle}>
+                  <strong>Recent notifications</strong>
+                  <Link
+                    href="/notifications"
+                    onClick={() => setNotificationsOpen(false)}
+                  >
+                    Inbox
+                  </Link>
+                </div>
+                {recentNotifications.length === 0 ? (
+                  <p className={styles.notificationEmpty}>
+                    You’re all caught up.
+                  </p>
+                ) : (
+                  <ul className={styles.notificationPreviewList}>
+                    {recentNotifications.map((notification) => (
+                      <li key={notification.id}>
+                        <form action={openNotification}>
+                          <input
+                            type="hidden"
+                            name="notification_id"
+                            value={notification.id}
+                          />
+                          <button
+                            className={styles.notificationPreviewButton}
+                            type="submit"
+                            onClick={() => setNotificationsOpen(false)}
+                          >
+                            <span className={styles.notificationPreviewTitle}>
+                              {!notification.read_at && (
+                                <span aria-label="Unread">• </span>
+                              )}
+                              {notification.title}
                             </span>
-                          )}
-                        </button>
-                      </form>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <Link className={styles.allNotifications} href="/notifications">
-                View all notifications
-              </Link>
-            </div>
-          </details>
+                            {notification.message && (
+                              <span
+                                className={styles.notificationPreviewMessage}
+                              >
+                                {notification.message}
+                              </span>
+                            )}
+                          </button>
+                        </form>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <Link
+                  className={styles.allNotifications}
+                  href="/notifications"
+                  onClick={() => setNotificationsOpen(false)}
+                >
+                  View all notifications
+                </Link>
+              </div>
+            )}
+          </div>
           <AcademicPeriodSelector {...academicPeriods} />
           <ThemeToggle />
           <div className={styles.account}>{account}</div>

@@ -6,6 +6,8 @@ The in-app notification and shared-reminder behavior below was approved by [Issu
 
 Notifications are personal history. The signed-in Officer can see only their own inbox, including read and unread entries. The header bell shows recent entries and links to the full inbox. Opening an entry marks it read and opens the related Event, Task, Points transaction, or Warning when that record is available. Important updates stay on the Dashboard action list until the Officer opens the related record; the notification remains in inbox history. Low-priority signup and departure confirmations stay in the inbox and do not become action items.
 
+Each inbox entry can be marked read or unread without opening its destination. This changes only inbox read status; it does not change whether an important update has been reviewed for the Dashboard action list.
+
 Notifications never create Event or Task obligations, change a signup, award or remove Points, or create or remove Warnings. Audience selection controls who receives a notice only. In-app notices are always stored. Push belongs to [Issue #404](https://github.com/ehuerta6/cappy-hub/issues/404); email is out of scope.
 
 ## Recipients and triggers

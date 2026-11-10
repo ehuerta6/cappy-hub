@@ -2227,6 +2227,10 @@ export type Database = {
         };
         Returns: undefined;
       };
+      set_notification_read_status: {
+        Args: { p_is_read: boolean; p_notification_id: number };
+        Returns: undefined;
+      };
       set_officer_application_role: {
         Args: { p_officer_id: number; p_role: string };
         Returns: undefined;
