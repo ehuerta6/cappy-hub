@@ -63,7 +63,7 @@ it("keeps the task title compact and describes recurrence as optional", () => {
     'class="task-form-title col-span-full self-start block text-sm',
   );
   expect(html).not.toContain('class="h-10 text-base font-medium"');
-  expect(html).toContain('class="task-recurrence-fields"');
+  expect(html).toContain('class="recurrence-fields"');
   expect(html).toContain("Optional recurrence");
   expect(html).not.toContain("<legend>Repeat</legend>");
   expect(html).toContain('name="recurrence_frequency"');

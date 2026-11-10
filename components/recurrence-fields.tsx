@@ -140,22 +140,11 @@ export function RecurrenceFields({
   return (
     <fieldset
       ref={fieldsRef}
-      className={
-        recordType === "Task"
-          ? `task-recurrence-fields${frequency === "none" ? "" : " task-recurrence-fields-expanded"}`
-          : "event-recurrence-fields col-span-2 space-y-3"
-      }
+      className={`recurrence-fields${frequency === "none" ? "" : " recurrence-fields-expanded"}`}
     >
-      <legend>
-        {recordType === "Task" ? "Optional recurrence" : "Repeat"}
-      </legend>
-      {recordType === "Event" && (
-        <p className="event-recurrence-description">
-          Each scheduled occurrence is created as a separate event.
-        </p>
-      )}
+      <legend>Optional recurrence</legend>
       <label>
-        {recordType === "Event" ? "Frequency" : "Repeat"}
+        Repeat
         <select
           name="recurrence_frequency"
           value={frequency}
