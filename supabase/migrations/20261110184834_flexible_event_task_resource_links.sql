@@ -210,6 +210,49 @@ revoke all on function private.assert_resource_links(jsonb,boolean),
 -- These additive wrappers keep the deployed mutation signatures intact and
 -- commit parent and resource changes together. Recurrence targets come from the
 -- authoritative scope mutation's audit receipt, never a client ID list.
+-- Bind the resource payload to the same actor/request key used by recurring
+-- mutations. The transaction advisory lock serializes concurrent retries;
+-- after the parent RPC validates/replays its full payload, returning the saved
+-- result makes exact retries a resource-write no-op after later link edits.
+create table private.resource_link_request_receipts (
+  domain text not null check (domain in ('event.create','event.mutate','task.create','task.mutate')),
+  actor_id uuid not null references auth.users(id) on delete cascade,
+  request_key uuid not null,
+  resource_payload jsonb not null,
+  result_id bigint not null,
+  created_at timestamptz not null default now(),
+  primary key (domain,actor_id,request_key)
+);
+revoke all on private.resource_link_request_receipts from public,anon,authenticated;
+
+create function private.check_resource_link_request(
+  p_domain text,p_request_key uuid,p_resource_links jsonb
+) returns table(is_replay boolean,result_id bigint)
+language plpgsql security definer set search_path = '' as $$
+declare actor uuid; prior private.resource_link_request_receipts%rowtype;
+begin
+  actor:=auth.uid();
+  if actor is null or private.current_active_officer_id() is null then
+    raise exception 'Unauthorized'; end if;
+  if p_domain is null or p_domain not in ('event.create','event.mutate','task.create','task.mutate')
+    or p_request_key is null then raise exception 'Invalid resource request identity'; end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(
+    'resource-link-request:'||p_domain||':'||actor::text||':'||p_request_key::text,0));
+  select * into prior from private.resource_link_request_receipts r
+    where r.domain=p_domain and r.actor_id=actor and r.request_key=p_request_key;
+  if found then
+    if prior.resource_payload is distinct from coalesce(p_resource_links,'null'::jsonb) then
+      raise exception 'Resource request key reused with different resource links'; end if;
+    return query select true,prior.result_id;
+    return;
+  end if;
+  return query select false,null::bigint;
+end;
+$$;
+revoke all on function private.check_resource_link_request(text,uuid,jsonb)
+  from public,anon,authenticated;
+
 create function private.save_event_with_resources(
   p_name text,p_description text,p_event_type_id bigint,p_location text,p_event_date date,
   p_starts_at timestamptz,p_ends_at timestamptz,p_branch_ids bigint[],p_signup_sheet_url text,
@@ -244,16 +287,21 @@ create function private.create_recurring_event_with_resources(
   p_request_key uuid,p_recurrence_rule text,p_event_dates date[],p_starts_at timestamptz[],p_ends_at timestamptz[],
   p_time_slots jsonb,p_resource_links jsonb
 ) returns bigint language plpgsql security definer set search_path = '' as $$
-declare first_id bigint; series_id bigint; event_ids bigint[];
+declare first_id bigint; series_id bigint; event_ids bigint[]; is_replay boolean; prior_id bigint;
 begin
   first_id:=private.create_recurring_event_with_capacity_and_time_slots(p_name,p_description,p_event_type_id,p_location,
     p_branch_ids,p_slides_url,p_meeting_notes_url,p_signup_sheet_url,p_max_volunteers,p_request_key,
     p_recurrence_rule,p_event_dates,p_starts_at,p_ends_at,p_time_slots);
+  select r.is_replay,r.result_id into is_replay,prior_id
+    from private.check_resource_link_request('event.create',p_request_key,p_resource_links) r;
+  if is_replay then return prior_id; end if;
   select recurrence_series_id into series_id from public.events where id=first_id;
   if series_id is null then raise exception 'Recurring Event series not found'; end if;
   select array_agg(id order by recurrence_key) into event_ids
     from public.events where recurrence_series_id=series_id and deleted_at is null;
   perform private.replace_event_resource_links(event_ids,p_resource_links);
+  insert into private.resource_link_request_receipts(domain,actor_id,request_key,resource_payload,result_id)
+    values('event.create',auth.uid(),p_request_key,coalesce(p_resource_links,'null'::jsonb),first_id);
   return first_id;
 end;
 $$;
@@ -274,13 +322,16 @@ create function private.mutate_recurring_event_with_resources(
   p_series_id bigint,p_revision integer,p_patch jsonb,p_rule text,p_dates date[],
   p_capacity_changed boolean,p_max_volunteers integer,p_resource_links jsonb default null
 ) returns bigint language plpgsql security definer set search_path = '' as $$
-declare result_id bigint; event_ids bigint[];
+declare result_id bigint; event_ids bigint[]; is_replay boolean; prior_id bigint;
 begin
   if p_resource_links is not null and p_operation<>'edit' then
     raise exception 'Resource links can only be changed while editing an Event'; end if;
   result_id:=private.mutate_recurring_event_with_capacity_and_time_slots(
     p_selected_id,p_scope,p_operation,p_request_key,p_series_id,p_revision,p_patch,p_rule,p_dates,
     p_capacity_changed,p_max_volunteers);
+  select r.is_replay,r.result_id into is_replay,prior_id
+    from private.check_resource_link_request('event.mutate',p_request_key,p_resource_links) r;
+  if is_replay then return prior_id; end if;
   if p_resource_links is not null then
     select array_agg(item.value::bigint order by item.ordinality) into event_ids
     from public.audit_logs log
@@ -293,6 +344,8 @@ begin
       raise exception 'Event recurrence scope receipt not found'; end if;
     perform private.replace_event_resource_links(event_ids,p_resource_links);
   end if;
+  insert into private.resource_link_request_receipts(domain,actor_id,request_key,resource_payload,result_id)
+    values('event.mutate',auth.uid(),p_request_key,coalesce(p_resource_links,'null'::jsonb),result_id);
   return result_id;
 end;
 $$;
@@ -334,15 +387,20 @@ create function private.create_recurring_task_with_resources(
   p_approval_required boolean,p_request_key uuid,p_recurrence_rule text,p_due_dates date[],
   p_event_ids bigint[],p_resource_links jsonb
 ) returns bigint language plpgsql security definer set search_path = '' as $$
-declare first_id bigint; series_id bigint; task_ids bigint[];
+declare first_id bigint; series_id bigint; task_ids bigint[]; is_replay boolean; prior_id bigint;
 begin
   first_id:=private.create_recurring_task_with_events(p_title,p_description,p_task_type,p_branch_id,p_points,
     p_approval_required,p_request_key,p_recurrence_rule,p_due_dates,p_event_ids);
+  select r.is_replay,r.result_id into is_replay,prior_id
+    from private.check_resource_link_request('task.create',p_request_key,p_resource_links) r;
+  if is_replay then return prior_id; end if;
   select recurrence_series_id into series_id from public.tasks where id=first_id;
   if series_id is null then raise exception 'Recurring Task series not found'; end if;
   select array_agg(id order by recurrence_key) into task_ids
     from public.tasks where recurrence_series_id=series_id and removed_at is null;
   perform private.replace_task_resource_links(task_ids,p_resource_links);
+  insert into private.resource_link_request_receipts(domain,actor_id,request_key,resource_payload,result_id)
+    values('task.create',auth.uid(),p_request_key,coalesce(p_resource_links,'null'::jsonb),first_id);
   return first_id;
 end;
 $$;
@@ -380,12 +438,15 @@ create function private.mutate_recurring_task_with_resources(
   p_revision integer,p_patch jsonb,p_rule text,p_dates date[],
   p_event_ids bigint[] default null,p_resource_links jsonb default null
 ) returns bigint language plpgsql security definer set search_path = '' as $$
-declare result_id bigint; task_ids bigint[];
+declare result_id bigint; task_ids bigint[]; is_replay boolean; prior_id bigint;
 begin
   if p_resource_links is not null and p_operation<>'edit' then
     raise exception 'Resource links can only be changed while editing a Task'; end if;
   result_id:=private.mutate_recurring_task_with_events(p_selected_id,p_scope,p_operation,p_request_key,
     p_series_id,p_revision,p_patch,p_rule,p_dates,p_event_ids);
+  select r.is_replay,r.result_id into is_replay,prior_id
+    from private.check_resource_link_request('task.mutate',p_request_key,p_resource_links) r;
+  if is_replay then return prior_id; end if;
   if p_resource_links is not null then
     select array_agg(item.value::bigint order by item.ordinality) into task_ids
     from public.audit_logs log
@@ -398,6 +459,8 @@ begin
       raise exception 'Task recurrence scope receipt not found'; end if;
     perform private.replace_task_resource_links(task_ids,p_resource_links);
   end if;
+  insert into private.resource_link_request_receipts(domain,actor_id,request_key,resource_payload,result_id)
+    values('task.mutate',auth.uid(),p_request_key,coalesce(p_resource_links,'null'::jsonb),result_id);
   return result_id;
 end;
 $$;
