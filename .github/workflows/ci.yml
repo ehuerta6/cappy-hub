@@ -18,6 +18,10 @@ jobs:
   checks:
     name: Quality checks
     runs-on: ubuntu-latest
+    env:
+      # GitHub runners may already have a process bound to Supabase's default
+      # local Postgres port. Keep CI's disposable database on its own port.
+      SUPABASE_DB_PORT: 55432
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -70,7 +74,7 @@ jobs:
         run: |
           docker ps -a || true
           docker network ls || true
-          sudo ss -ltnp | grep -E ':(54321|54322|54323|54324|54327)\b' || true
+          sudo ss -ltnp | grep -E ':(54321|54322|54323|54324|54327|55432)\b' || true
 
       - name: Run automated tests
         run: npm test
