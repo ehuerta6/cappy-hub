@@ -20,6 +20,31 @@ function timeValue(value: number) {
   return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
 }
 
+function findOverlappingSlots(slots: TimeSlotDraft[]) {
+  const minutes = slots.map((slot) => ({
+    start: minuteValue(slot.start_time),
+    end: minuteValue(slot.end_time),
+  }));
+  const pairs: [number, number][] = [];
+  for (let left = 0; left < minutes.length; left += 1) {
+    for (let right = left + 1; right < minutes.length; right += 1) {
+      const first = minutes[left];
+      const second = minutes[right];
+      if (
+        first.start !== null &&
+        first.end !== null &&
+        second.start !== null &&
+        second.end !== null &&
+        first.start < second.end &&
+        second.start < first.end
+      ) {
+        pairs.push([left + 1, right + 1]);
+      }
+    }
+  }
+  return pairs;
+}
+
 export function calculateEqualSlots(
   start: string,
   end: string,
@@ -86,6 +111,7 @@ export default function TimeSlotsEditor({
     [eventStart, eventEnd, equalCapacities, slotCount],
   );
   const slots = method === "equal" ? equalDrafts : customSlots;
+  const overlappingSlots = findOverlappingSlots(slots);
   const serialized = enabled ? JSON.stringify(serializeSlots(slots)) : "null";
 
   const updateCustom = (index: number, patch: Partial<TimeSlotDraft>) => {
@@ -379,6 +405,19 @@ export default function TimeSlotsEditor({
                     </li>
                   ))}
                 </ol>
+              )}
+              {overlappingSlots.length > 0 && (
+                <p
+                  className="feedback-message feedback-warning text-sm"
+                  role="note"
+                >
+                  Schedule note:{" "}
+                  {overlappingSlots
+                    .map(([first, second]) => `Slots ${first} and ${second}`)
+                    .join("; ")}{" "}
+                  overlap. Overlapping times are allowed, but an Officer cannot
+                  sign up for both overlapping slots.
+                </p>
               )}
             </div>
           )}

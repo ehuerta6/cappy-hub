@@ -24,7 +24,7 @@ import {
 } from "@/lib/event-status";
 import { personalSignupState } from "../personal-signup-state";
 import PresenterSlotsSection from "../presenter-slots-section";
-import TimeSlotsSection from "../time-slots-section";
+import TimeSlotsSection, { isSelfTimeSlotSignup } from "../time-slots-section";
 import {
   CorrectHistoricalTimeSlotAssignmentsForm,
   LeaveAllTimeSlotsForm,
@@ -373,7 +373,7 @@ export default async function EventDetailPage({
       ? supabase
           .from("event_time_slots")
           .select(
-            "id,starts_at,ends_at,capacity,event_time_slot_officers(officer_id,officers!event_time_slot_officers_officer_id_fkey(id,name),event_officers!event_time_slot_officers_signup_fkey(removed_at))",
+            "id,starts_at,ends_at,capacity,event_time_slot_officers(officer_id,created_by,officers!event_time_slot_officers_officer_id_fkey(id,name),event_officers!event_time_slot_officers_signup_fkey(removed_at))",
           )
           .eq("event_id", event.id)
           .order("starts_at")
@@ -439,7 +439,15 @@ export default async function EventDetailPage({
   const officersAvailableToAdd = candidateOfficersResult?.data ?? [];
   const officersAvailableForSlots =
     timeSlotOfficerCandidatesResult?.data ?? officersAvailableToAdd;
-  const timeSlots = timeSlotsResult?.data ?? [];
+  const timeSlots = (timeSlotsResult?.data ?? []).map((slot) => ({
+    ...slot,
+    event_time_slot_officers: slot.event_time_slot_officers.map(
+      ({ created_by, ...registration }) => ({
+        ...registration,
+        is_self_signup: isSelfTimeSlotSignup(created_by, actor.authUserId),
+      }),
+    ),
+  }));
   const rosterRows = rosterResult?.data ?? [];
   const linkedTasks = (tasksResult?.data ?? []).map(({ tasks }) => tasks);
   const transactions = transactionsResult?.data ?? [];
@@ -751,7 +759,24 @@ export default async function EventDetailPage({
                     <BulkAddOfficersForm
                       eventId={event.id}
                       officers={officersAvailableToAdd}
-                      timeSlots={timeSlots.map(({ id }) => ({ id }))}
+                      timeSlots={timeSlots.map(
+                        ({
+                          id,
+                          starts_at,
+                          ends_at,
+                          capacity,
+                          event_time_slot_officers,
+                        }) => ({
+                          id,
+                          starts_at,
+                          ends_at,
+                          capacity,
+                          registeredCount: event_time_slot_officers.filter(
+                            ({ event_officers }) =>
+                              event_officers?.removed_at == null,
+                          ).length,
+                        }),
+                      )}
                       pointsPerHour={event.participation_points_per_hour_at_end}
                       past={past}
                     />

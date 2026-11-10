@@ -1921,6 +1921,11 @@ button.compact-action-button:focus-visible {
   background: var(--danger-bg);
   color: var(--danger);
 }
+.feedback-warning {
+  border-color: var(--warning-border);
+  background: var(--warning-bg);
+  color: var(--warning);
+}
 .cappy-dialog {
   border-radius: 0.55rem;
   box-shadow: 0 16px 48px rgb(0 0 0 / 0.24);

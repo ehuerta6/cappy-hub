@@ -25,11 +25,14 @@ vi.mock("@/app/(protected)/events/time-slot-actions", () => ({
 
 import TimeSlotsSection, {
   type EventTimeSlotWithRoster,
+  isSelfTimeSlotSignup,
 } from "@/app/(protected)/events/time-slots-section";
 import {
+  BulkAssignOfficersToSlotsForm,
   CorrectHistoricalTimeSlotAssignmentsForm,
   JoinSelectedTimeSlotsForm,
 } from "@/app/(protected)/events/time-slot-controls";
+import { overlappingSlotPairs, slotIsFull } from "@/lib/time-slot-conflicts";
 
 const actorId = 7;
 const slots: EventTimeSlotWithRoster[] = [
@@ -58,18 +61,22 @@ const slots: EventTimeSlotWithRoster[] = [
   },
 ];
 
-function renderSection(sectionSlots = slots) {
+function renderSection(
+  sectionSlots = slots,
+  canCorrectAssignments = false,
+  officers: { id: number; name: string }[] = [],
+) {
   return renderToStaticMarkup(
     <TimeSlotsSection
       eventId={12}
       slots={sectionSlots}
       actorId={actorId}
-      canCorrectAssignments={false}
+      canCorrectAssignments={canCorrectAssignments}
       signupOpen
       confirmed
       activeOfficer
       eventCapacityBlocked={false}
-      officers={[]}
+      officers={officers}
       past={false}
     />,
   );
@@ -124,6 +131,172 @@ it("keeps original labels when an earlier slot is already selected", () => {
   expect(html).toContain("Slot 2: 09:30–10:00");
   expect(html).toContain('type="checkbox" name="slot_ids" value="103"');
   expect(html).toContain("Slot 3: 10:00–10:30");
+});
+
+it("explains overlapping choices and blocks self-signup while keeping the checklist keyboard-usable", () => {
+  actionState.current = {
+    error: "An Officer cannot be assigned to overlapping Time Slots",
+    success: "",
+    values: { slot_ids: ["101", "102"] },
+  };
+  const html = renderToStaticMarkup(
+    <JoinSelectedTimeSlotsForm
+      eventId={12}
+      slots={[
+        {
+          id: 101,
+          starts_at: "2026-10-22T15:00:00.000Z",
+          ends_at: "2026-10-22T15:45:00.000Z",
+          position: 1,
+        },
+        {
+          id: 102,
+          starts_at: "2026-10-22T15:30:00.000Z",
+          ends_at: "2026-10-22T16:00:00.000Z",
+          position: 2,
+        },
+      ]}
+    />,
+  );
+
+  expect(html).toContain('name="slot_ids"');
+  expect(html).toContain("Slots 1 and 2 overlap");
+  expect(html).toContain('role="alert"');
+  expect(html).toContain('disabled=""');
+});
+
+it("blocks a manager bulk assignment with overlapping slots and retains the selected Officer and slots", () => {
+  actionState.current = {
+    error: "An Officer cannot be assigned to overlapping Time Slots",
+    success: "",
+    values: { officer_ids: ["8"], slot_ids: ["101", "102"] },
+  };
+  const html = renderToStaticMarkup(
+    <BulkAssignOfficersToSlotsForm
+      eventId={12}
+      officers={[{ id: 8, name: "Selected Officer" }]}
+      slots={[
+        {
+          id: 101,
+          starts_at: "2026-10-22T15:00:00.000Z",
+          ends_at: "2026-10-22T15:45:00.000Z",
+          capacity: 1,
+          registeredCount: 1,
+        },
+        {
+          id: 102,
+          starts_at: "2026-10-22T15:30:00.000Z",
+          ends_at: "2026-10-22T16:00:00.000Z",
+          capacity: null,
+          registeredCount: 0,
+        },
+      ]}
+    />,
+  );
+
+  expect(html).toContain("Selected Officer");
+  expect(html).toContain("Slots 1 and 2 overlap");
+  expect(html).toContain("Full — unavailable");
+  expect(html).toContain("Full — unavailable; selected for assignment");
+  expect(html).toContain("Selected for assignment");
+  expect(html).toContain(
+    "Each selected Officer would receive every selected slot",
+  );
+  expect(html).toContain('checked="" value="101"');
+  expect(html).toContain('checked="" value="102"');
+  expect(html).toContain('disabled=""');
+});
+
+it("identifies a manager assignment candidate whose existing slot overlaps", () => {
+  actionState.current = { error: "", success: "" };
+  const html = renderSection(
+    [
+      {
+        ...slots[0],
+        starts_at: "2026-10-22T15:00:00.000Z",
+        ends_at: "2026-10-22T15:45:00.000Z",
+        capacity: null,
+        event_time_slot_officers: [
+          {
+            officer_id: actorId,
+            is_self_signup: true,
+            officers: { id: actorId, name: "Current Officer" },
+          },
+        ],
+      },
+      {
+        ...slots[1],
+        starts_at: "2026-10-22T15:30:00.000Z",
+        ends_at: "2026-10-22T16:00:00.000Z",
+        capacity: null,
+        event_time_slot_officers: [],
+      },
+    ],
+    true,
+    [{ id: actorId, name: "Current Officer" }],
+  );
+
+  expect(html).toContain("Current Officer — conflicts with Slot 1");
+  expect(html).toContain("Open — available");
+  expect(html).toContain("Self signed up");
+});
+
+it("labels a manager-added slot separately from a self signup", () => {
+  const html = renderSection([
+    {
+      ...slots[1],
+      event_time_slot_officers: [
+        {
+          officer_id: actorId,
+          is_self_signup: false,
+          officers: { id: actorId, name: "Current Officer" },
+        },
+      ],
+    },
+  ]);
+
+  expect(html).toContain("Assigned by a manager");
+});
+
+it("keeps null signup attribution unknown in the slot UI", () => {
+  const html = renderSection([
+    {
+      ...slots[1],
+      event_time_slot_officers: [
+        {
+          officer_id: actorId,
+          is_self_signup: isSelfTimeSlotSignup(null, "actor-auth-id"),
+          officers: { id: actorId, name: "Current Officer" },
+        },
+      ],
+    },
+  ]);
+
+  expect(html).toContain("Signup attribution unavailable");
+  expect(html).not.toContain("Assigned by a manager");
+  expect(html).not.toContain("Self signed up");
+});
+
+it("treats adjacent endpoints as non-conflicting and capacity boundaries as full", () => {
+  expect(
+    overlappingSlotPairs([
+      {
+        ...slots[0],
+        starts_at: "2026-10-22T15:00:00.000Z",
+        ends_at: "2026-10-22T15:30:00.000Z",
+        position: 1,
+      },
+      {
+        ...slots[1],
+        starts_at: "2026-10-22T15:30:00.000Z",
+        ends_at: "2026-10-22T16:00:00.000Z",
+        position: 2,
+      },
+    ]),
+  ).toEqual([]);
+  expect(slotIsFull(1, 1)).toBe(true);
+  expect(slotIsFull(1, 0)).toBe(false);
+  expect(slotIsFull(null, 100)).toBe(false);
 });
 
 it("preserves a middle-slot gap when the middle slot is full", () => {

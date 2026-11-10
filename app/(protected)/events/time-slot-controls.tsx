@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { ActionFeedback, FieldError } from "@/components/ui";
 import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 import { initialFormActionState, submittedValues } from "@/lib/form-feedback";
 import { denverParts } from "@/lib/event-time";
 import type { Tables } from "@/lib/database.types";
+import { overlappingSlotPairs, slotIsFull } from "@/lib/time-slot-conflicts";
 import {
   assignBulkOfficersToTimeSlots,
   changeTimeSlotSignup,
@@ -61,16 +62,43 @@ function SingleSelectionAction({
 export function JoinSelectedTimeSlotsForm({
   eventId,
   slots,
+  currentSelections = [],
 }: {
   eventId: number;
   slots: (Pick<Tables<"event_time_slots">, "id" | "starts_at" | "ends_at"> & {
     position: number;
   })[];
+  currentSelections?: (Pick<
+    Tables<"event_time_slots">,
+    "id" | "starts_at" | "ends_at"
+  > & { position: number })[];
 }) {
   const [state, action, pending] = useActionState(changeTimeSlotSignup, {
     ...initialFormActionState,
   });
   const selected = submittedValues(state.values, "slot_ids");
+  const [interactiveSelection, setInteractiveSelection] = useState<
+    string[] | null
+  >(null);
+  const selectedIds = interactiveSelection ?? selected;
+  const selectedSlots = slots.filter((slot) =>
+    selectedIds.includes(String(slot.id)),
+  );
+  const conflicts = overlappingSlotPairs([
+    ...currentSelections,
+    ...selectedSlots,
+  ]).filter(
+    ([first, second]) =>
+      selectedIds.includes(String(first.id)) ||
+      selectedIds.includes(String(second.id)),
+  );
+  const selectedConflictText = conflicts
+    .map(([first, second]) => `Slots ${first.position} and ${second.position}`)
+    .join("; ");
+  const conflictPairs = overlappingSlotPairs([...currentSelections, ...slots]);
+  const conflictIds = new Set(
+    conflictPairs.flatMap(([first, second]) => [first.id, second.id]),
+  );
   const error = state.fieldErrors?.slot_ids;
   return (
     <form action={action} className="space-y-2">
@@ -92,17 +120,61 @@ export function JoinSelectedTimeSlotsForm({
                   type="checkbox"
                   name="slot_ids"
                   value={slot.id}
-                  defaultChecked={selected.includes(String(slot.id))}
+                  checked={selectedIds.includes(String(slot.id))}
+                  aria-describedby={
+                    conflictIds.has(slot.id)
+                      ? `slot-conflict-${slot.id}`
+                      : undefined
+                  }
+                  onChange={(event) =>
+                    setInteractiveSelection(
+                      event.currentTarget.checked
+                        ? [...selectedIds, String(slot.id)]
+                        : selectedIds.filter((id) => id !== String(slot.id)),
+                    )
+                  }
                 />
-                Slot {slot.position}: {start}–{end}
+                <span>
+                  Slot {slot.position}: {start}–{end}{" "}
+                  <span className="text-muted">
+                    (Open{conflictIds.has(slot.id) ? "; " : ""}
+                  </span>
+                  {conflictIds.has(slot.id) && (
+                    <span className="text-danger font-medium">
+                      overlaps another choice
+                    </span>
+                  )}
+                  <span className="text-muted">)</span>
+                  {conflictIds.has(slot.id) && (
+                    <span id={`slot-conflict-${slot.id}`} className="sr-only">
+                      This slot overlaps a selected or available slot. One
+                      Officer cannot select both.
+                    </span>
+                  )}
+                </span>
               </label>
             );
           })}
         </div>
         <FieldError id="time-slot-selection-error">{error}</FieldError>
       </fieldset>
+      {currentSelections.length > 0 && (
+        <p className="text-sm text-muted">
+          Already signed up:{" "}
+          {currentSelections
+            .map(({ position }) => `Slot ${position}`)
+            .join(", ")}
+          . Those choices are saved; use the leave controls to change them.
+        </p>
+      )}
+      {selectedConflictText && (
+        <p role="alert" className="feedback-message feedback-error text-sm">
+          {selectedConflictText} overlap. One Officer cannot select both. Remove
+          one selection to continue.
+        </p>
+      )}
       <ActionFeedback state={state} />
-      <button disabled={pending || slots.length === 0}>
+      <button disabled={pending || slots.length === 0 || conflicts.length > 0}>
         {pending ? "Joining…" : "Join selected slots"}
       </button>
     </form>
@@ -167,12 +239,19 @@ export function LeaveAllTimeSlotsForm({
 
 export function AssignOfficerToTimeSlotForm({
   eventId,
-  slotId,
+  slot,
   officers,
+  existingAssignments,
 }: {
   eventId: number;
-  slotId: number;
+  slot: Pick<Tables<"event_time_slots">, "id" | "starts_at" | "ends_at">;
   officers: Pick<Tables<"officers">, "id" | "name">[];
+  existingAssignments: {
+    officerId: number;
+    slot: Pick<Tables<"event_time_slots">, "id" | "starts_at" | "ends_at"> & {
+      position: number;
+    };
+  }[];
 }) {
   const [state, action, pending] = useActionState(changeTimeSlotSignup, {
     ...initialFormActionState,
@@ -183,18 +262,40 @@ export function AssignOfficerToTimeSlotForm({
       <AcademicPeriodWriteContextField />
       <input type="hidden" name="event_id" value={eventId} />
       <input type="hidden" name="mode" value="join_selected" />
-      <input type="hidden" name="slot_ids" value={slotId} />
+      <input type="hidden" name="slot_ids" value={slot.id} />
       <label>
         Add Officer to this slot
         <select name="officer_id" required defaultValue={selected}>
           <option value="">Select Officer</option>
-          {officers.map((officer) => (
-            <option key={officer.id} value={officer.id}>
-              {officer.name}
-            </option>
-          ))}
+          {officers.map((officer) => {
+            const conflicts = existingAssignments.filter(
+              ({ officerId, slot: assignedSlot }) =>
+                officerId === officer.id &&
+                overlappingSlotPairs([
+                  { ...assignedSlot, position: assignedSlot.position },
+                  { ...slot, position: 0 },
+                ]).length > 0,
+            );
+            return (
+              <option
+                key={officer.id}
+                value={officer.id}
+                disabled={conflicts.length > 0}
+              >
+                {officer.name}
+                {conflicts.length > 0
+                  ? ` — conflicts with Slot ${conflicts[0].slot.position}`
+                  : ""}
+              </option>
+            );
+          })}
         </select>
       </label>
+      {officers.length === 0 && (
+        <p className="text-sm text-muted">
+          No eligible Officer is available for this slot.
+        </p>
+      )}
       <button disabled={pending || officers.length === 0}>
         {pending ? "Adding…" : "Add to slot"}
       </button>
@@ -242,7 +343,10 @@ export function BulkAssignOfficersToSlotsForm({
 }: {
   eventId: number;
   officers: Pick<Tables<"officers">, "id" | "name">[];
-  slots: Pick<Tables<"event_time_slots">, "id">[];
+  slots: (Pick<
+    Tables<"event_time_slots">,
+    "id" | "starts_at" | "ends_at" | "capacity"
+  > & { registeredCount: number })[];
 }) {
   const [state, action, pending] = useActionState(
     assignBulkOfficersToTimeSlots,
@@ -250,6 +354,21 @@ export function BulkAssignOfficersToSlotsForm({
   );
   const selectedOfficers = submittedValues(state.values, "officer_ids");
   const selectedSlots = submittedValues(state.values, "slot_ids");
+  const [interactiveSelection, setInteractiveSelection] = useState<
+    string[] | null
+  >(null);
+  const selectedIds = interactiveSelection ?? selectedSlots;
+  const byId = new Map(
+    slots.map((slot, index) => [slot.id, { ...slot, position: index + 1 }]),
+  );
+  const selectedSlotRecords = selectedIds.flatMap((id) => {
+    const slot = byId.get(Number(id));
+    return slot ? [slot] : [];
+  });
+  const conflicts = overlappingSlotPairs(selectedSlotRecords);
+  const selectedFullSlots = selectedSlotRecords.filter((slot) =>
+    slotIsFull(slot.capacity, slot.registeredCount),
+  );
   return (
     <form action={action} className="space-y-3">
       <AcademicPeriodWriteContextField />
@@ -282,9 +401,34 @@ export function BulkAssignOfficersToSlotsForm({
                 type="checkbox"
                 name="slot_ids"
                 value={slot.id}
-                defaultChecked={selectedSlots.includes(String(slot.id))}
+                checked={selectedIds.includes(String(slot.id))}
+                disabled={
+                  slotIsFull(slot.capacity, slot.registeredCount) &&
+                  !selectedIds.includes(String(slot.id))
+                }
+                onChange={(event) =>
+                  setInteractiveSelection(
+                    event.currentTarget.checked
+                      ? [...selectedIds, String(slot.id)]
+                      : selectedIds.filter((id) => id !== String(slot.id)),
+                  )
+                }
               />
-              Slot {index + 1}
+              <span>
+                Slot {index + 1}: {denverParts(slot.starts_at).time}–
+                {denverParts(slot.ends_at).time}{" "}
+                <span className="text-muted">
+                  (
+                  {slotIsFull(slot.capacity, slot.registeredCount)
+                    ? selectedIds.includes(String(slot.id))
+                      ? "Full — unavailable; selected for assignment"
+                      : "Full — unavailable"
+                    : selectedIds.includes(String(slot.id))
+                      ? "Selected for assignment"
+                      : "Open — available"}
+                  )
+                </span>
+              </span>
             </label>
           ))}
         </div>
@@ -292,8 +436,36 @@ export function BulkAssignOfficersToSlotsForm({
           {state.fieldErrors?.slot_ids}
         </FieldError>
       </fieldset>
+      {selectedFullSlots.length > 0 && (
+        <p role="alert" className="feedback-message feedback-error text-sm">
+          {selectedFullSlots
+            .map(({ position }) => `Slot ${position}`)
+            .join(", ")}{" "}
+          are full. Remove them before assigning Officers.
+        </p>
+      )}
+      {conflicts.length > 0 && (
+        <p role="alert" className="feedback-message feedback-error text-sm">
+          {conflicts
+            .map(
+              ([first, second]) =>
+                `Slots ${first.position} and ${second.position}`,
+            )
+            .join("; ")}{" "}
+          overlap. Each selected Officer would receive every selected slot, so
+          remove one from each overlapping pair.
+        </p>
+      )}
       <ActionFeedback state={state} />
-      <button disabled={pending || officers.length === 0 || slots.length === 0}>
+      <button
+        disabled={
+          pending ||
+          officers.length === 0 ||
+          slots.length === 0 ||
+          conflicts.length > 0 ||
+          selectedFullSlots.length > 0
+        }
+      >
         {pending ? "Adding…" : "Add Officers to selected slots"}
       </button>
     </form>

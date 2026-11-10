@@ -81,3 +81,32 @@ it("submits an optional independent capacity for each equal slot", async () => {
     },
   ]);
 });
+
+it("shows an informative warning for overlapping slots while authoring an Event", async () => {
+  const host = document.createElement("form");
+  document.body.append(host);
+  const root = createRoot(host);
+  roots.push({ root, host });
+
+  await act(async () => {
+    root.render(
+      <TimeSlotsEditor
+        eventStart="09:00"
+        eventEnd="11:00"
+        eventTypeName="Meeting"
+        initialSlots={[
+          { start_time: "09:00", end_time: "10:00", capacity: null },
+          { start_time: "09:30", end_time: "10:30", capacity: null },
+        ]}
+        enabledInitially
+      />,
+    );
+  });
+
+  const warning = host.querySelector('[role="note"].feedback-warning');
+  expect(warning?.textContent).toContain("Slots 1 and 2 overlap");
+  expect(warning?.textContent).toContain("times are allowed");
+  expect(warning?.textContent).toContain(
+    "cannot sign up for both overlapping slots",
+  );
+});
