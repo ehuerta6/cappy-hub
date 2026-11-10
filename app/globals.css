@@ -1289,6 +1289,10 @@
   font-size: 0.875rem;
 }
 
+.calendar-shell .calendar-grid-unavailable [role="grid"] {
+  visibility: hidden;
+}
+
 .list-pagination__page-select {
   appearance: none;
   width: 4.5rem;
