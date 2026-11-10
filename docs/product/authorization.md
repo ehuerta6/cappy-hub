@@ -19,7 +19,7 @@ Deactivation does not silently change the Officer's Position, Branches, applicat
 
 Admin permissions are explicitly assigned and enforced at trusted server/database boundaries. Admins may perform application-wide administration. Event executives have the accepted global Event management scope. A Lead may manage a branch-associated Event only when the Lead and Event share at least one Branch; a global Event with no Branches is outside Lead scope. Task management follows its own branch authorization rule. Holding a Position, being assigned to a Task, signing up for an Event, or linking records does not itself grant broader permissions.
 
-Officers may manage their own Event signup and Task self-assignment where those workflows permit it. Sensitive checks are performed by trusted mutations and Row Level Security (RLS), not only by whether a control appears in the interface.
+Officers may manage their own Event signup and Task self-assignment where those workflows permit it. An active Officer may report completion only for their own active Task assignment. A Lead within the Task's Branch scope or an Admin who reports their own completion is accepted immediately; otherwise, an authorized Task manager must approve or reject the report. Rejection clears the report and notifies its Officer. Managers retain their existing ability to correct or reverse assignment completion within their Task/Branch scope. Sensitive checks are performed by trusted mutations and Row Level Security (RLS), not only by whether a control appears in the interface.
 
 ## Trusted database/server invariants
 

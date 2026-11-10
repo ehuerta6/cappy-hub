@@ -1,7 +1,11 @@
 export type TaskAssignmentSummary = {
   officer_id: number;
   completed_at: string | null;
+  completion_approval_pending?: boolean | null;
 };
+
+const isApprovedComplete = (assignment: TaskAssignmentSummary) =>
+  assignment.completed_at !== null && !assignment.completion_approval_pending;
 
 export type TaskWithAssignments<
   T extends TaskAssignmentSummary = TaskAssignmentSummary,
@@ -11,9 +15,7 @@ export type TaskWithAssignments<
 
 export function taskStatus(assignments: readonly TaskAssignmentSummary[]) {
   if (assignments.length === 0) return "Open";
-  return assignments.every((assignment) => assignment.completed_at !== null)
-    ? "Complete"
-    : "In progress";
+  return assignments.every(isApprovedComplete) ? "Complete" : "In progress";
 }
 
 export function taskStatusFromCounts(
@@ -27,9 +29,7 @@ export function taskStatusFromCounts(
 export function taskProgressLabel(
   assignments: readonly TaskAssignmentSummary[],
 ) {
-  const completed = assignments.filter(
-    (assignment) => assignment.completed_at !== null,
-  ).length;
+  const completed = assignments.filter(isApprovedComplete).length;
   if (assignments.length === 0) return "0 officers";
   return `${completed}/${assignments.length} completed`;
 }

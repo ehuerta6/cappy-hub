@@ -429,7 +429,7 @@ it("allows an authorized manager to edit a standalone Task", async () => {
   Object.assign(task, { recurrence_series_id: 3 });
 });
 
-it("shows per-Officer completion controls to managers and read-only state to Officers", async () => {
+it("shows manager review controls and personal completion state to Officers", async () => {
   const props = {
     params: Promise.resolve({ id: "7" }),
     searchParams: Promise.resolve({ section: "assignments" }),
@@ -466,8 +466,7 @@ it("shows per-Officer completion controls to managers and read-only state to Off
 
   vi.mocked(canManageEvent).mockReturnValue(false);
   const officerHtml = renderToStaticMarkup(await TaskDetail(props));
-  expect(officerHtml).toContain("Not completed");
-  expect(officerHtml).toContain("Completed");
+  expect(officerHtml).toContain("Mark complete");
   expect(officerHtml).not.toContain(
     'aria-label="Completed for Synthetic Officer"',
   );
@@ -562,7 +561,7 @@ it("keeps Task detail previews to four and pages full related sections by six", 
     table: "task_officer_assignments",
     method: "select",
     args: [
-      "officer_id,assigned_at,completed_at,officers!task_officer_assignments_officer_id_fkey(id,name)",
+      "officer_id,assigned_at,completed_at,completion_approval_pending,officers!task_officer_assignments_officer_id_fkey(id,name)",
       { count: "exact" },
     ],
   });

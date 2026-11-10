@@ -243,6 +243,243 @@ it("revokes authenticated execution of Presenter Slot mutations", () => {
   ).toBe("t");
 });
 
+it("restricts self-reported Task completion, reviews it, and awards only approved work", () => {
+  const officerId = -433001;
+  const otherOfficerId = -433002;
+  const leadId = -433003;
+  const adminId = -433004;
+  const taskId = -433011;
+  const leadTaskId = -433012;
+  const otherBranchTaskId = -433013;
+  const adminTaskId = -433014;
+  const futureTaskId = -433015;
+  const historicalTaskId = -433016;
+  const historicalPeriodId = 433016;
+  const officerAuth = "00000000-0000-4000-8000-000000433001";
+  const otherOfficerAuth = "00000000-0000-4000-8000-000000433002";
+  const leadAuth = "00000000-0000-4000-8000-000000433003";
+  const adminAuth = "00000000-0000-4000-8000-000000433004";
+  runSql(`
+    delete from public.audit_logs where details->>'task_id' in ('${taskId}','${leadTaskId}','${otherBranchTaskId}','${adminTaskId}','${futureTaskId}','${historicalTaskId}');
+    delete from public.notifications where entity_id in (${taskId},${leadTaskId},${otherBranchTaskId},${adminTaskId},${futureTaskId},${historicalTaskId});
+    delete from public.point_transactions where task_id in (${taskId},${leadTaskId},${otherBranchTaskId},${adminTaskId},${futureTaskId},${historicalTaskId});
+    delete from public.task_officer_assignments where task_id in (${taskId},${leadTaskId},${otherBranchTaskId},${adminTaskId},${futureTaskId},${historicalTaskId});
+    delete from public.tasks where id in (${taskId},${leadTaskId},${otherBranchTaskId},${adminTaskId},${futureTaskId},${historicalTaskId});
+    delete from public.academic_periods where id=${historicalPeriodId};
+    delete from public.officer_branches where officer_id=${leadId};
+    delete from public.officers where id in (${officerId},${otherOfficerId},${leadId},${adminId});
+    delete from auth.users where id in ('${officerAuth}','${otherOfficerAuth}','${leadAuth}','${adminAuth}');
+    insert into auth.users(id,email) values
+      ('${officerAuth}','completion-officer@example.test'),
+      ('${otherOfficerAuth}','completion-other@example.test'),
+      ('${leadAuth}','completion-lead@example.test'),
+      ('${adminAuth}','completion-admin@example.test');
+    insert into public.officers(id,name,utep_email,position_id,status,application_role,auth_user_id)
+      values
+        (${officerId},'Completion Officer','completion-officer@example.test',(select id from public.positions where code='officer'),'active','officer','${officerAuth}'),
+        (${otherOfficerId},'Completion Other Officer','completion-other@example.test',(select id from public.positions where code='officer'),'active','officer','${otherOfficerAuth}'),
+        (${leadId},'Completion Lead','completion-lead@example.test',(select id from public.positions where code='lead'),'active','officer','${leadAuth}'),
+        (${adminId},'Completion Admin','completion-admin@example.test',(select id from public.positions where code='officer'),'active','admin','${adminAuth}');
+    insert into public.officer_branches(officer_id,branch_id)
+      select ${leadId},id from public.branches where name='intro';
+    insert into public.tasks(id,title,description,task_type,branch_id,due_date,points,created_by)
+      values
+        (${taskId},'Completion approval test','Synthetic','Flyer',(select id from public.branches where name='intro'),(statement_timestamp() at time zone 'America/Denver')::date-1,4,${leadId}),
+        (${leadTaskId},'Lead self completion test','Synthetic','Flyer',(select id from public.branches where name='intro'),(statement_timestamp() at time zone 'America/Denver')::date-1,3,${leadId}),
+        (${otherBranchTaskId},'Other branch approval test','Synthetic','Flyer',(select id from public.branches where name='social'),(statement_timestamp() at time zone 'America/Denver')::date-1,2,${adminId}),
+        (${adminTaskId},'Admin self completion test','Synthetic','Flyer',(select id from public.branches where name='social'),(statement_timestamp() at time zone 'America/Denver')::date-1,2,${adminId}),
+        (${futureTaskId},'Future due completion test','Synthetic','Flyer',(select id from public.branches where name='intro'),(statement_timestamp() at time zone 'America/Denver')::date+3,2,${leadId}),
+        (${historicalTaskId},'Historical read-only completion test','Synthetic','Flyer',(select id from public.branches where name='intro'),date '2020-03-01',2,${leadId});
+    insert into public.task_officer_assignments(task_id,officer_id,assigned_by)
+      values (${taskId},${officerId},${leadId}),(${taskId},${otherOfficerId},${leadId}),
+        (${leadTaskId},${leadId},${leadId}),(${otherBranchTaskId},${otherOfficerId},${adminId}),
+        (${adminTaskId},${adminId},${adminId}),(${futureTaskId},${officerId},${leadId}),
+        (${historicalTaskId},${officerId},${leadId});
+    insert into public.academic_periods(id,name,starts_on,ends_on)
+      values (${historicalPeriodId},'Historical completion test',date '2020-01-01',date '2020-06-30');
+  `);
+  try {
+    runSql(`
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${officerAuth}',true);
+      select public.self_complete_task_assignment(${taskId},'none'); commit;
+    `);
+    expect(
+      runSql(
+        `select completion_approval_pending from public.task_officer_assignments where task_id=${taskId} and officer_id=${officerId};`,
+      ).trim(),
+    ).toBe("t");
+    expect(
+      runSql(
+        `select count(*) from public.point_transactions where task_id=${taskId} and award_type='task';`,
+      ).trim(),
+    ).toBe("0");
+
+    runSql(`
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${officerAuth}',true);
+      do $$ begin
+        perform public.self_complete_task_assignment(${taskId},'none');
+        raise exception 'duplicate completion should fail';
+      exception when others then
+        if sqlerrm not like '%Task completion already submitted%' then raise; end if;
+      end $$; commit;
+    `);
+    runSql(`
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${officerAuth}',true);
+      do $$ begin
+        perform public.self_complete_task_assignment(${leadTaskId},'none');
+        raise exception 'another Officer assignment should fail';
+      exception when others then
+        if sqlerrm not like '%Task assignment not found%' then raise; end if;
+      end $$; commit;
+    `);
+
+    runSql(`
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${leadAuth}',true);
+      select public.reject_task_assignment_completion(${taskId},${officerId},'none'); commit;
+    `);
+    expect(
+      runSql(
+        `select (completed_at is null)::text||':'||completion_approval_pending from public.task_officer_assignments where task_id=${taskId} and officer_id=${officerId};`,
+      ).trim(),
+    ).toBe("true:false");
+    expect(
+      runSql(
+        `select count(*) from public.notifications where recipient_officer_id=${officerId} and kind='task.completion_rejected' and entity_id=${taskId};`,
+      ).trim(),
+    ).toBe("1");
+
+    runSql(`
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${officerAuth}',true);
+      select public.self_complete_task_assignment(${taskId},'none'); commit;
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${leadAuth}',true);
+      select public.approve_task_assignment_completion(${taskId},${officerId},'none'); commit;
+    `);
+    expect(
+      runSql(
+        `select count(*)||':'||sum(points) from public.point_transactions where task_id=${taskId} and award_type='task' and removed_at is null;`,
+      ).trim(),
+    ).toBe("1:4");
+    expect(
+      runSql(
+        `select completion_approval_pending from public.task_officer_assignments where task_id=${taskId} and officer_id=${officerId};`,
+      ).trim(),
+    ).toBe("f");
+
+    runSql(`
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${leadAuth}',true);
+      select public.self_complete_task_assignment(${leadTaskId},'none'); commit;
+    `);
+    expect(
+      runSql(
+        `select (not completion_approval_pending and approved_by=${leadId})::text from public.task_officer_assignments where task_id=${leadTaskId} and officer_id=${leadId};`,
+      ).trim(),
+    ).toBe("true");
+    expect(
+      runSql(
+        `select count(*) from public.point_transactions where task_id=${leadTaskId} and award_type='task' and removed_at is null;`,
+      ).trim(),
+    ).toBe("1");
+
+    runSql(`
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${otherOfficerAuth}',true);
+      select public.self_complete_task_assignment(${otherBranchTaskId},'none'); commit;
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${leadAuth}',true);
+      do $$ begin
+        perform public.approve_task_assignment_completion(${otherBranchTaskId},${otherOfficerId},'none');
+        raise exception 'cross-Branch approval should fail';
+      exception when others then
+        if sqlerrm not like '%Task outside branch scope%' then raise; end if;
+      end $$; commit;
+    `);
+    expect(
+      runSql(
+        `select completion_approval_pending from public.task_officer_assignments where task_id=${otherBranchTaskId} and officer_id=${otherOfficerId};`,
+      ).trim(),
+    ).toBe("t");
+    expect(
+      runSql(
+        `select count(*) from public.point_transactions where task_id=${otherBranchTaskId} and award_type='task';`,
+      ).trim(),
+    ).toBe("0");
+
+    runSql(`
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${adminAuth}',true);
+      select public.self_complete_task_assignment(${adminTaskId},'none'); commit;
+    `);
+    expect(
+      runSql(
+        `select (not completion_approval_pending and approved_by=${adminId})::text from public.task_officer_assignments where task_id=${adminTaskId} and officer_id=${adminId};`,
+      ).trim(),
+    ).toBe("true");
+    expect(
+      runSql(
+        `select count(*) from public.point_transactions where task_id=${adminTaskId} and award_type='task' and removed_at is null;`,
+      ).trim(),
+    ).toBe("1");
+
+    runSql(`
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${officerAuth}',true);
+      select public.self_complete_task_assignment(${futureTaskId},'none'); commit;
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${leadAuth}',true);
+      select public.approve_task_assignment_completion(${futureTaskId},${officerId},'none'); commit;
+    `);
+    expect(
+      runSql(
+        `select count(*) from public.point_transactions where task_id=${futureTaskId} and award_type='task';`,
+      ).trim(),
+    ).toBe("0");
+    runSql(
+      `update public.tasks set due_date=(statement_timestamp() at time zone 'America/Denver')::date-1 where id=${futureTaskId};`,
+    );
+    expect(
+      runSql(
+        `select count(*) from public.point_transactions where task_id=${futureTaskId} and award_type='task' and removed_at is null;`,
+      ).trim(),
+    ).toBe("1");
+
+    runSql(`
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${officerAuth}',true);
+      do $$ begin
+        perform public.self_complete_task_assignment(${historicalTaskId},'${historicalPeriodId}');
+        raise exception 'historical completion should fail';
+      exception when others then
+        if sqlerrm not like '%Historical period is read-only%' then raise; end if;
+      end $$; commit;
+    `);
+    expect(
+      runSql(
+        `select (completed_at is null and not completion_approval_pending)::text from public.task_officer_assignments where task_id=${historicalTaskId} and officer_id=${officerId};`,
+      ).trim(),
+    ).toBe("true");
+  } finally {
+    runSql(`
+      delete from public.audit_logs where actor_officer_id in (${officerId},${otherOfficerId},${leadId},${adminId})
+        or details->>'task_id' in ('${taskId}','${leadTaskId}','${otherBranchTaskId}','${adminTaskId}','${futureTaskId}','${historicalTaskId}');
+      delete from public.notifications where entity_id in (${taskId},${leadTaskId},${otherBranchTaskId},${adminTaskId},${futureTaskId},${historicalTaskId});
+      delete from public.point_transactions where task_id in (${taskId},${leadTaskId},${otherBranchTaskId},${adminTaskId},${futureTaskId},${historicalTaskId});
+      delete from public.task_officer_assignments where task_id in (${taskId},${leadTaskId},${otherBranchTaskId},${adminTaskId},${futureTaskId},${historicalTaskId});
+      delete from public.tasks where id in (${taskId},${leadTaskId},${otherBranchTaskId},${adminTaskId},${futureTaskId},${historicalTaskId});
+      delete from public.officer_branches where officer_id=${leadId};
+      delete from public.officers where id in (${officerId},${otherOfficerId},${leadId},${adminId});
+      delete from auth.users where id in ('${officerAuth}','${otherOfficerAuth}','${leadAuth}','${adminAuth}');
+      delete from public.academic_periods where id=${historicalPeriodId};
+    `);
+  }
+});
+
 it("serializes concurrent Time Slot registrations so per-slot capacity is not exceeded", async () => {
   const eventId = -981760;
   const slotId = -981761;

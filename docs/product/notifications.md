@@ -16,7 +16,7 @@ Event creators can notify all active Officers, one or more Branches, one or more
 
 Creating an Event notifies its selected audience. Changes to its date, time, or location, and cancellation, notify its signed-up Volunteers and Attendees. A description-only change does not send an Event update notice. An Officer receives a low-priority confirmation for their own signup or departure.
 
-Task creators can choose the same audience dimensions. By default, a Task targets its assignees. Assignment and Task updates notify the selected audience and always notify direct assignees, with overlapping recipients deduplicated. Completion notifies the Lead for the Task's Branch.
+Task creators can choose the same audience dimensions. By default, a Task targets its assignees. Assignment and Task updates notify the selected audience and always notify direct assignees, with overlapping recipients deduplicated. A self-reported Task completion notifies the Lead for the Task's Branch. When a manager rejects a pending completion, the assigned Officer receives an in-app notice that the report was not approved and can be submitted again.
 
 Officers receive personal notices when their Points or Warnings are assigned, changed, or removed. Reaching three active Warnings notifies all Leads, Vice Presidents, and the President. Threshold leadership notices are separate from the Officer's personal Warning notice.
 

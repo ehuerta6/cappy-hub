@@ -56,16 +56,16 @@ export function buildTaskListQuery(
   }: TaskListQueryOptions,
 ) {
   const taskSelection = [
-    "*,branches(name),task_officer_assignments(officer_id,completed_at)",
+    "*,branches(name),task_officer_assignments(officer_id,completed_at,completion_approval_pending)",
     assigneeId !== undefined &&
       "assignee_filter:task_officer_assignments!inner(officer_id)",
     status === "open" && "no_assignments:task_officer_assignments(task_id)",
     status === "in_progress" &&
-      "incomplete_assignment:task_officer_assignments!inner(task_id,completed_at)",
+      "incomplete_assignment:task_officer_assignments!inner(task_id,completed_at,completion_approval_pending)",
     status === "complete" &&
       "any_assignment:task_officer_assignments!inner(task_id)",
     status === "complete" &&
-      "incomplete_assignment:task_officer_assignments(completed_at)",
+      "incomplete_assignment:task_officer_assignments(completed_at,completion_approval_pending)",
   ]
     .filter(Boolean)
     .join(",");
@@ -103,10 +103,15 @@ export function buildTaskListQuery(
 
   if (status === "open") tasksQuery = tasksQuery.is("no_assignments", null);
   if (status === "in_progress")
-    tasksQuery = tasksQuery.is("incomplete_assignment.completed_at", null);
+    tasksQuery = tasksQuery.or(
+      "completed_at.is.null,completion_approval_pending.eq.true",
+      { referencedTable: "incomplete_assignment" },
+    );
   if (status === "complete")
     tasksQuery = tasksQuery
-      .is("incomplete_assignment.completed_at", null)
+      .or("completed_at.is.null,completion_approval_pending.eq.true", {
+        referencedTable: "incomplete_assignment",
+      })
       .is("incomplete_assignment", null);
 
   return tasksQuery

@@ -35,11 +35,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { TaskDeleteForm, TaskRestoreForm } from "../task-remove-form";
 import { ResourceLinksList } from "@/components/resource-links-list";
-import TaskSelfAssignForm from "../task-action-form";
+import TaskSelfAssignForm, {
+  TaskSelfCompletionForm,
+} from "../task-action-form";
 import {
   BulkTaskOfficersForm,
   RemoveTaskAssignmentForm,
   TaskCompletionControl,
+  TaskCompletionReviewControls,
 } from "../task-officer-controls";
 
 type TaskSection = "overview" | "assignments" | "events";
@@ -188,7 +191,7 @@ export default async function TaskDetailPage({
     supabase
       .from("task_officer_assignments")
       .select(
-        "officer_id,assigned_at,completed_at,officers!task_officer_assignments_officer_id_fkey(id,name)",
+        "officer_id,assigned_at,completed_at,completion_approval_pending,officers!task_officer_assignments_officer_id_fkey(id,name)",
         { count: "exact" },
       )
       .eq("task_id", taskId)
@@ -215,10 +218,10 @@ export default async function TaskDetailPage({
       .from("task_officer_assignments")
       .select("officer_id", { count: "exact", head: true })
       .eq("task_id", taskId)
-      .is("completed_at", null),
+      .or("completed_at.is.null,completion_approval_pending.eq.true"),
     supabase
       .from("task_officer_assignments")
-      .select("officer_id,completed_at")
+      .select("officer_id,completed_at,completion_approval_pending")
       .eq("task_id", taskId)
       .eq("officer_id", actor.id)
       .maybeSingle(),
@@ -405,11 +408,13 @@ export default async function TaskDetailPage({
               </dd>
               <dt>Your assignment</dt>
               <dd>
-                {myAssignment
-                  ? myAssignment.completed_at
+                {myAssignment?.completion_approval_pending
+                  ? "Awaiting approval"
+                  : myAssignment?.completed_at
                     ? "Completed"
-                    : "Not completed"
-                  : "Not assigned"}
+                    : myAssignment
+                      ? "Not completed"
+                      : "Not assigned"}
               </dd>
             </dl>
             {series?.data && (
@@ -421,6 +426,12 @@ export default async function TaskDetailPage({
             {!periodSelection.isHistorical &&
               !task.removed_at &&
               !myAssignment && <TaskSelfAssignForm taskId={task.id} />}
+            {!periodSelection.isHistorical &&
+              !task.removed_at &&
+              myAssignment &&
+              !myAssignment.completed_at && (
+                <TaskSelfCompletionForm taskId={task.id} />
+              )}
             {canManageTask && task.removed_at && (
               <TaskRestoreForm
                 taskId={task.id}
@@ -607,6 +618,8 @@ export default async function TaskDetailPage({
                   {visibleAssignments.map((assignment) => {
                     const assignedOfficer = assignment.officers;
                     const completed = assignment.completed_at !== null;
+                    const completionPending =
+                      assignment.completion_approval_pending;
                     return (
                       <tr key={assignment.officer_id}>
                         <td>
@@ -627,14 +640,26 @@ export default async function TaskDetailPage({
                               officerName={assignedOfficer.name}
                               completed={completed}
                             />
+                          ) : completionPending ? (
+                            "Awaiting approval"
                           ) : completed ? (
                             "Completed"
+                          ) : assignment.officer_id === actor.id &&
+                            !periodSelection.isHistorical ? (
+                            <TaskSelfCompletionForm taskId={task.id} />
                           ) : (
                             "Not completed"
                           )}
                         </td>
                         {canManageTask && !task.removed_at && (
                           <td>
+                            {completionPending &&
+                              assignment.officer_id !== actor.id && (
+                                <TaskCompletionReviewControls
+                                  taskId={task.id}
+                                  officerId={assignment.officer_id}
+                                />
+                              )}
                             <RemoveTaskAssignmentForm
                               taskId={task.id}
                               officerId={assignment.officer_id}

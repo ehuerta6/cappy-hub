@@ -47,6 +47,21 @@ vi.mock("@/app/(protected)/tasks/task-action-form", () => ({
       <button className="whitespace-nowrap px-3 py-1.5">Assign to me</button>
     </form>
   ),
+  TaskSelfCompletionForm: ({
+    pendingApproval,
+    completed,
+  }: {
+    pendingApproval?: boolean;
+    completed?: boolean;
+  }) => (
+    <span>
+      {pendingApproval
+        ? "Awaiting approval"
+        : completed
+          ? "Completed"
+          : "Mark complete"}
+    </span>
+  ),
 }));
 vi.mock("@/app/(protected)/officers/warning-forms", () => ({
   WarningDecisionForm: () => null,
@@ -119,20 +134,29 @@ function taskRowsForQuery(record: Query, source: unknown[]) {
     result = result.filter(
       (task) => (task.task_officer_assignments as unknown[]).length === 0,
     );
+  const incompleteFilter = calls.some(
+    ([method, column, options]) =>
+      method === "or" &&
+      column === "completed_at.is.null,completion_approval_pending.eq.true" &&
+      (options as { referencedTable?: string } | undefined)?.referencedTable ===
+        "incomplete_assignment",
+  );
   if (
     selection.includes(
       "incomplete_assignment:task_officer_assignments!inner",
     ) &&
-    calls.some(
-      ([method, column, value]) =>
-        method === "is" &&
-        column === "incomplete_assignment.completed_at" &&
-        value === null,
-    )
+    incompleteFilter
   )
     result = result.filter((task) =>
-      (task.task_officer_assignments as { completed_at: string | null }[]).some(
-        (assignment) => assignment.completed_at === null,
+      (
+        task.task_officer_assignments as {
+          completed_at: string | null;
+          completion_approval_pending?: boolean;
+        }[]
+      ).some(
+        (assignment) =>
+          assignment.completed_at === null ||
+          assignment.completion_approval_pending === true,
       ),
     );
   if (
@@ -141,20 +165,20 @@ function taskRowsForQuery(record: Query, source: unknown[]) {
       ([method, column, value]) =>
         method === "is" && column === "incomplete_assignment" && value === null,
     ) &&
-    calls.some(
-      ([method, column, value]) =>
-        method === "is" &&
-        column === "incomplete_assignment.completed_at" &&
-        value === null,
-    )
+    incompleteFilter
   )
     result = result.filter((task) => {
       const assignments = task.task_officer_assignments as {
         completed_at: string | null;
+        completion_approval_pending?: boolean;
       }[];
       return (
         assignments.length > 0 &&
-        assignments.every((assignment) => assignment.completed_at !== null)
+        assignments.every(
+          (assignment) =>
+            assignment.completed_at !== null &&
+            assignment.completion_approval_pending !== true,
+        )
       );
     });
   const orders = calls.filter(([method]) => method === "order");
@@ -1108,9 +1132,13 @@ it.each(["open", "in_progress", "complete"])(
         "any_assignment:task_officer_assignments!inner(task_id)",
       );
       expect(query.calls[0][1]).toContain(
-        "incomplete_assignment:task_officer_assignments(completed_at)",
+        "incomplete_assignment:task_officer_assignments(completed_at,completion_approval_pending)",
       );
-      has(query, "is", "incomplete_assignment.completed_at", null);
+      expect(query.calls).toContainEqual([
+        "or",
+        "completed_at.is.null,completion_approval_pending.eq.true",
+        { referencedTable: "incomplete_assignment" },
+      ]);
       has(query, "is", "incomplete_assignment", null);
     }
   },
@@ -1453,10 +1481,14 @@ it("filters assignee, status, branch, search and view before the eight-row page"
     "assignee_filter:task_officer_assignments!inner(officer_id)",
   );
   expect(query.calls[0][1]).toContain(
-    "incomplete_assignment:task_officer_assignments!inner(task_id,completed_at)",
+    "incomplete_assignment:task_officer_assignments!inner(task_id,completed_at,completion_approval_pending)",
   );
   has(query, "eq", "assignee_filter.officer_id", 2);
-  has(query, "is", "incomplete_assignment.completed_at", null);
+  expect(query.calls).toContainEqual([
+    "or",
+    "completed_at.is.null,completion_approval_pending.eq.true",
+    { referencedTable: "incomplete_assignment" },
+  ]);
   has(query, "eq", "branch_id", 2);
   has(query, "range", 0, 7);
   expect(html).toContain('option value="1" selected="">1</option>');

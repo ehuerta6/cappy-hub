@@ -261,6 +261,87 @@ export async function selfAssignTask(
   return { error: "", success: "Task assignment saved" };
 }
 
+export async function selfCompleteTaskAssignment(
+  _previous: FormActionState,
+  form: FormData,
+) {
+  await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: form.get("writable_period"),
+  });
+  const validation = taskRecordInputSchema.safeParse({
+    task_id: form.get("task_id") ?? "",
+  });
+  if (!validation.success)
+    return validationFailure(validation.error, form, ["task_id"]);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("self_complete_task_assignment", {
+    p_task_id: validation.data.task_id,
+    p_period_context: String(form.get("writable_period") ?? ""),
+  });
+  if (error)
+    return formFailure(mutationError(error.message), form, ["task_id"]);
+  revalidatePath("/tasks");
+  revalidatePath(`/tasks/${validation.data.task_id}`);
+  revalidatePath("/", "layout");
+  return { error: "", success: "Completion sent for approval" };
+}
+
+async function reviewTaskCompletion(
+  form: FormData,
+  rpc:
+    "approve_task_assignment_completion" | "reject_task_assignment_completion",
+) {
+  await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: form.get("writable_period"),
+  });
+  const validation = setTaskCompletionInputSchema
+    .omit({ completed: true })
+    .safeParse({
+      task_id: form.get("task_id") ?? "",
+      officer_id: form.get("officer_id") ?? "",
+    });
+  if (!validation.success)
+    return validationFailure(validation.error, form, ["task_id", "officer_id"]);
+  const periodContext = form.get("writable_period");
+  if (typeof periodContext !== "string")
+    return formFailure("Select a writable academic period", form, ["task_id"]);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc(rpc, {
+    p_task_id: validation.data.task_id,
+    p_officer_id: validation.data.officer_id,
+    p_period_context: periodContext,
+  });
+  if (error)
+    return formFailure(mutationError(error.message), form, ["task_id"]);
+  revalidatePath("/tasks");
+  revalidatePath(`/tasks/${validation.data.task_id}`);
+  revalidatePath("/points");
+  revalidatePath("/", "layout");
+  return {
+    error: "",
+    success:
+      rpc === "approve_task_assignment_completion"
+        ? "Completion approved"
+        : "Completion rejected",
+  };
+}
+
+export async function approveTaskAssignmentCompletion(
+  _previous: FormActionState,
+  form: FormData,
+) {
+  return reviewTaskCompletion(form, "approve_task_assignment_completion");
+}
+
+export async function rejectTaskAssignmentCompletion(
+  _previous: FormActionState,
+  form: FormData,
+) {
+  return reviewTaskCompletion(form, "reject_task_assignment_completion");
+}
+
 export async function bulkAssignTaskOfficers(
   _previous: FormActionState,
   form: FormData,

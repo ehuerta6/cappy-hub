@@ -8,14 +8,17 @@ import { afterEach, beforeEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/app/(protected)/tasks/actions", () => ({
+  approveTaskAssignmentCompletion: vi.fn(),
   bulkAssignTaskOfficers: vi.fn(),
   removeTaskAssignment: vi.fn(),
+  rejectTaskAssignmentCompletion: vi.fn(),
   setTaskAssignmentCompletion: vi.fn(),
 }));
 
 import {
   BulkTaskOfficersForm,
   TaskCompletionControl,
+  TaskCompletionReviewControls,
 } from "@/app/(protected)/tasks/task-officer-controls";
 import {
   bulkAssignTaskOfficers,
@@ -91,6 +94,16 @@ it("does not show a completion Save action until the state is changed", () => {
   expect(html).toContain('aria-label="Completed for Avery Chen"');
   expect(html).toContain('name="completed" value="false"');
   expect(html).not.toContain(">Save</button>");
+});
+
+it("offers distinct manager approval and rejection actions", () => {
+  const html = renderToStaticMarkup(
+    <TaskCompletionReviewControls taskId={17} officerId={3} />,
+  );
+  expect(html).toContain('name="task_id" value="17"');
+  expect(html).toContain('name="officer_id" value="3"');
+  expect(html).toContain(">Approve completion</button>");
+  expect(html).toContain(">Reject completion</button>");
 });
 
 it("keeps completion state synchronized through successful saves and failures", async () => {
