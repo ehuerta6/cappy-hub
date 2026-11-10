@@ -29,7 +29,11 @@ it("surfaces the remaining administration areas and their current destinations",
   expect(html).toContain('href="/officers"');
   expect(html).toContain("Catalogs");
   expect(html).toContain('href="/officers/catalogs"');
-  expect(html).toContain("Points configuration and corrections");
+  expect(html).toContain("Points awards and corrections");
+  expect(html).toContain(
+    "Add manual Point awards or corrections, then review and remove existing awards.",
+  );
+  expect(html).not.toContain("Update the participation points rate");
   expect(html).toContain('href="/points"');
   expect(html).not.toContain("System log");
   expect(html).not.toContain('href="/system-log"');
