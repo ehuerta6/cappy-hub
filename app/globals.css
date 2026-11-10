@@ -1289,7 +1289,7 @@
   font-size: 0.875rem;
 }
 
-.calendar-shell .calendar-grid-unavailable .fc-view-harness {
+.calendar-shell .calendar-grid-unavailable [role="grid"] {
   visibility: hidden;
 }
 

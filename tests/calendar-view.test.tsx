@@ -1,4 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CalendarOptions } from "@fullcalendar/react";
 import {
@@ -54,7 +55,7 @@ vi.mock("@/app/(protected)/calendar/calendar-actions", () => ({
 vi.mock("@fullcalendar/react", () => ({
   default: (options: CalendarOptions) => {
     harness.options = options;
-    return null;
+    return createElement("div", { role: "grid" });
   },
 }));
 vi.mock("@fullcalendar/react/daygrid", () => ({
@@ -118,6 +119,7 @@ it("uses the desktop month view, Denver time, and a read-only calendar", () => {
 it("keeps the initial datesSet trigger while hiding unavailable grid content", () => {
   const pendingHtml = renderToStaticMarkup(<CalendarView />);
   expect(pendingHtml).toContain('class="calendar-grid-unavailable"');
+  expect(pendingHtml).toContain('role="grid"');
   expect(pendingHtml).toContain("Loading Calendar entries.");
   expect(harness.options.datesSet).toEqual(expect.any(Function));
 
