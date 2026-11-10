@@ -98,6 +98,19 @@ it("renders the notification preview behind an accessible disclosure button", ()
   expect(html).not.toContain("<details");
 });
 
+it("keeps an overflowing unread count compact and accessible", () => {
+  const html = renderToStaticMarkup(
+    <SiteNavigation
+      isAdmin={false}
+      account={<span>Officer</span>}
+      unreadNotificationCount={100}
+    />,
+  );
+
+  expect(html).toContain('aria-label="Notifications, 100 unread"');
+  expect(html).toContain(">99+</span>");
+});
+
 it("shows the Admin navigation item only to application admins", () => {
   const adminHtml = renderToStaticMarkup(
     <SiteNavigation isAdmin={true} account={<span>Admin</span>} />,
