@@ -358,6 +358,27 @@ it("restricts self-reported Task completion, reviews it, and awards only approve
     runSql(`
       begin; set local role authenticated;
       select set_config('request.jwt.claim.sub','${leadAuth}',true);
+      do $$ begin
+        perform public.set_task_assignment_completion(${taskId},${officerId},false);
+        raise exception 'generic completion correction should not reject a pending report';
+      exception when others then
+        if sqlerrm not like '%Task completion is awaiting approval%' then raise; end if;
+      end $$; commit;
+    `);
+    expect(
+      runSql(
+        `select completion_approval_pending::text || ':' || (completed_at is not null)::text from public.task_officer_assignments where task_id=${taskId} and officer_id=${officerId};`,
+      ).trim(),
+    ).toBe("true:true");
+    expect(
+      runSql(
+        `select count(*) from public.notifications where recipient_officer_id=${officerId} and kind='task.completion_rejected' and entity_id=${taskId};`,
+      ).trim(),
+    ).toBe("0");
+
+    runSql(`
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${leadAuth}',true);
       select public.reject_task_assignment_completion(${taskId},${officerId},'none'); commit;
     `);
     expect(

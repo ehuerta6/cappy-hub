@@ -124,6 +124,9 @@ begin
   select * into assignment from public.task_officer_assignments
     where task_id = p_task_id and officer_id = p_officer_id and removed_at is null for update;
   if not found then raise exception 'Task assignment not found'; end if;
+  if assignment.completion_approval_pending then
+    raise exception 'Task completion is awaiting approval';
+  end if;
 
   was_completed := assignment.completed_at is not null;
   if was_completed is distinct from p_completed then

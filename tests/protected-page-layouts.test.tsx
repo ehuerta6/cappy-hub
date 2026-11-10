@@ -492,6 +492,26 @@ it("lets an unassigned Officer self-assign without exposing completion controls"
   Object.assign(task, { task_officer_assignments: previousAssignments });
 });
 
+it("shows manager review controls without the generic completion toggle", async () => {
+  const assignment = task.task_officer_assignments[0];
+  Object.assign(assignment, { completion_approval_pending: true });
+  const html = renderToStaticMarkup(
+    await TaskDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({ section: "assignments" }),
+    }),
+  );
+  const pendingRow = html
+    .split("<table>")[1]
+    .split("</table>")[0]
+    .match(/<tr>[\s\S]*?<\/tr>/g)?.[1];
+  expect(pendingRow).toContain("Awaiting approval");
+  expect(pendingRow).not.toContain('aria-label="Completed for Other Officer"');
+  expect(pendingRow).toContain("Approve completion");
+  expect(pendingRow).toContain("Reject completion");
+  Object.assign(assignment, { completion_approval_pending: false });
+});
+
 it("keeps Task detail previews to four and pages full related sections by six", async () => {
   const assignments = Array.from({ length: 8 }, (_, index) => ({
     officer_id: 8 - index,

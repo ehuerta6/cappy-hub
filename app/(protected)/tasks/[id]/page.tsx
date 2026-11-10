@@ -633,7 +633,9 @@ export default async function TaskDetailPage({
                           </Link>
                         </td>
                         <td>
-                          {canManageTask && !task.removed_at ? (
+                          {canManageTask &&
+                          !task.removed_at &&
+                          !completionPending ? (
                             <TaskCompletionControl
                               taskId={task.id}
                               officerId={assignment.officer_id}
