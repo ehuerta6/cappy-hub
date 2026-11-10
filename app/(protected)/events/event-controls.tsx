@@ -247,7 +247,10 @@ export function BulkAddOfficersForm({
   officers: Pick<Tables<"officers">, "id" | "name">[];
   past?: boolean;
   pointsPerOfficer?: number;
-  timeSlots?: Pick<Tables<"event_time_slots">, "id">[];
+  timeSlots?: (Pick<
+    Tables<"event_time_slots">,
+    "id" | "starts_at" | "ends_at" | "capacity"
+  > & { registeredCount: number })[];
   pointsPerHour?: number | null;
 }) {
   const [state, action, pending] = useActionState(bulkAddEventOfficers, {

@@ -48,7 +48,12 @@ export async function changeTimeSlotSignup(
     slot_ids: formData.getAll("slot_ids"),
   });
   if (!validation.success)
-    return validationFailure(validation.error, formData, ["slot_ids"]);
+    return validationFailure(
+      validation.error,
+      formData,
+      ["slot_ids"],
+      ["slot_ids"],
+    );
 
   const { event_id, officer_id, mode, slot_ids } = validation.data;
   const supabase = await createClient();
@@ -75,7 +80,13 @@ export async function changeTimeSlotSignup(
     p_mode: mode,
   });
   if (error)
-    return formFailure(mutationError(error.message), formData, ["slot_ids"]);
+    return formFailure(
+      mutationError(error.message),
+      formData,
+      ["slot_ids"],
+      undefined,
+      ["slot_ids"],
+    );
   revalidatePath("/", "layout");
   const success = {
     join_selected: "Time Slot signup saved",

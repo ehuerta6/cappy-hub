@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SectionHeading } from "@/components/ui";
 import { denverParts } from "@/lib/event-time";
 import type { Tables } from "@/lib/database.types";
+import { overlappingSlotPairs, slotIsFull } from "@/lib/time-slot-conflicts";
 import {
   AssignOfficerToTimeSlotForm,
   JoinAllTimeSlotsForm,
@@ -17,6 +18,7 @@ export type EventTimeSlotWithRoster = Pick<
 > & {
   event_time_slot_officers: {
     officer_id: number;
+    is_self_signup?: boolean;
     officers: Pick<Tables<"officers">, "id" | "name"> | null;
     event_officers?: Pick<Tables<"event_officers">, "removed_at"> | null;
   }[];
@@ -58,6 +60,9 @@ export default function TimeSlotsSection({
       ({ officer_id }) => officer_id === actorId,
     ),
   );
+  const scheduleConflicts = overlappingSlotPairs(
+    activeSlots.map((slot, index) => ({ ...slot, position: index + 1 })),
+  );
   const availableToJoin = activeSlots.flatMap((slot, index) =>
     !slot.event_time_slot_officers.some(
       ({ officer_id }) => officer_id === actorId,
@@ -72,17 +77,21 @@ export default function TimeSlotsSection({
     (slot) =>
       !slot.event_time_slot_officers.some(
         ({ officer_id }) => officer_id === actorId,
-      ) &&
-      slot.capacity !== null &&
-      slot.event_time_slot_officers.length >= slot.capacity,
+      ) && slotIsFull(slot.capacity, slot.event_time_slot_officers.length),
   );
-  const joinAllBlocked =
-    eventCapacityBlocked || fullUnselectedSlot !== undefined;
-  const joinAllHint = eventCapacityBlocked
-    ? "The Event has reached its confirmed signup capacity."
-    : fullUnselectedSlot
-      ? `Slot ${activeSlots.findIndex(({ id }) => id === fullUnselectedSlot.id) + 1} is full. Choose available slots instead.`
-      : undefined;
+  const joinAllReasons = [
+    eventCapacityBlocked
+      ? "The Event has reached its confirmed signup capacity."
+      : undefined,
+    fullUnselectedSlot
+      ? `Slot ${activeSlots.findIndex(({ id }) => id === fullUnselectedSlot.id) + 1} is full; choose available slots instead.`
+      : undefined,
+    scheduleConflicts.length > 0
+      ? `${scheduleConflicts.map(([first, second]) => `Slots ${first.position} and ${second.position}`).join("; ")} overlap; choose non-overlapping slots instead.`
+      : undefined,
+  ].filter((reason): reason is string => reason !== undefined);
+  const joinAllBlocked = joinAllReasons.length > 0;
+  const joinAllHint = joinAllReasons.join(" ") || undefined;
 
   return (
     <section aria-label="Time Slots" className="min-w-0 space-y-3">
@@ -102,7 +111,11 @@ export default function TimeSlotsSection({
                   officer !== null,
               )
               .sort((left, right) => left.name.localeCompare(right.name));
-            const ownSlot = registered.some(({ id }) => id === actorId);
+            const ownRegistration = slot.event_time_slot_officers.find(
+              ({ officer_id }) => officer_id === actorId,
+            );
+            const ownSlot = ownRegistration !== undefined;
+            const full = slotIsFull(slot.capacity, registered.length);
             const start = denverParts(slot.starts_at).time;
             const end = denverParts(slot.ends_at).time;
             return (
@@ -121,6 +134,17 @@ export default function TimeSlotsSection({
                       : ` / ${slot.capacity} registered`}
                   </span>
                 </div>
+                <p className="text-sm font-medium" aria-live="polite">
+                  {ownSlot
+                    ? ownRegistration.is_self_signup === true
+                      ? "Self signed up"
+                      : ownRegistration.is_self_signup === false
+                        ? "Assigned by a manager"
+                        : "Selected by you"
+                    : full
+                      ? "Full — unavailable"
+                      : "Open — available"}
+                </p>
                 <p className="text-muted">
                   {registered.length ? (
                     <span className="sr-only">Registered Officers: </span>
@@ -162,19 +186,39 @@ export default function TimeSlotsSection({
                         />
                       </div>
                     ))}
-                    {canCorrectAssignments && (
-                      <AssignOfficerToTimeSlotForm
-                        eventId={eventId}
-                        slotId={slot.id}
-                        officers={officers.filter(
-                          ({ id }) =>
-                            !registered.some(
-                              (registeredOfficer) =>
-                                registeredOfficer.id === id,
-                            ),
-                        )}
-                      />
-                    )}
+                    {canCorrectAssignments &&
+                      (full ? (
+                        <p className="text-sm text-muted">
+                          This slot is full; managers cannot add another
+                          Officer.
+                        </p>
+                      ) : (
+                        <AssignOfficerToTimeSlotForm
+                          eventId={eventId}
+                          slot={slot}
+                          officers={officers.filter(
+                            ({ id }) =>
+                              !registered.some(
+                                (registeredOfficer) =>
+                                  registeredOfficer.id === id,
+                              ),
+                          )}
+                          existingAssignments={activeSlots.flatMap(
+                            (assignedSlot, assignedIndex) =>
+                              assignedSlot.event_time_slot_officers.map(
+                                ({ officer_id }) => ({
+                                  officerId: officer_id,
+                                  slot: {
+                                    id: assignedSlot.id,
+                                    starts_at: assignedSlot.starts_at,
+                                    ends_at: assignedSlot.ends_at,
+                                    position: assignedIndex + 1,
+                                  },
+                                }),
+                              ),
+                          )}
+                        />
+                      ))}
                   </div>
                 )}
               </li>
@@ -185,6 +229,18 @@ export default function TimeSlotsSection({
 
       {signupOpen && activeOfficer && (
         <div className="space-y-2">
+          {selected.length > 0 && (
+            <p className="text-sm text-muted">
+              Your saved selections:{" "}
+              {selected
+                .map(
+                  (slot) =>
+                    `Slot ${activeSlots.findIndex(({ id }) => id === slot.id) + 1}`,
+                )
+                .join(", ")}
+              . Use “Leave” on a selected slot to change your choices.
+            </p>
+          )}
           {eventCapacityBlocked ? (
             <p className="text-sm text-muted">
               The Event has reached its confirmed signup capacity, so you cannot
@@ -195,6 +251,13 @@ export default function TimeSlotsSection({
               <JoinSelectedTimeSlotsForm
                 eventId={eventId}
                 slots={availableToJoin}
+                currentSelections={selected.map((slot) => ({
+                  id: slot.id,
+                  starts_at: slot.starts_at,
+                  ends_at: slot.ends_at,
+                  position:
+                    activeSlots.findIndex(({ id }) => id === slot.id) + 1,
+                }))}
               />
             )
           )}
@@ -218,6 +281,12 @@ export default function TimeSlotsSection({
       {allSelected && selected.length > 0 && (
         <p className="text-sm text-muted">
           You are signed up for every Time Slot.
+        </p>
+      )}
+      {canCorrectAssignments && activeSlots.length > 0 && (
+        <p className="text-sm text-muted">
+          Manager assignments apply the chosen slots to each selected Officer.
+          Each Officer must have a non-overlapping selection.
         </p>
       )}
     </section>

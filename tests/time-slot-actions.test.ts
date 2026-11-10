@@ -69,6 +69,30 @@ it("uses only the signed-in Officer for self slot selection", async () => {
   expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
 });
 
+it("retains every selected slot when the server rejects a stale overlapping selection", async () => {
+  rpc.mockResolvedValue({
+    data: null,
+    error: {
+      message: "An Officer cannot be assigned to overlapping Time Slots",
+    },
+  });
+  const result = await changeTimeSlotSignup(
+    initial,
+    form({ event_id: "12", mode: "join_selected", slot_ids: ["4", "5", "6"] }),
+  );
+
+  expect(result.error).toBe(
+    "An Officer cannot be assigned to overlapping Time Slots",
+  );
+  expect(result.values?.slot_ids).toEqual(["4", "5", "6"]);
+  expect(rpc).toHaveBeenCalledWith("change_event_time_slot_signup", {
+    p_event_id: 12,
+    p_officer_id: 8,
+    p_slot_ids: [4, 5, 6],
+    p_mode: "join_selected",
+  });
+});
+
 it("blocks cross-Officer slot changes outside the manager's Event scope", async () => {
   const result = await changeTimeSlotSignup(
     initial,
