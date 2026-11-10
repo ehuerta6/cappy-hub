@@ -372,6 +372,11 @@
     grid-row: 1;
     justify-self: end;
   }
+
+  .notificationPopover {
+    right: auto;
+    left: 0;
+  }
 }
 
 @media (min-width: 640px) {
@@ -402,11 +407,6 @@
   .nav {
     grid-column: 1;
     grid-row: 3;
-  }
-
-  .notificationPopover {
-    right: auto;
-    left: 0;
   }
 
   .account {
