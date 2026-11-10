@@ -512,6 +512,26 @@ it("shows manager review controls without the generic completion toggle", async 
   Object.assign(assignment, { completion_approval_pending: false });
 });
 
+it("shows pending approval in the Task assignment preview", async () => {
+  const assignment = task.task_officer_assignments[0];
+  Object.assign(assignment, { completion_approval_pending: true });
+  const html = renderToStaticMarkup(
+    await TaskDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({}),
+    }),
+  );
+  const preview = html
+    .split('aria-label="Assignment preview"')[1]
+    .split("</section>")[0];
+  const pendingRow = preview
+    .split("<li")
+    .find((row) => row.includes("Other Officer"));
+  expect(pendingRow).toContain("Awaiting approval");
+  expect(pendingRow).not.toContain("Completed</span>");
+  Object.assign(assignment, { completion_approval_pending: false });
+});
+
 it("keeps Task detail previews to four and pages full related sections by six", async () => {
   const assignments = Array.from({ length: 8 }, (_, index) => ({
     officer_id: 8 - index,

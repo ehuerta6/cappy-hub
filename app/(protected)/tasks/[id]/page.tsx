@@ -468,6 +468,7 @@ export default async function TaskDetailPage({
                     ({
                       officer_id,
                       completed_at,
+                      completion_approval_pending,
                       officers: assignedOfficer,
                     }) => (
                       <li
@@ -483,7 +484,11 @@ export default async function TaskDetailPage({
                           {assignedOfficer.name}
                         </Link>
                         <span className="text-sm text-muted">
-                          {completed_at ? "Completed" : "Not completed"}
+                          {completion_approval_pending
+                            ? "Awaiting approval"
+                            : completed_at
+                              ? "Completed"
+                              : "Not completed"}
                         </span>
                       </li>
                     ),
