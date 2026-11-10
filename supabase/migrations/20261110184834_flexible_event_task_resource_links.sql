@@ -6,7 +6,7 @@ create table public.resource_links (
   task_id bigint references public.tasks(id) on delete cascade,
   kind text not null check (kind in ('slides','meeting_notes','signup_sheet','documentation','custom')),
   label text not null check (label=pg_catalog.btrim(label) and char_length(label) between 1 and 80),
-  url text not null check (char_length(url) between 1 and 2048 and url ~* '^https?://[^[:space:]]+$'),
+  url text not null,
   sort_order integer not null default 0 check (sort_order >= 0),
   legacy_key text check (legacy_key in ('slides','meeting_notes','signup_sheet')),
   constraint resource_links_one_owner check ((event_id is null) <> (task_id is null)),
@@ -19,7 +19,11 @@ create table public.resource_links (
   constraint resource_links_event_legacy_kind check (
     event_id is null or legacy_key is null or kind=legacy_key
   ),
-  constraint resource_links_task_no_legacy check (task_id is null or legacy_key is null)
+  constraint resource_links_task_no_legacy check (task_id is null or legacy_key is null),
+  constraint resource_links_valid_url check (
+    char_length(url)>=1 and (legacy_key is not null or char_length(url)<=2048)
+    and url ~* '^https?://[^[:space:]]+$'
+  )
 );
 
 create index resource_links_event_order_idx on public.resource_links(event_id,sort_order,id)
@@ -112,7 +116,7 @@ begin
         when 'documentation' then 'Documentation'
         else pg_catalog.btrim(item->>'label') end
       or nullif(pg_catalog.btrim(item->>'url'),'') is null
-      or char_length(pg_catalog.btrim(item->>'url'))>2048
+      or (item->>'legacy_key' is null and char_length(pg_catalog.btrim(item->>'url'))>2048)
       or pg_catalog.btrim(item->>'url') !~* '^https?://[^[:space:]]+$'
       or (item->>'legacy_key' is not null and not p_allow_legacy)
       or (item->>'legacy_key' is not null and item->>'legacy_key' not in ('slides','meeting_notes','signup_sheet'))

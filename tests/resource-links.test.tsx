@@ -94,3 +94,22 @@ it("preserves all migrated Event link fields and rejects duplicate legacy rows",
     eventResourceLinksInputSchema.safeParse(JSON.stringify(duplicates)).success,
   ).toBe(false);
 });
+
+it("allows long URLs on existing legacy Event links but caps new resources", () => {
+  const longUrl = `https://example.org/${"x".repeat(2050)}`;
+  const legacy = JSON.stringify([
+    {
+      kind: "slides",
+      label: "Slides",
+      url: longUrl,
+      legacy_key: "slides",
+    },
+  ]);
+  const custom = JSON.stringify([
+    { kind: "custom", label: "Guide", url: longUrl, legacy_key: null },
+  ]);
+
+  expect(eventResourceLinksInputSchema.safeParse(legacy).success).toBe(true);
+  expect(eventResourceLinksInputSchema.safeParse(custom).success).toBe(false);
+  expect(taskResourceLinksInputSchema.safeParse(legacy).success).toBe(false);
+});

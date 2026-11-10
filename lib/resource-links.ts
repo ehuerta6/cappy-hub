@@ -40,7 +40,6 @@ const resourceLinkSchema = zod
       .string()
       .trim()
       .min(1, "Enter a link URL")
-      .max(2048)
       .refine((value) => {
         try {
           const url = new URL(value);
@@ -70,6 +69,13 @@ const resourceLinksArraySchema = zod
   .superRefine((rows, context) => {
     const legacyKeys = new Set<string>();
     rows.forEach((row, index) => {
+      if (!row.legacy_key && row.url.length > 2048) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "url"],
+          message: "New resource URLs must be 2048 characters or fewer",
+        });
+      }
       if (row.legacy_key && row.kind !== row.legacy_key) {
         context.addIssue({
           code: "custom",

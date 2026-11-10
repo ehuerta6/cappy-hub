@@ -37,6 +37,16 @@ select is((select count(*) from resource_links r join events e on e.id=r.event_i
 select is((select url from resource_links r join events e on e.id=r.event_id
   where e.name='Legacy resource fixture' and r.legacy_key='signup_sheet'),
   'https://example.org/signup-updated','legacy edits update the marked Signup sheet row');
+select lives_ok($$select public.save_event_with_resources('Legacy resource fixture','Details',
+  (select id from event_types where name='Session'),'Campus','2099-11-14','2099-11-14 16:00Z',
+  '2099-11-14 17:00Z','{}',null,0,(select id from events where name='Legacy resource fixture'),
+  null,null,'[]'::jsonb,jsonb_build_array(jsonb_build_object(
+    'kind','slides','label','Slides','url','https://example.org/'||repeat('x',2050),
+    'legacy_key','slides')))$$,
+  'existing legacy Event links longer than 2048 characters remain editable');
+select is((select length(url) from resource_links r join events e on e.id=r.event_id
+  where e.name='Legacy resource fixture' and r.legacy_key='slides'),2070,
+  'long legacy URLs are preserved without weakening the limit for new resources');
 
 select lives_ok($$select public.save_task_with_resources('Resource Task','Details','Post',
   (select id from branches where name='intro'),'2099-11-15',3,false,array[]::bigint[],
