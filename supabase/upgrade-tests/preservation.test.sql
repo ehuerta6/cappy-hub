@@ -447,7 +447,7 @@ select is((select to_jsonb(p)-'participation_superseded_at'-'participation_sched
 select is((select to_jsonb(t)-'due_time' from tasks t where id=90790),(select row from upgrade_fixture.pre_task_standalone),'Task transition preserves standalone Task fields and creator');
 select is((select to_jsonb(a)-'removed_at'-'removed_by'-'completion_approval_pending' from task_officer_assignments a where task_id=90790 and officer_id=90001),(select row from upgrade_fixture.pre_task_assignment),'canonical Task assignment preserves its original completion and approval values');
 select is((select to_jsonb(a)-'removed_at'-'removed_by'-'completion_approval_pending' from task_officer_assignments a where task_id=90790 and officer_id=90001),(select row from upgrade_fixture.pre_task_contract_assignment),'contract recovers any assignment history that remained only in the projection');
-select ok((select bool_and(completion_approval_pending is false) from task_officer_assignments
+select ok((select count(*)=2 and bool_and(completion_approval_pending is false) from task_officer_assignments
   where (task_id,officer_id) in ((90680,90001),(90790,90001))),
   'historical assignments default to accepted rather than awaiting approval');
 select is((select to_jsonb(p)-'participation_superseded_at'-'participation_schedule_suspended'-'task_reconciliation_suspended'-'event_time_slot_id'-'slot_selection_removed'-'event_delete_suspended' from point_transactions p where id=90790),(select row from upgrade_fixture.pre_task_award),'Task Point history and actor attribution survive the transition');
