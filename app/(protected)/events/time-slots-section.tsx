@@ -18,11 +18,18 @@ export type EventTimeSlotWithRoster = Pick<
 > & {
   event_time_slot_officers: {
     officer_id: number;
-    is_self_signup?: boolean;
+    is_self_signup?: boolean | null;
     officers: Pick<Tables<"officers">, "id" | "name"> | null;
     event_officers?: Pick<Tables<"event_officers">, "removed_at"> | null;
   }[];
 };
+
+export function isSelfTimeSlotSignup(
+  createdBy: string | null,
+  actorAuthUserId: string,
+): boolean | null {
+  return createdBy === null ? null : createdBy === actorAuthUserId;
+}
 
 export default function TimeSlotsSection({
   eventId,
@@ -140,7 +147,7 @@ export default function TimeSlotsSection({
                       ? "Self signed up"
                       : ownRegistration.is_self_signup === false
                         ? "Assigned by a manager"
-                        : "Selected by you"
+                        : "Signup attribution unavailable"
                     : full
                       ? "Full — unavailable"
                       : "Open — available"}

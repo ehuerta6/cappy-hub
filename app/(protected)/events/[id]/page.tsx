@@ -24,7 +24,7 @@ import {
 } from "@/lib/event-status";
 import { personalSignupState } from "../personal-signup-state";
 import PresenterSlotsSection from "../presenter-slots-section";
-import TimeSlotsSection from "../time-slots-section";
+import TimeSlotsSection, { isSelfTimeSlotSignup } from "../time-slots-section";
 import {
   CorrectHistoricalTimeSlotAssignmentsForm,
   LeaveAllTimeSlotsForm,
@@ -444,7 +444,7 @@ export default async function EventDetailPage({
     event_time_slot_officers: slot.event_time_slot_officers.map(
       ({ created_by, ...registration }) => ({
         ...registration,
-        is_self_signup: created_by === actor.authUserId,
+        is_self_signup: isSelfTimeSlotSignup(created_by, actor.authUserId),
       }),
     ),
   }));

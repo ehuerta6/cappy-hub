@@ -25,6 +25,7 @@ vi.mock("@/app/(protected)/events/time-slot-actions", () => ({
 
 import TimeSlotsSection, {
   type EventTimeSlotWithRoster,
+  isSelfTimeSlotSignup,
 } from "@/app/(protected)/events/time-slots-section";
 import {
   BulkAssignOfficersToSlotsForm,
@@ -255,6 +256,25 @@ it("labels a manager-added slot separately from a self signup", () => {
   ]);
 
   expect(html).toContain("Assigned by a manager");
+});
+
+it("keeps null signup attribution unknown in the slot UI", () => {
+  const html = renderSection([
+    {
+      ...slots[1],
+      event_time_slot_officers: [
+        {
+          officer_id: actorId,
+          is_self_signup: isSelfTimeSlotSignup(null, "actor-auth-id"),
+          officers: { id: actorId, name: "Current Officer" },
+        },
+      ],
+    },
+  ]);
+
+  expect(html).toContain("Signup attribution unavailable");
+  expect(html).not.toContain("Assigned by a manager");
+  expect(html).not.toContain("Self signed up");
 });
 
 it("treats adjacent endpoints as non-conflicting and capacity boundaries as full", () => {
