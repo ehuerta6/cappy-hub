@@ -267,6 +267,16 @@
   line-height: 1.4;
 }
 
+.notificationPreviewMeta {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  color: var(--muted);
+  font-size: 0.67rem;
+  line-height: 1.4;
+}
+
 .notificationUnreadLabel {
   border-radius: 999px;
   background: var(--brand-bg);

@@ -80,6 +80,17 @@ export function formatDateTime(value: string) {
   });
 }
 
+/** Describe the record a notification opens without changing its behavior. */
+export function formatNotificationDestination(entityType: string) {
+  const destinations: Record<string, string> = {
+    event: "Event",
+    task: "Task",
+    point: "Points",
+    warning: "Officer profile",
+  };
+  return destinations[entityType] ?? "Notification";
+}
+
 /** Trim numeric scale noise from database-generated Point notifications. */
 export function formatNotificationMessage(kind: string, message: string) {
   if (kind !== "point.changed") return message;
