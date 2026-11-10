@@ -126,75 +126,85 @@ export default function CalendarView({
               : "No entries of the selected type."}
         </p>
       )}
-      <FullCalendar
-        plugins={[classicThemePlugin, dayGridPlugin]}
-        initialView="dayGridMonth"
-        initialDate={initialDate}
-        timeZone="America/Denver"
-        colorScheme={theme}
-        editable={false}
-        selectable={false}
-        eventDisplay="block"
-        fixedWeekCount={false}
-        dayMaxEvents={3}
-        moreLinkClick="popover"
-        moreLinkText={(count) => `+${count} more`}
-        moreLinkHint={(count) => `Show ${count} more Calendar entries`}
-        moreLinkClass="calendar-more"
-        popoverClass="calendar-shell calendar-popover"
-        popoverFormat={{ weekday: "long", month: "long", day: "numeric" }}
-        datesSet={loadVisibleRange}
-        events={displayedEntries}
-        eventTimeFormat={{
-          hour: "numeric",
-          minute: "2-digit",
-          meridiem: "short",
-        }}
-        allDayText="Due"
-        noEventsText="No entries this month. Try another month or adjust the filters."
-        headerToolbar={{ left: "title", center: "", right: "prev,next today" }}
-        toolbarClass="calendar-toolbar"
-        toolbarTitleClass="calendar-title"
-        dayHeaderClass="calendar-weekday"
-        dayCellClass={(info) => (info.isToday ? "calendar-today" : "")}
-        dayCellInnerClass="calendar-day"
-        dayCellTopClass="calendar-date"
-        eventClass="calendar-entry"
-        eventContent={(info) => (
-          <div className="calendar-entry-content">
-            <span className="calendar-entry-meta">
-              <span className="calendar-entry-kind">
-                {info.event.extendedProps.kind === "event" ? "Event" : "Task"}
+      <div
+        className={
+          loading || loadError ? "calendar-grid-unavailable" : undefined
+        }
+      >
+        <FullCalendar
+          plugins={[classicThemePlugin, dayGridPlugin]}
+          initialView="dayGridMonth"
+          initialDate={initialDate}
+          timeZone="America/Denver"
+          colorScheme={theme}
+          editable={false}
+          selectable={false}
+          eventDisplay="block"
+          fixedWeekCount={false}
+          dayMaxEvents={3}
+          moreLinkClick="popover"
+          moreLinkText={(count) => `+${count} more`}
+          moreLinkHint={(count) => `Show ${count} more Calendar entries`}
+          moreLinkClass="calendar-more"
+          popoverClass="calendar-shell calendar-popover"
+          popoverFormat={{ weekday: "long", month: "long", day: "numeric" }}
+          datesSet={loadVisibleRange}
+          events={displayedEntries}
+          eventTimeFormat={{
+            hour: "numeric",
+            minute: "2-digit",
+            meridiem: "short",
+          }}
+          allDayText="Due"
+          noEventsText="No entries this month. Try another month or adjust the filters."
+          headerToolbar={{
+            left: "title",
+            center: "",
+            right: "prev,next today",
+          }}
+          toolbarClass="calendar-toolbar"
+          toolbarTitleClass="calendar-title"
+          dayHeaderClass="calendar-weekday"
+          dayCellClass={(info) => (info.isToday ? "calendar-today" : "")}
+          dayCellInnerClass="calendar-day"
+          dayCellTopClass="calendar-date"
+          eventClass="calendar-entry"
+          eventContent={(info) => (
+            <div className="calendar-entry-content">
+              <span className="calendar-entry-meta">
+                <span className="calendar-entry-kind">
+                  {info.event.extendedProps.kind === "event" ? "Event" : "Task"}
+                </span>
+                <span>{info.event.allDay ? "Due" : info.timeText}</span>
               </span>
-              <span>{info.event.allDay ? "Due" : info.timeText}</span>
-            </span>
-            <span className="calendar-entry-title">{info.event.title}</span>
-          </div>
-        )}
-        eventDidMount={(info) => {
-          info.el.setAttribute(
-            "aria-label",
-            info.event.extendedProps.description,
-          );
-          info.el.setAttribute("role", "link");
-        }}
-        eventClick={(info) => {
-          // FullCalendar exposes url as a plain string. Only our canonical
-          // Event and Task detail URLs cross into Next navigation.
-          const href = calendarRoute(
-            info.event.url,
-            info.event.extendedProps?.kind,
-          );
-          if (!href) return;
-          info.jsEvent.preventDefault();
-          const query = periodQuery
-            ? `?period=${encodeURIComponent(periodQuery)}`
-            : "";
-          router.push(
-            (query ? `${href}${query}` : href) as import("next").Route,
-          );
-        }}
-      />
+              <span className="calendar-entry-title">{info.event.title}</span>
+            </div>
+          )}
+          eventDidMount={(info) => {
+            info.el.setAttribute(
+              "aria-label",
+              info.event.extendedProps.description,
+            );
+            info.el.setAttribute("role", "link");
+          }}
+          eventClick={(info) => {
+            // FullCalendar exposes url as a plain string. Only our canonical
+            // Event and Task detail URLs cross into Next navigation.
+            const href = calendarRoute(
+              info.event.url,
+              info.event.extendedProps?.kind,
+            );
+            if (!href) return;
+            info.jsEvent.preventDefault();
+            const query = periodQuery
+              ? `?period=${encodeURIComponent(periodQuery)}`
+              : "";
+            router.push(
+              (query ? `${href}${query}` : href) as import("next").Route,
+            );
+          }}
+        />
+      </div>
     </div>
   );
 }

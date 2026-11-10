@@ -115,6 +115,23 @@ it("uses the desktop month view, Denver time, and a read-only calendar", () => {
   expect(harness.options.colorScheme).toBe("light");
 });
 
+it("keeps the initial datesSet trigger while hiding unavailable grid content", () => {
+  const pendingHtml = renderToStaticMarkup(<CalendarView />);
+  expect(pendingHtml).toContain('class="calendar-grid-unavailable"');
+  expect(pendingHtml).toContain("Loading Calendar entries.");
+  expect(harness.options.datesSet).toEqual(expect.any(Function));
+
+  harness.loading = false;
+  const emptyHtml = renderToStaticMarkup(<CalendarView />);
+  expect(emptyHtml).not.toContain('class="calendar-grid-unavailable"');
+  expect(emptyHtml).toContain("No Events or Task due dates yet.");
+
+  harness.loadError = true;
+  const errorHtml = renderToStaticMarkup(<CalendarView />);
+  expect(errorHtml).toContain('class="calendar-grid-unavailable"');
+  expect(errorHtml).toContain("Could not load Calendar entries.");
+});
+
 it("loads each visible range once and filters loaded entries without refetching", async () => {
   harness.entries = entries;
   const tree = CalendarView();
