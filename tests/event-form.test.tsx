@@ -104,17 +104,19 @@ it("uses per-slot capacity on slotted Events and keeps the Branch selector", () 
   expect(html).toContain('name="branches"');
 });
 
-it("groups optional resources and recurrence after event details and capacity", () => {
+it("uses a full-row Event name and the shared optional recurrence controls", () => {
   const html = renderEventForm();
   expect(html).toContain("Resources (optional)");
   expect(html).toContain(
     "Add links that are useful for this event. All resource links are optional.",
   );
-  expect(html).toContain(
+  expect(html).toContain('<label class="col-span-full">Name');
+  expect(html).toContain("<legend>Optional recurrence</legend>");
+  expect(html).toContain('class="recurrence-fields"');
+  expect(html).toContain("Repeat");
+  expect(html).not.toContain("Recurrence settings (optional)");
+  expect(html).not.toContain(
     "Each scheduled occurrence is created as a separate event.",
-  );
-  expect(html.indexOf("Participation and capacity")).toBeLessThan(
-    html.indexOf("Each scheduled occurrence is created as a separate event."),
   );
   expect(html).toContain('name="recurrence_frequency"');
 });

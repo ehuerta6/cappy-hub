@@ -82,7 +82,6 @@ export default function EventForm({
     setLocationDraft({ source: restoredLocation, value: restoredLocation });
   }
   const [resourcesChanged, setResourcesChanged] = useState(false);
-  const [recurrenceChanged, setRecurrenceChanged] = useState(false);
   const initialStartTime = submittedValue(
     state.values,
     "start_time",
@@ -111,19 +110,6 @@ export default function EventForm({
   const resourcesNeedReveal = resourceFields.some(
     ([name, existingValue]) =>
       Boolean(submittedValue(state.values, name, existingValue ?? "")) ||
-      Boolean(fieldErrors[name]),
-  );
-  const recurrenceFields = [
-    "recurrence_frequency",
-    "recurrence_interval",
-    "recurrence_weekdays",
-    "recurrence_end_mode",
-    "recurrence_count",
-    "recurrence_until",
-  ];
-  const recurrenceNeedReveal = recurrenceFields.some(
-    (name) =>
-      Boolean(submittedValue(state.values, name, "")) ||
       Boolean(fieldErrors[name]),
   );
 
@@ -209,7 +195,7 @@ export default function EventForm({
       <fieldset className="event-form-section">
         <legend>Event information</legend>
         <div className="event-form-fields">
-          <label>
+          <label className="col-span-full">
             Name
             <input
               name="name"
@@ -610,22 +596,12 @@ export default function EventForm({
 
       {!event && (
         <div className="event-form-recurrence col-span-2">
-          <details
-            className="event-form-new-recurrence"
-            open={recurrenceChanged || recurrenceNeedReveal}
-            onToggle={(toggleEvent) =>
-              setRecurrenceChanged(toggleEvent.currentTarget.open)
-            }
-            onChange={() => setRecurrenceChanged(true)}
-          >
-            <summary>Recurrence settings (optional)</summary>
-            <RecurrenceFields
-              recordType="Event"
-              values={state.values}
-              fieldErrors={fieldErrors}
-              firstDate={submittedValue(state.values, "event_date", "")}
-            />
-          </details>
+          <RecurrenceFields
+            recordType="Event"
+            values={state.values}
+            fieldErrors={fieldErrors}
+            firstDate={submittedValue(state.values, "event_date", "")}
+          />
         </div>
       )}
 

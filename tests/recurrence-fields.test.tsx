@@ -136,6 +136,31 @@ it("does not throw or show an authoritative schedule for incomplete fields", () 
   expect(html).not.toContain("<li>");
 });
 
+it("uses the same optional recurrence labels and controls for Events and Tasks", () => {
+  const eventHtml = renderToStaticMarkup(
+    <RecurrenceFields
+      recordType="Event"
+      values={{ recurrence_frequency: "none" }}
+    />,
+  );
+  const taskHtml = renderToStaticMarkup(
+    <RecurrenceFields
+      recordType="Task"
+      values={{ recurrence_frequency: "none" }}
+    />,
+  );
+
+  for (const html of [eventHtml, taskHtml]) {
+    expect(html).toContain("<legend>Optional recurrence</legend>");
+    expect(html).toContain("Repeat");
+    expect(html).toContain("Does not repeat");
+    expect(html).toContain("Daily");
+    expect(html).toContain("Weekly");
+  }
+  expect(eventHtml).not.toContain("Each scheduled occurrence is created");
+  expect(taskHtml).not.toContain("Each scheduled occurrence is created");
+});
+
 it("does not guess a schedule when an edit scope lacks canonical context", () => {
   const recurrence: RecurrenceInput = {
     frequency: "weekly",
