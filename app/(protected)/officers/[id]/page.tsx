@@ -985,11 +985,7 @@ export default async function OfficerDetailPage({
                       )}
                     </article>
                   ))
-                ) : (
-                  <p className="text-sm">
-                    {isAdmin(actor) ? "No warnings." : "No approved warnings."}
-                  </p>
-                )}
+                ) : null}
                 <Link
                   className="text-sm underline"
                   href={sectionHref(officerIdParam, "warnings", urlParams)}
@@ -1013,22 +1009,16 @@ export default async function OfficerDetailPage({
             </div>
           </div>
           {pointContent}
-          <Link
-            className="text-sm underline"
-            href={sectionHref(officerIdParam, "points", urlParams)}
-          >
-            {transactionCountResult.error
-              ? "View all point history"
-              : `View all point history (${transactionCount})`}
-          </Link>
-          <Link
-            className="text-sm underline"
-            href={sectionHref(officerIdParam, "tasks", urlParams)}
-          >
-            {taskCountResult.error
-              ? "View all associated Tasks"
-              : `View all associated Tasks (${taskCount})`}
-          </Link>
+          <div className="pt-2">
+            <Link
+              className="text-sm underline"
+              href={sectionHref(officerIdParam, "tasks", urlParams)}
+            >
+              {taskCountResult.error
+                ? "View associated Tasks"
+                : `View associated Tasks (${taskCount})`}
+            </Link>
+          </div>
         </div>
       )}
       {visibleSection === "warnings" && (
