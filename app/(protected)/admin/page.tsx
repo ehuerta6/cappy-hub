@@ -27,9 +27,9 @@ const adminAreas = [
     link: "Manage catalogs",
   },
   {
-    title: "Points configuration and corrections",
+    title: "Points awards and corrections",
     description:
-      "Update the participation points rate, add manual corrections, or review and remove point awards.",
+      "Add manual Point awards or corrections, then review and remove existing awards.",
     href: "/points",
     link: "Open points administration",
   },
