@@ -137,12 +137,14 @@ export function JoinSelectedTimeSlotsForm({
                 <span>
                   Slot {slot.position}: {start}–{end}{" "}
                   <span className="text-muted">
-                    (Open
-                    {conflictIds.has(slot.id)
-                      ? "; overlaps another choice"
-                      : ""}
-                    )
+                    (Open{conflictIds.has(slot.id) ? "; " : ""}
                   </span>
+                  {conflictIds.has(slot.id) && (
+                    <span className="text-danger font-medium">
+                      overlaps another choice
+                    </span>
+                  )}
+                  <span className="text-muted">)</span>
                   {conflictIds.has(slot.id) && (
                     <span id={`slot-conflict-${slot.id}`} className="sr-only">
                       This slot overlaps a selected or available slot. One
@@ -166,7 +168,7 @@ export function JoinSelectedTimeSlotsForm({
         </p>
       )}
       {selectedConflictText && (
-        <p role="alert" className="text-sm font-medium">
+        <p role="alert" className="feedback-message feedback-error text-sm">
           {selectedConflictText} overlap. One Officer cannot select both. Remove
           one selection to continue.
         </p>
@@ -435,7 +437,7 @@ export function BulkAssignOfficersToSlotsForm({
         </FieldError>
       </fieldset>
       {selectedFullSlots.length > 0 && (
-        <p role="alert" className="text-sm font-medium">
+        <p role="alert" className="feedback-message feedback-error text-sm">
           {selectedFullSlots
             .map(({ position }) => `Slot ${position}`)
             .join(", ")}{" "}
@@ -443,7 +445,7 @@ export function BulkAssignOfficersToSlotsForm({
         </p>
       )}
       {conflicts.length > 0 && (
-        <p role="alert" className="text-sm font-medium">
+        <p role="alert" className="feedback-message feedback-error text-sm">
           {conflicts
             .map(
               ([first, second]) =>
