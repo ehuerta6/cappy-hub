@@ -23,7 +23,7 @@ export default function RoleForm({
       <AcademicPeriodWriteContextField />
       <input type="hidden" name="officer_id" value={officerId} />
       <label>
-        Application role
+        Access level
         <select
           name="role"
           aria-invalid={Boolean(fieldErrors.role)}

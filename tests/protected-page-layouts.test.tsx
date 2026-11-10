@@ -1045,11 +1045,17 @@ it("retains Officer operational sections and full point history", async () => {
   for (const text of [
     "UTEP email",
     "Application access",
+    "Access level",
     "Total points:",
     "Approved warnings:",
     "Point history",
   ])
     expect(html).toContain(text);
+  expect(html.match(/Application role/g)).toHaveLength(1);
+  expect(html.match(/View all point history/g)).toHaveLength(1);
+  expect(html).toContain("View associated Tasks");
+  expect(html).not.toContain("No warnings.");
+  expect(html).not.toContain("No approved warnings.");
   expect(html).toContain('aria-label="Warnings"');
   expect(html).toContain("Create warning");
   expect(html).toContain('aria-labelledby="create-warning-title"');
