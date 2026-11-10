@@ -164,7 +164,7 @@ it("submits only the current Officer's completion with the writable period conte
   form.set("writable_period", "12");
   expect(
     await selfCompleteTaskAssignment({ error: "", success: "" }, form),
-  ).toEqual({ error: "", success: "Completion sent for approval" });
+  ).toEqual({ error: "", success: "Task completion updated" });
   expect(rpc).toHaveBeenCalledWith("self_complete_task_assignment", {
     p_task_id: -9,
     p_period_context: "12",

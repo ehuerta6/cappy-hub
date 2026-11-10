@@ -336,6 +336,25 @@ it("restricts self-reported Task completion, reviews it, and awards only approve
       end $$; commit;
     `);
 
+    runSql(
+      `update public.task_officer_assignments set removed_at=statement_timestamp(), removed_by=${leadId} where task_id=${taskId} and officer_id=${otherOfficerId};`,
+    );
+    runSql(`
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${leadAuth}',true);
+      do $$ begin
+        perform public.set_task_assignment_completion(${taskId},${otherOfficerId},true);
+        raise exception 'removed assignment correction should fail';
+      exception when others then
+        if sqlerrm not like '%Task assignment not found%' then raise; end if;
+      end $$; commit;
+    `);
+    expect(
+      runSql(
+        `select (removed_at is not null and completed_at is null and approved_at is null)::text from public.task_officer_assignments where task_id=${taskId} and officer_id=${otherOfficerId};`,
+      ).trim(),
+    ).toBe("true");
+
     runSql(`
       begin; set local role authenticated;
       select set_config('request.jwt.claim.sub','${leadAuth}',true);

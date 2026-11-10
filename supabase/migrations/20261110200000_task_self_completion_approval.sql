@@ -122,7 +122,7 @@ begin
   end if;
   if task_row.removed_at is not null then raise exception 'Task has been removed'; end if;
   select * into assignment from public.task_officer_assignments
-    where task_id = p_task_id and officer_id = p_officer_id for update;
+    where task_id = p_task_id and officer_id = p_officer_id and removed_at is null for update;
   if not found then raise exception 'Task assignment not found'; end if;
 
   was_completed := assignment.completed_at is not null;
@@ -132,7 +132,7 @@ begin
       completion_approval_pending = false,
       approved_at = case when p_completed then pg_catalog.clock_timestamp() else null end,
       approved_by = case when p_completed then actor_id else null end
-    where task_id = p_task_id and officer_id = p_officer_id;
+    where task_id = p_task_id and officer_id = p_officer_id and removed_at is null;
     perform private.write_audit_log('task.completion_changed', 'task', p_task_id::text,
       pg_catalog.jsonb_build_object('task_id', p_task_id, 'task_title', task_row.title,
         'officer_id', p_officer_id, 'actor_id', actor_id,

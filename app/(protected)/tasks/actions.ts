@@ -284,7 +284,7 @@ export async function selfCompleteTaskAssignment(
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${validation.data.task_id}`);
   revalidatePath("/", "layout");
-  return { error: "", success: "Completion sent for approval" };
+  return { error: "", success: "Task completion updated" };
 }
 
 async function reviewTaskCompletion(
