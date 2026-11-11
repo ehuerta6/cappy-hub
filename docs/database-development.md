@@ -72,12 +72,14 @@ CI compares migration files with the PR base on pull requests and with the previ
 
 After a PR is merged to `main`, the existing CI workflow runs the normal quality checks. When CI succeeds, `.github/workflows/deploy-production.yml` checks out that exact `main` commit and runs these steps in order:
 
-1. Compare `supabase/migrations/` with production migration history using `SUPABASE_DB_URL`. Production history must match a prefix of the local migration list; migrations in `main` that have not reached production are allowed.
-2. Run `supabase db push --db-url "$SUPABASE_DB_URL" --dry-run` (without `--include-seed`).
-3. Apply pending migrations with `supabase db push --db-url "$SUPABASE_DB_URL"` (without `--include-seed`).
-4. Verify production migration history is fully aligned with `supabase/migrations/`.
-5. Trigger the configured Vercel Production Deploy Hook. It starts Vercel's deployment only after migrations have been applied and verified.
-6. Poll the canonical production `/login` route until the CI-approved commit serves the expected Cappy Hub login surface, or fail after ten minutes.
+1. Confirm that the successful CI commit is still the current `main` tip. If `main` advanced while its production run was queued, skip the stale run; the newest successful `main` run owns production deployment.
+2. Compare `supabase/migrations/` with production migration history using `SUPABASE_DB_URL`. Production history must match a prefix of the local migration list; migrations in `main` that have not reached production are allowed.
+3. Run `supabase db push --db-url "$SUPABASE_DB_URL" --dry-run` (without `--include-seed`).
+4. Apply pending migrations with `supabase db push --db-url "$SUPABASE_DB_URL"` (without `--include-seed`).
+5. Verify production migration history is fully aligned with `supabase/migrations/`.
+6. Recheck that the successful CI commit is still the current `main` tip. If a newer commit arrived during migration, skip the deploy hook so an older run cannot deploy newer application code against an incomplete schema.
+7. Trigger the configured Vercel Production Deploy Hook. It starts Vercel's deployment only after migrations have been applied and verified.
+8. Poll the canonical production `/login` route until the CI-approved commit serves the expected Cappy Hub login surface, or fail after ten minutes.
 
 Any failed step stops the workflow before the next step. A CI failure skips production deployment. A migration history mismatch, failed dry run, failed migration, or final history check prevents the hook from being called, so the new application never receives production traffic before its migrations succeed. A failed Vercel deployment leaves the previous application active.
 
