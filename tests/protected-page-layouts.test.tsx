@@ -539,7 +539,7 @@ it("shows pending approval in the Task assignment preview", async () => {
   Object.assign(assignment, { completion_approval_pending: false });
 });
 
-it("shows assignment count and manager add controls in the Overview only", async () => {
+it("shows assignment count and manager add controls in the Overview", async () => {
   officersForList = [{ id: 3, name: "Available Officer" }];
   const managerHtml = renderToStaticMarkup(
     await TaskDetail({
