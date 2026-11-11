@@ -1,6 +1,10 @@
 "use server";
 
-import { getAuthorizationContext, canManageEvent } from "@/lib/authorization";
+import {
+  getAuthorizationContext,
+  canEditEvent,
+  canManageEvent,
+} from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import { mutationError } from "@/lib/mutation-error";
 import {
@@ -34,7 +38,6 @@ import {
   bulkAddEventOfficersInputSchema,
   changeSignupInputSchema,
   eventTimeSlotsInputSchema,
-  eventBranchIdsInputSchema,
   eventRecordInputSchema,
   restoreEventInputSchema,
   saveEventInputSchema,
@@ -81,13 +84,7 @@ export async function saveEvent(
     enforceWritablePeriod: true,
     periodContext: formData.get("writable_period"),
   });
-  const rawBranchIds = formData.getAll("branches");
-  const branchValidationResult =
-    eventBranchIdsInputSchema.safeParse(rawBranchIds);
-  const branchIdsForAuthorization = branchValidationResult.success
-    ? branchValidationResult.data
-    : [];
-  if (!formData.get("id") && !canManageEvent(actor, branchIdsForAuthorization))
+  if (!formData.get("id") && !canEditEvent(actor))
     return formFailure(
       "Event outside branch scope",
       formData,

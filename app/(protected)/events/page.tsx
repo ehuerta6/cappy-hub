@@ -3,6 +3,7 @@ import {
   getAuthorizationContext,
   isLead,
   canSeeAllBranches,
+  canEditEvent,
   canManageEvent,
 } from "@/lib/authorization";
 import { listReturnUrl, withReturnTo } from "@/lib/return-context";
@@ -215,9 +216,7 @@ export default async function EventsPage({
       failure.event &&
       canManageEvent(
         actor,
-        failure.event.event_branches.map(
-          (eventBranch) => eventBranch.branch_id,
-        ),
+        failure.event.event_branches.map((branch) => branch.branch_id),
       ),
   );
   const calendarFailurePageCount = Math.ceil(
@@ -295,9 +294,7 @@ export default async function EventsPage({
         title="Events"
         description="Club events and participation."
         action={
-          !periodSelection.isHistorical &&
-          (canSeeAllBranches(actor) ||
-            (isLead(actor) && actor.branchIds.length > 0)) ? (
+          !periodSelection.isHistorical && canEditEvent(actor) ? (
             <ActionLink
               href={
                 `/events/new${params.period ? `?period=${params.period}` : ""}` as Route

@@ -6,7 +6,11 @@ import {
 } from "@/lib/return-context";
 import ContextualBackLink from "@/components/contextual-back-link";
 import { ListPagination } from "@/components/list-pagination";
-import { getAuthorizationContext, canManageEvent } from "@/lib/authorization";
+import {
+  getAuthorizationContext,
+  canEditEvent,
+  canManageEvent,
+} from "@/lib/authorization";
 import PointTransactionTable from "@/components/point-transaction-table";
 import Link from "next/link";
 import type { Route } from "next";
@@ -226,12 +230,11 @@ export default async function EventDetailPage({
   const status = eventStatus(event);
   const signupOpen = !event.deleted_at && eventSignupOpen(event);
   const past = status === "past";
+  const eventBranches = event.event_branches.map(({ branch_id }) => branch_id);
   const canManage =
-    !periodSelection.isHistorical &&
-    canManageEvent(
-      actor,
-      event.event_branches.map((eventBranch) => eventBranch.branch_id),
-    );
+    !periodSelection.isHistorical && canManageEvent(actor, eventBranches);
+  const canEdit = !periodSelection.isHistorical && canEditEvent(actor);
+  const canManageCurrentRoster = canManage || (canEdit && !past);
   if (event.deleted_at && !canManage) notFound();
   const calendarSyncFailure = canManage
     ? await supabase
@@ -334,9 +337,12 @@ export default async function EventDetailPage({
   }
   const start = (page - 1) * RELATED_PAGE_SIZE;
 
-  const canAddOfficers = canManage && !event.deleted_at && (signupOpen || past);
+  const canAddOfficers =
+    canManageCurrentRoster && !event.deleted_at && (signupOpen || past);
   const canCorrectTimeSlots =
-    canManage && !event.deleted_at && event.status !== "cancelled";
+    (canManage || (canEdit && !past)) &&
+    !event.deleted_at &&
+    event.status !== "cancelled";
   const showPresenters = section === "overview";
   const showTimeSlots =
     (section === "overview" || section === "roster") &&
@@ -371,7 +377,7 @@ export default async function EventDetailPage({
           .eq("event_id", event.id)
           .order("position")
       : Promise.resolve(undefined),
-    canManage && showTimeSlots
+    canManageCurrentRoster && showTimeSlots
       ? supabase
           .from("officers")
           .select("id,name")
@@ -470,7 +476,7 @@ export default async function EventDetailPage({
       <PageHeader
         title={event.name}
         action={
-          canManage && !event.deleted_at && status !== "cancelled" ? (
+          canEdit && !event.deleted_at && status !== "cancelled" ? (
             <ActionLink
               href={withReturnTo(
                 `/events/${eventIdParam}/edit`,
@@ -707,7 +713,7 @@ export default async function EventDetailPage({
               ) : (
                 <p className="text-sm text-muted">No officers signed up.</p>
               )}
-              {canManage &&
+              {canManageCurrentRoster &&
                 timeSlots.length === 0 &&
                 signupOpen &&
                 (officersAvailableToAdd.length > 0 ? (
@@ -751,7 +757,7 @@ export default async function EventDetailPage({
                     No active officers are available to add.
                   </p>
                 ))}
-              {canManage &&
+              {canManageCurrentRoster &&
                 timeSlots.length > 0 &&
                 (signupOpen || past) &&
                 officersAvailableToAdd.length > 0 && (

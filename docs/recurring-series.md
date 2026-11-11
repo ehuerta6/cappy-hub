@@ -28,7 +28,7 @@ Task removal follows the existing unfinished/unawarded rule. If any selected Tas
 
 Trusted mutations lock the series and all its rows before applying changes. Workflow RPCs lock those same rows. Revisions reject stale submissions, and private request receipts allow an exact retry to return its original result without repeating the split, expansion or audit. A reused request key with different input or actor is rejected. All row changes, series metadata, audits and receipts commit or roll back together.
 
-Authorization is checked for the selected occurrence and every affected row. Event Leads require at least one shared branch; global Events remain restricted to admins and Event executives. Tasks retain their single-branch authorization. Destination branches are independently checked.
+Authorization is checked for the selected occurrence and every affected row. Active Leads use the global Event scope for recurrence edits, including global Events. Recurrence removal, cancellation, and lifecycle delete/restore retain their existing Event-manager scope. Tasks retain their single-branch authorization. Destination branches are independently checked.
 
 ## Time and audit
 

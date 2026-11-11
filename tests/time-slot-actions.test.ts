@@ -2,13 +2,15 @@ import { beforeEach, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/authorization", () => ({
   getAuthorizationContext: vi.fn(),
+  canEditEvent: (actor: { positionCode?: string }) =>
+    actor.positionCode === "president" || actor.positionCode === "lead",
   canManageEvent: (
     actor: { positionCode?: string; branchIds?: number[] },
-    branches: number[],
+    eventBranches: number[],
   ) =>
     actor.positionCode === "president" ||
     (actor.positionCode === "lead" &&
-      branches.some((branchId) => actor.branchIds?.includes(branchId))),
+      eventBranches.some((branchId) => actor.branchIds?.includes(branchId))),
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -137,18 +139,26 @@ it("submits manager slot assignments through the atomic bulk RPC", async () => {
   });
 });
 
-it("keeps unauthorized bulk assignment from reaching the RPC", async () => {
+it("allows a Lead to bulk-assign officers to an Event in another Branch", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 5,
     positionCode: "lead",
     branchIds: [2],
   } as never);
+  rpc.mockResolvedValue({
+    data: { added_officer_ids: [9], award_transaction_ids: [] },
+    error: null,
+  });
   const result = await assignBulkOfficersToTimeSlots(
     initial,
     form({ event_id: "12", officer_ids: "9", slot_ids: "4" }),
   );
-  expect(result.error).toBe("Event outside branch scope");
-  expect(rpc).not.toHaveBeenCalled();
+  expect(result.error).toBe("");
+  expect(rpc).toHaveBeenCalledWith("bulk_add_event_officers_to_slots", {
+    p_event_id: 12,
+    p_officer_ids: [9],
+    p_slot_ids: [4],
+  });
 });
 
 it("replaces one Officer's historical slot selections through the scoped RPC", async () => {
@@ -197,7 +207,7 @@ it("keeps an empty historical selection so managers can remove all slots", async
   });
 });
 
-it("blocks out-of-scope historical assignment corrections before the RPC", async () => {
+it("keeps historical slot correction within the existing Branch scope", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 5,
     positionCode: "lead",

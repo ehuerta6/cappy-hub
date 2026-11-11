@@ -4,7 +4,10 @@ import {
   withReturnTo,
   type NavigationSearchParams,
 } from "@/lib/return-context";
-import { getAuthorizationContext, canManageEvent } from "@/lib/authorization";
+import {
+  getAuthorizationContext,
+  canManageTask as canManageTaskForBranch,
+} from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import {
   getAcademicPeriodData,
@@ -158,7 +161,8 @@ export default async function TaskDetailPage({
   )
     notFound();
   const canManageTask =
-    !periodSelection.isHistorical && canManageEvent(actor, [task.branch_id]);
+    !periodSelection.isHistorical &&
+    canManageTaskForBranch(actor, task.branch_id);
   if (task.removed_at && !canManageTask) notFound();
   const activeSection: TaskSection =
     section === "assignments" || section === "events" ? section : "overview";

@@ -3,13 +3,14 @@ import { beforeEach, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/authorization", () => ({
   getAuthorizationContext: vi.fn(),
+  canEditEvent: (actor: { positionCode?: string }) =>
+    actor.positionCode === "president" || actor.positionCode === "lead",
   canManageEvent: (
     actor: { positionCode?: string; branchIds?: number[] },
     branches: number[],
   ) =>
     actor.positionCode === "president" ||
     (actor.positionCode === "lead" &&
-      branches.length > 0 &&
       branches.some((branchId) => actor.branchIds?.includes(branchId))),
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
@@ -157,7 +158,7 @@ it("retries a manager-authorized Event by ID against canonical state", async () 
   );
 });
 
-it("rejects an out-of-scope retry and does not call Google", async () => {
+it("does not allow a Lead to retry a Google Calendar sync for another Branch", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 8,
     positionCode: "lead",
@@ -377,6 +378,28 @@ it("sends validated Event fields and resources to the trusted RPC", async () => 
     enforceWritablePeriod: true,
     periodContext: "current",
   });
+});
+
+it("saves notification settings in a Lead's cross-Branch Event creation action", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 8,
+    positionName: "Lead",
+    positionCode: "lead",
+    branchIds: [],
+  } as never);
+  rpc.mockResolvedValueOnce({ data: 42, error: null });
+
+  await saveEvent({ error: "", success: "" }, eventForm());
+
+  expect(rpc).toHaveBeenNthCalledWith(
+    1,
+    "save_event_with_resources",
+    expect.objectContaining({ p_branch_ids: [-4] }),
+  );
+  expect(rpc).toHaveBeenCalledWith(
+    "set_event_notification_settings",
+    expect.objectContaining({ p_event_id: 42 }),
+  );
 });
 
 it("saves an Event before reporting that Google Calendar could not be updated", async () => {

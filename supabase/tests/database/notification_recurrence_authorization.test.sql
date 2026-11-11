@@ -71,11 +71,10 @@ where id=(select occurrence_ids[2] from notification_series_fixtures where label
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000403102',true);
 set local role authenticated;
-select throws_ok(format(
+select lives_ok(format(
   'select public.set_event_notification_settings(%s,false,''{}'',''{}'',''{120}'',''series'',%s,0)',
   occurrence_ids[1],series_id
-), 'P0001','Event outside branch scope',
-  'a Branch Lead cannot change reminder settings outside their managed Event branches')
+), 'a Lead can save reminder settings while editing an Event series across Branches')
 from notification_series_fixtures where label='event';
 select throws_ok(format(
   'select public.set_task_notification_settings(%s,false,''{}'',''{}'',''{120}'',''series'',%s,0)',
@@ -96,7 +95,7 @@ select is((select count(*) from public.event_notification_targets
   0::bigint,'rejected Event settings leave every occurrence unchanged');
 select is((select count(*) from public.event_reminder_offsets r
   where r.event_id in (select unnest(occurrence_ids) from notification_series_fixtures where label='event')
-    and r.minutes_before=120),0::bigint,'rejected Event reminder offsets are not partially written');
+    and r.minutes_before=120),2::bigint,'Lead reminder settings apply to every Event occurrence in the edit scope');
 select is((select count(*) from public.task_notification_targets
   where task_id in (select unnest(occurrence_ids) from notification_series_fixtures where label='task')),
   0::bigint,'rejected Task settings leave every occurrence unchanged');

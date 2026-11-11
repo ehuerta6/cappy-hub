@@ -1,6 +1,6 @@
 # Event Delete/Restore and Points
 
-**Actor:** an authorized Event manager (Admin, Event executive, or a Lead within the permitted shared-Branch scope). **Entry:** the Event detail or manager Events view.
+**Actor:** an authorized Event manager under the existing Event-management scope (Admin, Event executive, or a Lead whose Branch intersects the Event). **Entry:** the Event detail or manager Events view.
 
 1. The manager deletes one Event occurrence. The trusted mutation checks scope and records the lifecycle change.
 2. The Event leaves routine lists and Calendar views. Its row, signups, Time Slots, recurrence identity, and audit history remain. Event-linked Point transactions are suspended from active totals according to the lifecycle contract.

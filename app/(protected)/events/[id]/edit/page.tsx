@@ -6,8 +6,9 @@ import {
 import ContextualBackLink from "@/components/contextual-back-link";
 import {
   getAuthorizationContext,
-  canManageEvent,
+  canEditEvent,
   canSeeAllBranches,
+  isLead,
 } from "@/lib/authorization";
 import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
@@ -114,13 +115,7 @@ export default async function EditEventPage({
       currentEvent.event_date > periodSelection.period.ends_on)
   )
     notFound();
-  if (
-    !canManageEvent(
-      actor,
-      currentEvent.event_branches.map((eventBranch) => eventBranch.branch_id),
-    )
-  )
-    redirect("/access-denied");
+  if (!canEditEvent(actor)) redirect("/access-denied");
   const series =
     currentEvent.recurrence_series_id === null
       ? undefined
@@ -142,7 +137,7 @@ export default async function EditEventPage({
         returnTo={returnTo}
         series={series?.data ?? undefined}
         mutationRequestKey={crypto.randomUUID()}
-        allowGlobal={canSeeAllBranches(actor)}
+        allowGlobal={canSeeAllBranches(actor) || isLead(actor)}
         event={currentEvent}
         resourceLinks={parseResourceLinkViews(resourceLinks.data ?? [])}
         positions={positions.data}

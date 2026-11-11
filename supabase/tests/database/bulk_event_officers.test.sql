@@ -81,14 +81,14 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000334'
 set local role authenticated;
 select lives_ok($$select bulk_add_event_officers(-332,array[-338,-339]::bigint[])$$,
   'matching branch Lead can bulk add officers');
-select throws_ok($$select bulk_add_event_officers(-333,array[-338]::bigint[])$$,
-  'P0001','Event outside branch scope','Lead cannot bulk manage an outside branch event');
+select lives_ok($$select bulk_add_event_officers(-333,array[-338]::bigint[])$$,
+  'Lead can bulk manage an Event outside their Branches');
 reset role;
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000335',true);
 set local role authenticated;
-select throws_ok($$select bulk_add_event_officers(-332,array[-338]::bigint[])$$,
-  'P0001','Event outside branch scope','nonmatching branch Lead is rejected');
+select lives_ok($$select bulk_add_event_officers(-332,array[-338]::bigint[])$$,
+  'Lead can bulk manage an Event regardless of Branch membership');
 reset role;
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000332',true);

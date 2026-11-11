@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { getAuthorizationContext, canManageEvent } from "@/lib/authorization";
+import { getAuthorizationContext, canManageTask } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import {
   safeReturnTo,
@@ -45,7 +45,7 @@ export default async function EditTaskPage({
       task.data.due_date > periodSelection.period.ends_on)
   )
     notFound();
-  if (!canManageEvent(actor, [task.data.branch_id])) redirect("/access-denied");
+  if (!canManageTask(actor, task.data.branch_id)) redirect("/access-denied");
   const [
     series,
     branches,
