@@ -25,6 +25,72 @@ language sql stable security definer set search_path = '' as $$
 $$;
 revoke all on function private.can_manage_event_branches(bigint[]) from public,anon,authenticated;
 
+-- Enforce closed academic-period history at the trusted Event mutation layer,
+-- even when a caller bypasses the Server Action's selected-period check.
+create or replace function private.assert_event_period_writable(p_event_date date)
+returns void language plpgsql security definer set search_path = '' as $$
+declare period_id bigint;
+begin
+  if private.current_active_officer_id() is null then raise exception 'Unauthorized'; end if;
+  select p.id into period_id from public.academic_periods p
+    where p_event_date between p.starts_on and p.ends_on;
+  if period_id is not null then
+    perform public.assert_academic_period_writable(period_id);
+  end if;
+end;
+$$;
+revoke all on function private.assert_event_period_writable(date) from public,anon,authenticated;
+
+create or replace function private.create_recurring_event_with_resources(
+  p_name text,p_description text,p_event_type_id bigint,p_location text,p_branch_ids bigint[],
+  p_slides_url text,p_meeting_notes_url text,p_signup_sheet_url text,p_max_volunteers integer,
+  p_request_key uuid,p_recurrence_rule text,p_event_dates date[],p_starts_at timestamptz[],p_ends_at timestamptz[],
+  p_time_slots jsonb,p_resource_links jsonb
+) returns bigint language plpgsql security definer set search_path = '' as $$
+declare first_id bigint; series_id bigint; event_ids bigint[]; is_replay boolean; prior_id bigint; event_day date;
+begin
+  if not exists(select 1 from private.resource_link_request_receipts r
+      where r.domain='event.create' and r.actor_id=auth.uid() and r.request_key=p_request_key) then
+    foreach event_day in array coalesce(p_event_dates,'{}'::date[]) loop
+      perform private.assert_event_period_writable(event_day);
+    end loop;
+  end if;
+  first_id:=private.create_recurring_event_with_capacity_and_time_slots(p_name,p_description,p_event_type_id,p_location,
+    p_branch_ids,p_slides_url,p_meeting_notes_url,p_signup_sheet_url,p_max_volunteers,p_request_key,
+    p_recurrence_rule,p_event_dates,p_starts_at,p_ends_at,p_time_slots);
+  select r.is_replay,r.result_id into is_replay,prior_id
+    from private.check_resource_link_request('event.create',p_request_key,p_resource_links) r;
+  if is_replay then return prior_id; end if;
+  select recurrence_series_id into series_id from public.events where id=first_id;
+  if series_id is null then raise exception 'Recurring Event series not found'; end if;
+  select array_agg(id order by recurrence_key) into event_ids
+    from public.events where recurrence_series_id=series_id and deleted_at is null;
+  perform private.replace_event_resource_links(event_ids,p_resource_links);
+  insert into private.resource_link_request_receipts(domain,actor_id,request_key,resource_payload,result_id)
+    values('event.create',auth.uid(),p_request_key,coalesce(p_resource_links,'null'::jsonb),first_id);
+  return first_id;
+end;
+$$;
+
+create or replace function public.create_recurring_event(
+  p_name text,p_description text,p_event_type_id bigint,p_location text,p_branch_ids bigint[],
+  p_slides_url text,p_meeting_notes_url text,p_signup_sheet_url text,p_request_key uuid,
+  p_recurrence_rule text,p_event_dates date[],p_starts_at timestamptz[],p_ends_at timestamptz[]
+) returns bigint language plpgsql security definer set search_path = '' as $$
+declare event_day date;
+begin
+  if not exists(select 1 from private.recurring_event_signup_sheet_requests r
+      where r.request_key=p_request_key) then
+    foreach event_day in array coalesce(p_event_dates,'{}'::date[]) loop
+      perform private.assert_event_period_writable(event_day);
+    end loop;
+  end if;
+  return private.create_recurring_event(p_name,p_description,p_event_type_id,p_location,p_branch_ids,
+    p_slides_url,p_meeting_notes_url,p_signup_sheet_url,p_request_key,p_recurrence_rule,
+    p_event_dates,p_starts_at,p_ends_at);
+end;
+$$;
+
 -- Recurrence edits use the new Event scope. Remove/cancel operations keep the
 -- existing manager scope, as do lifecycle delete and restore RPCs.
 create or replace function private.mutate_recurring_event(
@@ -598,6 +664,7 @@ begin
     if not found then raise exception 'Event not found'; end if;
   end if;
   if not private.can_edit_event(p_event_id) then raise exception 'Event outside branch scope'; end if;
+  perform private.assert_event_period_writable(event_row.event_date);
   if coalesce(cardinality(p_branch_ids),0)>0 and exists(
     select 1 from unnest(p_branch_ids) as target(branch_id)
     left join public.branches b on b.id=target.branch_id where b.id is null
@@ -617,6 +684,7 @@ begin
     if not private.can_edit_event(target_event.id) then
       raise exception 'Event outside branch scope';
     end if;
+    perform private.assert_event_period_writable(target_event.event_date);
   end loop;
   delete from public.event_notification_targets where event_id=any(selected_ids);
   insert into public.event_notification_targets(event_id,all_active)
@@ -709,6 +777,7 @@ declare saved_id bigint; before_details jsonb; old_event public.events;
   branches bigint[] := coalesce(p_branch_ids,'{}'::bigint[]);
 begin
   if private.current_active_officer_id() is null then raise exception 'Unauthorized'; end if;
+  perform private.assert_event_period_writable(p_event_date);
   if not private.can_manage_event_branches(branches) then raise exception 'Event outside branch scope'; end if;
   if cardinality(branches) <> (select count(distinct id) from unnest(branches) b(id)) then
     raise exception 'Duplicate branches'; end if;
@@ -745,6 +814,7 @@ begin
   else
     select * into old_event from public.events where id=p_event_id for update;
     if not found then raise exception 'Event not found'; end if;
+    perform private.assert_event_period_writable(old_event.event_date);
     if not private.can_edit_event(p_event_id) then raise exception 'Event outside branch scope'; end if;
     if old_event.deleted_at is not null then raise exception 'This event cannot be edited'; end if;
     if not private.can_manage_event(p_event_id) and
