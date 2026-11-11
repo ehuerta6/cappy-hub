@@ -199,17 +199,72 @@ it("reports when there are no active Officers left to add", () => {
   );
 });
 
-it("keeps success visible and moves focus to the Officers section after the last Officer is added", async () => {
-  vi.mocked(bulkAssignTaskOfficers).mockResolvedValue({
-    error: "",
-    success: "1 officer added",
+it.each(["Assignment preview", "Officers"])(
+  "keeps success visible and restores focus in the %s section after the last Officer is added",
+  async (sectionLabel) => {
+    vi.mocked(bulkAssignTaskOfficers).mockResolvedValue({
+      error: "",
+      success: "1 officer added",
+    });
+
+    const render = (officers: { id: number; name: string }[]) =>
+      root.render(
+        createElement(
+          "section",
+          { "aria-label": sectionLabel },
+          createElement(BulkTaskOfficersForm, { taskId: 17, officers }),
+        ),
+      );
+
+    await act(async () => render([{ id: 3, name: "Avery Chen" }]));
+    const trigger = host.querySelector<HTMLButtonElement>(
+      'button[type="button"]',
+    );
+    if (!trigger) throw new Error("Add officers button not found");
+
+    await act(async () => trigger.click());
+    const dialog = host.querySelector<HTMLDialogElement>("dialog");
+    const checkbox = dialog?.querySelector<HTMLInputElement>(
+      'input[name="officer_ids"]',
+    );
+    const form = dialog?.querySelector<HTMLFormElement>("form");
+    if (!dialog || !checkbox || !form)
+      throw new Error("Assignment dialog not found");
+    expect(dialog.open).toBe(true);
+
+    await act(async () => {
+      checkbox.click();
+      form.requestSubmit();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(dialog.open).toBe(false);
+
+    await act(async () => render([]));
+    expect(host.textContent).toContain("1 officer added");
+    expect(host.textContent).toContain(
+      "No active officers are available to add.",
+    );
+    expect(
+      host.querySelector<HTMLButtonElement>('button[type="button"]')?.disabled,
+    ).toBe(true);
+    expect(document.activeElement).toBe(host.querySelector('p[tabindex="-1"]'));
+  },
+);
+
+it("restores focus to the empty-state message when the roster empties before the dialog closes", async () => {
+  let completeAction: (() => void) | undefined;
+  vi.mocked(bulkAssignTaskOfficers).mockImplementation(async () => {
+    await new Promise<void>((resolve) => {
+      completeAction = resolve;
+    });
+    return { error: "", success: "1 officer added" };
   });
 
   const render = (officers: { id: number; name: string }[]) =>
     root.render(
       createElement(
         "section",
-        { "aria-label": "Officers", tabIndex: -1 },
+        { "aria-label": "Assignment preview" },
         createElement(BulkTaskOfficersForm, { taskId: 17, officers }),
       ),
     );
@@ -219,8 +274,8 @@ it("keeps success visible and moves focus to the Officers section after the last
     'button[type="button"]',
   );
   if (!trigger) throw new Error("Add officers button not found");
-
   await act(async () => trigger.click());
+
   const dialog = host.querySelector<HTMLDialogElement>("dialog");
   const checkbox = dialog?.querySelector<HTMLInputElement>(
     'input[name="officer_ids"]',
@@ -228,26 +283,20 @@ it("keeps success visible and moves focus to the Officers section after the last
   const form = dialog?.querySelector<HTMLFormElement>("form");
   if (!dialog || !checkbox || !form)
     throw new Error("Assignment dialog not found");
-  expect(dialog.open).toBe(true);
 
   await act(async () => {
     checkbox.click();
     form.requestSubmit();
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
-  expect(dialog.open).toBe(false);
+  expect(completeAction).toBeDefined();
 
   await act(async () => render([]));
-  expect(host.textContent).toContain("1 officer added");
-  expect(host.textContent).toContain(
-    "No active officers are available to add.",
-  );
-  expect(
-    host.querySelector<HTMLButtonElement>('button[type="button"]')?.disabled,
-  ).toBe(true);
-  expect(document.activeElement).toBe(
-    host.querySelector<HTMLElement>('[aria-label="Officers"]'),
-  );
+  expect(dialog.open).toBe(true);
+  await act(async () => completeAction?.());
+
+  expect(dialog.open).toBe(false);
+  expect(document.activeElement).toBe(host.querySelector('p[tabindex="-1"]'));
 });
 
 it.each([

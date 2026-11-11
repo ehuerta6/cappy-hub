@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   startTransition,
   useActionState,
   useEffect,
@@ -38,6 +39,7 @@ export function BulkTaskOfficersForm({
 }) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const emptyStateRef = useRef<HTMLParagraphElement>(null);
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(
     bulkAssignTaskOfficers,
@@ -45,6 +47,13 @@ export function BulkTaskOfficersForm({
   );
   const selectedOfficers = submittedValues(state.values, "officer_ids");
   const fieldErrors = state.fieldErrors ?? {};
+  const restoreFocus = useCallback(() => {
+    if (triggerRef.current && !triggerRef.current.disabled) {
+      triggerRef.current.focus();
+      return;
+    }
+    emptyStateRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -64,11 +73,9 @@ export function BulkTaskOfficersForm({
 
   useEffect(() => {
     if (state.success && officers.length === 0) {
-      triggerRef.current
-        ?.closest<HTMLElement>('[aria-label="Officers"]')
-        ?.focus();
+      restoreFocus();
     }
-  }, [officers.length, state.success]);
+  }, [officers.length, restoreFocus, state.success]);
 
   return (
     <div className="space-y-2">
@@ -85,7 +92,12 @@ export function BulkTaskOfficersForm({
         <FormMessage kind="success">{state.success}</FormMessage>
       )}
       {officers.length === 0 && (
-        <p className="text-sm text-muted">
+        <p
+          ref={emptyStateRef}
+          role="status"
+          tabIndex={-1}
+          className="text-sm text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        >
           No active officers are available to add.
         </p>
       )}
@@ -95,11 +107,7 @@ export function BulkTaskOfficersForm({
         aria-describedby="task-officers-description"
         onClose={() => {
           setOpen(false);
-          if (!triggerRef.current?.disabled) triggerRef.current?.focus();
-          else
-            triggerRef.current
-              ?.closest<HTMLElement>('[aria-label="Officers"]')
-              ?.focus();
+          restoreFocus();
         }}
         onCancel={(event) => {
           if (pending) event.preventDefault();
