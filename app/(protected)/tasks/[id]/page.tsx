@@ -454,7 +454,7 @@ export default async function TaskDetailPage({
           <div className="min-w-0 space-y-5">
             <section aria-label="Assignment preview" className="space-y-2">
               <div className="flex items-baseline justify-between gap-3">
-                <SectionHeading title="Assignments" />
+                <SectionHeading title={`Assignments (${assignmentCount})`} />
                 <Link
                   className="text-sm underline"
                   href={taskSectionUrl(
@@ -506,6 +506,12 @@ export default async function TaskDetailPage({
                   Showing {visibleAssignments.length} of {assignmentCount}{" "}
                   assignments.
                 </p>
+              )}
+              {canManageTask && !task.removed_at && (
+                <BulkTaskOfficersForm
+                  taskId={task.id}
+                  officers={availableOfficers}
+                />
               )}
             </section>
             <section aria-label="Linked Events preview" className="space-y-2">
