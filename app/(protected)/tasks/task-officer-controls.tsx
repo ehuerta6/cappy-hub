@@ -24,6 +24,8 @@ import { initialFormActionState, submittedValues } from "@/lib/form-feedback";
 import {
   bulkAssignTaskOfficers,
   removeTaskAssignment,
+  approveTaskAssignmentCompletion,
+  rejectTaskAssignmentCompletion,
   setTaskAssignmentCompletion,
 } from "./actions";
 
@@ -178,11 +180,13 @@ export function TaskCompletionControl({
   officerId,
   officerName,
   completed,
+  pendingApproval = false,
 }: {
   taskId: number;
   officerId: number;
   officerName: string;
   completed: boolean;
+  pendingApproval?: boolean;
 }) {
   const [state, action, pending] = useActionState(
     setTaskAssignmentCompletion,
@@ -203,13 +207,19 @@ export function TaskCompletionControl({
       <input type="hidden" name="task_id" value={taskId} />
       <input type="hidden" name="officer_id" value={officerId} />
       <input type="hidden" name="completed" value={String(checked)} />
-      <span>{checked ? "Completed" : "Not completed"}</span>
+      <span>
+        {pendingApproval
+          ? "Awaiting approval"
+          : checked
+            ? "Completed"
+            : "Not completed"}
+      </span>
       <label className="flex min-h-11 items-center gap-2">
         <input
           type="checkbox"
           aria-label={`Completed for ${officerName}`}
           checked={checked}
-          disabled={pending}
+          disabled={pending || pendingApproval}
           onChange={(event) => setChecked(event.currentTarget.checked)}
         />
         <span className="sr-only">Completed</span>
@@ -223,6 +233,56 @@ export function TaskCompletionControl({
         <ActionFeedback state={state} />
       )}
     </form>
+  );
+}
+
+export function TaskCompletionReviewControls({
+  taskId,
+  officerId,
+}: {
+  taskId: number;
+  officerId: number;
+}) {
+  const [approveState, approveAction, approving] = useActionState(
+    approveTaskAssignmentCompletion,
+    initialFormActionState,
+  );
+  const [rejectState, rejectAction, rejecting] = useActionState(
+    rejectTaskAssignmentCompletion,
+    initialFormActionState,
+  );
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <form
+        action={approveAction}
+        className="flex flex-wrap items-center gap-2"
+      >
+        <AcademicPeriodWriteContextField />
+        <input type="hidden" name="task_id" value={taskId} />
+        <input type="hidden" name="officer_id" value={officerId} />
+        <button
+          className="button-secondary"
+          type="submit"
+          disabled={approving || rejecting}
+        >
+          {approving ? "Approving…" : "Approve completion"}
+        </button>
+        <ActionFeedback state={approveState} />
+      </form>
+      <form action={rejectAction} className="flex flex-wrap items-center gap-2">
+        <AcademicPeriodWriteContextField />
+        <input type="hidden" name="task_id" value={taskId} />
+        <input type="hidden" name="officer_id" value={officerId} />
+        <button
+          className="button-secondary"
+          type="submit"
+          disabled={approving || rejecting}
+        >
+          {rejecting ? "Rejecting…" : "Reject completion"}
+        </button>
+        <ActionFeedback state={rejectState} />
+      </form>
+    </div>
   );
 }
 

@@ -399,7 +399,8 @@ values
   (-8011,'Draft outreach recap','Write a recap for the outreach booth.','Post',(select id from public.branches where name='outreach'),(now() at time zone 'America/Denver')::date+1,4,true,-1008),
   (-8012,'Refresh ICPC practice guide','Update the practice guide with new links.','Airtable',(select id from public.branches where name='icpc'),(now() at time zone 'America/Denver')::date-3,5,false,-1006),
   (-8013,'Promote coding workshop','Prepare social posts for the weekly workshop.','Story',(select id from public.branches where name='icpc'),(now() at time zone 'America/Denver')::date+10,2.5,false,-1006),
-  (-8014,'Design career fair poster','Make a poster for the upcoming career fair.','Flyer',(select id from public.branches where name='general'),(now() at time zone 'America/Denver')::date-1,6,true,-1002);
+  (-8014,'Design career fair poster','Make a poster for the upcoming career fair.','Flyer',(select id from public.branches where name='general'),(now() at time zone 'America/Denver')::date-1,6,true,-1002),
+  (-8015,'Review completion approval example','Prepare the workshop materials.','Flyer',(select id from public.branches where name='intro'),(now() at time zone 'America/Denver')::date+5,3,false,-1005);
 insert into public.task_officer_assignments
   (task_id,officer_id,assigned_by,completed_at)
 values
@@ -408,7 +409,10 @@ values
   (-8013,-1025,-1006,null),
   (-8013,-1026,-1006,null),
   (-8013,-1032,-1006,null),
-  (-8014,-1029,-1002,now()-interval '2 hours');
+  (-8014,-1029,-1002,now()-interval '2 hours'),
+  (-8015,-1013,-1005,now()-interval '2 hours');
+update public.task_officer_assignments set completion_approval_pending=true
+where task_id=-8015 and officer_id=-1013;
 insert into public.point_transactions(officer_id,task_id,points,reason,award_type,created_by_officer_id)
 values (-1031,-8012,5,'Task completion: Refresh ICPC practice guide','task',-1006);
 
@@ -622,6 +626,7 @@ values
   (-1008,'warning.threshold','Officer reached 3 active Warnings','Review the Officer record.','warning',-3209,'/officers/-1205','important',now()-interval '20 hours',null,null,'seed402:warning.threshold:3209:1008'),
   (-1005,'task.completed','Task completed: Refresh ICPC practice guide','An Officer completed a Task for your Branch.','task',-8003,'/tasks/-8003','important',now()-interval '6 hours',null,null,'seed403:task.completed:8003:1005'),
   (-1013,'task.changed','Task updated: Draft outreach recap','The Task details or due date changed.','task',-8011,'/tasks/-8011','important',now()-interval '7 hours',now()-interval '6 hours',null,'seed403:task.changed:8011:1013'),
+  (-1013,'task.completion_rejected','Completion not approved: Review completion approval example','A Lead or Admin did not approve this completion. You can mark the Task complete again when it is done.','task',-8015,'/tasks/-8015','important',now()-interval '8 hours',null,null,'seed433:task.completion_rejected:8015:1013'),
   (-1001,'event.cancelled','Event cancelled: Mock: Cancelled Meeting','The Event was cancelled.','event',-2005,'/events/-2005','important',now()-interval '10 days',null,null,'seed403:event.cancelled:2005:1001'),
   (-1026,'point.changed','Points removed','2.5 Points','point',-4104,'/points','important',now()-interval '5 days',null,null,'seed403:point.removed:4104:1026'),
   (-1010,'event.left','Event signup removed','Mock: Cancelled Meeting','event',-2005,'/events/-2005','confirmation',now()-interval '15 days',now()-interval '14 days',null,'seed403:event.left:2005:1010');

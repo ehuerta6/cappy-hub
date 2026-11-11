@@ -31,7 +31,7 @@ import {
   taskProgressLabel,
   taskStatus,
 } from "@/lib/task-status";
-import TaskSelfAssignForm from "./task-action-form";
+import TaskSelfAssignForm, { TaskSelfCompletionForm } from "./task-action-form";
 import { listReturnUrl, withReturnTo } from "@/lib/return-context";
 import { listPageUrl } from "@/lib/list-url";
 import {
@@ -47,7 +47,7 @@ type TaskListRow = Tables<"tasks"> & {
   branches: Pick<Tables<"branches">, "name">;
   task_officer_assignments: Pick<
     Tables<"task_officer_assignments">,
-    "officer_id" | "completed_at"
+    "officer_id" | "completed_at" | "completion_approval_pending"
   >[];
 };
 
@@ -184,6 +184,7 @@ export default async function TasksPage({
     title: string,
     groupTasks: typeof tasks,
     allowSelfAssign: boolean,
+    allowSelfCompletion: boolean,
   ) =>
     groupTasks.length ? (
       <section
@@ -202,12 +203,17 @@ export default async function TasksPage({
                 <th scope="col">Branch</th>
                 <th scope="col">Officers</th>
                 <th scope="col">Status</th>
-                {allowSelfAssign && <th scope="col">Action</th>}
+                {(allowSelfAssign || allowSelfCompletion) && (
+                  <th scope="col">Action</th>
+                )}
               </tr>
             </thead>
             <tbody>
               {groupTasks.map((task) => {
                 const assignments = task.task_officer_assignments;
+                const ownAssignment = assignments.find(
+                  (assignment) => assignment.officer_id === actor.id,
+                );
                 const taskState = taskStatus(assignments);
                 const progress = taskProgressLabel(assignments);
                 return (
@@ -233,9 +239,21 @@ export default async function TasksPage({
                     <td>
                       <StatusBadge status={taskState} />
                     </td>
-                    {allowSelfAssign && (
+                    {(allowSelfAssign || allowSelfCompletion) && (
                       <td className="min-w-0">
-                        <TaskSelfAssignForm taskId={task.id} />
+                        {allowSelfCompletion && ownAssignment ? (
+                          <TaskSelfCompletionForm
+                            taskId={task.id}
+                            pendingApproval={
+                              ownAssignment.completion_approval_pending ?? false
+                            }
+                            completed={Boolean(ownAssignment.completed_at)}
+                          />
+                        ) : allowSelfAssign ? (
+                          <TaskSelfAssignForm taskId={task.id} />
+                        ) : (
+                          <span className="text-sm text-muted">—</span>
+                        )}
                       </td>
                     )}
                   </tr>
@@ -257,8 +275,20 @@ export default async function TasksPage({
     return (
       <section aria-label={title} className="space-y-4">
         <SectionHeading title={title} />
-        {renderGroup(title, "Your tasks", groups.yourTasks, false)}
-        {renderGroup(title, "Other tasks", groups.otherTasks, allowSelfAssign)}
+        {renderGroup(
+          title,
+          "Your tasks",
+          groups.yourTasks,
+          false,
+          !periodSelection.isHistorical,
+        )}
+        {renderGroup(
+          title,
+          "Other tasks",
+          groups.otherTasks,
+          allowSelfAssign,
+          false,
+        )}
       </section>
     );
   };
@@ -361,7 +391,13 @@ export default async function TasksPage({
         deletedTasks.length ? (
           <section aria-label="Deleted tasks" className="space-y-4">
             <SectionHeading title="Deleted tasks" />
-            {renderGroup("Deleted tasks", "Deleted tasks", deletedTasks, false)}
+            {renderGroup(
+              "Deleted tasks",
+              "Deleted tasks",
+              deletedTasks,
+              false,
+              false,
+            )}
           </section>
         ) : (
           <p>No deleted Tasks.</p>
@@ -388,11 +424,13 @@ export default async function TasksPage({
               "Your tasks",
               splitTasks(organizedTasks.tasks).yourTasks,
               false,
+              !periodSelection.isHistorical,
             )}
             {renderGroup(
               selectedPeriod?.name ?? "Past tasks",
               "Other tasks",
               splitTasks(organizedTasks.tasks).otherTasks,
+              false,
               false,
             )}
           </section>

@@ -23,6 +23,9 @@ import {
   restoreTask,
   removeTaskAssignment,
   selfAssignTask,
+  selfCompleteTaskAssignment,
+  approveTaskAssignmentCompletion,
+  rejectTaskAssignmentCompletion,
   setTaskAssignmentCompletion,
 } from "@/app/(protected)/tasks/actions";
 
@@ -154,6 +157,51 @@ it("self-assigns the current Officer through the trusted Task RPC", async () => 
   expect(revalidatePath).toHaveBeenCalledWith("/tasks");
   expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
 });
+
+it("submits only the current Officer's completion with the writable period context", async () => {
+  const form = new FormData();
+  form.set("task_id", "-9");
+  form.set("writable_period", "12");
+  expect(
+    await selfCompleteTaskAssignment({ error: "", success: "" }, form),
+  ).toEqual({ error: "", success: "Task completion updated" });
+  expect(rpc).toHaveBeenCalledWith("self_complete_task_assignment", {
+    p_task_id: -9,
+    p_period_context: "12",
+  });
+  expect(revalidatePath).toHaveBeenCalledWith("/tasks/-9");
+  expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+});
+
+it.each([
+  [
+    approveTaskAssignmentCompletion,
+    "approve_task_assignment_completion",
+    "Completion approved",
+  ],
+  [
+    rejectTaskAssignmentCompletion,
+    "reject_task_assignment_completion",
+    "Completion rejected",
+  ],
+])(
+  "routes manager completion review through the trusted %s RPC",
+  async (action, rpcName, success) => {
+    const form = new FormData();
+    form.set("task_id", "-9");
+    form.set("officer_id", "-10");
+    form.set("writable_period", "current");
+    expect(await action({ error: "", success: "" }, form)).toEqual({
+      error: "",
+      success,
+    });
+    expect(rpc).toHaveBeenCalledWith(rpcName, {
+      p_task_id: -9,
+      p_officer_id: -10,
+      p_period_context: "current",
+    });
+  },
+);
 
 it("validates and bulk-adds multiple Officers through the trusted RPC", async () => {
   const form = new FormData();

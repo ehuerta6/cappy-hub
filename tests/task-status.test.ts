@@ -32,6 +32,16 @@ describe("Task assignment summaries", () => {
     ).toBe("Complete");
   });
 
+  it("keeps a reported but unapproved completion in progress", () => {
+    const pending = {
+      officer_id: 1,
+      completed_at: "2026-10-01T12:00:00Z",
+      completion_approval_pending: true,
+    };
+    expect(taskStatus([pending])).toBe("In progress");
+    expect(taskProgressLabel([pending])).toBe("0/1 completed");
+  });
+
   it("shows assignment completion counts without flattening mixed work", () => {
     expect(taskProgressLabel([])).toBe("0 officers");
     expect(

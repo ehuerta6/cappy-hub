@@ -1247,6 +1247,7 @@ export type Database = {
           assigned_at: string;
           assigned_by: number;
           completed_at: string | null;
+          completion_approval_pending: boolean;
           officer_id: number;
           removed_at: string | null;
           removed_by: number | null;
@@ -1258,6 +1259,7 @@ export type Database = {
           assigned_at?: string;
           assigned_by: number;
           completed_at?: string | null;
+          completion_approval_pending?: boolean;
           officer_id: number;
           removed_at?: string | null;
           removed_by?: number | null;
@@ -1269,6 +1271,7 @@ export type Database = {
           assigned_at?: string;
           assigned_by?: number;
           completed_at?: string | null;
+          completion_approval_pending?: boolean;
           officer_id?: number;
           removed_at?: string | null;
           removed_by?: number | null;
@@ -1753,6 +1756,14 @@ export type Database = {
         Returns: number;
       };
       add_presenter_slot: { Args: { p_event_id: number }; Returns: number };
+      approve_task_assignment_completion: {
+        Args: {
+          p_officer_id: number;
+          p_period_context: string;
+          p_task_id: number;
+        };
+        Returns: undefined;
+      };
       assert_academic_period_context_writable: {
         Args: { p_period_context: string };
         Returns: undefined;
@@ -2152,6 +2163,14 @@ export type Database = {
         };
         Returns: undefined;
       };
+      reject_task_assignment_completion: {
+        Args: {
+          p_officer_id: number;
+          p_period_context: string;
+          p_task_id: number;
+        };
+        Returns: undefined;
+      };
       remove_event: { Args: { p_event_id: number }; Returns: boolean };
       remove_participation_award: {
         Args: { p_transaction_id: number };
@@ -2362,6 +2381,10 @@ export type Database = {
         Returns: number;
       };
       self_assign_task: { Args: { p_task_id: number }; Returns: undefined };
+      self_complete_task_assignment: {
+        Args: { p_period_context: string; p_task_id: number };
+        Returns: undefined;
+      };
       set_branch_active: {
         Args: { p_id: number; p_is_active: boolean };
         Returns: undefined;
