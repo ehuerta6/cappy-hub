@@ -539,6 +539,38 @@ it("shows pending approval in the Task assignment preview", async () => {
   Object.assign(assignment, { completion_approval_pending: false });
 });
 
+it("shows assignment count and manager add controls in the Overview", async () => {
+  officersForList = [{ id: 3, name: "Available Officer" }];
+  const managerHtml = renderToStaticMarkup(
+    await TaskDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({}),
+    }),
+  );
+  const preview = managerHtml
+    .split('aria-label="Assignment preview"')[1]
+    .split("</section>")[0];
+  expect(preview).toContain("Assignments (2)");
+  expect(preview).toContain(">Add officers</button>");
+  expect(preview).toContain('name="officer_ids" value="3"');
+  expect(preview).toContain("View all");
+
+  vi.mocked(canManageTask).mockReturnValue(false);
+  const officerHtml = renderToStaticMarkup(
+    await TaskDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({}),
+    }),
+  );
+  const officerPreview = officerHtml
+    .split('aria-label="Assignment preview"')[1]
+    .split("</section>")[0];
+  expect(officerPreview).toContain("Assignments (2)");
+  expect(officerPreview).not.toContain("Add officers");
+  expect(officerPreview).not.toContain('name="officer_ids"');
+  expect(officerPreview).toContain("View all");
+});
+
 it("keeps Task detail previews to four and pages full related sections by six", async () => {
   const assignments = Array.from({ length: 8 }, (_, index) => ({
     officer_id: 8 - index,
