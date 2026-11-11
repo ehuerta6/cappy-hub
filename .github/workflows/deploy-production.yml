@@ -31,28 +31,72 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
+      - name: Check that this commit is still current main
+        id: current-main
+        env:
+          EXPECTED_DEPLOYMENT_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          current_main_sha="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [[ -z "$current_main_sha" ]]; then
+            echo "Could not resolve the current main commit."
+            exit 1
+          fi
+          if [[ "$current_main_sha" == "$EXPECTED_DEPLOYMENT_SHA" ]]; then
+            echo "is_current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Skipping stale production run for $EXPECTED_DEPLOYMENT_SHA; main is now $current_main_sha."
+            echo "is_current=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up Node.js
+        if: steps.current-main.outputs.is_current == 'true'
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
 
       - name: Install locked dependencies
+        if: steps.current-main.outputs.is_current == 'true'
         run: npm ci
 
       - name: Verify production migration history before push
+        if: steps.current-main.outputs.is_current == 'true'
         run: node scripts/verify-production-migrations.mjs
 
       - name: Preview pending production migrations
+        if: steps.current-main.outputs.is_current == 'true'
         run: npx supabase db push --db-url "$SUPABASE_DB_URL" --dry-run
 
       - name: Apply production migrations
+        if: steps.current-main.outputs.is_current == 'true'
         run: npx supabase db push --db-url "$SUPABASE_DB_URL"
 
       - name: Verify production migration history is aligned
+        if: steps.current-main.outputs.is_current == 'true'
         run: node scripts/verify-production-migrations.mjs --require-aligned
 
+      - name: Recheck main before production deployment
+        id: latest-main
+        if: steps.current-main.outputs.is_current == 'true'
+        env:
+          EXPECTED_DEPLOYMENT_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          current_main_sha="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [[ -z "$current_main_sha" ]]; then
+            echo "Could not resolve the current main commit."
+            exit 1
+          fi
+          if [[ "$current_main_sha" == "$EXPECTED_DEPLOYMENT_SHA" ]]; then
+            echo "is_current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Skipping deploy hook for stale commit $EXPECTED_DEPLOYMENT_SHA; main is now $current_main_sha."
+            echo "is_current=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Trigger Vercel production deployment
+        if: >-
+          steps.current-main.outputs.is_current == 'true' &&
+          steps.latest-main.outputs.is_current == 'true'
         run: |
           if ! curl --fail-with-body --silent --show-error \
             --request POST \
@@ -63,6 +107,9 @@ jobs:
           fi
 
       - name: Wait for production deployment and verify login surface
+        if: >-
+          steps.current-main.outputs.is_current == 'true' &&
+          steps.latest-main.outputs.is_current == 'true'
         timeout-minutes: 11
         env:
           PRODUCTION_APP_URL: ${{ vars.PRODUCTION_APP_URL }}
