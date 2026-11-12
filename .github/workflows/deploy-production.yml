@@ -22,57 +22,62 @@ jobs:
       github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
     environment: production
-    env:
-      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-      VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
     steps:
       - name: Check out the successful main commit
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Check that this commit is still current main
-        id: current-main
-        env:
-          EXPECTED_DEPLOYMENT_SHA: ${{ github.event.workflow_run.head_sha }}
-        run: |
-          current_main_sha="$(git ls-remote origin refs/heads/main | cut -f1)"
-          if [[ -z "$current_main_sha" ]]; then
-            echo "Could not resolve the current main commit."
-            exit 1
-          fi
-          if [[ "$current_main_sha" == "$EXPECTED_DEPLOYMENT_SHA" ]]; then
-            echo "is_current=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Skipping stale production run for $EXPECTED_DEPLOYMENT_SHA; main is now $current_main_sha."
-            echo "is_current=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Set up Node.js
-        if: steps.current-main.outputs.is_current == 'true'
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
 
+      - name: Check that this commit is still current main
+        id: current-main
+        env:
+          EXPECTED_DEPLOYMENT_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: node scripts/check-production-main-tip.mjs
+
       - name: Install locked dependencies
         if: steps.current-main.outputs.is_current == 'true'
         run: npm ci
 
+      - name: Validate immutable Vercel deployment configuration
+        if: steps.current-main.outputs.is_current == 'true'
+        env:
+          VERCEL_ACCESS_TOKEN: ${{ secrets.VERCEL_ACCESS_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          VERCEL_REPOSITORY_ID: ${{ github.repository_id }}
+        run: |
+          if [[ -z "$VERCEL_ACCESS_TOKEN" || -z "$VERCEL_PROJECT_ID" || -z "$VERCEL_REPOSITORY_ID" ]]; then
+            echo "Required immutable Vercel deployment configuration is missing."
+            exit 1
+          fi
+
       - name: Verify production migration history before push
         if: steps.current-main.outputs.is_current == 'true'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: node scripts/verify-production-migrations.mjs
 
       - name: Preview pending production migrations
         if: steps.current-main.outputs.is_current == 'true'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: npx supabase db push --db-url "$SUPABASE_DB_URL" --dry-run
 
       - name: Apply production migrations
         if: steps.current-main.outputs.is_current == 'true'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: npx supabase db push --db-url "$SUPABASE_DB_URL"
 
       - name: Verify production migration history is aligned
         if: steps.current-main.outputs.is_current == 'true'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: node scripts/verify-production-migrations.mjs --require-aligned
 
       - name: Recheck main before production deployment
@@ -80,31 +85,21 @@ jobs:
         if: steps.current-main.outputs.is_current == 'true'
         env:
           EXPECTED_DEPLOYMENT_SHA: ${{ github.event.workflow_run.head_sha }}
-        run: |
-          current_main_sha="$(git ls-remote origin refs/heads/main | cut -f1)"
-          if [[ -z "$current_main_sha" ]]; then
-            echo "Could not resolve the current main commit."
-            exit 1
-          fi
-          if [[ "$current_main_sha" == "$EXPECTED_DEPLOYMENT_SHA" ]]; then
-            echo "is_current=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Skipping deploy hook for stale commit $EXPECTED_DEPLOYMENT_SHA; main is now $current_main_sha."
-            echo "is_current=false" >> "$GITHUB_OUTPUT"
-          fi
+        run: node scripts/check-production-main-tip.mjs
 
-      - name: Trigger Vercel production deployment
+      - name: Create and verify the immutable Vercel production deployment
         if: >-
           steps.current-main.outputs.is_current == 'true' &&
           steps.latest-main.outputs.is_current == 'true'
+        timeout-minutes: 11
+        env:
+          VERCEL_ACCESS_TOKEN: ${{ secrets.VERCEL_ACCESS_TOKEN }}
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          VERCEL_REPOSITORY_ID: ${{ github.repository_id }}
+          EXPECTED_DEPLOYMENT_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          if ! curl --fail-with-body --silent --show-error \
-            --request POST \
-            "$VERCEL_DEPLOY_HOOK_URL" \
-            --output /dev/null 2>/dev/null; then
-            echo "Vercel production deploy hook request failed."
-            exit 1
-          fi
+          node scripts/deploy-vercel-production.mjs
 
       - name: Wait for production deployment and verify login surface
         if: >-

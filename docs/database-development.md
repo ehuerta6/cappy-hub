@@ -77,37 +77,40 @@ After a PR is merged to `main`, the existing CI workflow runs the normal quality
 3. Run `supabase db push --db-url "$SUPABASE_DB_URL" --dry-run` (without `--include-seed`).
 4. Apply pending migrations with `supabase db push --db-url "$SUPABASE_DB_URL"` (without `--include-seed`).
 5. Verify production migration history is fully aligned with `supabase/migrations/`.
-6. Recheck that the successful CI commit is still the current `main` tip. If a newer commit arrived during migration, skip the deploy hook so an older run cannot deploy newer application code against an incomplete schema.
-7. Trigger the configured Vercel Production Deploy Hook. It starts Vercel's deployment only after migrations have been applied and verified.
-8. Poll the canonical production `/login` route until the CI-approved commit serves the expected Cappy Hub login surface, or fail after ten minutes.
+6. Recheck that the successful CI commit is still the current `main` tip. If a newer commit arrived during migration, skip production deployment so an older run cannot deploy newer application code against an incomplete schema.
+7. Create a Vercel Production deployment through the [Create a new deployment API](https://vercel.com/docs/rest-api/deployments/create-a-new-deployment) with `gitSource.sha` set to the full SHA from the successful CI run. The request also binds the GitHub repository ID, `main` ref, and Vercel project. If `main` advances after the final tip check, Vercel still builds the approved SHA instead of resolving the new branch tip.
+8. Poll that Vercel deployment until it reports `READY`; fail on a mismatched commit/ref/target, an API error, a failed or canceled build, or timeout.
+9. Poll the canonical production `/login` route until the CI-approved commit serves the expected Cappy Hub login surface, or fail after ten minutes.
 
-Any failed step stops the workflow before the next step. A CI failure skips production deployment. A migration history mismatch, failed dry run, failed migration, or final history check prevents the hook from being called, so the new application never receives production traffic before its migrations succeed. A failed Vercel deployment leaves the previous application active.
+Any failed step stops the workflow before the next step. A CI failure skips production deployment. Missing Vercel configuration stops the workflow before production migrations run. A migration history mismatch, failed dry run, failed migration, or final history check prevents a Vercel deployment from being requested, so the new application never receives production traffic before its migrations succeed. Vercel receives the approved immutable SHA directly; its production deployment is not selected by a branch-bound hook. A failed Vercel build does not become the production deployment. The final HTTP smoke remains a separate check that confirms the public login surface and served revision.
 
 ### Required GitHub configuration
 
 Add the following repository or `production` environment configuration. The workflow uses the `production` environment, so configure its secrets and variables there:
 
-| Name                     | Type                  | Purpose                                                                                                                |
-| ------------------------ | --------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `SUPABASE_DB_URL`        | Secret                | Production Supabase Postgres Session Pooler connection string, including its database password                         |
-| `VERCEL_DEPLOY_HOOK_URL` | Secret                | Vercel Production Deploy Hook URL                                                                                      |
-| `PRODUCTION_APP_URL`     | Variable (non-secret) | Canonical production HTTPS origin, shaped like `https://<production-domain>`; no credentials, path, query, or fragment |
+| Name                  | Type                  | Purpose                                                                                                                |
+| --------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `SUPABASE_DB_URL`     | Secret                | Production Supabase Postgres Session Pooler connection string, including its database password                         |
+| `VERCEL_ACCESS_TOKEN` | Secret                | Vercel API access token with permission to create and inspect deployments for this project                             |
+| `VERCEL_PROJECT_ID`   | Variable (non-secret) | Vercel project ID for Cappy Hub                                                                                        |
+| `VERCEL_TEAM_ID`      | Variable (non-secret) | Vercel team ID when the project belongs to a team; leave unset for a personal project                                  |
+| `PRODUCTION_APP_URL`  | Variable (non-secret) | Canonical production HTTPS origin, shaped like `https://<production-domain>`; no credentials, path, query, or fragment |
 
-These are the only production environment secrets required by GitHub Actions. Store both in the `production` environment. The workflow does not print the database connection string or deploy hook URL. Never commit them or expose Supabase service-role credentials to application or browser code.
+Configure these values in GitHub's protected `production` environment. `VERCEL_REPOSITORY_ID` is supplied by GitHub Actions from the repository context, so it does not need to be stored. The Vercel token is sent only in the HTTPS `Authorization` header and is never printed. Keep its access limited to the project/team needed for this workflow. Never commit it or expose Supabase service-role credentials to application or browser code.
 
 Use the production project's Postgres Session Pooler connection string and URL-encode any special characters in its database password, as required for connection URLs.
 
 ### One-time Vercel project setting
 
-Keep the Vercel project's **Production Branch** set to `main`. The repository's `vercel.json` disables automatic Git-triggered production deployments from `main`; GitHub Actions applies pending migrations and verifies migration history alignment before it sends a POST request to the Production Deploy Hook configured for `main`. Pull request and feature branch Preview deployments remain enabled.
+Keep the Vercel project's **Production Branch** set to `main`. The repository's `vercel.json` disables automatic Git-triggered production deployments from `main`; GitHub Actions applies pending migrations, verifies migration history alignment, then creates a production deployment through Vercel's API using the successful CI run's full SHA. Pull request and feature branch Preview deployments remain enabled.
 
-Configure `VERCEL_DEPLOY_HOOK_URL` as a Production Deploy Hook for the `main` branch. No reserved production branch is needed.
+After the immutable deployment configuration is active, remove the former `VERCEL_DEPLOY_HOOK_URL` secret from GitHub's `production` environment. No Deploy Hook or reserved production branch is used.
 
-Keep **Enable access to System Environment Variables** enabled in the Vercel project's Environment Variables settings. Vercel supplies `VERCEL_GIT_COMMIT_SHA` at build time; `next.config.ts` publishes that public commit SHA as `x-cappy-hub-revision` on `/login`. No Vercel API token or manually maintained SHA variable is required. See [Vercel system environment variables](https://vercel.com/docs/environment-variables/system-environment-variables).
+Keep **Enable access to System Environment Variables** enabled in the Vercel project's Environment Variables settings. Vercel supplies `VERCEL_GIT_COMMIT_SHA` at build time; `next.config.ts` publishes that public commit SHA as `x-cappy-hub-revision` on `/login`. No manually maintained SHA variable is required. The GitHub deployment workflow separately needs the `VERCEL_ACCESS_TOKEN` API credential described above. See [Vercel system environment variables](https://vercel.com/docs/environment-variables/system-environment-variables).
 
 ### Production smoke verification
 
-`scripts/verify-production-deployment.mjs` runs only after the migration alignment check and successful deploy hook request. The hook is asynchronous, so its success does not finish the workflow. The script sends unauthenticated GET requests to `${PRODUCTION_APP_URL}/login` with cache revalidation requested. It requires all of:
+`scripts/deploy-vercel-production.mjs` creates and polls the deployment after migration alignment. It sends `gitSource.sha` from the successful CI event to Vercel, polls the returned deployment ID, and requires a ready production deployment associated with that same SHA and `main` ref. It does not log the access token or raw API error payloads. Once Vercel reports the deployment ready, `scripts/verify-production-deployment.mjs` sends unauthenticated GET requests to `${PRODUCTION_APP_URL}/login` with cache revalidation requested. It requires all of:
 
 - HTTP 200 and an HTML content type, without following redirects.
 - The rendered `Cappy Hub` heading, `Coding Interview Club administration` description, and `Continue with Google` button. Matching ignores scripts and HTML comments rather than taking a full HTML snapshot.
@@ -124,9 +127,11 @@ On failure, the Actions log shows the checked URL, each attempt number, HTTP sta
 - Missing/invalid configuration: check `PRODUCTION_APP_URL` in the GitHub `production` environment.
 - Connection errors, timeouts, or non-200 status: check production DNS/domain configuration, reachability from Actions, deployment protection, and Vercel deployment/build/runtime logs.
 - HTTP 200 with unexpected content: inspect `/login` manually for a platform error/default page or an unintended login-surface change. Update the small content assertions only when the intended surface changes.
-- Expected content found but revision mismatch: the previous build may still be serving. Check that Vercel finished deploying the intended `main` commit, its production domain points to that build, and system environment variables are enabled. A missing header is also a failure. Deploy Hooks build the branch tip; if `main` advanced since the checked CI run, this check fails safely rather than accepting a different SHA.
+- Vercel API authentication or authorization failure: check the `VERCEL_ACCESS_TOKEN`, `VERCEL_PROJECT_ID`, and (for team projects) `VERCEL_TEAM_ID` values and the token's access to the project.
+- Vercel build failure or reported commit/ref/target mismatch: inspect that deployment's Vercel build details. The workflow stops and does not continue to the public login smoke check.
+- Expected content found but revision mismatch: check that Vercel's production domain points to the deployment for the approved CI SHA and that system environment variables are enabled. A missing header is also a failure. The immutable deployment request cannot resolve to a newer `main` tip after the final main-tip check.
 
-A smoke failure reports that the expected production response was not verified. Migrations may already have succeeded and Vercel may already have switched traffic; the smoke check does not undo either operation or guarantee the previous application remains active. Inspect the deployment, fix the cause, and merge a follow-up commit to `main` through the normal CI/migration flow. Do not repair migration history or mutate production data to fix a smoke failure.
+A Vercel deployment failure reports that the requested immutable deployment did not become ready. Migrations may already have succeeded; inspect the exact deployment ID in Vercel and fix the cause before merging a follow-up commit through the normal CI/migration flow. A smoke failure reports that the expected production response was not verified. Migrations may already have succeeded and Vercel may already have switched traffic; the smoke check does not undo either operation or guarantee the previous application remains active. Inspect the deployment, fix the cause, and merge a follow-up commit to `main` through the normal CI/migration flow. Do not repair migration history or mutate production data to fix a failure.
 
 ### Migration history and failure handling
 
