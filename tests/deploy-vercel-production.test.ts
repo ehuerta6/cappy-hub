@@ -138,6 +138,27 @@ describe("production deployment gate", () => {
       },
     ],
     [
+      "missing branch identity",
+      {
+        gitSource: {
+          type: "github",
+          repoId: "123456789",
+          sha: approvedSha,
+        },
+      },
+    ],
+    [
+      "empty branch identity",
+      {
+        gitSource: {
+          type: "github",
+          repoId: "123456789",
+          ref: "",
+          sha: approvedSha,
+        },
+      },
+    ],
+    [
       "wrong repository",
       {
         gitSource: {

@@ -115,6 +115,9 @@ function assertDeploymentIdentity(deployment, expectedSha, repositoryId) {
         "Vercel did not confirm the intended GitHub repository ID.",
       );
     }
+    if (actualRef !== "main") {
+      throw new Error("Vercel did not confirm the main branch ref.");
+    }
     if (deployment.target !== "production") {
       throw new Error("Vercel deployment did not target production.");
     }
