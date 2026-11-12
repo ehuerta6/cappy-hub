@@ -58,6 +58,7 @@ export default function ResourceLinksEditor({
   const selectRefs = useRef(new Map<string, HTMLSelectElement>());
   const labelRefs = useRef(new Map<string, HTMLInputElement>());
   const addButtonRef = useRef<HTMLButtonElement>(null);
+  const errorRef = useRef<HTMLParagraphElement>(null);
   const focusAfterRender = useRef<FocusTarget>(null);
   const previousError = useRef<string | undefined>(undefined);
   const errorId = "resource-links-error";
@@ -71,12 +72,7 @@ export default function ResourceLinksEditor({
         : (selectRefs.current.get(target) ?? labelRefs.current.get(target));
       focusTarget?.focus();
     } else if (error && error !== previousError.current) {
-      if (rows[0]) {
-        (
-          labelRefs.current.get(rows[0].rowId) ??
-          selectRefs.current.get(rows[0].rowId)
-        )?.focus();
-      } else addButtonRef.current?.focus();
+      errorRef.current?.focus();
     }
     focusAfterRender.current = null;
     previousError.current = error;
@@ -139,7 +135,13 @@ export default function ResourceLinksEditor({
       </p>
       <input type="hidden" name="resource_links" value={serializedRows(rows)} />
       {error && (
-        <p id={errorId} role="alert" className="text-sm text-danger">
+        <p
+          ref={errorRef}
+          id={errorId}
+          role="alert"
+          tabIndex={-1}
+          className="text-sm text-danger"
+        >
           {error}
         </p>
       )}
@@ -157,8 +159,6 @@ export default function ResourceLinksEditor({
                   else selectRefs.current.delete(resource.rowId);
                 }}
                 aria-label={`Link ${index + 1} type`}
-                aria-invalid={Boolean(error)}
-                aria-describedby={error ? errorId : undefined}
                 value={resource.kind}
                 onChange={(event) =>
                   change(resource.rowId, {
@@ -183,8 +183,6 @@ export default function ResourceLinksEditor({
                     else labelRefs.current.delete(resource.rowId);
                   }}
                   aria-label={`Link ${index + 1} label`}
-                  aria-invalid={Boolean(error)}
-                  aria-describedby={error ? errorId : undefined}
                   maxLength={80}
                   required
                   value={resource.label}
@@ -200,8 +198,6 @@ export default function ResourceLinksEditor({
               URL
               <input
                 aria-label={`Link ${index + 1} URL`}
-                aria-invalid={Boolean(error)}
-                aria-describedby={error ? errorId : undefined}
                 type="url"
                 inputMode="url"
                 required

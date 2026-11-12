@@ -164,10 +164,8 @@ it("associates and announces resource validation errors", async () => {
   expect(group?.getAttribute("aria-describedby")).toContain(
     "resource-links-error",
   );
-  expect(firstControl?.getAttribute("aria-describedby")).toBe(
-    "resource-links-error",
-  );
-  expect(firstControl?.getAttribute("aria-invalid")).toBe("true");
+  expect(firstControl?.getAttribute("aria-describedby")).toBeNull();
+  expect(firstControl?.getAttribute("aria-invalid")).toBeNull();
   expect(error?.textContent).toBe("Enter a valid HTTP or HTTPS URL");
-  expect(document.activeElement).toBe(firstControl);
+  expect(document.activeElement).toBe(error);
 });
