@@ -96,6 +96,7 @@ jobs:
         run: node scripts/check-production-main-tip.mjs
 
       - name: Stage, verify, and promote the immutable Vercel production deployment
+        id: production-deployment
         if: >-
           steps.current-main.outputs.is_current == 'true' &&
           steps.latest-main.outputs.is_current == 'true'
@@ -110,9 +111,10 @@ jobs:
           node scripts/deploy-vercel-production.mjs
 
       - name: Wait for production deployment and verify login surface
-        if: >-
+        if: ${{ !cancelled() &&
           steps.current-main.outputs.is_current == 'true' &&
-          steps.latest-main.outputs.is_current == 'true'
+          steps.latest-main.outputs.is_current == 'true' &&
+          steps.production-deployment.outcome != 'skipped' }}
         timeout-minutes: 11
         env:
           PRODUCTION_APP_URL: ${{ vars.PRODUCTION_APP_URL }}
