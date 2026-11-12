@@ -159,6 +159,7 @@ export default function ResourceLinksEditor({
                   else selectRefs.current.delete(resource.rowId);
                 }}
                 aria-label={`Link ${index + 1} type`}
+                aria-describedby={error ? errorId : undefined}
                 value={resource.kind}
                 onChange={(event) =>
                   change(resource.rowId, {
@@ -183,6 +184,7 @@ export default function ResourceLinksEditor({
                     else labelRefs.current.delete(resource.rowId);
                   }}
                   aria-label={`Link ${index + 1} label`}
+                  aria-describedby={error ? errorId : undefined}
                   maxLength={80}
                   required
                   value={resource.label}
@@ -198,6 +200,7 @@ export default function ResourceLinksEditor({
               URL
               <input
                 aria-label={`Link ${index + 1} URL`}
+                aria-describedby={error ? errorId : undefined}
                 type="url"
                 inputMode="url"
                 required

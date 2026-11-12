@@ -159,12 +159,21 @@ it("associates and announces resource validation errors", async () => {
   await renderEditor(initialRows, "Enter a valid HTTP or HTTPS URL");
 
   const group = host?.querySelector("fieldset");
+  const controls = host?.querySelectorAll(
+    'select[aria-label^="Link "], input[aria-label^="Link "]',
+  );
   const firstControl = host?.querySelector('[aria-label="Link 1 label"]');
   const error = host?.querySelector('[role="alert"]');
   expect(group?.getAttribute("aria-describedby")).toContain(
     "resource-links-error",
   );
-  expect(firstControl?.getAttribute("aria-describedby")).toBeNull();
+  expect(controls?.length).toBe(9);
+  controls?.forEach((control) => {
+    expect(control.getAttribute("aria-describedby")).toBe(
+      "resource-links-error",
+    );
+    expect(control.getAttribute("aria-invalid")).toBeNull();
+  });
   expect(firstControl?.getAttribute("aria-invalid")).toBeNull();
   expect(error?.textContent).toBe("Enter a valid HTTP or HTTPS URL");
   expect(document.activeElement).toBe(error);
