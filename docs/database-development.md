@@ -110,7 +110,7 @@ Keep **Enable access to System Environment Variables** enabled in the Vercel pro
 
 ### Production smoke verification
 
-`scripts/deploy-vercel-production.mjs` creates and polls the deployment after migration alignment. It sends `gitSource.sha` from the successful CI event to Vercel, polls the returned deployment ID, and requires a ready production deployment associated with that same SHA and `main` ref. It does not log the access token or raw API error payloads. Once Vercel reports the deployment ready, `scripts/verify-production-deployment.mjs` sends unauthenticated GET requests to `${PRODUCTION_APP_URL}/login` with cache revalidation requested. It requires all of:
+`scripts/deploy-vercel-production.mjs` creates and polls the deployment after migration alignment. It sends `gitSource.sha` from the successful CI event and the GitHub repository ID to Vercel, then requests the deployment's Git metadata while polling. It requires the returned repository ID, SHA, and `main` ref to match, along with a ready production target. It does not log the access token or raw API error payloads. Once Vercel reports the deployment ready, `scripts/verify-production-deployment.mjs` sends unauthenticated GET requests to `${PRODUCTION_APP_URL}/login` with cache revalidation requested. It requires all of:
 
 - HTTP 200 and an HTML content type, without following redirects.
 - The rendered `Cappy Hub` heading, `Coding Interview Club administration` description, and `Continue with Google` button. Matching ignores scripts and HTML comments rather than taking a full HTML snapshot.

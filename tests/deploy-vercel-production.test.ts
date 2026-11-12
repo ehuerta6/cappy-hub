@@ -28,7 +28,12 @@ function readyDeployment(overrides = {}) {
     id: "dpl_example",
     readyState: "READY",
     target: "production",
-    gitSource: { type: "github", ref: "main", sha: approvedSha },
+    gitSource: {
+      type: "github",
+      repoId: "123456789",
+      ref: "main",
+      sha: approvedSha,
+    },
     ...overrides,
   };
 }
@@ -123,7 +128,31 @@ describe("production deployment gate", () => {
     ],
     [
       "wrong branch",
-      { gitSource: { type: "github", ref: "release", sha: approvedSha } },
+      {
+        gitSource: {
+          type: "github",
+          repoId: "123456789",
+          ref: "release",
+          sha: approvedSha,
+        },
+      },
+    ],
+    [
+      "wrong repository",
+      {
+        gitSource: {
+          type: "github",
+          repoId: "987654321",
+          ref: "main",
+          sha: approvedSha,
+        },
+      },
+    ],
+    [
+      "missing repository identity",
+      {
+        gitSource: { type: "github", ref: "main", sha: approvedSha },
+      },
     ],
     ["wrong target", { target: null }],
   ])("rejects a ready deployment with %s", async (_label, overrides) => {
@@ -135,7 +164,9 @@ describe("production deployment gate", () => {
       .mockResolvedValueOnce(apiResponse(readyDeployment(overrides)));
     await expect(
       createVercelProductionDeployment(config, { fetchImpl, log: vi.fn() }),
-    ).rejects.toThrow(/does not match|not associated|did not target/);
+    ).rejects.toThrow(
+      /does not match|not associated|did not target|did not confirm/,
+    );
   });
 
   it.each(["ERROR", "CANCELED"])("stops on a %s build", async (readyState) => {

@@ -81,7 +81,7 @@ async function requestJson(url, { method, token, body, fetchImpl }) {
   }
 }
 
-function assertDeploymentIdentity(deployment, expectedSha) {
+function assertDeploymentIdentity(deployment, expectedSha, repositoryId) {
   const actualSha =
     deployment.gitSource?.sha ?? deployment.meta?.githubCommitSha;
   if (actualSha && actualSha !== expectedSha) {
@@ -96,9 +96,24 @@ function assertDeploymentIdentity(deployment, expectedSha) {
     throw new Error("Vercel deployment is not associated with main.");
   }
 
+  const actualRepositoryId = deployment.gitSource?.repoId;
+  if (
+    actualRepositoryId !== undefined &&
+    String(actualRepositoryId) !== repositoryId
+  ) {
+    throw new Error(
+      "Vercel deployment repository does not match the intended GitHub repository.",
+    );
+  }
+
   if (deployment.readyState === "READY") {
     if (actualSha !== expectedSha) {
       throw new Error("Vercel did not confirm the successful CI commit SHA.");
+    }
+    if (actualRepositoryId === undefined) {
+      throw new Error(
+        "Vercel did not confirm the intended GitHub repository ID.",
+      );
     }
     if (deployment.target !== "production") {
       throw new Error("Vercel deployment did not target production.");
@@ -167,7 +182,7 @@ export async function createVercelProductionDeployment(
         "Vercel deployment response is missing its readiness state.",
       );
     }
-    assertDeploymentIdentity(deployment, expectedSha);
+    assertDeploymentIdentity(deployment, expectedSha, repositoryId);
     log(`Vercel deployment ${created.id}: ${state}.`);
 
     if (state === "READY") {
