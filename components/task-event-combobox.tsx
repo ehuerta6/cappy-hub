@@ -65,7 +65,7 @@ export function TaskEventCombobox({
   }
 
   return (
-    <div className="col-span-2 min-w-0 space-y-1.5">
+    <div className="lg:col-span-2 min-w-0 space-y-1.5">
       <label htmlFor={inputId} className={fieldLabelClassName}>
         Linked Events
       </label>

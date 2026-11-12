@@ -455,16 +455,18 @@ export default async function TaskDetailPage({
             <section aria-label="Assignment preview" className="space-y-2">
               <div className="flex items-baseline justify-between gap-3">
                 <SectionHeading title={`Assignments (${assignmentCount})`} />
-                <Link
-                  className="text-sm underline"
-                  href={taskSectionUrl(
-                    taskIdParam,
-                    "assignments",
-                    contextualReturnTo,
-                  )}
-                >
-                  View all
-                </Link>
+                {assignmentCount > 0 && (
+                  <Link
+                    className="text-sm underline"
+                    href={taskSectionUrl(
+                      taskIdParam,
+                      "assignments",
+                      contextualReturnTo,
+                    )}
+                  >
+                    View all
+                  </Link>
+                )}
               </div>
               {visibleAssignments.length ? (
                 <ul className="space-y-1">
@@ -517,16 +519,18 @@ export default async function TaskDetailPage({
             <section aria-label="Linked Events preview" className="space-y-2">
               <div className="flex items-baseline justify-between gap-3">
                 <SectionHeading title="Linked Events" />
-                <Link
-                  className="text-sm underline"
-                  href={taskSectionUrl(
-                    taskIdParam,
-                    "events",
-                    contextualReturnTo,
-                  )}
-                >
-                  View all
-                </Link>
+                {eventCount > 0 && (
+                  <Link
+                    className="text-sm underline"
+                    href={taskSectionUrl(
+                      taskIdParam,
+                      "events",
+                      contextualReturnTo,
+                    )}
+                  >
+                    View all
+                  </Link>
+                )}
               </div>
               {visibleEvents.length ? (
                 <ul className="space-y-1">

@@ -39,6 +39,8 @@ Create/edit Event, Task, and Officer forms share the same centered form grid, bo
 
 Keep labels visible and connected to controls. Place validation next to the relevant field and retain error descriptions. Preserve pending text and disabled states without changing control geometry. Reuse the shared dialog surface, title, description, field, and footer patterns. Popups stay visually connected to their triggers and remain keyboard-operable.
 
+In the shared Resource links editor, adding a row moves focus into its label; removing a row moves focus to the next row, then the previous row, or Add link when none remain. Give rows stable identities so removing one does not change another row's values or focus. Associate resource validation with the group and its controls, announce the error, and let keyboard users reach and correct the affected fields.
+
 ## Feedback and interface states
 
 Use semantic success, info, warning, danger, and neutral tokens for toast, form, and inline feedback. State copy must explain what happened or what needs attention. Keep loading/pending, error, empty, filtered-zero, success, disabled, and historical read-only states explicit. Do not invent success or real-time claims.

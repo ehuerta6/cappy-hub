@@ -123,13 +123,13 @@ export default function TimeSlotsEditor({
   };
 
   return (
-    <fieldset className="event-form-section col-span-2">
+    <fieldset className="event-form-section lg:col-span-2">
       <legend>Time Slots (optional)</legend>
       <input type="hidden" name="time_slots" value={serialized} />
       {eventTypeName.toLowerCase() === "session" ? (
         <p className="text-sm text-muted">
-          Time Slots are unavailable for Session Events. Sessions use Presenter
-          Slots.
+          Volunteer Time Slots are unavailable for Session Events. Officers use
+          the ordinary Event signup options instead.
         </p>
       ) : (
         <div className="space-y-3">

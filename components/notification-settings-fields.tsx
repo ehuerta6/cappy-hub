@@ -100,7 +100,7 @@ export default function NotificationSettingsFields({
     );
   });
   return (
-    <fieldset className="event-form-section col-span-2 notification-settings">
+    <fieldset className="event-form-section lg:col-span-2 notification-settings">
       <legend className="px-1 text-sm font-semibold">Notifications</legend>
       <div className="notification-settings-content">
         <div className="notification-audience">

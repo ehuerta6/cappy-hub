@@ -139,7 +139,9 @@ it("uses a full-row Event name and the shared optional recurrence controls", () 
 it("keeps recurring edit scope choices as inline radio labels", () => {
   const html = renderEventForm(true, true);
 
-  expect(html).toContain('class="event-recurrence-scope col-span-2 space-y-3"');
+  expect(html).toContain(
+    'class="event-recurrence-scope lg:col-span-2 space-y-3"',
+  );
   expect(html.match(/class="flex items-center gap-2"/g)).toHaveLength(3);
   expect(html.indexOf("Participation and capacity")).toBeLessThan(
     html.indexOf("event-recurrence-scope"),

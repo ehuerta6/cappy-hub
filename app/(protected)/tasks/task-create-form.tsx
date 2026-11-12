@@ -144,7 +144,7 @@ export default function TaskCreateForm({
         <input key={field} type="hidden" name="edited_fields" value={field} />
       ))}
       {series && (
-        <div className="col-span-2">
+        <div className="lg:col-span-2">
           <RecurrenceScope
             series={series}
             requestKey={recurrenceRequestKey}
@@ -340,7 +340,7 @@ export default function TaskCreateForm({
         onChange={(value) => updateEditedFields(value)}
       />
       {!task && (
-        <div className="col-span-2">
+        <div className="lg:col-span-2">
           <RecurrenceFields
             recordType="Task"
             values={state.values}
@@ -359,7 +359,7 @@ export default function TaskCreateForm({
         selectedPositionIds={notificationSettings?.positionIds}
         reminderOffsets={notificationSettings?.reminderOffsets}
       />
-      <div className="col-span-2 flex flex-wrap items-start gap-4">
+      <div className="lg:col-span-2 flex flex-wrap items-start gap-4">
         {(state.error || state.success) && <ActionFeedback state={state} />}
         <button disabled={pending}>
           {pending

@@ -813,14 +813,21 @@ export default async function EventDetailPage({
               </Link>
             </p>
           )}
-          <p className="text-sm">
-            <Link
-              href={sectionHref(eventIdParam, "points", 1, contextualReturnTo)}
-              className="underline underline-offset-4"
-            >
-              Event point history ({pointCount})
-            </Link>
-          </p>
+          {pointCount > 0 && (
+            <p className="text-sm">
+              <Link
+                href={sectionHref(
+                  eventIdParam,
+                  "points",
+                  1,
+                  contextualReturnTo,
+                )}
+                className="underline underline-offset-4"
+              >
+                Event point history ({pointCount})
+              </Link>
+            </p>
+          )}
         </>
       )}
 
