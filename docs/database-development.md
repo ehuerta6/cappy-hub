@@ -73,12 +73,12 @@ CI compares migration files with the PR base on pull requests and with the previ
 After a PR is merged to `main`, the existing CI workflow runs the normal quality checks. When CI succeeds, `.github/workflows/deploy-production.yml` checks out that exact `main` commit and runs these steps in order:
 
 1. Confirm that the successful CI commit is still the current `main` tip. If `main` advanced while its production run was queued, skip the stale run; the newest successful `main` run owns production deployment.
-2. Compare `supabase/migrations/` with production migration history using `SUPABASE_DB_URL`. Production history must match a prefix of the local migration list; migrations in `main` that have not reached production are allowed.
-3. Run `supabase db push --db-url "$SUPABASE_DB_URL" --dry-run` (without `--include-seed`).
-4. Apply pending migrations with `supabase db push --db-url "$SUPABASE_DB_URL"` (without `--include-seed`).
-5. Verify production migration history is fully aligned with `supabase/migrations/`.
-6. Recheck that the successful CI commit is still the current `main` tip. If a newer commit arrived during migration, skip production deployment so an older run cannot deploy newer application code against an incomplete schema.
-7. Confirm before any production migration that the Vercel project has **Auto-assign Custom Production Domains** disabled. If it is enabled or the API does not confirm the setting, stop before migrations.
+2. Confirm that the Vercel project has **Auto-assign Custom Production Domains** disabled. If it is enabled or the API does not confirm the setting, stop before migrations.
+3. Compare `supabase/migrations/` with production migration history using `SUPABASE_DB_URL`. Production history must match a prefix of the local migration list; migrations in `main` that have not reached production are allowed.
+4. Run `supabase db push --db-url "$SUPABASE_DB_URL" --dry-run` (without `--include-seed`).
+5. Apply pending migrations with `supabase db push --db-url "$SUPABASE_DB_URL"` (without `--include-seed`).
+6. Verify production migration history is fully aligned with `supabase/migrations/`.
+7. Recheck that the successful CI commit is still the current `main` tip. If a newer commit arrived during migration, skip production deployment so an older run cannot deploy newer application code against an incomplete schema.
 8. Create a staged Vercel Production deployment through the [Create a new deployment API](https://vercel.com/docs/rest-api/deployments/create-a-new-deployment) with `gitSource.sha` set to the full SHA from the successful CI run. The request also binds the GitHub repository ID, `main` ref, and Vercel project. If `main` advances after the final tip check, Vercel still builds the approved SHA instead of resolving the new branch tip.
 9. Poll that Vercel deployment until it reports `READY`; fail on a mismatched commit/ref/target, an assigned alias, an API error, a failed or canceled build, or timeout.
 10. Promote only the verified staged deployment with Vercel's [production promotion API](https://github.com/vercel/sdk/blob/main/src/funcs/projectsRequestPromote.ts). A failed or mismatched build never receives production domains.
