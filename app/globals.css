@@ -514,11 +514,6 @@
     .event-form {
       grid-template-columns: minmax(0, 1fr);
     }
-
-    .event-form-section.col-span-2,
-    .event-form-recurrence.col-span-2 {
-      grid-column: auto;
-    }
   }
 
   tbody tr:hover {

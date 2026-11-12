@@ -25,19 +25,37 @@ delete from public.task_reminder_offsets where task_id in (-9403201,-9403202,-94
 insert into public.task_reminder_offsets(task_id,minutes_before)
 values(-9403201,1440),(-9403202,60),(-9403203,1440);
 
+-- Fixed local clock times keep these rows on one Denver date regardless of
+-- when the test runs. The upcoming Event's 48-hour reminder is already due.
+with local_dates as (
+  select (now() at time zone 'America/Denver')::date as today
+), event_times as (
+  select
+    today + 1 + time '12:00' as upcoming_start_local,
+    today + 1 + time '13:00' as upcoming_end_local,
+    today - 1 + time '10:00' as past_start_local,
+    today - 1 + time '10:30' as past_end_local
+  from local_dates
+)
 insert into public.events(id,name,description,location,event_type_id,event_date,starts_at,ends_at,status)
-values
-  (-9403201,'Due soon Event','Synthetic','Campus',
-    (select id from event_types where name='Meeting'),
-    ((now()+interval '10 minutes') at time zone 'America/Denver')::date,
-    now()+interval '10 minutes',now()+interval '70 minutes','upcoming'),
-  (-9403202,'Past Event','Synthetic','Campus',
-    (select id from event_types where name='Meeting'),
-    ((now()-interval '1 hour') at time zone 'America/Denver')::date,
-    now()-interval '1 hour',now()-interval '30 minutes','past');
+select -9403201,'Due soon Event','Synthetic','Campus',
+  (select id from event_types where name='Meeting'),
+  upcoming_start_local::date,
+  upcoming_start_local at time zone 'America/Denver',
+  upcoming_end_local at time zone 'America/Denver',
+  'upcoming'
+from event_times
+union all
+select -9403202,'Past Event','Synthetic','Campus',
+  (select id from event_types where name='Meeting'),
+  past_start_local::date,
+  past_start_local at time zone 'America/Denver',
+  past_end_local at time zone 'America/Denver',
+  'past'
+from event_times;
 delete from public.event_reminder_offsets where event_id in (-9403201,-9403202);
 insert into public.event_reminder_offsets(event_id,minutes_before)
-values(-9403201,20),(-9403202,1440);
+values(-9403201,2880),(-9403202,1440);
 insert into public.event_officers(event_id,officer_id)
 values(-9403201,-9403201),(-9403202,-9403201);
 
@@ -67,8 +85,8 @@ select is((select count(*) from public.notifications
   'an Event reminder is not sent after the Event started');
 select is((select dedupe_key from public.notifications
   where entity_type='event' and entity_id=-9403201 and kind='event.reminder'),
-  'event.reminder:-9403201:20:-9403201:'||
-    ((select starts_at from public.events where id=-9403201)-interval '20 minutes')::text,
+  'event.reminder:-9403201:2880:-9403201:'||
+    ((select starts_at from public.events where id=-9403201)-interval '2880 minutes')::text,
   'Event reminder idempotency records the scheduled firing time');
 
 select private.process_due_reminders();

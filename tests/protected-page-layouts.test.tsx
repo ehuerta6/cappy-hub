@@ -571,6 +571,21 @@ it("shows assignment count and manager add controls in the Overview", async () =
   expect(officerPreview).toContain("View all");
 });
 
+it("does not repeat empty Task sections as Overview actions", async () => {
+  Object.assign(task, { task_officer_assignments: [], task_events: [] });
+  const html = renderToStaticMarkup(
+    await TaskDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({}),
+    }),
+  );
+
+  expect(html).toContain("Assignments (0)");
+  expect(html).toContain("Linked Events (0)");
+  expect(html).not.toContain(">View all</a>");
+  expect(html).toContain('aria-label="Task detail sections"');
+});
+
 it("keeps Task detail previews to four and pages full related sections by six", async () => {
   const assignments = Array.from({ length: 8 }, (_, index) => ({
     officer_id: 8 - index,
@@ -822,7 +837,8 @@ it("groups Event details, files and participation while retaining management con
   expect(participation).not.toContain("<table");
   expect(participation).toContain("No active officers are available to add.");
   expect(participation).not.toContain("Add officer");
-  expect(html).toContain("Event point history");
+  expect(html).not.toContain("Event point history (0)");
+  expect(html).toContain('href="/events/7?section=points&amp;returnTo=');
 });
 
 it("keeps manager bulk signup available when eligible Officers exist", async () => {

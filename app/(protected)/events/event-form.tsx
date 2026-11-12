@@ -503,7 +503,7 @@ export default function EventForm({
       </fieldset>
 
       {series && mutationRequestKey && (
-        <div className="event-form-recurrence col-span-2">
+        <div className="event-form-recurrence lg:col-span-2">
           <RecurrenceScope
             series={series}
             requestKey={mutationRequestKey}
@@ -518,7 +518,7 @@ export default function EventForm({
       )}
 
       {!event && (
-        <div className="event-form-recurrence col-span-2">
+        <div className="event-form-recurrence lg:col-span-2">
           <RecurrenceFields
             recordType="Event"
             values={state.values}
@@ -539,11 +539,11 @@ export default function EventForm({
         reminderOffsets={notificationSettings?.reminderOffsets}
       />
 
-      <div className="col-span-2">
+      <div className="lg:col-span-2">
         <ActionFeedback state={state} />
       </div>
 
-      <button className="col-span-2 w-fit" disabled={pending}>
+      <button className="lg:col-span-2 w-fit" disabled={pending}>
         {pending
           ? event
             ? "Saving…"
