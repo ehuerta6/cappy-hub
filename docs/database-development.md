@@ -91,12 +91,12 @@ Add the following repository or `production` environment configuration. The work
 | Name                  | Type                  | Purpose                                                                                                                |
 | --------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `SUPABASE_DB_URL`     | Secret                | Production Supabase Postgres Session Pooler connection string, including its database password                         |
-| `VERCEL_ACCESS_TOKEN` | Secret                | Vercel API access token with permission to create and inspect deployments for this project                             |
+| `VERCEL_ACCESS_TOKEN` | Secret                | Vercel API access token permitted to create and inspect deployments; its effective scope depends on Vercel roles/plan  |
 | `VERCEL_PROJECT_ID`   | Variable (non-secret) | Vercel project ID for Cappy Hub                                                                                        |
 | `VERCEL_TEAM_ID`      | Variable (non-secret) | Vercel team ID when the project belongs to a team; leave unset for a personal project                                  |
 | `PRODUCTION_APP_URL`  | Variable (non-secret) | Canonical production HTTPS origin, shaped like `https://<production-domain>`; no credentials, path, query, or fragment |
 
-Configure these values in GitHub's protected `production` environment. `VERCEL_REPOSITORY_ID` is supplied by GitHub Actions from the repository context, so it does not need to be stored. The Vercel token is sent only in the HTTPS `Authorization` header and is never printed. Keep its access limited to the project/team needed for this workflow. Never commit it or expose Supabase service-role credentials to application or browser code.
+Configure these values in GitHub's protected `production` environment only after the Vercel account owner approves the credential and its effective scope. `VERCEL_REPOSITORY_ID` is supplied by GitHub Actions from the repository context, so it does not need to be stored. The token is sent only in the HTTPS `Authorization` header and is never printed. Vercel project-level roles are available only on Enterprise; depending on the account plan, an API token may carry access at the wider account or team level. Confirm the narrowest access the current plan supports before configuring it. Do not grant a broader role or change plans as part of this Issue; those changes require separate authorization. See [Vercel access roles](https://vercel.com/docs/rbac/access-roles) and [REST API authentication and team scope](https://vercel.com/docs/rest-api#authentication). Never commit the token or expose Supabase service-role credentials to application or browser code.
 
 Use the production project's Postgres Session Pooler connection string and URL-encode any special characters in its database password, as required for connection URLs.
 
@@ -104,7 +104,7 @@ Use the production project's Postgres Session Pooler connection string and URL-e
 
 Keep the Vercel project's **Production Branch** set to `main`. The repository's `vercel.json` disables automatic Git-triggered production deployments from `main`; GitHub Actions applies pending migrations, verifies migration history alignment, then creates a production deployment through Vercel's API using the successful CI run's full SHA. Pull request and feature branch Preview deployments remain enabled.
 
-After the immutable deployment configuration is active, remove the former `VERCEL_DEPLOY_HOOK_URL` secret from GitHub's `production` environment. No Deploy Hook or reserved production branch is used.
+After the immutable deployment configuration is active and the API credential scope has been approved, remove the former `VERCEL_DEPLOY_HOOK_URL` secret from GitHub's `production` environment. No Deploy Hook or reserved production branch is used.
 
 Keep **Enable access to System Environment Variables** enabled in the Vercel project's Environment Variables settings. Vercel supplies `VERCEL_GIT_COMMIT_SHA` at build time; `next.config.ts` publishes that public commit SHA as `x-cappy-hub-revision` on `/login`. No manually maintained SHA variable is required. The GitHub deployment workflow separately needs the `VERCEL_ACCESS_TOKEN` API credential described above. See [Vercel system environment variables](https://vercel.com/docs/environment-variables/system-environment-variables).
 
