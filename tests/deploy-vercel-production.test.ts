@@ -3,6 +3,7 @@ import {
   createVercelProductionDeployment,
   DEPLOYMENT_TIMEOUT_MS,
   productionDeploymentRequest,
+  validateVercelProjectConfiguration,
 } from "../scripts/deploy-vercel-production.mjs";
 import { isCurrentMainCommit } from "../scripts/check-production-main-tip.mjs";
 
@@ -28,6 +29,7 @@ function readyDeployment(overrides = {}) {
     id: "dpl_example",
     readyState: "READY",
     target: "production",
+    aliasAssigned: false,
     gitSource: {
       type: "github",
       repoId: "123456789",
@@ -36,6 +38,17 @@ function readyDeployment(overrides = {}) {
     },
     ...overrides,
   };
+}
+
+function fetchFlow(...responses: Response[]) {
+  const fetchImpl = vi.fn<typeof fetch>();
+  fetchImpl.mockResolvedValueOnce(
+    apiResponse({ autoAssignCustomDomains: false }),
+  );
+  for (const response of responses) {
+    fetchImpl.mockResolvedValueOnce(response);
+  }
+  return fetchImpl;
 }
 
 describe("production deployment gate", () => {
@@ -49,12 +62,15 @@ describe("production deployment gate", () => {
     expect(isCurrentMainCommit(approvedSha, currentMain)).toBe(true);
     currentMain = advancedMainSha;
 
-    const fetchImpl = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        apiResponse({ id: "dpl_example", readyState: "QUEUED" }),
-      )
-      .mockResolvedValueOnce(apiResponse(readyDeployment()));
+    const fetchImpl = fetchFlow(
+      apiResponse({
+        id: "dpl_example",
+        readyState: "QUEUED",
+        aliasAssigned: false,
+      }),
+      apiResponse(readyDeployment()),
+      new Response(null, { status: 202 }),
+    );
     const log = vi.fn();
 
     await createVercelProductionDeployment(config, {
@@ -62,11 +78,16 @@ describe("production deployment gate", () => {
       log,
     });
 
-    const [url, options] = fetchImpl.mock.calls[0];
+    const [projectUrl, projectOptions] = fetchImpl.mock.calls[0];
+    const [url, options] = fetchImpl.mock.calls[1];
     const request = JSON.parse(String(options?.body));
     expect(String(url)).toBe(
       "https://api.vercel.com/v13/deployments?teamId=team_example",
     );
+    expect(String(projectUrl)).toBe(
+      "https://api.vercel.com/v9/projects/prj_example?teamId=team_example",
+    );
+    expect(projectOptions?.method).toBe("GET");
     expect(request).toEqual({
       name: "cappy-hub",
       project: "prj_example",
@@ -82,8 +103,11 @@ describe("production deployment gate", () => {
     expect(options?.headers).toMatchObject({
       Authorization: "Bearer private-token",
     });
-    expect(String(fetchImpl.mock.calls[1][0])).toBe(
+    expect(String(fetchImpl.mock.calls[2][0])).toBe(
       "https://api.vercel.com/v13/deployments/dpl_example?withGitRepoInfo=true&teamId=team_example",
+    );
+    expect(String(fetchImpl.mock.calls[3][0])).toBe(
+      "https://api.vercel.com/v10/projects/prj_example/promote/dpl_example?teamId=team_example",
     );
   });
 
@@ -119,6 +143,32 @@ describe("production deployment gate", () => {
     expect(() => isCurrentMainCommit("main", advancedMainSha)).toThrow(
       "EXPECTED_DEPLOYMENT_SHA",
     );
+  });
+
+  it("requires auto-assignment to be disabled before creating production deployments", async () => {
+    for (const project of [{ autoAssignCustomDomains: true }, {}]) {
+      const fetchImpl = vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(apiResponse(project));
+      await expect(
+        validateVercelProjectConfiguration(config, { fetchImpl }),
+      ).rejects.toThrow("must disable Auto-assign Custom Production Domains");
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("stops before polling or promoting if Vercel assigned an alias on creation", async () => {
+    const fetchImpl = fetchFlow(
+      apiResponse({
+        id: "dpl_example",
+        readyState: "QUEUED",
+        aliasAssigned: true,
+      }),
+    );
+    await expect(
+      createVercelProductionDeployment(config, { fetchImpl, log: vi.fn() }),
+    ).rejects.toThrow("staged without aliases");
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
   it.each([
@@ -177,35 +227,37 @@ describe("production deployment gate", () => {
     ],
     ["wrong target", { target: null }],
   ])("rejects a ready deployment with %s", async (_label, overrides) => {
-    const fetchImpl = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        apiResponse({ id: "dpl_example", readyState: "QUEUED" }),
-      )
-      .mockResolvedValueOnce(apiResponse(readyDeployment(overrides)));
+    const fetchImpl = fetchFlow(
+      apiResponse({
+        id: "dpl_example",
+        readyState: "QUEUED",
+        aliasAssigned: false,
+      }),
+      apiResponse(readyDeployment(overrides)),
+    );
     await expect(
       createVercelProductionDeployment(config, { fetchImpl, log: vi.fn() }),
     ).rejects.toThrow(
-      /does not match|not associated|did not target|did not confirm/,
+      /does not match|not associated|did not target|did not confirm|assigned an alias/,
     );
   });
 
   it.each(["ERROR", "CANCELED"])("stops on a %s build", async (readyState) => {
-    const fetchImpl = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        apiResponse({ id: "dpl_example", readyState: "QUEUED" }),
-      )
-      .mockResolvedValueOnce(apiResponse(readyDeployment({ readyState })));
+    const fetchImpl = fetchFlow(
+      apiResponse({
+        id: "dpl_example",
+        readyState: "QUEUED",
+        aliasAssigned: false,
+      }),
+      apiResponse(readyDeployment({ readyState })),
+    );
     await expect(
       createVercelProductionDeployment(config, { fetchImpl, log: vi.fn() }),
     ).rejects.toThrow(`finished in ${readyState}`);
   });
 
   it("rejects missing deployment identity and avoids leaking request errors", async () => {
-    const noId = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(apiResponse({ readyState: "QUEUED" }));
+    const noId = fetchFlow(apiResponse({ readyState: "QUEUED" }));
     await expect(
       createVercelProductionDeployment(config, {
         fetchImpl: noId,
@@ -215,6 +267,7 @@ describe("production deployment gate", () => {
 
     const fetchImpl = vi
       .fn<typeof fetch>()
+      .mockResolvedValueOnce(apiResponse({ autoAssignCustomDomains: false }))
       .mockRejectedValueOnce(new Error("request failed using private-token"));
     await expect(
       createVercelProductionDeployment(config, { fetchImpl, log: vi.fn() }),
@@ -222,13 +275,16 @@ describe("production deployment gate", () => {
   });
 
   it("retries transient deployment polling failures", async () => {
-    const fetchImpl = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        apiResponse({ id: "dpl_example", readyState: "QUEUED" }),
-      )
-      .mockResolvedValueOnce(apiResponse({ message: "temporary" }, 503))
-      .mockResolvedValueOnce(apiResponse(readyDeployment()));
+    const fetchImpl = fetchFlow(
+      apiResponse({
+        id: "dpl_example",
+        readyState: "QUEUED",
+        aliasAssigned: false,
+      }),
+      apiResponse({ message: "temporary" }, 503),
+      apiResponse(readyDeployment()),
+      new Response(null, { status: 201 }),
+    );
     const log = vi.fn();
     await expect(
       createVercelProductionDeployment(config, {
@@ -237,34 +293,62 @@ describe("production deployment gate", () => {
         sleep: vi.fn().mockResolvedValue(undefined),
       }),
     ).resolves.toMatchObject({ id: "dpl_example", state: "READY" });
-    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(fetchImpl).toHaveBeenCalledTimes(5);
     expect(log.mock.calls.flat().join("\n")).toContain(
       "polling temporarily failed",
     );
   });
 
   it("fails closed when deployment creation is rejected", async () => {
-    const fetchImpl = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        apiResponse({ message: "private service details" }, 403),
-      );
+    const fetchImpl = fetchFlow(
+      apiResponse({ message: "private service details" }, 403),
+    );
     await expect(
       createVercelProductionDeployment(config, { fetchImpl, log: vi.fn() }),
     ).rejects.toThrow("HTTP 403");
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not treat a failed Vercel promotion as a successful deployment", async () => {
+    const fetchImpl = fetchFlow(
+      apiResponse({
+        id: "dpl_example",
+        readyState: "QUEUED",
+        aliasAssigned: false,
+      }),
+      apiResponse(readyDeployment()),
+      apiResponse({ message: "promotion denied" }, 403),
+    );
+    await expect(
+      createVercelProductionDeployment(config, { fetchImpl, log: vi.fn() }),
+    ).rejects.toThrow("promotion request failed with HTTP 403");
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
   });
 
   it("times out when Vercel never reports readiness", async () => {
     let clock = 0;
-    const fetchImpl = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        apiResponse({ id: "dpl_example", readyState: "QUEUED" }),
-      )
-      .mockImplementation(async () =>
-        apiResponse({ id: "dpl_example", readyState: "BUILDING" }),
-      );
+    const fetchImpl = fetchFlow(
+      apiResponse({
+        id: "dpl_example",
+        readyState: "QUEUED",
+        aliasAssigned: false,
+      }),
+    ).mockImplementation(async (input, init) => {
+      if (String(input).includes("/v9/projects/")) {
+        return apiResponse({ autoAssignCustomDomains: false });
+      }
+      if (
+        init?.method === "POST" &&
+        String(input).includes("/v13/deployments")
+      ) {
+        return apiResponse({
+          id: "dpl_example",
+          readyState: "QUEUED",
+          aliasAssigned: false,
+        });
+      }
+      return apiResponse({ id: "dpl_example", readyState: "BUILDING" });
+    });
     const sleep = vi.fn(async (ms: number) => {
       clock += ms;
     });
@@ -276,6 +360,6 @@ describe("production deployment gate", () => {
         log: vi.fn(),
       }),
     ).rejects.toThrow(`within ${DEPLOYMENT_TIMEOUT_MS / 1000}s`);
-    expect(fetchImpl).toHaveBeenCalledTimes(DEPLOYMENT_TIMEOUT_MS / 10_000 + 1);
+    expect(fetchImpl).toHaveBeenCalledTimes(DEPLOYMENT_TIMEOUT_MS / 10_000 + 2);
   });
 });

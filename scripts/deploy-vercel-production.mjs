@@ -43,6 +43,24 @@ function deploymentUrl(deploymentId, teamId) {
   return url;
 }
 
+function projectUrl(projectId, teamId) {
+  const url = new URL(
+    `/v9/projects/${encodeURIComponent(projectId)}`,
+    API_ORIGIN,
+  );
+  if (teamId) url.searchParams.set("teamId", teamId);
+  return url;
+}
+
+function promoteUrl(projectId, deploymentId, teamId) {
+  const url = new URL(
+    `/v10/projects/${encodeURIComponent(projectId)}/promote/${encodeURIComponent(deploymentId)}`,
+    API_ORIGIN,
+  );
+  if (teamId) url.searchParams.set("teamId", teamId);
+  return url;
+}
+
 async function requestJson(url, { method, token, body, fetchImpl }) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -78,6 +96,59 @@ async function requestJson(url, { method, token, body, fetchImpl }) {
     );
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+async function requestPromotion(url, { token, fetchImpl }) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetchImpl(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      },
+      signal: controller.signal,
+    });
+    if (![201, 202].includes(response.status)) {
+      throw new Error(
+        `Vercel promotion request failed with HTTP ${response.status}.`,
+      );
+    }
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.startsWith("Vercel promotion")
+    ) {
+      throw error;
+    }
+    throw new Error(
+      controller.signal.aborted
+        ? "Vercel promotion request timed out."
+        : "Vercel promotion request could not be completed.",
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function validateVercelProjectConfiguration(
+  { token, teamId, projectId },
+  { fetchImpl = fetch } = {},
+) {
+  if (!token) throw new Error("VERCEL_ACCESS_TOKEN is required.");
+  if (!projectId) throw new Error("VERCEL_PROJECT_ID is required.");
+
+  const project = await requestJson(projectUrl(projectId, teamId), {
+    method: "GET",
+    token,
+    fetchImpl,
+  });
+  if (project.autoAssignCustomDomains !== false) {
+    throw new Error(
+      "Vercel project must disable Auto-assign Custom Production Domains before production deployment.",
+    );
   }
 }
 
@@ -121,6 +192,15 @@ function assertDeploymentIdentity(deployment, expectedSha, repositoryId) {
     if (deployment.target !== "production") {
       throw new Error("Vercel deployment did not target production.");
     }
+    if (deployment.aliasAssigned !== false) {
+      throw new Error(
+        "Vercel production deployment was assigned an alias before verification.",
+      );
+    }
+  } else if (deployment.aliasAssigned === true) {
+    throw new Error(
+      "Vercel production deployment was assigned an alias before verification.",
+    );
   }
 }
 
@@ -134,6 +214,10 @@ export async function createVercelProductionDeployment(
   } = {},
 ) {
   if (!token) throw new Error("VERCEL_ACCESS_TOKEN is required.");
+  await validateVercelProjectConfiguration(
+    { token, teamId, projectId },
+    { fetchImpl },
+  );
   const body = productionDeploymentRequest({
     projectId,
     repositoryId,
@@ -152,6 +236,11 @@ export async function createVercelProductionDeployment(
   });
   if (typeof created.id !== "string" || !created.id) {
     throw new Error("Vercel did not return a deployment ID.");
+  }
+  if (created.aliasAssigned !== false) {
+    throw new Error(
+      "Vercel did not confirm that the production deployment is staged without aliases.",
+    );
   }
   log(`Created Vercel production deployment ${created.id} for ${expectedSha}.`);
 
@@ -189,10 +278,14 @@ export async function createVercelProductionDeployment(
     log(`Vercel deployment ${created.id}: ${state}.`);
 
     if (state === "READY") {
+      await requestPromotion(promoteUrl(projectId, created.id, teamId), {
+        token,
+        fetchImpl,
+      });
       log(
-        "Vercel production deployment is ready for the HTTP revision smoke check.",
+        "Verified Vercel production deployment was promoted; running the HTTP revision smoke check.",
       );
-      return { id: created.id, state };
+      return { id: created.id, state, promoted: true };
     }
     if (["ERROR", "CANCELED"].includes(state)) {
       throw new Error(`Vercel production deployment finished in ${state}.`);
@@ -212,13 +305,21 @@ if (
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
   try {
-    await createVercelProductionDeployment({
+    const config = {
       token: process.env.VERCEL_ACCESS_TOKEN,
       teamId: process.env.VERCEL_TEAM_ID,
       projectId: process.env.VERCEL_PROJECT_ID,
       repositoryId: process.env.VERCEL_REPOSITORY_ID,
       expectedSha: process.env.EXPECTED_DEPLOYMENT_SHA,
-    });
+    };
+    if (process.argv.includes("--check-project")) {
+      await validateVercelProjectConfiguration(config);
+      console.log(
+        "Vercel project is configured for staged production deploys.",
+      );
+    } else {
+      await createVercelProductionDeployment(config);
+    }
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;
