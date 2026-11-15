@@ -201,10 +201,7 @@ export default async function TaskDetailPage({
       .eq("task_id", taskId)
       .order("officers(name)", { ascending: true })
       .order("officer_id", { ascending: true })
-      .range(
-        (requestedAssignmentPage - 1) * assignmentPageSize,
-        requestedAssignmentPage * assignmentPageSize - 1,
-      ),
+      .range(0, assignmentPageSize - 1),
     supabase
       .from("task_events")
       .select("event_id,events!inner(id,name,event_date,status,deleted_at)", {
@@ -214,10 +211,7 @@ export default async function TaskDetailPage({
       .order("events(event_date)", { ascending: true })
       .order("events(name)", { ascending: true })
       .order("event_id", { ascending: true })
-      .range(
-        (requestedEventPage - 1) * eventPageSize,
-        requestedEventPage * eventPageSize - 1,
-      ),
+      .range(0, eventPageSize - 1),
     supabase
       .from("task_officer_assignments")
       .select("officer_id", { count: "exact", head: true })
@@ -265,30 +259,6 @@ export default async function TaskDetailPage({
   const assignmentCount = assignmentsResult.count;
   const eventCount = eventsResult.count;
   const incompleteAssignmentCount = incompleteAssignmentsResult.count;
-  const assignedOfficerIds = new Set(
-    (assignedOfficerIdsResult.data ?? []).map(({ officer_id }) => officer_id),
-  );
-  const availableOfficers = (officersResult.data ?? [])
-    .filter((officer) => !assignedOfficerIds.has(officer.id))
-    .map(({ id, name }) => ({ id, name }));
-  const assignments = assignmentsResult.data ?? [];
-  const linkedEvents = eventsResult.data ?? [];
-  const visibleAssignments = assignments;
-  const visibleEvents = linkedEvents;
-  const series =
-    task.recurrence_series_id === null
-      ? undefined
-      : await supabase
-          .from("task_series")
-          .select("id,revision,recurrence_rule,starts_on")
-          .eq("id", task.recurrence_series_id)
-          .single();
-  if (series?.error) throw new Error("Failed to load recurring series");
-  const myAssignment = actorAssignmentResult.data;
-  const currentStatus = taskStatusFromCounts(
-    assignmentCount,
-    incompleteAssignmentCount,
-  );
   const assignmentPages = Math.max(
     1,
     Math.ceil(assignmentCount / TASK_DETAIL_PAGE_SIZE),
@@ -316,8 +286,8 @@ export default async function TaskDetailPage({
       ? section === undefined
       : section === activeSection;
   const pageParamsAreCanonical =
-    (activeSection === "assignments" || eventPage === undefined) &&
-    (activeSection === "events" || assignmentPage === undefined) &&
+    (activeSection === "assignments" || assignmentPage === undefined) &&
+    (activeSection === "events" || eventPage === undefined) &&
     isCanonicalPage(activePageValue, activePage);
   const safeFeedback =
     feedback === "task-created" || feedback === "task-updated"
@@ -339,6 +309,60 @@ export default async function TaskDetailPage({
       ),
     );
 
+  let assignments = assignmentsResult.data ?? [];
+  let linkedEvents = eventsResult.data ?? [];
+  if (activeSection === "assignments" && currentAssignmentPage > 1) {
+    const page = await supabase
+      .from("task_officer_assignments")
+      .select(
+        "officer_id,assigned_at,completed_at,completion_approval_pending,officers!task_officer_assignments_officer_id_fkey(id,name)",
+      )
+      .eq("task_id", taskId)
+      .order("officers(name)", { ascending: true })
+      .order("officer_id", { ascending: true })
+      .range(
+        (currentAssignmentPage - 1) * TASK_DETAIL_PAGE_SIZE,
+        currentAssignmentPage * TASK_DETAIL_PAGE_SIZE - 1,
+      );
+    if (page.error) throw new Error("Failed to load task assignments");
+    assignments = page.data ?? [];
+  } else if (activeSection === "events" && currentEventPage > 1) {
+    const page = await supabase
+      .from("task_events")
+      .select("event_id,events!inner(id,name,event_date,status,deleted_at)")
+      .eq("task_id", taskId)
+      .order("events(event_date)", { ascending: true })
+      .order("events(name)", { ascending: true })
+      .order("event_id", { ascending: true })
+      .range(
+        (currentEventPage - 1) * TASK_DETAIL_PAGE_SIZE,
+        currentEventPage * TASK_DETAIL_PAGE_SIZE - 1,
+      );
+    if (page.error) throw new Error("Failed to load linked task events");
+    linkedEvents = page.data ?? [];
+  }
+  const assignedOfficerIds = new Set(
+    (assignedOfficerIdsResult.data ?? []).map(({ officer_id }) => officer_id),
+  );
+  const availableOfficers = (officersResult.data ?? [])
+    .filter((officer) => !assignedOfficerIds.has(officer.id))
+    .map(({ id, name }) => ({ id, name }));
+  const visibleAssignments = assignments;
+  const visibleEvents = linkedEvents;
+  const series =
+    task.recurrence_series_id === null
+      ? undefined
+      : await supabase
+          .from("task_series")
+          .select("id,revision,recurrence_rule,starts_on")
+          .eq("id", task.recurrence_series_id)
+          .single();
+  if (series?.error) throw new Error("Failed to load recurring series");
+  const myAssignment = actorAssignmentResult.data;
+  const currentStatus = taskStatusFromCounts(
+    assignmentCount,
+    incompleteAssignmentCount,
+  );
   return (
     <div data-record-page="task" className="space-y-4">
       <ContextualBackLink href="/tasks" returnTo={contextualReturnTo}>
