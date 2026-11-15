@@ -75,6 +75,12 @@ export function dashboardActionItems(
   const importantByEntity = new Map<string, ActionNotification[]>();
   const reminders = new Map<string, ActionNotification[]>();
   for (const notification of attentionNotifications) {
+    if (
+      notification.entity_type !== "event" &&
+      notification.entity_type !== "task" &&
+      notification.kind !== "warning.threshold"
+    )
+      continue;
     if (notification.entity_id === null) continue;
     const key = `${notification.entity_type}:${notification.entity_id}`;
     const destination = notification.kind.endsWith(".reminder")
@@ -130,13 +136,7 @@ export function dashboardActionItems(
     });
   }
   for (const notification of attentionNotifications) {
-    if (
-      notification.entity_type === "event" ||
-      notification.entity_type === "task" ||
-      notification.kind.endsWith(".reminder") ||
-      notification.entity_id === null
-    )
-      continue;
+    if (notification.kind !== "warning.threshold") continue;
     merged.set(`notification:${notification.id}`, {
       key: `notification-${notification.id}`,
       title: notification.title,
