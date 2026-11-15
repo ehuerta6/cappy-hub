@@ -19,7 +19,7 @@ export default async function NotificationsPage({
   if (!Number.isSafeInteger(page) || page < 1) notFound();
   const supabase = await createClient();
   const from = (page - 1) * PAGE_SIZE;
-  const [notifications, count] = await Promise.all([
+  const [notifications, count, unreadCount] = await Promise.all([
     supabase
       .from("notifications")
       .select("id,title,message,kind,entity_type,priority,created_at,read_at")
@@ -27,8 +27,12 @@ export default async function NotificationsPage({
       .order("id", { ascending: false })
       .range(from, from + PAGE_SIZE - 1),
     supabase.from("notifications").select("id", { count: "exact", head: true }),
+    supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .is("read_at", null),
   ]);
-  if (notifications.error || count.error)
+  if (notifications.error || count.error || unreadCount.error)
     throw new Error("Could not load notifications");
   const total = count.count ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -39,13 +43,16 @@ export default async function NotificationsPage({
         title="Notifications"
         description="Your in-app notification history, with read status."
       />
-      {notifications.data.length === 0 ? (
+      {total === 0 ? (
         <section className={styles.empty} aria-live="polite">
           <h2>You’re all caught up</h2>
           <p>New notifications will appear here.</p>
         </section>
       ) : (
-        <NotificationList notifications={notifications.data} />
+        <NotificationList
+          notifications={notifications.data}
+          unreadCount={unreadCount.count ?? 0}
+        />
       )}
       {pages > 1 && (
         <nav className={styles.pagination} aria-label="Notification pages">

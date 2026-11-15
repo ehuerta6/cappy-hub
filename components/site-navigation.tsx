@@ -5,7 +5,7 @@ import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { Bell } from "lucide-react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   formatDateTime,
   formatNotificationDestination,
@@ -15,7 +15,10 @@ import ThemeToggle from "@/components/theme-toggle";
 import AcademicPeriodSelector from "@/components/academic-period-selector";
 import type { AcademicPeriodData } from "@/lib/academic-periods";
 import styles from "./site-navigation.module.css";
-import { openNotification } from "@/app/(protected)/notifications/actions";
+import {
+  markAllNotificationsRead,
+  openNotification,
+} from "@/app/(protected)/notifications/actions";
 
 const links = [
   { href: "/", label: "Dashboard" },
@@ -51,6 +54,7 @@ export default function SiteNavigation({
   recentNotifications ??= [];
   unreadNotificationCount ??= 0;
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const periodQuery = searchParams.get("period");
   const withPeriod = (href: Route): Route => {
@@ -61,6 +65,12 @@ export default function SiteNavigation({
   };
   const visibleLinks = isAdmin ? adminLinks : links;
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [bulkReadRevision, setBulkReadRevision] = useState<string | null>(null);
+  const [markingAllRead, setMarkingAllRead] = useState(false);
+  const [bulkReadError, setBulkReadError] = useState("");
+  const previewRevision = `${unreadNotificationCount}:${recentNotifications.map(({ id, read_at }) => `${id}:${read_at ?? ""}`).join(",")}`;
+  const locallyReadAll = bulkReadRevision === previewRevision;
+  const displayUnreadCount = locallyReadAll ? 0 : unreadNotificationCount;
   const notificationMenuRef = useRef<HTMLDivElement>(null);
   const notificationBellRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -81,6 +91,23 @@ export default function SiteNavigation({
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, [notificationsOpen]);
+  async function markAllRead() {
+    setBulkReadError("");
+    setMarkingAllRead(true);
+    try {
+      const result = await markAllNotificationsRead();
+      if (!result.ok) {
+        setBulkReadError(result.error);
+        return;
+      }
+      setBulkReadRevision(previewRevision);
+      router.refresh();
+    } catch {
+      setBulkReadError("Could not mark notifications as read");
+    } finally {
+      setMarkingAllRead(false);
+    }
+  }
   const active = (href: string) =>
     href === "/"
       ? pathname === href
@@ -123,15 +150,13 @@ export default function SiteNavigation({
               type="button"
               aria-expanded={notificationsOpen}
               aria-controls="notification-preview"
-              aria-label={`Notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ""}`}
+              aria-label={`Notifications${displayUnreadCount ? `, ${displayUnreadCount} unread` : ""}`}
               onClick={() => setNotificationsOpen((open) => !open)}
             >
               <Bell aria-hidden="true" size={18} />
-              {unreadNotificationCount > 0 && (
+              {displayUnreadCount > 0 && (
                 <span className={styles.notificationCount}>
-                  {unreadNotificationCount > 99
-                    ? "99+"
-                    : unreadNotificationCount}
+                  {displayUnreadCount > 99 ? "99+" : displayUnreadCount}
                 </span>
               )}
             </button>
@@ -144,9 +169,9 @@ export default function SiteNavigation({
                   <span className={styles.notificationPopoverHeading}>
                     <strong>Notifications</strong>
                     <span>
-                      {unreadNotificationCount === 0
+                      {displayUnreadCount === 0
                         ? "All caught up"
-                        : `${unreadNotificationCount} unread`}
+                        : `${displayUnreadCount} unread`}
                     </span>
                   </span>
                   <Link
@@ -156,6 +181,21 @@ export default function SiteNavigation({
                     Inbox
                   </Link>
                 </div>
+                {displayUnreadCount > 0 && (
+                  <button
+                    type="button"
+                    className={styles.markAllNotificationsRead}
+                    disabled={markingAllRead}
+                    onClick={() => void markAllRead()}
+                  >
+                    {markingAllRead ? "Updating…" : "Mark all as read"}
+                  </button>
+                )}
+                {bulkReadError && (
+                  <p className={styles.notificationError} role="alert">
+                    {bulkReadError}
+                  </p>
+                )}
                 {recentNotifications.length === 0 ? (
                   <p className={styles.notificationEmpty}>
                     You’re all caught up.
@@ -171,14 +211,14 @@ export default function SiteNavigation({
                             value={notification.id}
                           />
                           <button
-                            className={`${styles.notificationPreviewButton} ${notification.read_at ? "" : styles.notificationPreviewUnread}`}
+                            className={`${styles.notificationPreviewButton} ${notification.read_at || locallyReadAll ? "" : styles.notificationPreviewUnread}`}
                             type="submit"
                             onClick={() => setNotificationsOpen(false)}
                           >
                             <span className={styles.notificationPreviewTitle}>
                               {notification.title}
                             </span>
-                            {!notification.read_at && (
+                            {!notification.read_at && !locallyReadAll && (
                               <span className={styles.notificationUnreadLabel}>
                                 Unread
                               </span>

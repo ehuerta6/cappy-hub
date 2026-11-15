@@ -3,9 +3,15 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 
+const { markAllNotificationsRead, routerRefresh } = vi.hoisted(() => ({
+  markAllNotificationsRead: vi.fn(),
+  routerRefresh: vi.fn(),
+}));
+
 vi.mock("next/navigation", () => ({
   usePathname: () => "/calendar",
   useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ refresh: routerRefresh }),
 }));
 vi.mock("next/image", () => ({
   default: (props: object) => createElement("img", props),
@@ -16,6 +22,7 @@ vi.mock("next/link", () => ({
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/app/(protected)/notifications/actions", () => ({
+  markAllNotificationsRead: markAllNotificationsRead,
   openNotification: vi.fn(),
 }));
 vi.mock("@/components/theme-toggle", () => ({ default: () => null }));
@@ -31,6 +38,58 @@ afterEach(() => {
   if (root) act(() => root?.unmount());
   root = undefined;
   document.body.innerHTML = "";
+  markAllNotificationsRead.mockReset();
+  routerRefresh.mockReset();
+});
+
+it("marks all unread notices from the header, including when none are in the preview", async () => {
+  Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
+    value: true,
+    configurable: true,
+  });
+  const container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  markAllNotificationsRead
+    .mockResolvedValueOnce({
+      ok: false,
+      error: "Could not mark notifications as read",
+    })
+    .mockResolvedValueOnce({ ok: true });
+  act(() => {
+    root?.render(
+      createElement(SiteNavigation, {
+        isAdmin: false,
+        account: createElement("span", null, "Officer"),
+        recentNotifications: [],
+        unreadNotificationCount: 8,
+      }),
+    );
+  });
+  const bell = container.querySelector<HTMLButtonElement>(
+    'button[aria-controls="notification-preview"]',
+  )!;
+  act(() => bell.click());
+  expect(container.textContent).toContain("Mark all as read");
+  expect(container.querySelector("#notification-preview ul")).toBeNull();
+
+  const markAllButton = () =>
+    Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent === "Mark all as read",
+    );
+  await act(async () => markAllButton()?.click());
+  expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+    "Could not mark notifications as read",
+  );
+  expect(bell.getAttribute("aria-label")).toBe("Notifications, 8 unread");
+  expect(routerRefresh).not.toHaveBeenCalled();
+
+  await act(async () => markAllButton()?.click());
+  expect(markAllNotificationsRead).toHaveBeenCalledTimes(2);
+  expect(container.textContent).toContain("All caught up");
+  expect(container.querySelector('[role="alert"]')).toBeNull();
+  expect(bell.getAttribute("aria-label")).toBe("Notifications");
+  expect(routerRefresh).toHaveBeenCalledOnce();
 });
 
 it("keeps the preview open for inside clicks, dismisses it, and restores focus on Escape", () => {

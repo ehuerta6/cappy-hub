@@ -60,6 +60,7 @@ select ok(not has_function_privilege('authenticated','private.process_finished_e
   and has_function_privilege('authenticated','public.bulk_add_event_officers(bigint,bigint[])','EXECUTE')
   and has_function_privilege('authenticated','public.set_event_notification_settings(bigint,boolean,bigint[],bigint[],integer[],text,bigint,integer)','EXECUTE')
   and has_function_privilege('authenticated','public.set_task_notification_settings(bigint,boolean,bigint[],bigint[],integer[],text,bigint,integer)','EXECUTE')
+  and has_function_privilege('authenticated','public.mark_all_notifications_read()','EXECUTE')
   and has_function_privilege('authenticated','public.set_task_due_time(bigint,time,text,bigint,integer)','EXECUTE'),
   'essential checked RPCs remain callable and private processing stays closed');
 select ok(has_function_privilege('authenticated','public.self_assign_task(bigint)','EXECUTE')
@@ -141,6 +142,7 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       'public.set_notification_read_status(bigint,boolean)'::regprocedure,
       'public.mark_notification_opened(bigint)'::regprocedure,
       'public.mark_notifications_reviewed(text,bigint)'::regprocedure,
+      'public.mark_all_notifications_read()'::regprocedure,
       'public.void_warning(bigint)'::regprocedure,
       'public.remove_event(bigint)'::regprocedure,
       'public.delete_event(bigint)'::regprocedure,
