@@ -8,6 +8,8 @@ Notifications are personal history. The signed-in Officer can see only their own
 
 Each inbox entry can be marked read or unread without opening its destination. This changes only inbox read status; it does not change whether an important update has been reviewed for the Dashboard action list.
 
+When any unread notices exist, the full inbox and header preview offer **Mark all as read**. This applies to all unread notices for the signed-in Officer, including notices outside the header's recent preview, and changes only `read_at`; it preserves `reviewed_at` and notification history. Opening the full inbox alone does not mark notices read. If the update fails, the prior visible read state remains and an error is shown.
+
 Notifications never create Event or Task obligations, change a signup, award or remove Points, or create or remove Warnings. Audience selection controls who receives a notice only. In-app notices are always stored. Push belongs to [Issue #404](https://github.com/ehuerta6/cappy-hub/issues/404); email is out of scope.
 
 ## Recipients and triggers
@@ -18,7 +20,7 @@ Creating an Event notifies its selected audience. Changes to its date, time, or 
 
 Task creators can choose the same audience dimensions. By default, a Task targets its assignees. Assignment and Task updates notify the selected audience and always notify direct assignees, with overlapping recipients deduplicated. A self-reported Task completion notifies the Lead for the Task's Branch. When a manager rejects a pending completion, the assigned Officer receives an in-app notice that the report was not approved and can be submitted again.
 
-Officers receive personal notices when their Points or Warnings are assigned, changed, or removed. Reaching three active Warnings notifies all Leads, Vice Presidents, and the President. Threshold leadership notices are separate from the Officer's personal Warning notice.
+Officers receive personal notices when their Points or Warnings are assigned, changed, or removed. Point notices show the signed change to the Officer's active Point balance: awards and edits show the resulting delta, removing a positive Point shows a negative delta, and removing a negative Point shows a positive delta. Reaching three active Warnings notifies all Leads, Vice Presidents, and the President. Threshold leadership notices are separate from the Officer's personal Warning notice.
 
 ## Reminders
 

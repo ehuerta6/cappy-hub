@@ -11,6 +11,32 @@
   list-style: none;
 }
 
+.markAllRead {
+  justify-self: start;
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+  background: var(--surface);
+  padding: 0.45rem 0.65rem;
+  color: var(--brand);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.markAllRead:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.markAllRead:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.markAllRead:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .item,
 .empty {
   border: 1px solid var(--border);

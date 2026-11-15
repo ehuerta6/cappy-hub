@@ -94,11 +94,15 @@ export function formatNotificationDestination(entityType: string) {
 /** Trim numeric scale noise from database-generated Point notifications. */
 export function formatNotificationMessage(kind: string, message: string) {
   if (kind !== "point.changed") return message;
-  const match = /^([+-]?\d+(?:\.\d+)?) Points$/.exec(message);
+  const match = /^([+\-−]?)(\d+(?:\.\d+)?) Points$/.exec(message);
   if (!match) return message;
-  const points = Number(match[1]);
+  const points = Number(match[2]);
   if (!Number.isFinite(points)) return message;
-  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 }).format(points)} Points`;
+  const formatted = new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 6,
+  }).format(points);
+  const sign = match[1] === "+" ? "+" : match[1] ? "−" : "";
+  return `${sign}${formatted} Points`;
 }
 
 const scheduleDate = new Intl.DateTimeFormat("en-US", {

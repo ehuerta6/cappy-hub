@@ -61,3 +61,16 @@ export async function setNotificationReadStatus(
   revalidatePath("/notifications");
   return { ok: true };
 }
+
+export async function markAllNotificationsRead(): Promise<
+  { ok: true } | { ok: false; error: string }
+> {
+  await getAuthorizationContext();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("mark_all_notifications_read");
+  if (error)
+    return { ok: false, error: "Could not mark notifications as read" };
+  revalidatePath("/", "layout");
+  revalidatePath("/notifications");
+  return { ok: true };
+}

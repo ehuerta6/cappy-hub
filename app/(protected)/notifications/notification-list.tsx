@@ -7,7 +7,11 @@ import {
   formatNotificationDestination,
   formatNotificationMessage,
 } from "@/lib/presentation";
-import { openNotification, setNotificationReadStatus } from "./actions";
+import {
+  markAllNotificationsRead,
+  openNotification,
+  setNotificationReadStatus,
+} from "./actions";
 import styles from "./notifications.module.css";
 
 type Notification = {
@@ -23,13 +27,40 @@ type Notification = {
 
 export default function NotificationList({
   notifications,
+  unreadCount,
 }: {
   notifications: Notification[];
+  unreadCount: number;
 }) {
   const [readById, setReadById] = useState<Record<number, boolean>>({});
   const [pendingId, setPendingId] = useState<number | null>(null);
+  const [markingAllRead, setMarkingAllRead] = useState(false);
+  const [allReadRevision, setAllReadRevision] = useState<string | null>(null);
   const [error, setError] = useState("");
   const router = useRouter();
+  const inboxRevision = `${unreadCount}:${notifications.map(({ id, read_at }) => `${id}:${read_at ?? ""}`).join(",")}`;
+
+  async function markAllRead() {
+    setError("");
+    setMarkingAllRead(true);
+    try {
+      const result = await markAllNotificationsRead();
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setReadById((current) => ({
+        ...current,
+        ...Object.fromEntries(notifications.map(({ id }) => [id, true])),
+      }));
+      setAllReadRevision(inboxRevision);
+      router.refresh();
+    } catch {
+      setError("Could not mark notifications as read");
+    } finally {
+      setMarkingAllRead(false);
+    }
+  }
 
   async function toggleRead(notification: Notification) {
     const isRead = !(
@@ -58,6 +89,16 @@ export default function NotificationList({
         <p className={styles.error} role="alert">
           {error}
         </p>
+      )}
+      {unreadCount > 0 && allReadRevision !== inboxRevision && (
+        <button
+          className={styles.markAllRead}
+          type="button"
+          disabled={markingAllRead || pendingId !== null}
+          onClick={() => void markAllRead()}
+        >
+          {markingAllRead ? "Updating…" : "Mark all as read"}
+        </button>
       )}
       <ol className={styles.list} aria-label="Notification history">
         {notifications.map((notification) => {

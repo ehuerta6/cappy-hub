@@ -2013,6 +2013,10 @@ export type Database = {
           event_id: number;
         }[];
       };
+      mark_all_notifications_read: {
+        Args: Record<PropertyKey, never>;
+        Returns: undefined;
+      };
       mark_notification_opened: {
         Args: { p_notification_id: number };
         Returns: undefined;

@@ -12,6 +12,7 @@ import NotificationList from "../app/(protected)/notifications/notification-list
 it("offers a separate per-item status action without replacing the open action", () => {
   const html = renderToStaticMarkup(
     <NotificationList
+      unreadCount={2}
       notifications={[
         {
           id: 41,
@@ -52,6 +53,7 @@ it("offers a separate per-item status action without replacing the open action",
   expect(html).toContain("Unread");
   expect(html).toContain("Mark as read");
   expect(html).toContain("Mark as unread");
+  expect(html).toContain("Mark all as read");
   expect(html).toContain('<time dateTime="2026-11-09T12:00:00Z">');
   expect(html).toContain("Event · Needs attention");
   expect(html).toContain("Points · Needs attention");

@@ -203,6 +203,41 @@
   text-underline-offset: 0.15em;
 }
 
+.markAllNotificationsRead {
+  justify-self: start;
+  margin: 0 1rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+  background: var(--surface);
+  padding: 0.4rem 0.55rem;
+  color: var(--brand);
+  font: inherit;
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+
+.markAllNotificationsRead:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.markAllNotificationsRead:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.markAllNotificationsRead:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.notificationError {
+  margin: 0 1rem 0.65rem;
+  border-left: 3px solid var(--danger, #b42318);
+  padding: 0.4rem 0.55rem;
+  color: var(--danger, #b42318);
+  font-size: 0.78rem;
+}
+
 .notificationPreviewList {
   max-height: min(25rem, 60vh);
   overflow-y: auto;
