@@ -57,6 +57,9 @@ export function EventLocationAutocomplete({
         inputValue={inputValue}
         value={selectedLocation}
         onInputValueChange={(nextValue, details) => {
+          // Closing the popup clears Base UI's filter input when no catalog item
+          // was selected. Keep the user's text as the free-text form value.
+          if (details.reason === "input-clear" && inputValue !== "") return;
           if (details.reason !== "item-press") setSelectedLocation(null);
           updateInputValue(nextValue);
         }}
