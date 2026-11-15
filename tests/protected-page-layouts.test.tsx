@@ -609,6 +609,7 @@ it("keeps Task detail previews to four and pages full related sections by six", 
   });
   const returnTo = "/tasks?status=open&page=2";
   queryLog.length = 0;
+  vi.mocked(redirect).mockClear();
   const overview = renderToStaticMarkup(
     await TaskDetail({
       params: Promise.resolve({ id: "7" }),
@@ -632,8 +633,10 @@ it("keeps Task detail previews to four and pages full related sections by six", 
     method: "range",
     args: [0, 3],
   });
+  expect(redirect).not.toHaveBeenCalled();
 
   queryLog.length = 0;
+  vi.mocked(redirect).mockClear();
   const assignmentPage = renderToStaticMarkup(
     await TaskDetail({
       params: Promise.resolve({ id: "7" }),
@@ -685,8 +688,28 @@ it("keeps Task detail previews to four and pages full related sections by six", 
   expect(assignmentPage).toContain(
     "returnTo=%2Ftasks%3Fstatus%3Dopen%26page%3D2",
   );
+  expect(redirect).not.toHaveBeenCalled();
+
+  vi.mocked(redirect).mockClear();
+  await TaskDetail({
+    params: Promise.resolve({ id: "7" }),
+    searchParams: Promise.resolve({
+      section: "assignments",
+      assignmentPage: "3",
+      returnTo,
+    }),
+  });
+  expect(redirect).toHaveBeenCalledWith(
+    "/tasks/7?section=assignments&assignmentPage=2&returnTo=%2Ftasks%3Fstatus%3Dopen%26page%3D2",
+  );
+  expect(queryLog).not.toContainEqual({
+    table: "task_officer_assignments",
+    method: "range",
+    args: [12, 17],
+  });
 
   queryLog.length = 0;
+  vi.mocked(redirect).mockClear();
   const eventPage = renderToStaticMarkup(
     await TaskDetail({
       params: Promise.resolve({ id: "7" }),
@@ -703,6 +726,7 @@ it("keeps Task detail previews to four and pages full related sections by six", 
       call.method === "range" &&
       call.args[0] === 6,
   );
+  expect(redirect).not.toHaveBeenCalled();
   expect(eventPageQuery?.args).toEqual([6, 11]);
   expect(queryLog).toContainEqual({
     table: "task_events",
