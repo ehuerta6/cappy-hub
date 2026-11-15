@@ -313,7 +313,7 @@ it("keeps important Task updates actionable without an assignment row", () => {
   ]);
 });
 
-it("keeps Points and Warning updates actionable until reviewed", () => {
+it("keeps informational Points and personal Warning notices off the action list", () => {
   const result = dashboardActionItems(
     actor,
     [],
@@ -337,13 +337,35 @@ it("keeps Points and Warning updates actionable until reviewed", () => {
         href: "/officers/8",
         created_at: "2026-11-07T11:00:00Z",
       },
+      {
+        id: 10,
+        title: "Officer reached 3 active Warnings",
+        kind: "warning.threshold",
+        entity_type: "warning",
+        entity_id: 3002,
+        href: "/officers/9",
+        created_at: "2026-11-07T10:00:00Z",
+      },
     ],
   );
 
-  expect(result.items.map((item) => [item.title, item.href])).toEqual([
-    ["Warning updated", "/officers/8"],
-    ["Points updated", "/points"],
+  expect(result.items).toEqual([
+    expect.objectContaining({
+      key: "notification-10",
+      title: "Officer reached 3 active Warnings",
+      href: "/officers/9",
+      status: "Needs review",
+    }),
   ]);
+});
+
+it("keeps inbox read status separate from Dashboard review state", async () => {
+  await load();
+  const notificationUrl = urls.find((url) =>
+    url.pathname.endsWith("notifications"),
+  );
+  expect(notificationUrl?.searchParams.get("reviewed_at")).toBe("is.null");
+  expect(notificationUrl?.searchParams.get("select")).not.toContain("read_at");
 });
 
 it("does not query or prompt for leadership Warning decisions, including legacy pending records", async () => {

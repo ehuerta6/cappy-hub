@@ -4,7 +4,7 @@
 
 ### Dashboard — current / shipped
 
-The Dashboard's approved personal action surface is defined by [Notifications and reminders](notifications.md). It includes incomplete assigned Tasks, signed-up upcoming Events, attached reminders, and unreviewed important updates, alongside the current-period summaries, upcoming Event discovery list, and recent Point activity described below. This behavior shipped in [PR #405](https://github.com/ehuerta6/cappy-hub/pull/405); production deployment status is tracked separately.
+The Dashboard's approved personal action surface is defined by [Notifications and reminders](notifications.md). It includes incomplete assigned Tasks, signed-up upcoming Events, attached reminders, unreviewed important Event or Task updates, and leadership Warning-threshold notices that request review of an Officer record, alongside the current-period summaries, upcoming Event discovery list, and recent Point activity described below. Informational Point and personal Warning notices stay in the inbox and do not require Dashboard follow-up. Inbox read status does not change Dashboard action items. This behavior shipped in [PR #405](https://github.com/ehuerta6/cappy-hub/pull/405); production deployment status is tracked separately.
 
 For a selected past or future academic period, the Dashboard shows that period's active Event count, active Task count, net Points, and ranking. Past-period views are read-only. A date gap shows “No current period” and keeps the normal unfiltered workflows available.
 

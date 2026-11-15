@@ -30,7 +30,7 @@ Editing reminders on a recurring Event or Task follows the existing edit scopes:
 
 ## Dashboard
 
-The personal action list includes assigned incomplete Tasks, upcoming Events the Officer signed up for as Volunteer or Attendee, due reminders attached to their related Event or Task row, and important Event, Task, Points, or Warning updates not yet reviewed. A Task stays until completed or no longer assigned. A signed-up Event stays until it starts. Opening the related record clears an important update from the attention list without deleting inbox history.
+The personal action list includes assigned incomplete Tasks, upcoming Events the Officer signed up for as Volunteer or Attendee, due reminders attached to their related Event or Task row, important Event or Task updates not yet reviewed, and leadership Warning-threshold notices that request review of an Officer record. Informational Point and personal Warning notices do not require Dashboard follow-up and never appear as action items solely because they are unread or unreviewed; they remain in inbox history, and Point activity remains on its existing Dashboard and Points surfaces. A Task stays until completed or no longer assigned. A signed-up Event stays until it starts. Opening the related record clears an important Event or Task update from the attention list without deleting inbox history. Inbox read status remains separate from Dashboard review status.
 
 The Upcoming Events area remains a discovery list for Events the Officer has not joined. “View events” continues to open the complete Events view.
 
