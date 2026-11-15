@@ -13,6 +13,7 @@ import EventForm from "@/app/(protected)/events/event-form";
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const roots: { root: Root; host: HTMLElement }[] = [];
+const externalHosts: HTMLElement[] = [];
 
 afterEach(async () => {
   await act(async () => {
@@ -20,6 +21,7 @@ afterEach(async () => {
       root.unmount();
       host.remove();
     }
+    for (const host of externalHosts.splice(0)) host.remove();
   });
 });
 
@@ -78,6 +80,50 @@ it("submits arbitrary location text directly through the required location field
     "Custom campus room 1.032",
   );
   expect(formHost.querySelector('[name="location_id"]')).toBeNull();
+});
+
+it("preserves unmatched location text after the input blurs and rerenders", async () => {
+  const formHost = document.createElement("form");
+  document.body.append(formHost);
+  const outsideInput = document.createElement("input");
+  document.body.append(outsideInput);
+  externalHosts.push(outsideInput);
+  const root = createRoot(formHost);
+  roots.push({ root, host: formHost });
+
+  await act(async () => {
+    root.render(
+      <EventLocationAutocomplete
+        locations={[{ id: 1, name: "Engineering Building" }]}
+      />,
+    );
+  });
+
+  const input = formHost.querySelector<HTMLInputElement>(
+    'input[name="location"]',
+  )!;
+  await act(async () => {
+    input.focus();
+    setInputValue(input, "Custom campus room 1.032");
+    input.dispatchEvent(
+      new InputEvent("input", { bubbles: true, inputType: "insertText" }),
+    );
+  });
+
+  expect(document.body.querySelector('[role="listbox"]')).not.toBeNull();
+  await act(async () => {
+    outsideInput.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true }),
+    );
+    outsideInput.focus();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  });
+
+  expect(document.activeElement).toBe(outsideInput);
+  expect(input.value).toBe("Custom campus room 1.032");
+  expect(new FormData(formHost).get("location")).toBe(
+    "Custom campus room 1.032",
+  );
 });
 
 it("selects a matching catalog Location with the keyboard and submits its text", async () => {
