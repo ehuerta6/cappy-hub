@@ -4,6 +4,10 @@ Cappy Hub is maintained by the **Coding Interview Club**. Maintainers review con
 
 Keep the application and its documentation understandable so future CIC officers can continue maintaining it.
 
+Follow [Preview verification](preview-verification.md) to authorize contributor
+Previews, retry deployed-login checks, and activate the `Preview verified`
+required status without removing the legacy requirement prematurely.
+
 Before enabling production smoke verification, configure the non-secret `PRODUCTION_APP_URL` variable in GitHub's `production` environment and confirm Vercel system environment variables are enabled. See [Production deployment](database-development.md#production-deployment) for the ordered deployment steps and configuration, and [Production smoke verification](database-development.md#production-smoke-verification) for checks, timeouts, limitations, and failure troubleshooting. A failed smoke check requires inspection; it does not roll back migrations or deployment.
 
 ## Semester Officer and Admin access review
