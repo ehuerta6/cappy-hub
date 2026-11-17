@@ -6,6 +6,12 @@ Good contributions include bug fixes, usability and accessibility improvements, 
 
 If you want to work on an existing Issue, leave a comment so multiple contributors do not duplicate the work.
 
+Fork PRs receive regular CI checks. Vercel may ask a maintainer to authorize the
+Preview deployment; contributors do not need production credentials. After
+authorization and deployment, the Preview verifier checks the current commit's
+login page. See [Preview verification](preview-verification.md) for status meanings
+and maintainer retries.
+
 ## AI-assisted development
 
 Follow the repository's [`AGENTS.md`](../AGENTS.md) for project requirements and workflow routing. Shared skills are committed under [`.agents/skills/`](../.agents/skills/). Codex discovers these project-local skills, so contributors do not need separate personal global installations. Read the relevant skill and linked project documentation before using a workflow.

@@ -53,6 +53,12 @@ The active **Protect Main** GitHub ruleset should require these exact status che
 - `Quality checks` — formatting, lint, type checks, database tests and migration verification, seed verification, and production build.
 - `Verify Preview login` — produced by the separate **Preview runtime smoke** workflow for same-repository PRs.
 
+The replacement **Contributor Preview verification** workflow publishes
+`Preview verified` for authorized forks and same-repository PRs. Follow the
+[activation sequence](preview-verification.md#activate-the-required-status) to
+replace the legacy requirement after the new workflow is merged and exercised.
+Until that switch, the existing required contexts above remain in place.
+
 CI runs database tests against a disposable migrations-only Supabase state, verifies the historical upgrade, then loads and validates the synthetic seed and links Auth accounts in the same running stack. The `--reuse-ci-seed` mode is restricted to CI and must not be used against a retained development database. Superseded PR CI and Preview checks are cancelled; `main` CI and production deployments are never cancelled by that policy.
 
 When either required check fails, GitHub blocks merging until it passes. Review the failed Actions run for details. The active **Protect Main** ruleset currently requires both contexts. Keep those checks and its existing pull request, review, conversation-resolution, force-push, and deletion protections in place.

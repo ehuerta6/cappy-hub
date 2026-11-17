@@ -1,0 +1,54 @@
+name: Contributor Preview verification
+
+on:
+  repository_dispatch:
+    types:
+      - vercel.deployment.ready
+      - vercel.deployment.success
+      - vercel.deployment.pending
+      - vercel.deployment.error
+      - vercel.deployment.failed
+      - vercel.deployment.canceled
+      - vercel.deployment.skipped
+      - vercel.deployment.ignored
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  deployments: read
+  statuses: write
+
+# Each run reconciles all open PR heads, so coalescing queued events is safe.
+# Never cancel a verifier between publishing pending and its HTTP result.
+concurrency:
+  group: contributor-preview-verification
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Reconcile contributor Previews
+    if: >-
+      github.event_name == 'repository_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # These events load the workflow from main. Explicitly select trusted main
+      # for scripts too; never check out PR heads, install packages, or use PR artifacts.
+      - name: Check out trusted verifier
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: ${{ github.repository }}
+          ref: refs/heads/main
+          persist-credentials: false
+
+      - name: Verify current authorized Previews
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: node scripts/verify-preview-contributions.mjs

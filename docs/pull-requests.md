@@ -20,3 +20,9 @@ Vercel automatically builds a Preview for PR commits. The separate **Preview run
 Keep Vercel's GitHub integration and automatic Preview deployments enabled. In the Vercel project's Deployment Protection settings, create a dedicated **Protection Bypass for Automation** secret and save its value as the GitHub repository Actions secret `VERCEL_AUTOMATION_BYPASS_SECRET`. This permits the check to reach the protected Preview without opening it to the public. Vercel system environment variables must also provide `VERCEL_GIT_COMMIT_SHA` for the revision header. The check reads deployment status through GitHub's read-only token; it needs no Vercel API token. Fork PRs skip this secret-bearing job. The Preview smoke makes HTTP requests only; it performs no browser automation, Officer login, or database write. Production smoke checks the canonical production URL after migration and deployment using HTTP requests only.
 
 Maintainers merge approved changes. The repository allows **Squash and Merge** only; merge commits and rebase merging are disabled. Each completed PR becomes one commit on `main`.
+
+The **Contributor Preview verification** workflow adds the `Preview verified`
+status for authorized fork PRs as well as same-repository PRs. See
+[Preview verification](preview-verification.md) for its trusted execution, retry
+path, and the ordered replacement of the legacy required check. A skipped legacy
+check alone does not prove the deployed login was verified.
