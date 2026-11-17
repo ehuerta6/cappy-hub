@@ -25,9 +25,9 @@ hosted backend. CI checks database behavior using a disposable local database.
 ## Trusted execution and retries
 
 The workflow runs from the default branch on Vercel `repository_dispatch`
-deployment events, completion of PR CI, or a maintainer's manual retry. It checks
-out `main` with persisted credentials disabled, installs no dependencies, and
-never loads PR code or artifacts.
+deployment events, including `ready` and `success`, completion of PR CI, or a
+maintainer's manual retry. It checks out `main` with persisted credentials
+disabled, installs no dependencies, and never loads PR code or artifacts.
 
 Events only wake the verifier. It reads current PR heads and deployment records
 from GitHub, requires the Vercel bot and a non-production Preview, and accepts
@@ -49,6 +49,13 @@ the HTTP check leaves the status pending for fresh verification. CI completion r
 finished before the PR opened. To retry delayed authorization or existing PRs,
 use **Actions → Contributor Preview verification → Run workflow**, select `main`,
 and run the workflow. Manual runs recheck all current Previews.
+
+Unchanged results keep their existing status and run link instead of consuming
+another status entry on each event. An unhealthy Preview remains failed while
+being retried; recovery publishes success. A new deployment/status or URL is
+checked as a new candidate. If GitHub rejects a PR's status publication, the
+workflow reports the failure and continues checking the remaining PRs; its own
+run fails overall rather than treating a publication error as verification.
 
 ## Activate the required status
 

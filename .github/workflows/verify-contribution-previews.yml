@@ -3,6 +3,7 @@ name: Contributor Preview verification
 on:
   repository_dispatch:
     types:
+      - vercel.deployment.ready
       - vercel.deployment.success
       - vercel.deployment.pending
       - vercel.deployment.error

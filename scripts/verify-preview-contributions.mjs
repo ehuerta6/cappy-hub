@@ -91,6 +91,21 @@ export async function verifyContributionPreviews({
     return { deployment, status: statuses[0] };
   }
 
+  async function latestVerification(sha) {
+    for (let page = 1; ; page += 1) {
+      const batch = await github(
+        `/commits/${sha}/statuses?per_page=100&page=${page}`,
+      );
+      if (!Array.isArray(batch))
+        throw new Error("GitHub returned an invalid commit status list.");
+      const previous = batch.find(
+        (entry) =>
+          entry.context?.toLowerCase() === PREVIEW_STATUS_CONTEXT.toLowerCase(),
+      );
+      if (previous || batch.length < 100) return previous;
+    }
+  }
+
   const pulls = [];
   for (let page = 1; ; page += 1) {
     const batch = await github(
@@ -114,26 +129,46 @@ export async function verifyContributionPreviews({
   const results = [];
   for (const pull of selected) {
     const sha = pull.head.sha;
+    let previous;
+    let publicationFailed = false;
+    let failureDescription =
+      "Preview verification failed; inspect the verification run.";
+    function matchesPrevious(state, description) {
+      return (
+        previous?.creator?.login === "github-actions[bot]" &&
+        previous.state === state &&
+        previous.description === description
+      );
+    }
     async function publish(state, description) {
-      // A push or merge during the HTTP check must not approve the new revision.
-      const current = await github(`/pulls/${pull.number}`);
-      if (
-        current.state !== "open" ||
-        current.head?.sha !== sha ||
-        current.base?.ref !== "main" ||
-        current.base?.repo?.full_name !== repository
-      )
-        return false;
-      await github(`/statuses/${sha}`, {
-        context: PREVIEW_STATUS_CONTEXT,
-        state,
-        description,
-        target_url: runUrl,
-      });
-      return true;
+      try {
+        // A push or merge during the HTTP check must not approve the new revision.
+        const current = await github(`/pulls/${pull.number}`);
+        if (
+          current.state !== "open" ||
+          current.head?.sha !== sha ||
+          current.base?.ref !== "main" ||
+          current.base?.repo?.full_name !== repository
+        )
+          return false;
+        // A new run URL alone is not a changed result. GitHub caps this context
+        // at 1,000 writes per SHA, including unchanged pending/failure states.
+        if (matchesPrevious(state, description)) return true;
+        previous = await github(`/statuses/${sha}`, {
+          context: PREVIEW_STATUS_CONTEXT,
+          state,
+          description,
+          target_url: runUrl,
+        });
+        return true;
+      } catch (error) {
+        publicationFailed = true;
+        throw error;
+      }
     }
 
     try {
+      previous = await latestVerification(sha);
       const { deployment, status } = await latestPreview(sha);
       if (!deployment) {
         await publish(
@@ -171,24 +206,22 @@ export async function verifyContributionPreviews({
         );
       }
       // Vercel can reuse one GitHub deployment for multiple immutable URLs.
-      const description = `Login verified: ${deployment.id}/${status.id} ${new URL(url).hostname}.`;
-      const previous = await github(`/commits/${sha}/statuses?per_page=100`);
-      const verified = previous.find(
-        (entry) => entry.context === PREVIEW_STATUS_CONTEXT,
-      );
-      if (
-        !force &&
-        verified?.state === "success" &&
-        verified.creator?.login === "github-actions[bot]" &&
-        verified.description === description
-      ) {
+      const identity = `${deployment.id}/${status.id} ${new URL(url).hostname}`;
+      const description = `Login verified: ${identity}.`;
+      failureDescription = `Preview verification failed: ${identity}.`;
+      if (!force && matchesPrevious("success", description)) {
         results.push({ number: pull.number, state: "success" });
         continue;
       }
+      // Keep a failed candidate red during retries instead of appending a new
+      // pending/failure pair on every event. Recovery still publishes success.
+      const retryingFailure = matchesPrevious("failure", failureDescription);
       if (
         !(await publish(
-          "pending",
-          "Checking the login page of the current Vercel Preview.",
+          retryingFailure ? "failure" : "pending",
+          retryingFailure
+            ? failureDescription
+            : "Checking the login page of the current Vercel Preview.",
         ))
       )
         continue;
@@ -213,14 +246,16 @@ export async function verifyContributionPreviews({
       }
     } catch (error) {
       log(`PR #${pull.number}: ${error.message}`);
-      if (
-        await publish(
-          "failure",
-          "Preview verification failed; inspect the verification run.",
-        )
-      ) {
-        results.push({ number: pull.number, state: "failure" });
+      // A rejected publication cannot be repaired by posting another state to
+      // the same SHA. Report it without letting one PR abort the entire scan.
+      if (!publicationFailed) {
+        try {
+          await publish("failure", failureDescription);
+        } catch (publicationError) {
+          log(`PR #${pull.number}: ${publicationError.message}`);
+        }
       }
+      results.push({ number: pull.number, state: "failure" });
     }
   }
   log(

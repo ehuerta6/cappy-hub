@@ -31,12 +31,14 @@ const html =
 
 function harness(
   options: {
-    pulls?: object[];
+    pulls?: (typeof pull)[];
     deployments?: object[] | (() => object[]);
+    deploymentsBySha?: Record<string, object[]>;
     deploymentStatus?: object | (() => object);
     commitStatuses?: object[];
     currentPull?: object | (() => object);
     response?: () => Response;
+    rejectStatusFor?: string;
   } = {},
 ) {
   const writes: {
@@ -46,6 +48,10 @@ function harness(
     description: string;
     target_url: string;
   }[] = [];
+  const statusAttempts: typeof writes = [];
+  const histories = new Map<string, object[]>([
+    [sha, options.commitStatuses ?? []],
+  ]);
   const requests: { url: string; options?: RequestInit }[] = [];
   const fetchImpl: typeof fetch = async (request, init) => {
     const input = request instanceof Request ? request.url : String(request);
@@ -65,17 +71,21 @@ function harness(
     if (path === "/pulls") {
       return Response.json(options.pulls ?? [pull]);
     }
-    if (path === "/pulls/460")
+    const pullNumber = /^\/pulls\/(\d+)$/.exec(path)?.[1];
+    if (pullNumber)
       return Response.json(
-        typeof options.currentPull === "function"
-          ? options.currentPull()
-          : (options.currentPull ?? pull),
+        pullNumber !== String(pull.number)
+          ? options.pulls?.find((entry) => entry.number === Number(pullNumber))
+          : typeof options.currentPull === "function"
+            ? options.currentPull()
+            : (options.currentPull ?? pull),
       );
     if (path === "/deployments")
       return Response.json(
-        typeof options.deployments === "function"
-          ? options.deployments()
-          : (options.deployments ?? [deployment]),
+        options.deploymentsBySha?.[url.searchParams.get("sha") ?? ""] ??
+          (typeof options.deployments === "function"
+            ? options.deployments()
+            : (options.deployments ?? [deployment])),
       );
     if (/^\/deployments\/\d+\/statuses$/.test(path))
       return Response.json([
@@ -83,12 +93,26 @@ function harness(
           ? options.deploymentStatus()
           : (options.deploymentStatus ?? ready),
       ]);
-    if (path === `/commits/${sha}/statuses`)
-      return Response.json(options.commitStatuses ?? []);
-    if (path === `/statuses/${sha}` && init?.method === "POST") {
+    const statusSha = /^\/commits\/([a-f0-9]+)\/statuses$/.exec(path)?.[1];
+    if (statusSha) {
+      const offset = (Number(url.searchParams.get("page") ?? 1) - 1) * 100;
+      return Response.json(
+        (histories.get(statusSha) ?? []).slice(offset, offset + 100),
+      );
+    }
+    const writeSha = /^\/statuses\/([a-f0-9]+)$/.exec(path)?.[1];
+    if (writeSha && init?.method === "POST") {
       const payload = JSON.parse(String(init.body));
-      writes.push({ sha, ...payload });
-      return Response.json(payload, { status: 201 });
+      statusAttempts.push({ sha: writeSha, ...payload });
+      if (writeSha === options.rejectStatusFor)
+        return Response.json({}, { status: 422 });
+      writes.push({ sha: writeSha, ...payload });
+      const published = {
+        ...payload,
+        creator: { login: "github-actions[bot]" },
+      };
+      histories.set(writeSha, [published, ...(histories.get(writeSha) ?? [])]);
+      return Response.json(published, { status: 201 });
     }
     throw new Error(`Unexpected GitHub request: ${path}`);
   };
@@ -102,7 +126,7 @@ function harness(
       log: vi.fn(),
       ...overrides,
     });
-  return { run, writes, requests };
+  return { run, writes, statusAttempts, requests };
 }
 
 afterEach(() => vi.useRealTimers());
@@ -433,5 +457,155 @@ describe("contributor Preview verification", () => {
     expect(api.requests.some(({ url }) => url === `${origin}/login`)).toBe(
       false,
     );
+  });
+
+  it("keeps more than 1000 unchanged unavailable reconciliations to one status write", async () => {
+    const api = harness({ deployments: [] });
+    for (let run = 1; run <= 1001; run += 1) {
+      const result = await api.run({
+        runUrl: `https://github.com/ehuerta6/cappy-hub/actions/runs/${run}`,
+      });
+      expect(result).toEqual([{ number: 460, state: "pending" }]);
+    }
+    expect(api.writes).toHaveLength(1);
+  });
+
+  it("does not append an unchanged failed deployment result on each event", async () => {
+    const api = harness({ deploymentStatus: { ...ready, state: "failure" } });
+    for (let run = 0; run < 4; run += 1) await api.run();
+    expect(api.writes.map(({ state }) => state)).toEqual(["failure"]);
+  });
+
+  it("retries an unhealthy login without cycling its unchanged status, then records recovery", async () => {
+    vi.useFakeTimers();
+    let healthy = false;
+    const api = harness({
+      response: () =>
+        healthy
+          ? new Response(html, {
+              headers: {
+                "content-type": "text/html",
+                "x-cappy-hub-revision": sha,
+              },
+            })
+          : new Response("Broken", { status: 500 }),
+    });
+    for (let run = 0; run < 3; run += 1) {
+      const pending = api.run();
+      await vi.runAllTimersAsync();
+      expect(await pending).toEqual([{ number: 460, state: "failure" }]);
+    }
+    expect(api.writes.map(({ state }) => state)).toEqual([
+      "pending",
+      "failure",
+    ]);
+    healthy = true;
+    await api.run();
+    expect(api.writes.map(({ state }) => state)).toEqual([
+      "pending",
+      "failure",
+      "success",
+    ]);
+  });
+
+  it("continues with a healthy second PR after the first PR's status publication is rejected", async () => {
+    const secondSha = "b".repeat(40);
+    const secondPull = {
+      ...pull,
+      number: 461,
+      head: { ...pull.head, sha: secondSha },
+    };
+    const api = harness({
+      pulls: [pull, secondPull],
+      rejectStatusFor: sha,
+      deploymentsBySha: {
+        [sha]: [],
+        [secondSha]: [{ ...deployment, id: 322, sha: secondSha }],
+      },
+      response: () =>
+        new Response(html, {
+          headers: {
+            "content-type": "text/html",
+            "x-cappy-hub-revision": secondSha,
+          },
+        }),
+    });
+    await expect(api.run()).resolves.toEqual([
+      { number: 460, state: "failure" },
+      { number: 461, state: "success" },
+    ]);
+    expect(
+      api.statusAttempts.filter((attempt) => attempt.sha === sha),
+    ).toHaveLength(1);
+    expect(api.writes.at(-1)).toMatchObject({
+      sha: secondSha,
+      state: "success",
+    });
+  });
+
+  it("finds its latest status beyond a page of unrelated contexts before deciding to write", async () => {
+    const api = harness({
+      deployments: [],
+      commitStatuses: [
+        ...Array.from({ length: 100 }, (_, index) => ({
+          context: `other-${index}`,
+          state: "success",
+        })),
+        {
+          context: "Preview verified",
+          state: "pending",
+          description:
+            "Awaiting Vercel Preview; authorize the fork deployment if requested.",
+          creator: { login: "github-actions[bot]" },
+        },
+      ],
+    });
+    await api.run();
+    expect(api.writes).toHaveLength(0);
+    expect(
+      api.requests.some(({ url }) =>
+        url.includes("/statuses?per_page=100&page=2"),
+      ),
+    ).toBe(true);
+  });
+
+  it("continues when publishing a verification failure also fails", async () => {
+    const secondSha = "b".repeat(40);
+    const secondPull = {
+      ...pull,
+      number: 461,
+      head: { ...pull.head, sha: secondSha },
+    };
+    let statusReads = 0;
+    const api = harness({
+      pulls: [pull, secondPull],
+      rejectStatusFor: sha,
+      deploymentsBySha: {
+        [sha]: [deployment],
+        [secondSha]: [{ ...deployment, id: 322, sha: secondSha }],
+      },
+      deploymentStatus: () =>
+        ++statusReads === 1
+          ? { ...ready, state: "failure" }
+          : { ...ready, id: 655 },
+      response: () =>
+        new Response(html, {
+          headers: {
+            "content-type": "text/html",
+            "x-cappy-hub-revision": secondSha,
+          },
+        }),
+    });
+    await expect(api.run()).resolves.toEqual([
+      { number: 460, state: "failure" },
+      { number: 461, state: "success" },
+    ]);
+    expect(
+      api.statusAttempts.filter((attempt) => attempt.sha === sha),
+    ).toHaveLength(1);
+    expect(api.writes.at(-1)).toMatchObject({
+      sha: secondSha,
+      state: "success",
+    });
   });
 });
