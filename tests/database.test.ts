@@ -1452,3 +1452,90 @@ it.each([
   },
   30_000,
 );
+
+it("reconciles a deferred Event once when processors run concurrently", async () => {
+  const eventId = -442901;
+  const officerId = -442902;
+  const cleanup = `
+    delete from public.audit_logs where entity_type='point_transaction' and entity_id in
+      (select id::text from public.point_transactions where event_id=${eventId});
+    delete from public.audit_logs where entity_type='event' and entity_id='${eventId}';
+    delete from private.event_participation_basis where transaction_id in
+      (select id from public.point_transactions where event_id=${eventId});
+    delete from public.point_transactions where event_id=${eventId};
+    delete from public.event_officers where event_id=${eventId};
+    delete from public.events where id=${eventId};
+    delete from public.officers where id=${officerId};
+  `;
+  runSql(`
+    ${cleanup}
+    insert into public.officers(id,name,utep_email,position_id,status)
+      values (${officerId},'Deferred concurrency Officer','deferred-concurrency@example.test',
+        (select id from public.positions where name='Officer'),'active');
+    insert into public.events(id,name,description,location,event_type_id,starts_at,ends_at,status)
+      values (${eventId},'Deferred concurrency','Test event','TBA',
+        (select id from public.event_types where name='Meeting'),
+        '2020-05-01 09:00-06','2020-05-01 11:00-06','past');
+    insert into public.event_officers(event_id,officer_id,participation_type)
+      values (${eventId},${officerId},'volunteer');
+    select private.process_finished_events();
+    -- Move into the future (suspends the award), then let the corrected
+    -- schedule end without another edit.
+    update public.events set event_date='2099-05-01',
+      starts_at='2099-05-01 09:00-06',ends_at='2099-05-01 12:00-06' where id=${eventId};
+    alter table public.events disable trigger events_reconcile_participation_schedule;
+    update public.events set event_date='2020-05-02',
+      starts_at='2020-05-02 09:00-06',ends_at='2020-05-02 12:00-06' where id=${eventId};
+    alter table public.events enable trigger events_reconcile_participation_schedule;
+  `);
+
+  try {
+    expect(
+      runSql(`
+        select count(*) from public.point_transactions where event_id=${eventId}
+          and removed_at is not null and participation_schedule_suspended;
+      `).trim(),
+    ).toBe("1");
+    const firstProcessor = startSql(`
+      begin;
+      select private.process_finished_events();
+      \\echo DEFERRED_PROCESSOR_HOLDING
+      select pg_catalog.pg_sleep(1.5);
+      commit;
+    `);
+    await firstProcessor.waitFor("DEFERRED_PROCESSOR_HOLDING");
+    const secondProcessor = startSql(`
+      begin;
+      select private.process_finished_events();
+      commit;
+    `);
+    const [firstResult, secondResult] = await Promise.all([
+      firstProcessor.closed,
+      secondProcessor.closed,
+    ]);
+    expect(firstResult.code).toBe(0);
+    expect(secondResult.code).toBe(0);
+    expect(
+      runSql(`
+        select count(*)||':'||coalesce(sum(points),0)::numeric(10,2)
+        from public.point_transactions where event_id=${eventId}
+          and award_type='participation' and removed_at is null;
+      `).trim(),
+    ).toBe("1:6.00");
+    expect(
+      runSql(`
+        select count(*) from public.point_transactions where event_id=${eventId}
+          and award_type='participation';
+      `).trim(),
+    ).toBe("1");
+    expect(
+      runSql(`
+        select count(*) from public.audit_logs
+        where action='points.participation_reconciled' and entity_id in
+          (select id::text from public.point_transactions where event_id=${eventId});
+      `).trim(),
+    ).toBe("1");
+  } finally {
+    runSql(cleanup);
+  }
+}, 30_000);
