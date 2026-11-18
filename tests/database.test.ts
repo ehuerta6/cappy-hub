@@ -29,7 +29,7 @@ function runSql(sql: string) {
   });
 }
 
-function startSql(sql: string) {
+function startSql(sql: string, keepStdinOpen = false) {
   const child = spawn("docker", psqlArgs, {
     stdio: ["pipe", "pipe", "pipe"],
   });
@@ -67,9 +67,16 @@ function startSql(sql: string) {
     child.once("close", (code) => resolve({ code, output, errors }));
   });
 
-  child.stdin.end(sql);
+  if (keepStdinOpen) child.stdin.write(sql);
+  else child.stdin.end(sql);
   return {
     closed,
+    write(input: string) {
+      child.stdin.write(input);
+    },
+    end() {
+      child.stdin.end();
+    },
     waitFor(marker: string) {
       if (output.includes(marker)) return Promise.resolve();
       return new Promise<void>((resolve, reject) => {
@@ -1345,6 +1352,143 @@ it("serializes concurrent Warning creation at the three-warning threshold", asyn
     `);
   }
 }, 30_000);
+
+it.each([
+  {
+    label: "a UTEP email correction while the personal email is empty",
+    officerId: -443101,
+    authUserId: "00000000-0000-4000-8000-000000443101",
+    claimedEmail: "claim-race-utep@example.test",
+    officerEmails: { utep: "claim-race-utep@example.test", personal: null },
+    correction: `utep_email='claim-race-utep-corrected@example.test'`,
+    linked: false,
+  },
+  {
+    label: "a personal email correction while the UTEP email is empty",
+    officerId: -443102,
+    authUserId: "00000000-0000-4000-8000-000000443102",
+    claimedEmail: "claim-race-personal@example.test",
+    officerEmails: { utep: null, personal: "claim-race-personal@example.test" },
+    correction: `personal_email='claim-race-personal-corrected@example.test'`,
+    linked: false,
+  },
+  {
+    label: "an unrelated Officer edit that keeps the matching email",
+    officerId: -443103,
+    authUserId: "00000000-0000-4000-8000-000000443103",
+    claimedEmail: "claim-race-unchanged@example.test",
+    officerEmails: {
+      utep: "claim-race-unchanged@example.test",
+      personal: null,
+    },
+    correction: `name='Claim race renamed'`,
+    linked: true,
+  },
+])(
+  "rechecks a waiting first identity claim after $label",
+  async ({
+    officerId,
+    authUserId,
+    claimedEmail,
+    officerEmails,
+    correction,
+    linked,
+  }) => {
+    const sqlEmail = (email: string | null) =>
+      email === null ? "null" : `'${email}'`;
+    const cleanup = `
+      delete from public.audit_logs where entity_type='officer' and entity_id='${officerId}';
+      delete from public.officers where id=${officerId};
+      delete from auth.users where id='${authUserId}';
+    `;
+    runSql(`
+      ${cleanup}
+      insert into auth.users(id,email,email_confirmed_at,raw_app_meta_data)
+        values ('${authUserId}','${claimedEmail}',now(),'{"provider":"google"}'::jsonb);
+      insert into public.officers(id,name,position_id,utep_email,personal_email,status)
+        values (${officerId},'Claim race Officer',
+          (select id from public.positions where name='Officer'),
+          ${sqlEmail(officerEmails.utep)},${sqlEmail(officerEmails.personal)},'active');
+    `);
+
+    try {
+      // The Admin edit holds the Officer row lock without committing. The
+      // claimant still sees the previously committed matching email.
+      const applicationSuffix = `${process.pid}_${Date.now()}`;
+      const adminApplication = `claim_race_admin_${applicationSuffix}`;
+      const claimApplication = `claim_race_claim_${applicationSuffix}`;
+      const adminEdit = startSql(
+        `
+        set application_name='${adminApplication}';
+        begin;
+        update public.officers set ${correction} where id=${officerId};
+        \\echo CLAIM_RACE_EDIT_LOCKED
+      `,
+        true,
+      );
+      await adminEdit.waitFor("CLAIM_RACE_EDIT_LOCKED");
+      const claim = startSql(`
+        set application_name='${claimApplication}';
+        begin;
+        select set_config('request.jwt.claim.sub','${authUserId}',true);
+        set local role authenticated;
+        \\echo CLAIM_RESULT_START
+        select coalesce(public.claim_current_officer_identity()::text,'none');
+        commit;
+      `);
+      const adminPid = runSql(`
+        select pid from pg_catalog.pg_stat_activity
+        where application_name='${adminApplication}';
+      `).trim();
+      const deadline = Date.now() + 5_000;
+      let observedBlock = false;
+      try {
+        while (Date.now() < deadline) {
+          const blocked = runSql(`
+            select coalesce(
+              ${adminPid} = any(pg_catalog.pg_blocking_pids(claim.pid)), false
+            )
+            from pg_catalog.pg_stat_activity as claim
+            where claim.application_name='${claimApplication}';
+          `).trim();
+          if (blocked === "t") {
+            observedBlock = true;
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+      } finally {
+        adminEdit.write("commit;\n");
+        adminEdit.end();
+      }
+      expect(observedBlock).toBe(true);
+      const [adminResult, claimResult] = await Promise.all([
+        adminEdit.closed,
+        claim.closed,
+      ]);
+      expect(adminResult.code).toBe(0);
+      expect(claimResult.code).toBe(0);
+      expect(claimResult.output.split("CLAIM_RESULT_START")[1]).toContain(
+        linked ? String(officerId) : "none",
+      );
+      expect(
+        runSql(`
+          select coalesce(auth_user_id::text,'unlinked')
+          from public.officers where id=${officerId};
+        `).trim(),
+      ).toBe(linked ? authUserId : "unlinked");
+      expect(
+        runSql(`
+          select count(*) from public.audit_logs
+          where action='officer.auth_linked' and entity_id='${officerId}';
+        `).trim(),
+      ).toBe(linked ? "1" : "0");
+    } finally {
+      runSql(cleanup);
+    }
+  },
+  30_000,
+);
 
 it("reconciles a deferred Event once when processors run concurrently", async () => {
   const eventId = -442901;
