@@ -14,6 +14,7 @@ import {
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
 import { parseResourceLinkViews } from "@/lib/resource-links";
+import { denverParts } from "@/lib/event-time";
 
 export default async function EditTaskPage({
   params,
@@ -56,6 +57,7 @@ export default async function EditTaskPage({
     notificationTargets,
     reminderOffsets,
     resourceLinks,
+    taskAwards,
   ] = await Promise.all([
     task.data.recurrence_series_id === null
       ? Promise.resolve({ data: null, error: null })
@@ -91,6 +93,14 @@ export default async function EditTaskPage({
       .eq("task_id", task.data.id)
       .order("sort_order")
       .order("id"),
+    // Automatic Task awards, including mechanically suspended ones that a
+    // Point-value correction also updates.
+    supabase
+      .from("point_transactions")
+      .select("officer_id,removed_at")
+      .eq("task_id", task.data.id)
+      .eq("award_type", "task")
+      .or("removed_at.is.null,task_reconciliation_suspended.is.true"),
   ]);
   if (
     series.error ||
@@ -101,7 +111,8 @@ export default async function EditTaskPage({
     positions.error ||
     notificationTargets.error ||
     reminderOffsets.error ||
-    resourceLinks.error
+    resourceLinks.error ||
+    taskAwards.error
   )
     throw new Error("Failed to load Task edit form");
   const linkedIds = links.data.map(({ event_id }) => event_id);
@@ -143,6 +154,17 @@ export default async function EditTaskPage({
         events={events}
         taskEventIds={linkedIds}
         recurrenceRequestKey={crypto.randomUUID()}
+        pointsImpact={{
+          activeAwardCount: new Set(
+            taskAwards.data
+              .filter((award) => award.removed_at === null)
+              .map((award) => award.officer_id),
+          ).size,
+          correctableAwardCount: new Set(
+            taskAwards.data.map((award) => award.officer_id),
+          ).size,
+          today: denverParts(new Date()).date,
+        }}
       />
     </div>
   );

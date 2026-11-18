@@ -9,6 +9,8 @@ import {
   submittedValues,
 } from "@/lib/form-feedback";
 import { ActionFeedback, FieldError } from "@/components/ui";
+import { ConfirmationDialog } from "@/components/confirmation-dialog";
+import { eventPointsImpactMessage } from "@/lib/points-impact";
 import { saveEvent } from "./actions";
 import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 import {
@@ -42,6 +44,7 @@ export default function EventForm({
   canEnableTimeSlots = true,
   notificationSettings,
   resourceLinks = [],
+  pointsImpactOfficerCount = 0,
 }: {
   returnTo?: string;
   branches: Pick<Tables<"branches">, "id" | "name">[];
@@ -65,6 +68,8 @@ export default function EventForm({
     reminderOffsets: number[];
   };
   resourceLinks?: ResourceLinkView[];
+  /** Distinct Officers with active or schedule-suspended participation awards. */
+  pointsImpactOfficerCount?: number;
 }) {
   const [state, action, pending] = useActionState(
     saveEvent,
@@ -115,6 +120,9 @@ export default function EventForm({
   );
 
   const [editedFields, setEditedFields] = useState<string[]>([]);
+  const [pointsImpactMessage, setPointsImpactMessage] = useState<string | null>(
+    null,
+  );
   const formRef = useRef<HTMLFormElement>(null);
   const originalTimeSlots = timeSlots.length
     ? JSON.stringify(timeSlots)
@@ -157,12 +165,48 @@ export default function EventForm({
     );
   };
 
+  const updatePointsImpact = (form: HTMLFormElement) => {
+    if (!event) return;
+    const values = new FormData(form);
+    setPointsImpactMessage(
+      eventPointsImpactMessage(
+        {
+          event_date: event.event_date,
+          start_time: denverParts(event.starts_at).time,
+          end_time: denverParts(event.ends_at).time,
+        },
+        {
+          event_date: String(values.get("event_date") ?? ""),
+          start_time: String(values.get("start_time") ?? ""),
+          end_time: String(values.get("end_time") ?? ""),
+        },
+        pointsImpactOfficerCount,
+      ),
+    );
+  };
+  const submitLabel = pending
+    ? event
+      ? "Saving…"
+      : "Creating…"
+    : event
+      ? "Save event"
+      : "Create event";
+
   return (
     <form
       ref={formRef}
       action={action}
       className="event-form"
-      onChange={(event) => updateEditedFields(event.currentTarget)}
+      onChange={(event) => {
+        updateEditedFields(event.currentTarget);
+        updatePointsImpact(event.currentTarget);
+      }}
+      onSubmit={(submitEvent) => {
+        // Enter-key submission must not bypass the Points confirmation.
+        const submitter = (submitEvent.nativeEvent as SubmitEvent).submitter;
+        if (pointsImpactMessage && !submitter?.closest("dialog"))
+          submitEvent.preventDefault();
+      }}
     >
       <AcademicPeriodWriteContextField />
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
@@ -543,15 +587,21 @@ export default function EventForm({
         <ActionFeedback state={state} />
       </div>
 
-      <button className="lg:col-span-2 w-fit" disabled={pending}>
-        {pending
-          ? event
-            ? "Saving…"
-            : "Creating…"
-          : event
-            ? "Save event"
-            : "Create event"}
-      </button>
+      {pointsImpactMessage ? (
+        <ConfirmationDialog
+          title="Recalculate participation Points?"
+          description={pointsImpactMessage}
+          triggerLabel={submitLabel}
+          confirmLabel="Save event"
+          pending={pending}
+          triggerClassName="lg:col-span-2 w-fit"
+          validateFormBeforeOpen
+        />
+      ) : (
+        <button className="lg:col-span-2 w-fit" disabled={pending}>
+          {submitLabel}
+        </button>
+      )}
     </form>
   );
 }

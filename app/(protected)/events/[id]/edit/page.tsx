@@ -52,6 +52,7 @@ export default async function EditEventPage({
     notificationTargets,
     reminderOffsets,
     resourceLinks,
+    participationAwards,
   ] = await Promise.all([
     supabase
       .from("events")
@@ -93,6 +94,15 @@ export default async function EditEventPage({
       .eq("event_id", eventId)
       .order("sort_order")
       .order("id"),
+    // Automatic participation a schedule correction would recalculate,
+    // including awards suspended by an earlier future-date correction.
+    supabase
+      .from("point_transactions")
+      .select("officer_id")
+      .eq("event_id", eventId)
+      .eq("award_type", "participation")
+      .is("participation_superseded_at", null)
+      .or("removed_at.is.null,participation_schedule_suspended.is.true"),
   ]);
   if (
     event.error ||
@@ -104,7 +114,8 @@ export default async function EditEventPage({
     positions.error ||
     notificationTargets.error ||
     reminderOffsets.error ||
-    resourceLinks.error
+    resourceLinks.error ||
+    participationAwards.error
   )
     throw new Error("Failed to load event form");
   if (!event.data || event.data.deleted_at) notFound();
@@ -137,6 +148,10 @@ export default async function EditEventPage({
         returnTo={returnTo}
         series={series?.data ?? undefined}
         mutationRequestKey={crypto.randomUUID()}
+        pointsImpactOfficerCount={
+          new Set(participationAwards.data.map((award) => award.officer_id))
+            .size
+        }
         allowGlobal={canSeeAllBranches(actor) || isLead(actor)}
         event={currentEvent}
         resourceLinks={parseResourceLinkViews(resourceLinks.data ?? [])}

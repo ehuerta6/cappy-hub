@@ -12,6 +12,11 @@ import {
   FieldError,
   fieldLabelClassName,
 } from "@/components/ui";
+import { ConfirmationDialog } from "@/components/confirmation-dialog";
+import {
+  taskPointsImpactMessage,
+  type TaskPointsImpact,
+} from "@/lib/points-impact";
 import {
   RecurrenceScope,
   changedFormFields,
@@ -40,6 +45,7 @@ export default function TaskCreateForm({
   series,
   notificationSettings,
   resourceLinks = [],
+  pointsImpact,
 }: {
   returnTo?: string;
   branches: { id: number; name: string }[];
@@ -63,6 +69,7 @@ export default function TaskCreateForm({
     reminderOffsets: number[];
   };
   resourceLinks?: ResourceLinkView[];
+  pointsImpact?: TaskPointsImpact;
 }) {
   const [state, action, pending] = useActionState(
     task ? (series ? editRecurringTask : editStandaloneTask) : createTask,
@@ -70,6 +77,9 @@ export default function TaskCreateForm({
   );
   const fieldErrors = state.fieldErrors ?? {};
   const [editedFields, setEditedFields] = useState<string[]>([]);
+  const [pointsImpactMessage, setPointsImpactMessage] = useState<string | null>(
+    null,
+  );
   const initialEventIds = submittedValues(
     state.values,
     "event_ids",
@@ -116,12 +126,43 @@ export default function TaskCreateForm({
     setEditedFields(changed);
   }
 
+  function updatePointsImpact(form: HTMLFormElement) {
+    if (!task || !pointsImpact) return;
+    const values = new FormData(form);
+    setPointsImpactMessage(
+      taskPointsImpactMessage(
+        { points: Number(task.points), due_date: task.due_date },
+        {
+          points: String(values.get("points") ?? ""),
+          due_date: String(values.get("due_date") ?? ""),
+        },
+        pointsImpact,
+      ),
+    );
+  }
+  const submitLabel = pending
+    ? task
+      ? "Saving…"
+      : "Creating…"
+    : task
+      ? "Save task"
+      : "Create task";
+
   return (
     <form
       ref={formRef}
       action={action}
       className="event-form task-form"
-      onChange={() => updateEditedFields()}
+      onChange={(event) => {
+        updateEditedFields();
+        updatePointsImpact(event.currentTarget);
+      }}
+      onSubmit={(submitEvent) => {
+        // Enter-key submission must not bypass the Points confirmation.
+        const submitter = (submitEvent.nativeEvent as SubmitEvent).submitter;
+        if (pointsImpactMessage && !submitter?.closest("dialog"))
+          submitEvent.preventDefault();
+      }}
     >
       <AcademicPeriodWriteContextField />
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
@@ -361,15 +402,19 @@ export default function TaskCreateForm({
       />
       <div className="lg:col-span-2 flex flex-wrap items-start gap-4">
         {(state.error || state.success) && <ActionFeedback state={state} />}
-        <button disabled={pending}>
-          {pending
-            ? task
-              ? "Saving…"
-              : "Creating…"
-            : task
-              ? "Save task"
-              : "Create task"}
-        </button>
+        {pointsImpactMessage ? (
+          <ConfirmationDialog
+            title="Change awarded Task Points?"
+            description={pointsImpactMessage}
+            triggerLabel={submitLabel}
+            confirmLabel="Save task"
+            pending={pending}
+            triggerClassName=""
+            validateFormBeforeOpen
+          />
+        ) : (
+          <button disabled={pending}>{submitLabel}</button>
+        )}
       </div>
     </form>
   );
