@@ -63,7 +63,7 @@ export default async function EditTaskPage({
       ? Promise.resolve({ data: null, error: null })
       : supabase
           .from("task_series")
-          .select("id,revision,recurrence_rule,starts_on")
+          .select("id,revision,recurrence_rule,starts_on,ends_on")
           .eq("id", task.data.recurrence_series_id)
           .single(),
     supabase.from("branches").select("id,name,is_active").order("name"),
@@ -128,7 +128,8 @@ export default async function EditTaskPage({
     const occurrences = await supabase
       .from("tasks")
       .select("id,recurrence_key")
-      .eq("recurrence_series_id", task.data.recurrence_series_id);
+      .eq("recurrence_series_id", task.data.recurrence_series_id)
+      .is("removed_at", null);
     if (occurrences.error) throw new Error("Failed to load Task occurrences");
     const occurrenceIds = (occurrences.data ?? []).map((row) => row.id);
     const awards = occurrenceIds.length
@@ -140,18 +141,26 @@ export default async function EditTaskPage({
           .or("removed_at.is.null,task_reconciliation_suspended.is.true")
       : { data: [], error: null };
     if (awards.error) throw new Error("Failed to load Task Points impact");
-    pointsImpactOccurrences = (occurrences.data ?? []).map((occurrence) => {
-      const occurrenceAwards = (awards.data ?? []).filter(
-        (award) => award.task_id === occurrence.id,
-      );
-      return {
-        recurrenceKey: occurrence.recurrence_key,
-        officerIds: occurrenceAwards.map((award) => String(award.officer_id)),
-        activeOfficerIds: occurrenceAwards
-          .filter((award) => award.removed_at === null)
-          .map((award) => String(award.officer_id)),
-      };
-    });
+    pointsImpactOccurrences = (occurrences.data ?? [])
+      .filter(
+        (occurrence) =>
+          occurrence.id === task.data.id ||
+          (occurrence.recurrence_key !== null &&
+            (series.data.ends_on === null ||
+              occurrence.recurrence_key <= series.data.ends_on)),
+      )
+      .map((occurrence) => {
+        const occurrenceAwards = (awards.data ?? []).filter(
+          (award) => award.task_id === occurrence.id,
+        );
+        return {
+          recurrenceKey: occurrence.recurrence_key,
+          officerIds: occurrenceAwards.map((award) => String(award.officer_id)),
+          activeOfficerIds: occurrenceAwards
+            .filter((award) => award.removed_at === null)
+            .map((award) => String(award.officer_id)),
+        };
+      });
   }
   const linkedIds = links.data.map(({ event_id }) => event_id);
   const events = eventOptions.data.filter(

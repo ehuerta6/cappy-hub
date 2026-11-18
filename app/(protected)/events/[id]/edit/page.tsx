@@ -132,7 +132,7 @@ export default async function EditEventPage({
       ? undefined
       : await supabase
           .from("event_series")
-          .select("id,revision,recurrence_rule,starts_on")
+          .select("id,revision,recurrence_rule,starts_on,ends_on")
           .eq("id", currentEvent.recurrence_series_id)
           .single();
   if (series?.error) throw new Error("Failed to load recurring series");
@@ -148,7 +148,8 @@ export default async function EditEventPage({
     const occurrences = await supabase
       .from("events")
       .select("id,recurrence_key")
-      .eq("recurrence_series_id", currentEvent.recurrence_series_id);
+      .eq("recurrence_series_id", currentEvent.recurrence_series_id)
+      .is("deleted_at", null);
     if (occurrences.error) throw new Error("Failed to load Event occurrences");
     const occurrenceIds = (occurrences.data ?? []).map((row) => row.id);
     const awards = occurrenceIds.length
@@ -161,12 +162,20 @@ export default async function EditEventPage({
           .or("removed_at.is.null,participation_schedule_suspended.is.true")
       : { data: [], error: null };
     if (awards.error) throw new Error("Failed to load Event Points impact");
-    pointsImpactOccurrences = (occurrences.data ?? []).map((occurrence) => ({
-      recurrenceKey: occurrence.recurrence_key,
-      officerIds: (awards.data ?? [])
-        .filter((award) => award.event_id === occurrence.id)
-        .map((award) => String(award.officer_id)),
-    }));
+    pointsImpactOccurrences = (occurrences.data ?? [])
+      .filter(
+        (occurrence) =>
+          occurrence.id === currentEvent.id ||
+          (occurrence.recurrence_key !== null &&
+            (series.data.ends_on === null ||
+              occurrence.recurrence_key <= series.data.ends_on)),
+      )
+      .map((occurrence) => ({
+        recurrenceKey: occurrence.recurrence_key,
+        officerIds: (awards.data ?? [])
+          .filter((award) => award.event_id === occurrence.id)
+          .map((award) => String(award.officer_id)),
+      }));
   }
   return (
     <div data-form-page="event" className="space-y-6">
