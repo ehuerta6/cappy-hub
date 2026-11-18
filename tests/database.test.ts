@@ -29,7 +29,7 @@ function runSql(sql: string) {
   });
 }
 
-function startSql(sql: string) {
+function startSql(sql: string, keepStdinOpen = false) {
   const child = spawn("docker", psqlArgs, {
     stdio: ["pipe", "pipe", "pipe"],
   });
@@ -67,9 +67,16 @@ function startSql(sql: string) {
     child.once("close", (code) => resolve({ code, output, errors }));
   });
 
-  child.stdin.end(sql);
+  if (keepStdinOpen) child.stdin.write(sql);
+  else child.stdin.end(sql);
   return {
     closed,
+    write(input: string) {
+      child.stdin.write(input);
+    },
+    end() {
+      child.stdin.end();
+    },
     waitFor(marker: string) {
       if (output.includes(marker)) return Promise.resolve();
       return new Promise<void>((resolve, reject) => {
@@ -1407,16 +1414,21 @@ it.each([
     try {
       // The Admin edit holds the Officer row lock without committing. The
       // claimant still sees the previously committed matching email.
-      const adminEdit = startSql(`
+      const applicationSuffix = `${process.pid}_${Date.now()}`;
+      const adminApplication = `claim_race_admin_${applicationSuffix}`;
+      const claimApplication = `claim_race_claim_${applicationSuffix}`;
+      const adminEdit = startSql(
+        `
+        set application_name='${adminApplication}';
         begin;
         update public.officers set ${correction} where id=${officerId};
         \\echo CLAIM_RACE_EDIT_LOCKED
-        select pg_catalog.pg_sleep(1.5);
-        commit;
-      `);
+      `,
+        true,
+      );
       await adminEdit.waitFor("CLAIM_RACE_EDIT_LOCKED");
-      const claimStartedAt = Date.now();
       const claim = startSql(`
+        set application_name='${claimApplication}';
         begin;
         select set_config('request.jwt.claim.sub','${authUserId}',true);
         set local role authenticated;
@@ -1424,13 +1436,38 @@ it.each([
         select coalesce(public.claim_current_officer_identity()::text,'none');
         commit;
       `);
+      const adminPid = runSql(`
+        select pid from pg_catalog.pg_stat_activity
+        where application_name='${adminApplication}';
+      `).trim();
+      const deadline = Date.now() + 5_000;
+      let observedBlock = false;
+      try {
+        while (Date.now() < deadline) {
+          const blocked = runSql(`
+            select coalesce(
+              ${adminPid} = any(pg_catalog.pg_blocking_pids(claim.pid)), false
+            )
+            from pg_catalog.pg_stat_activity as claim
+            where claim.application_name='${claimApplication}';
+          `).trim();
+          if (blocked === "t") {
+            observedBlock = true;
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+      } finally {
+        adminEdit.write("commit;\n");
+        adminEdit.end();
+      }
+      expect(observedBlock).toBe(true);
       const [adminResult, claimResult] = await Promise.all([
         adminEdit.closed,
         claim.closed,
       ]);
       expect(adminResult.code).toBe(0);
       expect(claimResult.code).toBe(0);
-      expect(Date.now() - claimStartedAt).toBeGreaterThan(500);
       expect(claimResult.output.split("CLAIM_RESULT_START")[1]).toContain(
         linked ? String(officerId) : "none",
       );
