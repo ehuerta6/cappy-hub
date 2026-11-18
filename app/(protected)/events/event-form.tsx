@@ -10,7 +10,11 @@ import {
 } from "@/lib/form-feedback";
 import { ActionFeedback, FieldError } from "@/components/ui";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
-import { eventPointsImpactMessage } from "@/lib/points-impact";
+import {
+  eventPointsImpactMessage,
+  recurrencePointsImpact,
+  type RecurrencePointsImpactOccurrence,
+} from "@/lib/points-impact";
 import { saveEvent } from "./actions";
 import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 import {
@@ -45,6 +49,7 @@ export default function EventForm({
   notificationSettings,
   resourceLinks = [],
   pointsImpactOfficerCount = 0,
+  pointsImpactOccurrences = [],
 }: {
   returnTo?: string;
   branches: Pick<Tables<"branches">, "id" | "name">[];
@@ -70,6 +75,7 @@ export default function EventForm({
   resourceLinks?: ResourceLinkView[];
   /** Distinct Officers with active or schedule-suspended participation awards. */
   pointsImpactOfficerCount?: number;
+  pointsImpactOccurrences?: RecurrencePointsImpactOccurrence[];
 }) {
   const [state, action, pending] = useActionState(
     saveEvent,
@@ -168,6 +174,12 @@ export default function EventForm({
   const updatePointsImpact = (form: HTMLFormElement) => {
     if (!event) return;
     const values = new FormData(form);
+    const scope = String(values.get("scope") ?? "occurrence");
+    const recurrenceImpact = recurrencePointsImpact(
+      pointsImpactOccurrences,
+      scope,
+      event.recurrence_key,
+    );
     setPointsImpactMessage(
       eventPointsImpactMessage(
         {
@@ -180,7 +192,10 @@ export default function EventForm({
           start_time: String(values.get("start_time") ?? ""),
           end_time: String(values.get("end_time") ?? ""),
         },
-        pointsImpactOfficerCount,
+        pointsImpactOccurrences.length
+          ? recurrenceImpact.correctableAwardCount
+          : pointsImpactOfficerCount,
+        scope !== "occurrence" && values.get("change_recurrence") === "on",
       ),
     );
   };
@@ -204,7 +219,8 @@ export default function EventForm({
       onSubmit={(submitEvent) => {
         // Enter-key submission must not bypass the Points confirmation.
         const submitter = (submitEvent.nativeEvent as SubmitEvent).submitter;
-        if (pointsImpactMessage && !submitter?.closest("dialog"))
+        const confirmation = submitter?.closest("dialog");
+        if (pointsImpactMessage && !confirmation?.open)
           submitEvent.preventDefault();
       }}
     >

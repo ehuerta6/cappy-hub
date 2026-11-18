@@ -19,6 +19,7 @@ import TaskCreateForm from "@/app/(protected)/tasks/task-create-form";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import {
   eventPointsImpactMessage,
+  recurrencePointsImpact,
   taskPointsImpactMessage,
 } from "@/lib/points-impact";
 
@@ -40,7 +41,7 @@ const taskImpact = {
 describe("eventPointsImpactMessage", () => {
   it("describes a date, start or end change when Officers have awards", () => {
     const message =
-      "Saving recalculates automatic participation Points for 5 Officers on this Event.";
+      "Saving recalculates automatic participation Points for 5 Officers on the affected Event occurrences.";
     expect(
       eventPointsImpactMessage(
         schedule,
@@ -72,6 +73,29 @@ describe("eventPointsImpactMessage", () => {
       ),
     ).toBeNull();
     expect(eventPointsImpactMessage(schedule, { ...schedule }, 5)).toBeNull();
+  });
+});
+
+describe("recurrencePointsImpact", () => {
+  const occurrences = [
+    { recurrenceKey: "2026-11-01", officerIds: ["1", "2"] },
+    { recurrenceKey: "2026-11-08", officerIds: ["2", "3"] },
+    { recurrenceKey: "2026-11-15", officerIds: ["4"] },
+  ];
+
+  it("counts distinct Officers in the selected recurrence scope", () => {
+    expect(
+      recurrencePointsImpact(occurrences, "occurrence", "2026-11-08")
+        .correctableAwardCount,
+    ).toBe(2);
+    expect(
+      recurrencePointsImpact(occurrences, "following", "2026-11-08")
+        .correctableAwardCount,
+    ).toBe(3);
+    expect(
+      recurrencePointsImpact(occurrences, "series", "2026-11-08")
+        .correctableAwardCount,
+    ).toBe(4);
   });
 });
 
@@ -127,6 +151,31 @@ describe("taskPointsImpactMessage", () => {
       ),
     ).toBe(
       "Saving changes the automatic award for 4 Officers from 5 Points to 8 Points. Saving suspends Task Points for 3 Officers until the new due date passes.",
+    );
+  });
+
+  it("describes date and recurrence changes across the selected series scope", () => {
+    expect(
+      taskPointsImpactMessage(
+        original,
+        { points: "5", due_date: "2026-11-30" },
+        taskImpact,
+        false,
+        true,
+      ),
+    ).toBe(
+      "Saving updates due dates across the selected scope and may suspend Task Points for 3 Officers.",
+    );
+    expect(
+      taskPointsImpactMessage(
+        original,
+        { points: "5", due_date: original.due_date },
+        taskImpact,
+        true,
+        true,
+      ),
+    ).toBe(
+      "Saving changes this recurring Task schedule and recalculates automatic Points for 4 Officers across the selected scope.",
     );
   });
 
@@ -262,7 +311,7 @@ describe("Event form Points confirmation", () => {
     const dialog = host.querySelector("dialog");
     expect(dialog?.hasAttribute("open")).toBe(true);
     expect(dialog?.textContent).toContain(
-      "Saving recalculates automatic participation Points for 2 Officers on this Event.",
+      "Saving recalculates automatic participation Points for 2 Officers on the affected Event occurrences.",
     );
     expect(dialog?.querySelector('button[type="submit"]')?.textContent).toBe(
       "Save event",
@@ -286,7 +335,7 @@ describe("Event form Points confirmation", () => {
     expect(saveButton("Save event")?.type).toBe("submit");
   });
 
-  it("does not let an Enter-key submission skip the confirmation", async () => {
+  it("does not let an Enter-key submission use the closed confirm button", async () => {
     vi.mocked(saveEvent).mockClear();
     // Before the guard, both submissions would reach the Server Action.
     await renderEventForm(2);
@@ -299,14 +348,28 @@ describe("Event form Points confirmation", () => {
     });
     expect(saveEvent).not.toHaveBeenCalled();
 
+    const confirmButton = host.querySelector<HTMLButtonElement>(
+      'dialog button[type="submit"]',
+    )!;
     await act(async () => {
       form.dispatchEvent(
         new SubmitEvent("submit", {
           bubbles: true,
           cancelable: true,
-          submitter: host.querySelector<HTMLButtonElement>(
-            'dialog button[type="submit"]',
-          ),
+          submitter: confirmButton,
+        }),
+      );
+    });
+    expect(saveEvent).not.toHaveBeenCalled();
+
+    await act(async () => saveButton("Save event")?.click());
+    expect(confirmButton.closest("dialog")?.open).toBe(true);
+    await act(async () => {
+      form.dispatchEvent(
+        new SubmitEvent("submit", {
+          bubbles: true,
+          cancelable: true,
+          submitter: confirmButton,
         }),
       );
     });

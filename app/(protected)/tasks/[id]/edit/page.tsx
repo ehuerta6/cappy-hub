@@ -115,6 +115,44 @@ export default async function EditTaskPage({
     taskAwards.error
   )
     throw new Error("Failed to load Task edit form");
+  let pointsImpactOccurrences = [
+    {
+      recurrenceKey: task.data.recurrence_key,
+      officerIds: taskAwards.data.map((award) => String(award.officer_id)),
+      activeOfficerIds: taskAwards.data
+        .filter((award) => award.removed_at === null)
+        .map((award) => String(award.officer_id)),
+    },
+  ];
+  if (series.data && task.data.recurrence_series_id !== null) {
+    const occurrences = await supabase
+      .from("tasks")
+      .select("id,recurrence_key")
+      .eq("recurrence_series_id", task.data.recurrence_series_id);
+    if (occurrences.error) throw new Error("Failed to load Task occurrences");
+    const occurrenceIds = (occurrences.data ?? []).map((row) => row.id);
+    const awards = occurrenceIds.length
+      ? await supabase
+          .from("point_transactions")
+          .select("task_id,officer_id,removed_at")
+          .in("task_id", occurrenceIds)
+          .eq("award_type", "task")
+          .or("removed_at.is.null,task_reconciliation_suspended.is.true")
+      : { data: [], error: null };
+    if (awards.error) throw new Error("Failed to load Task Points impact");
+    pointsImpactOccurrences = (occurrences.data ?? []).map((occurrence) => {
+      const occurrenceAwards = (awards.data ?? []).filter(
+        (award) => award.task_id === occurrence.id,
+      );
+      return {
+        recurrenceKey: occurrence.recurrence_key,
+        officerIds: occurrenceAwards.map((award) => String(award.officer_id)),
+        activeOfficerIds: occurrenceAwards
+          .filter((award) => award.removed_at === null)
+          .map((award) => String(award.officer_id)),
+      };
+    });
+  }
   const linkedIds = links.data.map(({ event_id }) => event_id);
   const events = eventOptions.data.filter(
     (event) =>
@@ -165,6 +203,7 @@ export default async function EditTaskPage({
           ).size,
           today: denverParts(new Date()).date,
         }}
+        pointsImpactOccurrences={pointsImpactOccurrences}
       />
     </div>
   );

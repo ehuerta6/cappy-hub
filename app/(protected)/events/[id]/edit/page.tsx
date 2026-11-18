@@ -136,6 +136,38 @@ export default async function EditEventPage({
           .eq("id", currentEvent.recurrence_series_id)
           .single();
   if (series?.error) throw new Error("Failed to load recurring series");
+  let pointsImpactOccurrences = [
+    {
+      recurrenceKey: currentEvent.recurrence_key,
+      officerIds: participationAwards.data.map((award) =>
+        String(award.officer_id),
+      ),
+    },
+  ];
+  if (series?.data && currentEvent.recurrence_series_id !== null) {
+    const occurrences = await supabase
+      .from("events")
+      .select("id,recurrence_key")
+      .eq("recurrence_series_id", currentEvent.recurrence_series_id);
+    if (occurrences.error) throw new Error("Failed to load Event occurrences");
+    const occurrenceIds = (occurrences.data ?? []).map((row) => row.id);
+    const awards = occurrenceIds.length
+      ? await supabase
+          .from("point_transactions")
+          .select("event_id,officer_id")
+          .in("event_id", occurrenceIds)
+          .eq("award_type", "participation")
+          .is("participation_superseded_at", null)
+          .or("removed_at.is.null,participation_schedule_suspended.is.true")
+      : { data: [], error: null };
+    if (awards.error) throw new Error("Failed to load Event Points impact");
+    pointsImpactOccurrences = (occurrences.data ?? []).map((occurrence) => ({
+      recurrenceKey: occurrence.recurrence_key,
+      officerIds: (awards.data ?? [])
+        .filter((award) => award.event_id === occurrence.id)
+        .map((award) => String(award.officer_id)),
+    }));
+  }
   return (
     <div data-form-page="event" className="space-y-6">
       <ContextualBackLink
@@ -152,6 +184,7 @@ export default async function EditEventPage({
           new Set(participationAwards.data.map((award) => award.officer_id))
             .size
         }
+        pointsImpactOccurrences={pointsImpactOccurrences}
         allowGlobal={canSeeAllBranches(actor) || isLead(actor)}
         event={currentEvent}
         resourceLinks={parseResourceLinkViews(resourceLinks.data ?? [])}

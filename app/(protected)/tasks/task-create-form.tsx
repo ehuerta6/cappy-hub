@@ -14,6 +14,8 @@ import {
 } from "@/components/ui";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import {
+  recurrencePointsImpact,
+  type RecurrencePointsImpactOccurrence,
   taskPointsImpactMessage,
   type TaskPointsImpact,
 } from "@/lib/points-impact";
@@ -46,6 +48,7 @@ export default function TaskCreateForm({
   notificationSettings,
   resourceLinks = [],
   pointsImpact,
+  pointsImpactOccurrences = [],
 }: {
   returnTo?: string;
   branches: { id: number; name: string }[];
@@ -70,6 +73,7 @@ export default function TaskCreateForm({
   };
   resourceLinks?: ResourceLinkView[];
   pointsImpact?: TaskPointsImpact;
+  pointsImpactOccurrences?: RecurrencePointsImpactOccurrence[];
 }) {
   const [state, action, pending] = useActionState(
     task ? (series ? editRecurringTask : editStandaloneTask) : createTask,
@@ -129,6 +133,15 @@ export default function TaskCreateForm({
   function updatePointsImpact(form: HTMLFormElement) {
     if (!task || !pointsImpact) return;
     const values = new FormData(form);
+    const scope = String(values.get("scope") ?? "occurrence");
+    const recurrenceImpact = recurrencePointsImpact(
+      pointsImpactOccurrences,
+      scope,
+      task.recurrence_key,
+    );
+    const scopedImpact = pointsImpactOccurrences.length
+      ? { ...pointsImpact, ...recurrenceImpact }
+      : pointsImpact;
     setPointsImpactMessage(
       taskPointsImpactMessage(
         { points: Number(task.points), due_date: task.due_date },
@@ -136,7 +149,9 @@ export default function TaskCreateForm({
           points: String(values.get("points") ?? ""),
           due_date: String(values.get("due_date") ?? ""),
         },
-        pointsImpact,
+        scopedImpact,
+        scope !== "occurrence" && values.get("change_recurrence") === "on",
+        scope !== "occurrence",
       ),
     );
   }
@@ -160,7 +175,8 @@ export default function TaskCreateForm({
       onSubmit={(submitEvent) => {
         // Enter-key submission must not bypass the Points confirmation.
         const submitter = (submitEvent.nativeEvent as SubmitEvent).submitter;
-        if (pointsImpactMessage && !submitter?.closest("dialog"))
+        const confirmation = submitter?.closest("dialog");
+        if (pointsImpactMessage && !confirmation?.open)
           submitEvent.preventDefault();
       }}
     >
