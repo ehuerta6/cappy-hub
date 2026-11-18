@@ -52,6 +52,7 @@ export default async function EditEventPage({
     notificationTargets,
     reminderOffsets,
     resourceLinks,
+    participationAwards,
   ] = await Promise.all([
     supabase
       .from("events")
@@ -93,6 +94,15 @@ export default async function EditEventPage({
       .eq("event_id", eventId)
       .order("sort_order")
       .order("id"),
+    // Automatic participation a schedule correction would recalculate,
+    // including awards suspended by an earlier future-date correction.
+    supabase
+      .from("point_transactions")
+      .select("officer_id")
+      .eq("event_id", eventId)
+      .eq("award_type", "participation")
+      .is("participation_superseded_at", null)
+      .or("removed_at.is.null,participation_schedule_suspended.is.true"),
   ]);
   if (
     event.error ||
@@ -104,7 +114,8 @@ export default async function EditEventPage({
     positions.error ||
     notificationTargets.error ||
     reminderOffsets.error ||
-    resourceLinks.error
+    resourceLinks.error ||
+    participationAwards.error
   )
     throw new Error("Failed to load event form");
   if (!event.data || event.data.deleted_at) notFound();
@@ -121,10 +132,51 @@ export default async function EditEventPage({
       ? undefined
       : await supabase
           .from("event_series")
-          .select("id,revision,recurrence_rule,starts_on")
+          .select("id,revision,recurrence_rule,starts_on,ends_on")
           .eq("id", currentEvent.recurrence_series_id)
           .single();
   if (series?.error) throw new Error("Failed to load recurring series");
+  let pointsImpactOccurrences = [
+    {
+      recurrenceKey: currentEvent.recurrence_key,
+      officerIds: participationAwards.data.map((award) =>
+        String(award.officer_id),
+      ),
+    },
+  ];
+  if (series?.data && currentEvent.recurrence_series_id !== null) {
+    const occurrences = await supabase
+      .from("events")
+      .select("id,recurrence_key")
+      .eq("recurrence_series_id", currentEvent.recurrence_series_id)
+      .is("deleted_at", null);
+    if (occurrences.error) throw new Error("Failed to load Event occurrences");
+    const occurrenceIds = (occurrences.data ?? []).map((row) => row.id);
+    const awards = occurrenceIds.length
+      ? await supabase
+          .from("point_transactions")
+          .select("event_id,officer_id")
+          .in("event_id", occurrenceIds)
+          .eq("award_type", "participation")
+          .is("participation_superseded_at", null)
+          .or("removed_at.is.null,participation_schedule_suspended.is.true")
+      : { data: [], error: null };
+    if (awards.error) throw new Error("Failed to load Event Points impact");
+    pointsImpactOccurrences = (occurrences.data ?? [])
+      .filter(
+        (occurrence) =>
+          occurrence.id === currentEvent.id ||
+          (occurrence.recurrence_key !== null &&
+            (series.data.ends_on === null ||
+              occurrence.recurrence_key <= series.data.ends_on)),
+      )
+      .map((occurrence) => ({
+        recurrenceKey: occurrence.recurrence_key,
+        officerIds: (awards.data ?? [])
+          .filter((award) => award.event_id === occurrence.id)
+          .map((award) => String(award.officer_id)),
+      }));
+  }
   return (
     <div data-form-page="event" className="space-y-6">
       <ContextualBackLink
@@ -137,6 +189,11 @@ export default async function EditEventPage({
         returnTo={returnTo}
         series={series?.data ?? undefined}
         mutationRequestKey={crypto.randomUUID()}
+        pointsImpactOfficerCount={
+          new Set(participationAwards.data.map((award) => award.officer_id))
+            .size
+        }
+        pointsImpactOccurrences={pointsImpactOccurrences}
         allowGlobal={canSeeAllBranches(actor) || isLead(actor)}
         event={currentEvent}
         resourceLinks={parseResourceLinkViews(resourceLinks.data ?? [])}

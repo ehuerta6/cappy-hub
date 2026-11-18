@@ -57,6 +57,7 @@ export function ConfirmationDialog({
   confirmValue,
   context,
   onConfirm,
+  validateFormBeforeOpen = false,
   children,
 }: {
   title: string;
@@ -71,6 +72,8 @@ export function ConfirmationDialog({
   confirmValue?: string;
   context?: ConfirmationContext;
   onConfirm?: () => void;
+  /** Show the form's own validation errors instead of opening the dialog. */
+  validateFormBeforeOpen?: boolean;
   children?: ReactNode;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -107,6 +110,11 @@ export function ConfirmationDialog({
   function openDialog() {
     const dialog = dialogRef.current;
     if (!dialog || dialog.open || busy) return;
+    if (
+      validateFormBeforeOpen &&
+      triggerRef.current?.form?.reportValidity() === false
+    )
+      return;
 
     if (context) {
       const form = triggerRef.current?.form;
