@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   splitTasksByOfficer,
+  taskProgressCounts,
   taskProgressLabel,
   taskStatus,
   taskStatusFromCounts,
@@ -51,6 +52,20 @@ describe("Task assignment summaries", () => {
         { officer_id: 3, completed_at: null },
       ]),
     ).toBe("1/3 completed");
+  });
+
+  it("counts approved completion only for progress meters", () => {
+    expect(
+      taskProgressCounts([
+        { officer_id: 1, completed_at: "2026-10-01T12:00:00Z" },
+        {
+          officer_id: 2,
+          completed_at: "2026-10-01T12:00:00Z",
+          completion_approval_pending: true,
+        },
+        { officer_id: 3, completed_at: null },
+      ]),
+    ).toEqual({ completed: 1, total: 3 });
   });
 
   it("groups by the signed-in Officer assignment, not other Officers", () => {

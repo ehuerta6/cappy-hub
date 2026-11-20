@@ -29,9 +29,18 @@ export function taskStatusFromCounts(
 export function taskProgressLabel(
   assignments: readonly TaskAssignmentSummary[],
 ) {
-  const completed = assignments.filter(isApprovedComplete).length;
-  if (assignments.length === 0) return "0 officers";
-  return `${completed}/${assignments.length} completed`;
+  const { completed, total } = taskProgressCounts(assignments);
+  if (total === 0) return "0 officers";
+  return `${completed}/${total} completed`;
+}
+
+export function taskProgressCounts(
+  assignments: readonly TaskAssignmentSummary[],
+) {
+  return {
+    completed: assignments.filter(isApprovedComplete).length,
+    total: assignments.length,
+  };
 }
 
 export function splitTasksByOfficer<T extends TaskWithAssignments>(

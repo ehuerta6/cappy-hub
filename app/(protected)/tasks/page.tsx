@@ -26,12 +26,9 @@ import {
 } from "@/lib/task-list-query";
 import { taskListFiltersSchema } from "./filter-validation";
 import { SearchableSelect } from "@/components/searchable-select";
-import {
-  splitTasksByOfficer,
-  taskProgressLabel,
-  taskStatus,
-} from "@/lib/task-status";
+import { splitTasksByOfficer, taskStatus } from "@/lib/task-status";
 import TaskSelfAssignForm, { TaskSelfCompletionForm } from "./task-action-form";
+import TaskAssignmentProgress from "./task-assignment-progress";
 import { listReturnUrl, withReturnTo } from "@/lib/return-context";
 import { listPageUrl } from "@/lib/list-url";
 import {
@@ -215,7 +212,6 @@ export default async function TasksPage({
                   (assignment) => assignment.officer_id === actor.id,
                 );
                 const taskState = taskStatus(assignments);
-                const progress = taskProgressLabel(assignments);
                 return (
                   <tr key={task.id} id={`task-${task.id}`}>
                     <td className="min-w-0">
@@ -235,7 +231,9 @@ export default async function TasksPage({
                     <td>
                       <BranchBadges branches={[task.branches.name]} />
                     </td>
-                    <td className="tabular-nums">{progress}</td>
+                    <td>
+                      <TaskAssignmentProgress assignments={assignments} />
+                    </td>
                     <td>
                       <StatusBadge status={taskState} />
                     </td>
