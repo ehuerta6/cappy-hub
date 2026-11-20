@@ -86,6 +86,7 @@ it("manages Task Types using the recoverable catalog actions", () => {
   expect(activeHtml).toContain('name="color" value="#64748b"');
   expect(activeHtml).toContain('aria-label="Change color, currently #64748b"');
   expect(activeHtml).toContain('name="color" value="#64748b"');
+  expect(activeHtml).toContain('aria-label="Choose custom color"');
   expect(activeHtml).toContain('aria-label="Red channel"');
   expect(deletedHtml).toContain("Flyer");
   expect(deletedHtml).toContain("Deleted");
@@ -127,6 +128,30 @@ it("updates the selected swatch and preview before saving its color", async () =
     host.querySelector<HTMLInputElement>('input[aria-label="Red channel"]')
       ?.value,
   ).toBe("37");
+});
+
+it("closes the color picker when the user clicks outside it", async () => {
+  await act(async () => {
+    root.render(
+      createElement(CatalogManager, {
+        catalog: "task_type",
+        title: "Task Types",
+        records: [{ id: 10, name: "Flyer", color: "#64748b" }],
+      }),
+    );
+  });
+
+  const picker = host.querySelector<HTMLDetailsElement>(
+    ".catalog-color-picker",
+  );
+  expect(picker).not.toBeNull();
+  await act(async () => picker?.querySelector("summary")?.click());
+  expect(picker?.open).toBe(true);
+
+  await act(async () => {
+    document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+  });
+  expect(picker?.open).toBe(false);
 });
 
 it("renders compact editable management rows with recoverable removal", () => {

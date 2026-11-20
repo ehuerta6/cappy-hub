@@ -42,11 +42,13 @@ function CatalogColorPicker({
   initialColor,
   error,
   previewLabel = "Sample",
+  align = "end",
 }: {
   id: string;
   initialColor: string;
   error?: string;
   previewLabel?: string;
+  align?: "start" | "end";
 }) {
   const fallbackColor = isHexColor(initialColor)
     ? initialColor
@@ -54,9 +56,56 @@ function CatalogColorPicker({
   const [color, setColor] = useState(initialColor);
   const previewColor = isHexColor(color) ? color : fallbackColor;
   const [red, green, blue] = hexToRgb(previewColor);
+  const pickerRef = useRef<HTMLDetailsElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [placement, setPlacement] = useState<"top" | "bottom">("top");
+  useEffect(() => {
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (
+        pickerRef.current?.open &&
+        !pickerRef.current.contains(event.target as Node)
+      ) {
+        pickerRef.current.open = false;
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && pickerRef.current?.open) {
+        pickerRef.current.open = false;
+        pickerRef.current.querySelector("summary")?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
+  const choosePlacement = () => {
+    window.requestAnimationFrame(() => {
+      const picker = pickerRef.current;
+      const trigger = picker?.querySelector("summary")?.getBoundingClientRect();
+      const popoverHeight = popoverRef.current?.offsetHeight ?? 0;
+      if (!picker?.open || !trigger) return;
+      const spaceAbove = trigger.top;
+      const spaceBelow = window.innerHeight - trigger.bottom;
+      setPlacement(
+        spaceAbove >= popoverHeight + 12 || spaceAbove >= spaceBelow
+          ? "top"
+          : "bottom",
+      );
+    });
+  };
   return (
-    <details className="catalog-color-picker">
-      <summary aria-label={`Change color, currently ${previewColor}`}>
+    <details
+      ref={pickerRef}
+      className={`catalog-color-picker catalog-color-picker--${align}`}
+      data-placement={placement}
+    >
+      <summary
+        aria-label={`Change color, currently ${previewColor}`}
+        onClick={choosePlacement}
+      >
         <span
           className="catalog-color-current-swatch"
           style={{ backgroundColor: previewColor }}
@@ -64,14 +113,18 @@ function CatalogColorPicker({
         />
         <span>{previewColor.toUpperCase()}</span>
       </summary>
-      <div className="catalog-color-popover">
+      <div ref={popoverRef} className="catalog-color-popover">
         <div className="catalog-color-popover-heading">
           <span>Choose a color</span>
           <CatalogValueBadge color={previewColor}>
             {previewLabel}
           </CatalogValueBadge>
         </div>
-        <div className="catalog-color-presets" aria-label="Preset colors">
+        <div
+          className="catalog-color-presets"
+          role="group"
+          aria-label="Preset colors"
+        >
           {CATALOG_COLOR_PRESETS.map(([label, value]) => (
             <button
               key={value}
@@ -110,7 +163,11 @@ function CatalogColorPicker({
               title="Enter a 6-digit HEX color, such as #2563eb"
             />
           </label>
-          <div className="catalog-color-rgb-fields" aria-label="RGB values">
+          <div
+            className="catalog-color-rgb-fields"
+            role="group"
+            aria-label="RGB values"
+          >
             {([red, green, blue] as const).map((channel, index) => (
               <label key={index}>
                 {(["R", "G", "B"] as const)[index]}
@@ -218,6 +275,7 @@ function CatalogForm({
                   DEFAULT_CATALOG_COLOR,
                 )}
                 error={fieldErrors.color}
+                align="start"
               />
               <FieldError id={`${fieldId}-color-error`}>
                 {fieldErrors.color}
