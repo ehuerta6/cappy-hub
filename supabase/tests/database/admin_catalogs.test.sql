@@ -17,6 +17,10 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000602'
 set local role authenticated;
 select throws_ok($$select create_position('Unauthorized')$$,'P0001','Admin required','ordinary officer cannot create position');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000603',true);
+select throws_ok($$select create_colored_catalog_value('branch','Unauthorized color','#2563eb')$$,
+ 'P0001','Admin required','Lead cannot create a colored catalog value');
+select throws_ok($$select set_catalog_color('branch',(select id from branches where name='intro'),'#2563eb')$$,
+ 'P0001','Admin required','Lead cannot change a catalog color');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000601',true);
 select lives_ok($$select create_position('  Mentor  ')$$,'admin creates a custom position');

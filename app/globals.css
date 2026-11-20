@@ -1844,6 +1844,7 @@ button.compact-action-button:focus-visible {
   height: 0.45rem;
   flex: 0 0 auto;
   border-radius: 999px;
+  border: 1px solid var(--border-strong);
   background: var(--catalog-value-color);
   content: "";
 }
