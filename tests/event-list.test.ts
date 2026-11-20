@@ -26,7 +26,7 @@ const event = (
   deleted_at: null,
   max_volunteers: null,
   participation_points_per_hour_at_end: null,
-  event_types: { name: "Meeting" },
+  event_types: { name: "Meeting", color: "#64748b" },
   event_branches: [],
   event_officers: [],
   ...extra,

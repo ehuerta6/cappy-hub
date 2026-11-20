@@ -94,7 +94,7 @@ export default async function OfficerCatalogsPage({
   } else if (categoryDefinition.catalog === "branch") {
     const result = await supabase
       .from("branches")
-      .select("id,name,is_active")
+      .select("id,name,color,is_active")
       .eq("is_active", status === "active")
       .order("name")
       .order("id")
@@ -104,7 +104,7 @@ export default async function OfficerCatalogsPage({
   } else if (categoryDefinition.catalog === "event_type") {
     const result = await supabase
       .from("event_types")
-      .select("id,name,available_for_new_events")
+      .select("id,name,color,available_for_new_events")
       .eq("available_for_new_events", status === "active")
       .order("name")
       .order("id")
@@ -114,7 +114,7 @@ export default async function OfficerCatalogsPage({
   } else if (categoryDefinition.catalog === "task_type") {
     const result = await supabase
       .from("task_types")
-      .select("id,name,available_for_new_tasks")
+      .select("id,name,color,available_for_new_tasks")
       .eq("available_for_new_tasks", status === "active")
       .order("name")
       .order("id")

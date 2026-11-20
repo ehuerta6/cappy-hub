@@ -2,10 +2,28 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
-import { ActionFeedback, FieldError, SectionHeading } from "@/components/ui";
+import {
+  ActionFeedback,
+  CatalogValueBadge,
+  FieldError,
+  SectionHeading,
+} from "@/components/ui";
 import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { changeCatalog } from "./actions";
+
+const DEFAULT_CATALOG_COLOR = "#64748b";
+const CATALOG_COLOR_PRESETS = [
+  ["Slate", "#64748b"],
+  ["Blue", "#2563eb"],
+  ["Teal", "#0f766e"],
+  ["Green", "#15803d"],
+  ["Amber", "#b45309"],
+  ["Rose", "#be123c"],
+  ["Violet", "#7e22ce"],
+] as const;
+
+const isHexColor = (value: string) => /^#[0-9A-Fa-f]{6}$/.test(value);
 
 type Catalog =
   "position" | "branch" | "event_location" | "event_type" | "task_type";
@@ -16,7 +34,215 @@ export type CatalogRecord = {
   is_active?: boolean;
   available_for_new_events?: boolean;
   available_for_new_tasks?: boolean;
+  color?: string;
 };
+
+function CatalogColorPicker({
+  id,
+  initialColor,
+  error,
+  previewLabel = "Sample",
+  align = "end",
+}: {
+  id: string;
+  initialColor: string;
+  error?: string;
+  previewLabel?: string;
+  align?: "start" | "end";
+}) {
+  const fallbackColor = isHexColor(initialColor)
+    ? initialColor
+    : DEFAULT_CATALOG_COLOR;
+  const [color, setColor] = useState(initialColor);
+  const previewColor = isHexColor(color) ? color : fallbackColor;
+  const [red, green, blue] = hexToRgb(previewColor);
+  const pickerRef = useRef<HTMLDetailsElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [placement, setPlacement] = useState<"top" | "bottom">("top");
+  const [popoverMaxHeight, setPopoverMaxHeight] = useState(
+    "calc(100dvh - 1.5rem)",
+  );
+  const [popoverLeft, setPopoverLeft] = useState<number | null>(null);
+  useEffect(() => {
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (
+        pickerRef.current?.open &&
+        !pickerRef.current.contains(event.target as Node)
+      ) {
+        pickerRef.current.open = false;
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && pickerRef.current?.open) {
+        pickerRef.current.open = false;
+        pickerRef.current.querySelector("summary")?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
+  const choosePlacement = () => {
+    window.requestAnimationFrame(() => {
+      const picker = pickerRef.current;
+      const triggerElement = picker?.querySelector("summary");
+      const trigger = triggerElement?.getBoundingClientRect();
+      const popover = popoverRef.current;
+      const popoverHeight = popover?.scrollHeight ?? 0;
+      if (!picker?.open || !trigger || !popover || !triggerElement) return;
+      const viewportMargin = 12;
+      const triggerGap = 8;
+      const spaceAbove = Math.max(0, trigger.top - viewportMargin - triggerGap);
+      const spaceBelow = Math.max(
+        0,
+        window.innerHeight - trigger.bottom - viewportMargin - triggerGap,
+      );
+      const fitsAbove = spaceAbove >= popoverHeight;
+      const fitsBelow = spaceBelow >= popoverHeight;
+      const nextPlacement =
+        fitsAbove || (!fitsBelow && spaceAbove >= spaceBelow)
+          ? "top"
+          : "bottom";
+      setPlacement(nextPlacement);
+      setPopoverMaxHeight(
+        `${Math.max(1, nextPlacement === "top" ? spaceAbove : spaceBelow)}px`,
+      );
+      const pickerRect = picker.getBoundingClientRect();
+      const popoverWidth = popover.getBoundingClientRect().width;
+      const desiredLeft =
+        align === "start" ? trigger.left : trigger.right - popoverWidth;
+      const clampedLeft = Math.max(
+        viewportMargin,
+        Math.min(
+          desiredLeft,
+          window.innerWidth - popoverWidth - viewportMargin,
+        ),
+      );
+      setPopoverLeft(clampedLeft - pickerRect.left);
+    });
+  };
+  return (
+    <details
+      ref={pickerRef}
+      className={`catalog-color-picker catalog-color-picker--${align}`}
+      data-placement={placement}
+    >
+      <summary
+        aria-label={`Change color, currently ${previewColor}`}
+        onClick={choosePlacement}
+      >
+        <span
+          className="catalog-color-current-swatch"
+          style={{ backgroundColor: previewColor }}
+          aria-hidden="true"
+        />
+        <span>{previewColor.toUpperCase()}</span>
+      </summary>
+      <div
+        ref={popoverRef}
+        className="catalog-color-popover"
+        style={{
+          maxHeight: popoverMaxHeight,
+          left: popoverLeft === null ? undefined : `${popoverLeft}px`,
+          right: popoverLeft === null ? undefined : "auto",
+        }}
+      >
+        <div className="catalog-color-popover-heading">
+          <span>Choose a color</span>
+          <CatalogValueBadge color={previewColor}>
+            {previewLabel}
+          </CatalogValueBadge>
+        </div>
+        <div
+          className="catalog-color-presets"
+          role="group"
+          aria-label="Preset colors"
+        >
+          {CATALOG_COLOR_PRESETS.map(([label, value]) => (
+            <button
+              key={value}
+              type="button"
+              className="catalog-color-preset"
+              aria-label={`${label}, ${value}`}
+              aria-pressed={color.toLowerCase() === value.toLowerCase()}
+              title={`${label} (${value})`}
+              style={{ backgroundColor: value }}
+              onClick={() => setColor(value)}
+            />
+          ))}
+          <label className="catalog-color-native-picker" title="Custom color">
+            <input
+              id={`${id}-custom`}
+              type="color"
+              value={previewColor}
+              onChange={(event) => setColor(event.target.value)}
+              aria-label="Choose custom color"
+            />
+          </label>
+        </div>
+        <div className="catalog-color-inputs">
+          <label className="catalog-color-hex-field" htmlFor={`${id}-hex`}>
+            HEX
+            <input
+              id={`${id}-hex`}
+              name="color"
+              value={color}
+              onChange={(event) => setColor(event.target.value)}
+              pattern="#[0-9A-Fa-f]{6}"
+              maxLength={7}
+              required
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? `${id}-error` : undefined}
+              title="Enter a 6-digit HEX color, such as #2563eb"
+            />
+          </label>
+          <div
+            className="catalog-color-rgb-fields"
+            role="group"
+            aria-label="RGB values"
+          >
+            {([red, green, blue] as const).map((channel, index) => (
+              <label key={index}>
+                {(["R", "G", "B"] as const)[index]}
+                <input
+                  type="number"
+                  min={0}
+                  max={255}
+                  value={channel}
+                  onChange={(event) => {
+                    const channels = [red, green, blue];
+                    channels[index] = Math.max(
+                      0,
+                      Math.min(255, Number(event.target.value)),
+                    );
+                    setColor(rgbToHex(channels[0], channels[1], channels[2]));
+                  }}
+                  aria-label={`${["Red", "Green", "Blue"][index]} channel`}
+                />
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+    </details>
+  );
+}
+
+function hexToRgb(hex: string) {
+  const value = hex.replace("#", "");
+  return [0, 2, 4].map((offset) =>
+    Number.parseInt(value.slice(offset, offset + 2), 16),
+  ) as [number, number, number];
+}
+
+function rgbToHex(red: number, green: number, blue: number) {
+  return `#${[red, green, blue]
+    .map((channel) => channel.toString(16).padStart(2, "0"))
+    .join("")}`;
+}
 
 function CatalogForm({
   catalog,
@@ -75,6 +301,23 @@ function CatalogForm({
             placeholder="Name"
           />
           <FieldError id={errorId}>{fieldErrors.name}</FieldError>
+          {catalog !== "position" && catalog !== "event_location" && (
+            <>
+              <CatalogColorPicker
+                id={`${fieldId}-color`}
+                initialColor={submittedValue(
+                  state.values,
+                  "color",
+                  DEFAULT_CATALOG_COLOR,
+                )}
+                error={fieldErrors.color}
+                align="start"
+              />
+              <FieldError id={`${fieldId}-color-error`}>
+                {fieldErrors.color}
+              </FieldError>
+            </>
+          )}
         </>
       )}
       {operation === "delete" && record ? (
@@ -101,6 +344,45 @@ function CatalogForm({
           {pending ? "Adding…" : "Add"}
         </button>
       )}
+      <ActionFeedback state={state} />
+    </form>
+  );
+}
+
+function CatalogColorForm({
+  catalog,
+  record,
+}: {
+  catalog: Catalog;
+  record: CatalogRecord;
+}) {
+  const [state, action, pending] = useActionState(
+    changeCatalog,
+    initialFormActionState,
+  );
+  const fieldId = `${catalog}-color-${record.id}`;
+  return (
+    <form action={action} className="catalog-color-form">
+      <AcademicPeriodWriteContextField />
+      <input type="hidden" name="catalog" value={catalog} />
+      <input type="hidden" name="operation" value="color" />
+      <input type="hidden" name="id" value={record.id} />
+      <CatalogColorPicker
+        id={fieldId}
+        initialColor={submittedValue(
+          state.values,
+          "color",
+          record.color ?? DEFAULT_CATALOG_COLOR,
+        )}
+        error={state.fieldErrors?.color}
+        previewLabel={record.name}
+      />
+      <button type="submit" disabled={pending} className="button-secondary">
+        {pending ? "Saving…" : "Save color"}
+      </button>
+      <FieldError id={`${fieldId}-error`}>
+        {state.fieldErrors?.color}
+      </FieldError>
       <ActionFeedback state={state} />
     </form>
   );
@@ -161,7 +443,9 @@ function CatalogRename({
   if (!editing) {
     return (
       <div className="catalog-record-name">
-        <p className="min-w-0 break-words">{record.name}</p>
+        <CatalogValueBadge color={record.color}>
+          {record.name}
+        </CatalogValueBadge>
         <button
           ref={renameButtonRef}
           type="button"
@@ -256,10 +540,17 @@ export default function CatalogManager({
               ) : (
                 <>
                   {readOnly ? (
-                    <p>{record.name}</p>
+                    <CatalogValueBadge color={record.color}>
+                      {record.name}
+                    </CatalogValueBadge>
                   ) : (
                     <CatalogRename catalog={catalog} record={record} />
                   )}
+                  {catalog !== "position" &&
+                    catalog !== "event_location" &&
+                    !readOnly && (
+                      <CatalogColorForm catalog={catalog} record={record} />
+                    )}
                   {deleted && (
                     <span className="catalog-record-status">Deleted</span>
                   )}

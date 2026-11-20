@@ -61,7 +61,9 @@ select ok(not has_function_privilege('authenticated','private.process_finished_e
   and has_function_privilege('authenticated','public.set_event_notification_settings(bigint,boolean,bigint[],bigint[],integer[],text,bigint,integer)','EXECUTE')
   and has_function_privilege('authenticated','public.set_task_notification_settings(bigint,boolean,bigint[],bigint[],integer[],text,bigint,integer)','EXECUTE')
   and has_function_privilege('authenticated','public.mark_all_notifications_read()','EXECUTE')
-  and has_function_privilege('authenticated','public.set_task_due_time(bigint,time,text,bigint,integer)','EXECUTE'),
+  and has_function_privilege('authenticated','public.set_task_due_time(bigint,time,text,bigint,integer)','EXECUTE')
+  and has_function_privilege('authenticated','public.create_colored_catalog_value(text,text,text)','EXECUTE')
+  and has_function_privilege('authenticated','public.set_catalog_color(text,bigint,text)','EXECUTE'),
   'essential checked RPCs remain callable and private processing stays closed');
 select ok(has_function_privilege('authenticated','public.self_assign_task(bigint)','EXECUTE')
   and has_function_privilege('authenticated','public.bulk_assign_task_officers(bigint,bigint[])','EXECUTE')
@@ -122,6 +124,8 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       'public.rename_branch(bigint,text)'::regprocedure,
       'public.delete_branch(bigint)'::regprocedure,
       'public.create_event_type(text)'::regprocedure,
+      'public.create_colored_catalog_value(text,text,text)'::regprocedure,
+      'public.set_catalog_color(text,bigint,text)'::regprocedure,
       'public.rename_event_type(bigint,text)'::regprocedure,
       'public.delete_event_type(bigint)'::regprocedure,
       'public.restore_event_type(bigint)'::regprocedure,

@@ -239,8 +239,10 @@ it("routes Task Type CRUD through its own trusted RPCs", async () => {
   expect((await changeCatalog(previous, form("create"))).success).toBe(
     "Task type added",
   );
-  expect(rpc).toHaveBeenLastCalledWith("create_task_type", {
+  expect(rpc).toHaveBeenLastCalledWith("create_colored_catalog_value", {
+    p_catalog: "task_type",
     p_name: "New Task Type",
+    p_color: "#64748b",
   });
   await changeCatalog(previous, form("rename", "Renamed Task Type"));
   expect(rpc).toHaveBeenLastCalledWith("rename_task_type", {
@@ -251,7 +253,7 @@ it("routes Task Type CRUD through its own trusted RPCs", async () => {
   expect(rpc).toHaveBeenLastCalledWith("delete_task_type", { p_id: 17 });
 });
 
-it("routes a valid catalog create through the existing branch RPC", async () => {
+it("creates a colored Branch through its trusted catalog RPC", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 601,
     applicationRole: "admin",
@@ -263,7 +265,31 @@ it("routes a valid catalog create through the existing branch RPC", async () => 
   expect((await changeCatalog(previous, branchForm)).success).toBe(
     "Branch added",
   );
-  expect(rpc).toHaveBeenCalledWith("create_branch", { p_name: "Denver" });
+  expect(rpc).toHaveBeenCalledWith("create_colored_catalog_value", {
+    p_catalog: "branch",
+    p_name: "Denver",
+    p_color: "#64748b",
+  });
+});
+
+it("saves catalog colors through the trusted Admin RPC", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 601,
+    applicationRole: "admin",
+  } as never);
+  const data = new FormData();
+  data.set("catalog", "event_type");
+  data.set("operation", "color");
+  data.set("id", "7");
+  data.set("color", "#2563eb");
+  expect((await changeCatalog(previous, data)).success).toBe(
+    "Event type color updated",
+  );
+  expect(rpc).toHaveBeenCalledWith("set_catalog_color", {
+    p_catalog: "event_type",
+    p_id: 7,
+    p_color: "#2563eb",
+  });
 });
 
 it.each([

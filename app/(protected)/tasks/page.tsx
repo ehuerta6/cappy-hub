@@ -6,8 +6,8 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import {
   ActionLink,
-  Badge,
   BranchBadges,
+  CatalogValueBadge,
   ListFilterBar,
   PageHeader,
   SectionHeading,
@@ -41,7 +41,8 @@ import type { Tables } from "@/lib/database.types";
 import type { Route } from "next";
 
 type TaskListRow = Tables<"tasks"> & {
-  branches: Pick<Tables<"branches">, "name">;
+  branches: Pick<Tables<"branches">, "name" | "color">;
+  task_types: Pick<Tables<"task_types">, "color">;
   task_officer_assignments: Pick<
     Tables<"task_officer_assignments">,
     "officer_id" | "completed_at" | "completion_approval_pending" | "removed_at"
@@ -132,7 +133,7 @@ export default async function TasksPage({
     await Promise.all([
       tasksQuery,
       taskCountQuery,
-      supabase.from("branches").select("id,name").order("name"),
+      supabase.from("branches").select("id,name,color").order("name"),
       supabase.from("officers").select("id,name,status").order("name"),
     ]);
   if (
@@ -226,10 +227,12 @@ export default async function TasksPage({
                       {formatTaskDeadline(task.due_date, task.due_time)}
                     </td>
                     <td>
-                      <Badge tone="teal">{formatLabel(task.task_type)}</Badge>
+                      <CatalogValueBadge color={task.task_types?.color}>
+                        {formatLabel(task.task_type)}
+                      </CatalogValueBadge>
                     </td>
                     <td>
-                      <BranchBadges branches={[task.branches.name]} />
+                      <BranchBadges branches={[task.branches]} />
                     </td>
                     <td>
                       <TaskAssignmentProgress assignments={assignments} />

@@ -10,6 +10,9 @@ const catalogNameSchema = zod.enum(
     error: "Invalid catalog operation",
   },
 );
+const catalogColorSchema = zod.string().regex(/^#[0-9A-Fa-f]{6}$/, {
+  message: "Enter a 6-digit HEX color",
+});
 
 export const catalogMutationInputSchema = zod.discriminatedUnion(
   "operation",
@@ -20,6 +23,7 @@ export const catalogMutationInputSchema = zod.discriminatedUnion(
       name: requiredTrimmedStringSchema("Name is required").transform((name) =>
         name.trim(),
       ),
+      color: catalogColorSchema.optional(),
     }),
     zod.object({
       catalog: catalogNameSchema,
@@ -28,6 +32,12 @@ export const catalogMutationInputSchema = zod.discriminatedUnion(
       name: requiredTrimmedStringSchema("Name is required").transform((name) =>
         name.trim(),
       ),
+    }),
+    zod.object({
+      catalog: catalogNameSchema,
+      operation: zod.literal("color"),
+      id: positiveSafeIntegerStringSchema("Invalid catalog record"),
+      color: catalogColorSchema,
     }),
     zod.object({
       catalog: catalogNameSchema,

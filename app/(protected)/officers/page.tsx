@@ -46,7 +46,7 @@ export default async function OfficersPage({
   } = filters;
   const supabase = await createClient();
   const officerSelection =
-    "*,positions(name),officer_branches(branch_id,branches(name)),filter_branch:officer_branches(branch_id)";
+    "*,positions(name),officer_branches(branch_id,branches(name,color)),filter_branch:officer_branches(branch_id)";
 
   const filterSearch = new URLSearchParams();
   if (params.period !== undefined)
@@ -257,7 +257,7 @@ export default async function OfficersPage({
                     <td>
                       <BranchBadges
                         branches={officer.officer_branches.map(
-                          (membership) => membership.branches.name,
+                          (membership) => membership.branches,
                         )}
                       />
                     </td>

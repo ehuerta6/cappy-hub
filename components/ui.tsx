@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { Route } from "next";
 import Form from "next/form";
 import Link from "next/link";
@@ -175,6 +175,25 @@ export function Badge({
   );
 }
 
+export function CatalogValueBadge({
+  children,
+  color,
+}: {
+  children: ReactNode;
+  color?: string | null;
+}) {
+  const safeColor =
+    color && /^#[0-9A-Fa-f]{6}$/.test(color) ? color : "#64748b";
+  return (
+    <span
+      className="catalog-value-badge status-badge inline-flex items-center rounded-full border px-1.5 py-0.5 text-xs font-medium leading-4"
+      style={{ "--catalog-value-color": safeColor } as CSSProperties}
+    >
+      {children}
+    </span>
+  );
+}
+
 export function StatusBadge({ status }: { status: string }) {
   const normalizedStatus = status
     .toLowerCase()
@@ -206,13 +225,25 @@ export function StatusBadge({ status }: { status: string }) {
   return <Badge tone={tone}>{formatLabel(status)}</Badge>;
 }
 
-export function BranchBadges({ branches }: { branches: string[] }) {
+export function BranchBadges({
+  branches,
+}: {
+  branches: (string | { name: string; color?: string | null })[];
+}) {
   if (!branches.length) return <span className="text-subtle">None</span>;
   return (
     <span className="flex flex-wrap gap-1.5">
-      {branches.map((branch) => (
-        <Badge key={branch}>{formatLabel(branch)}</Badge>
-      ))}
+      {branches.map((branch) => {
+        const name = typeof branch === "string" ? branch : branch.name;
+        return (
+          <CatalogValueBadge
+            key={name}
+            color={typeof branch === "string" ? undefined : branch.color}
+          >
+            {formatLabel(name)}
+          </CatalogValueBadge>
+        );
+      })}
     </span>
   );
 }
