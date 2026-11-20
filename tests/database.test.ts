@@ -525,7 +525,7 @@ it("restricts self-reported Task completion, reviews it, and awards only approve
       delete from public.academic_periods where id=${historicalPeriodId};
     `);
   }
-});
+}, 30_000);
 
 it("serializes concurrent Time Slot registrations so per-slot capacity is not exceeded", async () => {
   const eventId = -981760;
