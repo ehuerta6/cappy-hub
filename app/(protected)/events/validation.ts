@@ -122,6 +122,57 @@ export const bulkAddEventOfficersInputSchema = zod.object({
   }),
 });
 
+export const eventCreateOfficerIdsSchema = zod
+  .array(safeIntegerStringSchema("Select valid Officers"))
+  .max(200, "Select no more than 200 Officers")
+  .refine(
+    (ids) => new Set(ids).size === ids.length,
+    "Select each Officer once",
+  );
+
+export const eventCreateOfficerSignupsSchema = zod
+  .array(
+    zod.object({
+      officer_id: positiveSafeIntegerStringSchema("Select a valid Officer"),
+      participation_type: zod.enum(["volunteer", "attendee"], {
+        error: "Choose Volunteer or Attend for each Officer",
+      }),
+      slot_indexes: zod
+        .array(positiveSafeIntegerStringSchema("Select valid Time Slots"))
+        .max(24, "Select valid Time Slots"),
+    }),
+  )
+  .max(200, "Select no more than 200 Officers")
+  .refine(
+    (signups) =>
+      new Set(signups.map(({ officer_id }) => officer_id)).size ===
+      signups.length,
+    "Select each Officer once",
+  )
+  .superRefine((signups, context) => {
+    signups.forEach((signup, index) => {
+      if (new Set(signup.slot_indexes).size !== signup.slot_indexes.length)
+        context.addIssue({
+          code: "custom",
+          path: [index, "slot_indexes"],
+          message: "Select each Time Slot once",
+        });
+      if (
+        signup.participation_type === "attendee" &&
+        signup.slot_indexes.length
+      )
+        context.addIssue({
+          code: "custom",
+          path: [index, "slot_indexes"],
+          message: "Attend registrations do not use Volunteer Time Slots",
+        });
+    });
+  });
+
+export const eventRosterScopeSchema = zod.enum(["occurrence", "series"], {
+  error: "Select an Event roster scope",
+});
+
 export const eventRecordInputSchema = zod.object({
   event_id: safeIntegerStringSchema("Select a valid event"),
 });

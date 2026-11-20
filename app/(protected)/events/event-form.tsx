@@ -36,6 +36,7 @@ export default function EventForm({
   returnTo,
   branches,
   positions = [],
+  officers = [],
   eventTypes,
   locations,
   event,
@@ -54,6 +55,7 @@ export default function EventForm({
   returnTo?: string;
   branches: Pick<Tables<"branches">, "id" | "name">[];
   positions?: Pick<Tables<"positions">, "id" | "name">[];
+  officers?: Pick<Tables<"officers">, "id" | "name">[];
   eventTypes: (Pick<Tables<"event_types">, "id" | "name"> & {
     available_for_new_events?: boolean;
   })[];
@@ -87,6 +89,9 @@ export default function EventForm({
     ),
   );
   const fieldErrors = state.fieldErrors ?? {};
+  const selectedOfficerIds = new Set(
+    submittedValues(state.values, "officer_ids").map(Number),
+  );
   const restoredLocation = submittedValue(
     state.values,
     "location",
@@ -133,6 +138,24 @@ export default function EventForm({
   const originalTimeSlots = timeSlots.length
     ? JSON.stringify(timeSlots)
     : "null";
+  const restoredTimeSlots = submittedValue(
+    state.values,
+    "time_slots",
+    originalTimeSlots,
+  );
+  const [currentTimeSlots, setCurrentTimeSlots] = useState<TimeSlotDraft[]>(
+    () => {
+      try {
+        const parsed: unknown = JSON.parse(restoredTimeSlots);
+        return Array.isArray(parsed) ? (parsed as TimeSlotDraft[]) : [];
+      } catch {
+        return timeSlots;
+      }
+    },
+  );
+  const [participationByOfficer, setParticipationByOfficer] = useState<
+    Record<number, "volunteer" | "attendee">
+  >({});
   const timeSlotsEnabledInitially =
     submittedValue(state.values, "time_slots", originalTimeSlots) !== "null";
   const [timeSlotsEnabled, setTimeSlotsEnabled] = useState(
@@ -329,6 +352,126 @@ export default function EventForm({
         </div>
       </fieldset>
 
+      {!event && (
+        <fieldset className="event-form-section">
+          <legend>Register Officers (optional)</legend>
+          <p className="text-sm text-muted">
+            Choose Volunteer or Attend for each selected Officer. For recurring
+            Events, you can register them for this occurrence or the whole
+            series. When Time Slots are configured, each Volunteer needs one or
+            more slots.
+          </p>
+          {officers.length ? (
+            <div className="space-y-2">
+              {officers.map((officer) => (
+                <div
+                  key={officer.id}
+                  className="flex flex-wrap items-center gap-x-4 gap-y-2"
+                >
+                  <label className="flex items-center gap-2 text-sm font-normal">
+                    <input
+                      type="checkbox"
+                      name="officer_ids"
+                      value={officer.id}
+                      defaultChecked={selectedOfficerIds.has(officer.id)}
+                    />
+                    {officer.name}
+                  </label>
+                  <label className="flex items-center gap-2 text-sm font-normal">
+                    Participation
+                    <select
+                      name={`participation_type_${officer.id}`}
+                      value={
+                        participationByOfficer[officer.id] ??
+                        submittedValue(
+                          state.values,
+                          `participation_type_${officer.id}`,
+                          "volunteer",
+                        )
+                      }
+                      onChange={(changeEvent) =>
+                        setParticipationByOfficer((previous) => ({
+                          ...previous,
+                          [officer.id]: changeEvent.currentTarget.value as
+                            "volunteer" | "attendee",
+                        }))
+                      }
+                    >
+                      <option value="volunteer">Volunteer</option>
+                      <option value="attendee" disabled={timeSlotsEnabled}>
+                        Attend
+                        {timeSlotsEnabled
+                          ? " (unavailable with Time Slots)"
+                          : ""}
+                      </option>
+                    </select>
+                  </label>
+                  {timeSlotsEnabled &&
+                    (participationByOfficer[officer.id] ??
+                      submittedValue(
+                        state.values,
+                        `participation_type_${officer.id}`,
+                        "volunteer",
+                      )) === "volunteer" && (
+                      <fieldset className="w-full pl-7">
+                        <legend className="text-sm font-medium">
+                          Volunteer Time Slots (select one or more)
+                        </legend>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1">
+                          {currentTimeSlots.map((slot, index) => (
+                            <label
+                              key={`${slot.start_time}-${slot.end_time}-${index}`}
+                              className="flex items-center gap-2 text-sm font-normal"
+                            >
+                              <input
+                                type="checkbox"
+                                name={`officer_slot_indexes_${officer.id}`}
+                                value={index + 1}
+                                defaultChecked={submittedValues(
+                                  state.values,
+                                  `officer_slot_indexes_${officer.id}`,
+                                ).includes(String(index + 1))}
+                              />
+                              {slot.start_time}–{slot.end_time}
+                            </label>
+                          ))}
+                          {!currentTimeSlots.length && (
+                            <p className="text-sm text-muted">
+                              Configure at least one Time Slot below.
+                            </p>
+                          )}
+                        </div>
+                      </fieldset>
+                    )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted">No active Officers available.</p>
+          )}
+          <FieldError id="event-officers-error">
+            {fieldErrors.officer_ids}
+          </FieldError>
+          <label>
+            Apply registrations to
+            <select
+              name="roster_scope"
+              defaultValue={submittedValue(
+                state.values,
+                "roster_scope",
+                "occurrence",
+              )}
+            >
+              <option value="occurrence">This occurrence only</option>
+              <option value="series">All occurrences in the series</option>
+            </select>
+            <FieldError id="event-roster-scope-error">
+              {fieldErrors.roster_scope}
+            </FieldError>
+          </label>
+        </fieldset>
+      )}
+
       <fieldset className="event-form-section">
         <legend>Schedule and location</legend>
         <div className="event-form-fields">
@@ -444,6 +587,14 @@ export default function EventForm({
             : "Time Slots can only be enabled before any Officers have signed up for this Event. Existing signups and Points are preserved."
         }
         onSlotsChange={(serialized) => {
+          try {
+            const parsed: unknown = JSON.parse(serialized);
+            setCurrentTimeSlots(
+              Array.isArray(parsed) ? (parsed as TimeSlotDraft[]) : [],
+            );
+          } catch {
+            setCurrentTimeSlots([]);
+          }
           if (!series) return;
           setEditedFields((fields) => {
             const next = new Set(fields);

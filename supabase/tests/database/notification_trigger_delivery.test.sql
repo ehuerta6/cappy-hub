@@ -54,6 +54,17 @@ select is((select count(*) from public.notifications where kind='event.signup'
 select is((select count(*) from public.notifications where kind='event.left'
   and recipient_officer_id=-9403301 and entity_id=-9403301),1::bigint,
   'the departing Officer receives a confirmation');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000403303',true);
+insert into public.event_officers(event_id,officer_id,participation_type)
+values(-9403301,-9403304,'attendee');
+select is((select count(*) from public.notifications where kind='event.signup'
+  and recipient_officer_id=-9403304 and entity_id=-9403301),1::bigint,
+  'a manager-added Officer receives a personal registration notice outside the Event audience');
+update public.event_officers set removed_at=pg_catalog.now()
+where event_id=-9403301 and officer_id=-9403304;
+select is((select count(*) from public.notifications where kind='event.left'
+  and recipient_officer_id=-9403304 and entity_id=-9403301),1::bigint,
+  'a manager-removed Officer receives a personal removal notice');
 update public.events set description='Description-only edit' where id=-9403301;
 select is((select count(*) from public.notifications where kind='event.changed'
   and entity_id=-9403301),0::bigint,

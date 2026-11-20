@@ -380,6 +380,128 @@ it("sends validated Event fields and resources to the trusted RPC", async () => 
   });
 });
 
+it("saves a selected Event roster in the atomic create mutation", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 8,
+    positionName: "Lead",
+    positionCode: "lead",
+    branchIds: [],
+  } as never);
+  const data = eventForm();
+  data.append("officer_ids", "31");
+  data.append("officer_ids", "32");
+  data.set("participation_type_31", "volunteer");
+  data.set("participation_type_32", "attendee");
+  rpc.mockResolvedValueOnce({ data: 42, error: null });
+
+  await saveEvent({ error: "", success: "" }, data);
+
+  expect(rpc).toHaveBeenCalledWith(
+    "save_event_with_resources_and_officers",
+    expect.objectContaining({
+      p_officer_signups: [
+        { officer_id: 31, participation_type: "volunteer", slot_indexes: [] },
+        { officer_id: 32, participation_type: "attendee", slot_indexes: [] },
+      ],
+      p_roster_scope: "occurrence",
+    }),
+  );
+});
+
+it.each(["occurrence", "series"] as const)(
+  "saves recurring Event registrations to the requested %s scope",
+  async (scope) => {
+    vi.mocked(getAuthorizationContext).mockResolvedValue({
+      id: 8,
+      positionName: "Lead",
+      positionCode: "lead",
+      branchIds: [],
+    } as never);
+    const data = eventForm();
+    data.set("recurrence_frequency", "daily");
+    data.set("recurrence_interval", "1");
+    data.set("recurrence_end_mode", "count");
+    data.set("recurrence_count", "3");
+    data.set("roster_scope", scope);
+    data.append("officer_ids", "31");
+    data.set("participation_type_31", "attendee");
+    rpc.mockResolvedValueOnce({ data: 42, error: null });
+
+    await saveEvent({ error: "", success: "" }, data);
+
+    expect(rpc).toHaveBeenCalledWith(
+      "create_recurring_event_with_resources_and_officers",
+      expect.objectContaining({
+        p_officer_signups: [
+          { officer_id: 31, participation_type: "attendee", slot_indexes: [] },
+        ],
+        p_roster_scope: scope,
+      }),
+    );
+  },
+);
+
+it("saves Volunteer slot choices with the atomic Event create mutation", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 8,
+    positionName: "Lead",
+    positionCode: "lead",
+    branchIds: [],
+  } as never);
+  const data = eventForm();
+  data.append("officer_ids", "31");
+  data.set("participation_type_31", "volunteer");
+  data.set(
+    "time_slots",
+    JSON.stringify([
+      { start_time: "10:00", end_time: "10:30", capacity: 2 },
+      { start_time: "10:30", end_time: "11:00", capacity: 3 },
+    ]),
+  );
+  data.append("officer_slot_indexes_31", "2");
+  data.set("roster_scope", "series");
+  rpc.mockResolvedValueOnce({ data: 42, error: null });
+
+  await saveEvent({ error: "", success: "" }, data);
+
+  expect(rpc).toHaveBeenCalledWith(
+    "save_event_with_resources_and_officers",
+    expect.objectContaining({
+      p_officer_signups: [
+        { officer_id: 31, participation_type: "volunteer", slot_indexes: [2] },
+      ],
+      p_roster_scope: "series",
+      p_time_slots: [
+        { start_time: "10:00", end_time: "10:30", capacity: 2 },
+        { start_time: "10:30", end_time: "11:00", capacity: 3 },
+      ],
+    }),
+  );
+});
+
+it("requires at least one slot for every selected Volunteer on a slotted Event", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 8,
+    positionName: "Lead",
+    positionCode: "lead",
+    branchIds: [],
+  } as never);
+  const data = eventForm();
+  data.append("officer_ids", "31");
+  data.set("participation_type_31", "volunteer");
+  data.set(
+    "time_slots",
+    JSON.stringify([
+      { start_time: "10:00", end_time: "11:00", capacity: null },
+    ]),
+  );
+
+  const result = await saveEvent({ error: "", success: "" }, data);
+
+  expect(result.error).toContain("at least one configured Time Slot");
+  expect(rpc).not.toHaveBeenCalled();
+});
+
 it("saves notification settings in a Lead's cross-Branch Event creation action", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 8,

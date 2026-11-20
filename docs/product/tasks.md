@@ -4,7 +4,7 @@
 
 ### Current / shipped
 
-A Task has a title, description, Task type, one Branch, a due date with an optional due time for reminder scheduling, Point value, and recurrence metadata when applicable. Due dates and optional times are displayed in America/Denver. Its assignments are stored in **`task_officer_assignments`**, the canonical assignment relation. One Task can have multiple Officers. Officers can self-assign when the Task is open to assignment; authorized managers can assign or remove one or multiple Officers.
+A Task has a title, description, Task type, one Branch, a due date with an optional due time for reminder scheduling, Point value, and recurrence metadata when applicable. Due dates and optional times are displayed in America/Denver. Its assignments are stored in **`task_officer_assignments`**, the canonical assignment relation. One Task can have multiple Officers. Officers can self-assign when the Task is open to assignment; authorized managers can assign or remove one or multiple Officers. During creation, an authorized Lead or Admin may select multiple active Officers; their Branch memberships do not restrict assignment. For a recurring Task, the default applies assignments to the first occurrence only, with an explicit option to apply them to all materialized occurrences. The Task and its selected initial assignments are saved atomically.
 
 Tasks may also have zero or more external resource links. Each link has an HTTP(S) URL and a readable common or custom label. These links are contextual references and do not change Task assignment, completion, or Points.
 

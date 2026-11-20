@@ -40,6 +40,7 @@ export default function TaskCreateForm({
   branches,
   positions = [],
   taskTypes = [],
+  officers = [],
   events = [],
   taskEventIds = [],
   recurrenceRequestKey,
@@ -54,6 +55,7 @@ export default function TaskCreateForm({
   branches: { id: number; name: string }[];
   positions?: { id: number; name: string }[];
   taskTypes?: { name: string }[];
+  officers?: { id: number; name: string }[];
   events?: {
     id: number;
     name: string;
@@ -88,6 +90,9 @@ export default function TaskCreateForm({
     state.values,
     "event_ids",
     taskEventIds.map(String),
+  );
+  const initialOfficerIds = new Set(
+    submittedValues(state.values, "officer_ids").map(Number),
   );
   const selectedEventIds = useRef(initialEventIds);
   const initialResourceLinks = resourceLinksForForm(resourceLinks);
@@ -405,6 +410,56 @@ export default function TaskCreateForm({
             firstDate={submittedValue(state.values, "due_date", "")}
           />
         </div>
+      )}
+      {!task && (
+        <fieldset className="event-form-section">
+          <legend>Assign Officers (optional)</legend>
+          <p className="text-sm text-muted">
+            Selected Officers will be assigned when this Task is created. For a
+            recurring Task, choose whether to assign them to this occurrence or
+            every occurrence in the series.
+          </p>
+          {officers.length ? (
+            <div className="event-form-fields">
+              {officers.map((officer) => (
+                <label
+                  key={officer.id}
+                  className="flex items-center gap-2 text-sm font-normal"
+                >
+                  <input
+                    type="checkbox"
+                    name="officer_ids"
+                    value={officer.id}
+                    defaultChecked={initialOfficerIds.has(officer.id)}
+                  />
+                  {officer.name}
+                </label>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted">No active Officers available.</p>
+          )}
+          <FieldError id="task-officers-error">
+            {fieldErrors.officer_ids}
+          </FieldError>
+          <label className={fieldLabelClassName}>
+            Apply assignments to
+            <select
+              name="assignment_scope"
+              defaultValue={submittedValue(
+                state.values,
+                "assignment_scope",
+                "occurrence",
+              )}
+            >
+              <option value="occurrence">This occurrence only</option>
+              <option value="series">All occurrences in the series</option>
+            </select>
+            <FieldError id="task-assignment-scope-error">
+              {fieldErrors.assignment_scope}
+            </FieldError>
+          </label>
+        </fieldset>
       )}
       <NotificationSettingsFields
         branches={branches}

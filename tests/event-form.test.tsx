@@ -101,6 +101,30 @@ it("offers flexible resource links and keeps the external sheet boundary clear",
   expect(html).toContain('value="5"');
 });
 
+it("offers per-Officer participation and a recurrence scope only during creation", () => {
+  const officers = [
+    { id: 31, name: "Officer One" },
+    { id: 32, name: "Officer Two" },
+  ];
+  const createHtml = renderToStaticMarkup(
+    <EventForm
+      branches={[]}
+      eventTypes={[{ id: 9, name: "Session" }] as never}
+      locations={[]}
+      officers={officers}
+    />,
+  );
+  expect(createHtml).toContain("Register Officers (optional)");
+  expect(createHtml).toContain('name="officer_ids" value="31"');
+  expect(createHtml).toContain('name="participation_type_31"');
+  expect(createHtml).toContain('name="roster_scope"');
+  expect(createHtml).toContain('value="occurrence" selected=""');
+  expect(createHtml).toContain("All occurrences in the series");
+
+  const editHtml = renderEventForm(true);
+  expect(editHtml).not.toContain('name="officer_ids"');
+});
+
 it("uses per-slot capacity on slotted Events and keeps the Branch selector", () => {
   const html = renderToStaticMarkup(
     <EventForm
@@ -119,6 +143,26 @@ it("uses per-slot capacity on slotted Events and keeps the Branch selector", () 
   expect(html).not.toContain('name="max_volunteers"');
   expect(html).toContain("Branches (select at least one)");
   expect(html).toContain('name="branches"');
+});
+
+it("offers per-Volunteer slot selections during slotted Event creation", () => {
+  const html = renderToStaticMarkup(
+    <EventForm
+      branches={[]}
+      eventTypes={[{ id: 2, name: "Meeting" }]}
+      locations={[]}
+      officers={[{ id: 31, name: "Officer One" }]}
+      timeSlots={[
+        { start_time: "10:00", end_time: "10:30", capacity: 2 },
+        { start_time: "10:30", end_time: "11:00", capacity: 3 },
+      ]}
+    />,
+  );
+
+  expect(html).toContain('name="officer_slot_indexes_31" value="1"');
+  expect(html).toContain('name="officer_slot_indexes_31" value="2"');
+  expect(html).toContain("select one or more");
+  expect(html).toContain("Attend");
 });
 
 it("uses a full-row Event name and the shared optional recurrence controls", () => {

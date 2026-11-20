@@ -54,6 +54,18 @@ export const taskEventIdsSchema = zod
   .max(500, "Select no more than 500 Events")
   .refine((ids) => new Set(ids).size === ids.length, "Select each Event once");
 
+export const taskAssigneeIdsSchema = zod
+  .array(safeIntegerStringSchema("Select valid Officers"))
+  .max(200, "Select no more than 200 Officers")
+  .refine(
+    (ids) => new Set(ids).size === ids.length,
+    "Select each Officer once",
+  );
+
+export const taskAssignmentScopeSchema = zod.enum(["occurrence", "series"], {
+  error: "Select an assignment scope",
+});
+
 export const taskRecordInputSchema = zod.object({
   task_id: safeIntegerStringSchema("Task not found"),
 });

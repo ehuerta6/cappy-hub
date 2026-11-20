@@ -42,6 +42,9 @@ import {
   restoreEventInputSchema,
   saveEventInputSchema,
   timeSlotBoundsError,
+  eventCreateOfficerIdsSchema,
+  eventCreateOfficerSignupsSchema,
+  eventRosterScopeSchema,
 } from "./validation";
 
 const eventFormFields = [
@@ -56,6 +59,8 @@ const eventFormFields = [
   "resource_links",
   "max_volunteers",
   "time_slots",
+  "officer_ids",
+  "roster_scope",
   "recurrence_frequency",
   "recurrence_interval",
   "recurrence_weekdays",
@@ -71,6 +76,7 @@ const eventFieldErrors = eventFormFields;
 const eventMultipleFields = [
   "branches",
   "recurrence_weekdays",
+  "officer_ids",
   "notification_branches",
   "notification_positions",
 ] as const;
@@ -123,6 +129,45 @@ export async function saveEvent(
       ["branches", "recurrence_weekdays"],
     );
   const validatedEventInput = validationResult.data;
+  const officerIds = eventCreateOfficerIdsSchema.safeParse(
+    formData
+      .getAll("officer_ids")
+      .filter((value): value is string => typeof value === "string"),
+  );
+  if (!officerIds.success)
+    return validationFailure(
+      officerIds.error,
+      formData,
+      eventFieldErrors,
+      eventMultipleFields,
+    );
+  const officerSignups = eventCreateOfficerSignupsSchema.safeParse(
+    officerIds.data.map((officerId) => ({
+      officer_id: String(officerId),
+      participation_type:
+        formData.get(`participation_type_${officerId}`) ?? "volunteer",
+      slot_indexes: formData
+        .getAll(`officer_slot_indexes_${officerId}`)
+        .filter((value): value is string => typeof value === "string"),
+    })),
+  );
+  if (!officerSignups.success)
+    return validationFailure(
+      officerSignups.error,
+      formData,
+      eventFieldErrors,
+      eventMultipleFields,
+    );
+  const rosterScope = eventRosterScopeSchema.safeParse(
+    formData.get("roster_scope") ?? "occurrence",
+  );
+  if (officerSignups.data.length && !rosterScope.success)
+    return validationFailure(
+      rosterScope.error,
+      formData,
+      eventFieldErrors,
+      eventMultipleFields,
+    );
   const legacyUrl = (key: "slides" | "meeting_notes" | "signup_sheet") =>
     validatedEventInput.resource_links.find(
       (resource) => resource.legacy_key === key,
@@ -153,6 +198,37 @@ export async function saveEvent(
     );
   const timeSlots = timeSlotsValidation.data;
   const usesTimeSlots = (timeSlots?.length ?? 0) > 0;
+  if (!validatedEventInput.id && usesTimeSlots && officerSignups.data.length) {
+    const invalidSignup = officerSignups.data.find(
+      (signup) =>
+        (signup.participation_type === "volunteer" &&
+          (signup.slot_indexes.length === 0 ||
+            signup.slot_indexes.some((index) => index > timeSlots!.length))) ||
+        signup.participation_type === "attendee",
+    );
+    if (invalidSignup)
+      return formFailure(
+        invalidSignup.participation_type === "attendee"
+          ? "Attend registrations are unavailable when Time Slots are configured."
+          : "Select at least one configured Time Slot for each Volunteer.",
+        formData,
+        eventFormFields,
+        undefined,
+        eventMultipleFields,
+      );
+  }
+  if (
+    !validatedEventInput.id &&
+    !usesTimeSlots &&
+    officerSignups.data.some((signup) => signup.slot_indexes.length > 0)
+  )
+    return formFailure(
+      "Selected Time Slots are not configured for this Event.",
+      formData,
+      eventFormFields,
+      undefined,
+      eventMultipleFields,
+    );
   const slotBoundsError = timeSlotBoundsError(
     timeSlots,
     validatedEventInput.start_time,
@@ -335,7 +411,9 @@ export async function saveEvent(
         ["branches", "recurrence_weekdays"],
       );
     const { data, error } = await supabase.rpc(
-      "create_recurring_event_with_resources",
+      officerSignups.data.length
+        ? "create_recurring_event_with_resources_and_officers"
+        : "create_recurring_event_with_resources",
       {
         p_name: validatedEventInput.name,
         p_description: validatedEventInput.description,
@@ -355,6 +433,15 @@ export async function saveEvent(
         p_ends_at: ends as string[],
         p_time_slots: timeSlots,
         p_resource_links: validatedEventInput.resource_links,
+        ...(officerSignups.data.length
+          ? {
+              p_officer_signups: officerSignups.data.map((signup) => ({
+                ...signup,
+                slot_indexes: signup.slot_indexes,
+              })),
+              p_roster_scope: rosterScope.data,
+            }
+          : {}),
       },
     );
     if (error)
@@ -403,27 +490,41 @@ export async function saveEvent(
       ),
     );
   }
-  const { data, error } = await supabase.rpc("save_event_with_resources", {
-    ...(validatedEventInput.id !== undefined
-      ? { p_event_id: validatedEventInput.id }
-      : {}),
-    p_name: validatedEventInput.name,
-    p_description: validatedEventInput.description,
-    p_event_type_id: validatedEventInput.event_type_id,
-    p_location: validatedEventInput.location,
-    p_event_date: validatedEventInput.event_date,
-    p_starts_at: start,
-    p_ends_at: end,
-    p_branch_ids: validatedEventInput.branches,
-    p_slides_url: legacyUrl("slides"),
-    p_meeting_notes_url: legacyUrl("meeting_notes"),
-    p_signup_sheet_url: legacyUrl("signup_sheet"),
-    p_max_volunteers: usesTimeSlots
-      ? 0
-      : (validatedEventInput.max_volunteers ?? 0),
-    p_time_slots: timeSlots,
-    p_resource_links: validatedEventInput.resource_links,
-  });
+  const { data, error } = await supabase.rpc(
+    officerSignups.data.length && !validatedEventInput.id
+      ? "save_event_with_resources_and_officers"
+      : "save_event_with_resources",
+    {
+      ...(validatedEventInput.id !== undefined
+        ? { p_event_id: validatedEventInput.id }
+        : {}),
+      p_name: validatedEventInput.name,
+      p_description: validatedEventInput.description,
+      p_event_type_id: validatedEventInput.event_type_id,
+      p_location: validatedEventInput.location,
+      p_event_date: validatedEventInput.event_date,
+      p_starts_at: start,
+      p_ends_at: end,
+      p_branch_ids: validatedEventInput.branches,
+      p_slides_url: legacyUrl("slides"),
+      p_meeting_notes_url: legacyUrl("meeting_notes"),
+      p_signup_sheet_url: legacyUrl("signup_sheet"),
+      p_max_volunteers: usesTimeSlots
+        ? 0
+        : (validatedEventInput.max_volunteers ?? 0),
+      p_time_slots: timeSlots,
+      p_resource_links: validatedEventInput.resource_links,
+      ...(officerSignups.data.length && !validatedEventInput.id
+        ? {
+            p_officer_signups: officerSignups.data.map((signup) => ({
+              ...signup,
+              slot_indexes: signup.slot_indexes,
+            })),
+            p_roster_scope: rosterScope.data,
+          }
+        : {}),
+    },
+  );
   if (error)
     return formFailure(
       mutationError(error.message),
