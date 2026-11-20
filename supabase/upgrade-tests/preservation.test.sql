@@ -52,10 +52,10 @@ select results_eq($$select id,to_jsonb(a) from audit_logs a order by id$$,
 select results_eq($$select id,to_jsonb(p) from positions p order by id$$,
  $$select id,original from upgrade_fixture.pre_recoverable_positions order by id$$,
  'recoverable catalogs preserve required/custom Position IDs, codes and legacy retirement');
-select results_eq($$select id,to_jsonb(b) from branches b order by id$$,
+select results_eq($$select id,to_jsonb(b)-'color' from branches b order by id$$,
  $$select id,original from upgrade_fixture.pre_recoverable_branches order by id$$,
  'recoverable catalogs preserve Branch IDs and prior availability');
-select results_eq($$select id,to_jsonb(t) from event_types t order by id$$,
+select results_eq($$select id,to_jsonb(t)-'color' from event_types t order by id$$,
  $$select id,original from upgrade_fixture.pre_recoverable_types order by id$$,
  'recoverable catalogs preserve historical Event Types and unavailable values');
 select results_eq($$select id,to_jsonb(l)-'is_active' from event_locations l order by id$$,
@@ -323,9 +323,15 @@ select is((select jsonb_agg(to_jsonb(p)-'participation_superseded_at'-'participa
     where (f.row->>'id')::bigint=p.id)),
   (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.pre_hardening_points),
   'hardening leaves Point history and lifecycle metadata intact');
-select is((select jsonb_agg(to_jsonb(b)-'is_active' order by id) from branches b),
+select is((select jsonb_agg(to_jsonb(b)-'is_active'-'color' order by id) from branches b),
   (select jsonb_agg(row order by (row->>'id')::bigint) from upgrade_fixture.pre_hardening_branches),
   'Branch names, IDs and timestamps survive normalization');
+select is((select count(*) from branches where color <> '#64748b'),0::bigint,
+  'existing Branch values receive the safe catalog color default');
+select is((select count(*) from event_types where color <> '#64748b'),0::bigint,
+  'existing Event Types receive the safe catalog color default');
+select is((select count(*) from task_types where color <> '#64748b'),0::bigint,
+  'existing Task Types receive the safe catalog color default');
 select ok(not exists(select 1 from branches where not is_active),
   'existing Branches default active when retirement is introduced');
 select is((select jsonb_agg(to_jsonb(p)-'code'-'is_active' order by id) from positions p),
