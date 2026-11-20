@@ -17,6 +17,10 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000602'
 set local role authenticated;
 select throws_ok($$select create_position('Unauthorized')$$,'P0001','Admin required','ordinary officer cannot create position');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000603',true);
+select throws_ok($$select create_colored_catalog_value('branch','Unauthorized color','#2563eb')$$,
+ 'P0001','Admin required','Lead cannot create a colored catalog value');
+select throws_ok($$select set_catalog_color('branch',(select id from branches where name='intro'),'#2563eb')$$,
+ 'P0001','Admin required','Lead cannot change a catalog color');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000601',true);
 select lives_ok($$select create_position('  Mentor  ')$$,'admin creates a custom position');
@@ -101,6 +105,36 @@ select lives_ok($$select delete_branch((select id from branches where name='rese
 select lives_ok($$select create_event_type('Seminar')$$,'Admin creates a manageable Event Type');
 select lives_ok($$select rename_event_type((select id from event_types where name='Seminar'),'Seminar New')$$,'Admin renames Event Type');
 select lives_ok($$select delete_event_type((select id from event_types where name='Seminar New'))$$,'Admin recoverably deletes Event Type');
+select is((select color from branches where name='intro'),'#64748b'::text,
+ 'existing Branch values receive the safe default color');
+select lives_ok($$select create_colored_catalog_value('branch','Color test','#2563eb')$$,
+ 'Admin creates a Branch with a selected color');
+select is((select color from branches where name='Color test'),'#2563eb'::text,
+ 'selected Branch color is persisted');
+select lives_ok($$select set_catalog_color('branch',(select id from branches where name='Color test'),'#be123c')$$,
+ 'Admin changes a catalog color');
+select is((select color from branches where name='Color test'),'#be123c'::text,
+ 'updated catalog color is persisted');
+select throws_ok($$select set_catalog_color('branch',(select id from branches where name='Color test'),'red')$$,
+ 'P0001','Color must be a 6-digit HEX value','invalid custom color is rejected');
+select throws_ok($$select create_colored_catalog_value('position','Invalid scope','#2563eb')$$,
+ 'P0001','Invalid color catalog','color mutation is restricted to supported catalogs');
+select is((select color from event_types where name='Meeting'),'#64748b'::text,
+ 'existing Event Types receive the safe default color');
+select is((select color from task_types where name='Flyer'),'#64748b'::text,
+ 'existing Task Types receive the safe default color');
+select lives_ok($$select create_colored_catalog_value('event_type','Color Event','#0f766e')$$,
+ 'Admin creates an Event Type with a selected color');
+select lives_ok($$select create_colored_catalog_value('task_type','Color Task','#15803d')$$,
+ 'Admin creates a Task Type with a selected color');
+select lives_ok($$select set_catalog_color('event_type',(select id from event_types where name='Color Event'),'#be123c')$$,
+ 'Admin changes an Event Type color');
+select lives_ok($$select set_catalog_color('task_type',(select id from task_types where name='Color Task'),'#b45309')$$,
+ 'Admin changes a Task Type color');
+select is((select color from event_types where name='Color Event'),'#be123c'::text,
+ 'updated Event Type color is persisted');
+select is((select color from task_types where name='Color Task'),'#b45309'::text,
+ 'updated Task Type color is persisted');
 select is((select count(*) from audit_logs where action in ('position.created','position.renamed','position.deleted')),
  3::bigint,'position create, rename and delete audited once each');
 

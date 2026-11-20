@@ -144,18 +144,21 @@ export type Database = {
       };
       branches: {
         Row: {
+          color: string;
           created_at: string;
           id: number;
           is_active: boolean;
           name: string;
         };
         Insert: {
+          color?: string;
           created_at?: string;
           id?: number;
           is_active?: boolean;
           name: string;
         };
         Update: {
+          color?: string;
           created_at?: string;
           id?: number;
           is_active?: boolean;
@@ -510,18 +513,21 @@ export type Database = {
       event_types: {
         Row: {
           available_for_new_events: boolean;
+          color: string;
           created_at: string;
           id: number;
           name: string;
         };
         Insert: {
           available_for_new_events?: boolean;
+          color?: string;
           created_at?: string;
           id?: number;
           name: string;
         };
         Update: {
           available_for_new_events?: boolean;
+          color?: string;
           created_at?: string;
           id?: number;
           name?: string;
@@ -1430,16 +1436,19 @@ export type Database = {
       task_types: {
         Row: {
           available_for_new_tasks: boolean;
+          color: string;
           id: number;
           name: string;
         };
         Insert: {
           available_for_new_tasks?: boolean;
+          color?: string;
           id?: number;
           name: string;
         };
         Update: {
           available_for_new_tasks?: boolean;
+          color?: string;
           id?: number;
           name?: string;
         };
@@ -1846,6 +1855,10 @@ export type Database = {
         Returns: Json;
       };
       create_branch: { Args: { p_name: string }; Returns: number };
+      create_colored_catalog_value: {
+        Args: { p_catalog: string; p_color: string; p_name: string };
+        Returns: number;
+      };
       create_event_location: { Args: { p_name: string }; Returns: number };
       create_event_type: { Args: { p_name: string }; Returns: number };
       create_position: { Args: { p_name: string }; Returns: number };
@@ -2391,6 +2404,10 @@ export type Database = {
       };
       set_branch_active: {
         Args: { p_id: number; p_is_active: boolean };
+        Returns: undefined;
+      };
+      set_catalog_color: {
+        Args: { p_catalog: string; p_color: string; p_id: number };
         Returns: undefined;
       };
       set_event_notification_settings: {

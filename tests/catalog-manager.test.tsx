@@ -82,9 +82,76 @@ it("manages Task Types using the recoverable catalog actions", () => {
   expect(activeHtml).toContain('name="catalog" value="task_type"');
   expect(activeHtml).toContain('name="operation" value="create"');
   expect(activeHtml).toContain('name="operation" value="delete"');
+  expect(activeHtml).toContain('name="operation" value="color"');
+  expect(activeHtml).toContain('name="color" value="#64748b"');
+  expect(activeHtml).toContain('aria-label="Change color, currently #64748b"');
+  expect(activeHtml).toContain('name="color" value="#64748b"');
+  expect(activeHtml).toContain('aria-label="Choose custom color"');
+  expect(activeHtml).toContain('aria-label="Red channel"');
   expect(deletedHtml).toContain("Flyer");
   expect(deletedHtml).toContain("Deleted");
   expect(deletedHtml).toContain('name="operation" value="restore"');
+});
+
+it("updates the selected swatch and preview before saving its color", async () => {
+  await act(async () => {
+    root.render(
+      createElement(CatalogManager, {
+        catalog: "task_type",
+        title: "Task Types",
+        records: [{ id: 10, name: "Flyer", color: "#64748b" }],
+      }),
+    );
+  });
+
+  const picker = host.querySelector<HTMLDetailsElement>(
+    ".catalog-color-picker",
+  );
+  expect(picker).not.toBeNull();
+  await act(async () => picker?.querySelector("summary")?.click());
+
+  const bluePreset = host.querySelector<HTMLButtonElement>(
+    'button[aria-label="Blue, #2563eb"]',
+  );
+  expect(bluePreset).not.toBeNull();
+  await act(async () => bluePreset?.click());
+
+  expect(
+    host.querySelector<HTMLInputElement>('input[name="color"]')?.value,
+  ).toBe("#2563eb");
+  expect(
+    host
+      .querySelector('button[aria-label="Blue, #2563eb"]')
+      ?.getAttribute("aria-pressed"),
+  ).toBe("true");
+  expect(
+    host.querySelector<HTMLInputElement>('input[aria-label="Red channel"]')
+      ?.value,
+  ).toBe("37");
+});
+
+it("closes the color picker when the user clicks outside it", async () => {
+  await act(async () => {
+    root.render(
+      createElement(CatalogManager, {
+        catalog: "task_type",
+        title: "Task Types",
+        records: [{ id: 10, name: "Flyer", color: "#64748b" }],
+      }),
+    );
+  });
+
+  const picker = host.querySelector<HTMLDetailsElement>(
+    ".catalog-color-picker",
+  );
+  expect(picker).not.toBeNull();
+  await act(async () => picker?.querySelector("summary")?.click());
+  expect(picker?.open).toBe(true);
+
+  await act(async () => {
+    document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+  });
+  expect(picker?.open).toBe(false);
 });
 
 it("renders compact editable management rows with recoverable removal", () => {
@@ -136,7 +203,7 @@ it("opens inline rename on demand and retains validation values and focus", asyn
     host.querySelector('.catalog-rename-form input[name="name"]'),
   ).toBeNull();
   const renameButton = host.querySelector<HTMLButtonElement>(
-    'button[type="button"]',
+    ".catalog-record-name button",
   );
   if (!renameButton) throw new Error("Rename button not found");
   await act(async () => renameButton.click());

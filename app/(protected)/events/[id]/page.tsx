@@ -51,6 +51,7 @@ import {
 import {
   ActionLink,
   BranchBadges,
+  CatalogValueBadge,
   PageHeader,
   SectionHeading,
   StatusBadge,
@@ -215,7 +216,9 @@ export default async function EventDetailPage({
   const eventId = Number(eventIdParam);
   const result = await supabase
     .from("events")
-    .select("*,event_types(name),event_branches(branch_id,branches(name))")
+    .select(
+      "*,event_types(name,color),event_branches(branch_id,branches(name,color))",
+    )
     .eq("id", eventId)
     .maybeSingle();
   if (result.error) throw new Error("Failed to load event");
@@ -513,7 +516,11 @@ export default async function EventDetailPage({
                 <dt>Location</dt>
                 <dd>{event.location || "Not set"}</dd>
                 <dt>Type</dt>
-                <dd>{event.event_types.name}</dd>
+                <dd>
+                  <CatalogValueBadge color={event.event_types.color}>
+                    {event.event_types.name}
+                  </CatalogValueBadge>
+                </dd>
                 <dt>Status</dt>
                 <dd>
                   <StatusBadge
@@ -530,7 +537,7 @@ export default async function EventDetailPage({
                 <dd>
                   <BranchBadges
                     branches={event.event_branches.map(
-                      ({ branches }) => branches.name,
+                      ({ branches }) => branches,
                     )}
                   />
                 </dd>

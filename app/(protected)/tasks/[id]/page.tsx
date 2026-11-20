@@ -20,6 +20,7 @@ import type { Route } from "next";
 import {
   ActionLink,
   BranchBadges,
+  CatalogValueBadge,
   PageHeader,
   PointValue,
   SectionHeading,
@@ -150,7 +151,7 @@ export default async function TaskDetailPage({
   const supabase = await createClient();
   const taskResult = await supabase
     .from("tasks")
-    .select("*,branches(name)")
+    .select("*,branches(name,color),task_types(color)")
     .eq("id", taskId)
     .maybeSingle();
   if (taskResult.error) throw new Error("Failed to load task");
@@ -419,10 +420,14 @@ export default async function TaskDetailPage({
             <ResourceLinksList resources={resourceLinksResult.data} />
             <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm [&>dt]:mt-0 [&>dd]:mt-0 [&>dd]:min-w-0 [&>dd]:break-words">
               <dt>Type</dt>
-              <dd>{formatLabel(task.task_type)}</dd>
+              <dd>
+                <CatalogValueBadge color={task.task_types?.color}>
+                  {formatLabel(task.task_type)}
+                </CatalogValueBadge>
+              </dd>
               <dt>Branch</dt>
               <dd>
-                <BranchBadges branches={[task.branches.name]} />
+                <BranchBadges branches={[task.branches]} />
               </dd>
               <dt>Due</dt>
               <dd>{formatTaskDeadline(task.due_date, task.due_time)}</dd>

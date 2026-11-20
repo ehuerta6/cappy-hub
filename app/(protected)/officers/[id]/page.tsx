@@ -161,7 +161,7 @@ export default async function OfficerDetailPage({
   const officerId = Number(officerIdParam);
   const { data: officer, error } = await supabase
     .from("officers")
-    .select("*, positions(name), officer_branches(branches(name))")
+    .select("*, positions(name), officer_branches(branches(name,color))")
     .eq("id", officerId)
     .maybeSingle();
   if (error) throw new Error(`Failed to load officer: ${error.message}`);
@@ -551,7 +551,7 @@ export default async function OfficerDetailPage({
           <dd>
             <BranchBadges
               branches={officer.officer_branches.map(
-                (membership) => membership.branches.name,
+                (membership) => membership.branches,
               )}
             />
           </dd>

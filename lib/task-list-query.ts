@@ -56,7 +56,7 @@ export function buildTaskListQuery(
   }: TaskListQueryOptions,
 ) {
   const taskSelection = [
-    "*,branches(name),task_officer_assignments(officer_id,completed_at,completion_approval_pending)",
+    "*,branches(name,color),task_types(color),task_officer_assignments(officer_id,completed_at,completion_approval_pending)",
     assigneeId !== undefined &&
       "assignee_filter:task_officer_assignments!inner(officer_id)",
     status === "open" && "no_assignments:task_officer_assignments(task_id)",
