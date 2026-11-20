@@ -27,7 +27,7 @@ Reuse the shared compact pagination pattern: counts remain visible, page control
 
 Use tables for directory, Event, Task, ranking, and history data. Align them to the shared content grid with quiet headers, clear row separators, readable cell spacing, stable numeric alignment, and restrained hover. Let long values wrap; use the named, keyboard-focusable table overflow fallback only when needed.
 
-Use badges for real state or category, not ordinary metadata. Branches and profile details remain neutral. Points ranking emphasizes rank, Officer, and total points. Do not use decorative progress bars or imply comparisons unsupported by the data.
+Use badges for real state or category, not ordinary metadata. Status and catalog badges share the same compact pill geometry; configured Branch, Event Type, and Task Type colors vary only the badge's text, border, and tint. Other profile details remain neutral. Points ranking emphasizes rank, Officer, and total points. Use progress bars only when they represent an actual measured completion ratio.
 
 ### Dates and times
 

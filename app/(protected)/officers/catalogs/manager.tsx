@@ -23,6 +23,8 @@ const CATALOG_COLOR_PRESETS = [
   ["Violet", "#7e22ce"],
 ] as const;
 
+const isHexColor = (value: string) => /^#[0-9A-Fa-f]{6}$/.test(value);
+
 type Catalog =
   "position" | "branch" | "event_location" | "event_type" | "task_type";
 export type CatalogRecord = {
@@ -39,51 +41,114 @@ function CatalogColorPicker({
   id,
   initialColor,
   error,
+  previewLabel = "Sample",
 }: {
   id: string;
   initialColor: string;
   error?: string;
+  previewLabel?: string;
 }) {
+  const fallbackColor = isHexColor(initialColor)
+    ? initialColor
+    : DEFAULT_CATALOG_COLOR;
   const [color, setColor] = useState(initialColor);
-  const isPreset = CATALOG_COLOR_PRESETS.some(([, value]) => value === color);
+  const previewColor = isHexColor(color) ? color : fallbackColor;
+  const [red, green, blue] = hexToRgb(previewColor);
   return (
-    <div className="catalog-color-fields">
-      <label className="sr-only" htmlFor={`${id}-preset`}>
-        Preset color
-      </label>
-      <select
-        id={`${id}-preset`}
-        value={isPreset ? color : "custom"}
-        onChange={(event) => {
-          const nextColor = event.target.value;
-          if (nextColor !== "custom") setColor(nextColor);
-        }}
-      >
-        {CATALOG_COLOR_PRESETS.map(([label, value]) => (
-          <option key={value} value={value}>
-            {label}
-          </option>
-        ))}
-        <option value="custom">Custom HEX</option>
-      </select>
-      <label className="sr-only" htmlFor={`${id}-hex`}>
-        Custom HEX color
-      </label>
-      <input
-        id={`${id}-hex`}
-        name="color"
-        value={color}
-        onChange={(event) => setColor(event.target.value)}
-        pattern="#[0-9A-Fa-f]{6}"
-        maxLength={7}
-        required
-        aria-invalid={Boolean(error)}
-        aria-describedby={error ? `${id}-error` : undefined}
-        aria-label="Color in HEX format"
-        title="Enter a 6-digit HEX color, such as #2563eb"
-      />
-    </div>
+    <details className="catalog-color-picker">
+      <summary aria-label={`Change color, currently ${previewColor}`}>
+        <span
+          className="catalog-color-current-swatch"
+          style={{ backgroundColor: previewColor }}
+          aria-hidden="true"
+        />
+        <span>{previewColor.toUpperCase()}</span>
+      </summary>
+      <div className="catalog-color-popover">
+        <div className="catalog-color-popover-heading">
+          <span>Choose a color</span>
+          <CatalogValueBadge color={previewColor}>
+            {previewLabel}
+          </CatalogValueBadge>
+        </div>
+        <div className="catalog-color-presets" aria-label="Preset colors">
+          {CATALOG_COLOR_PRESETS.map(([label, value]) => (
+            <button
+              key={value}
+              type="button"
+              className="catalog-color-preset"
+              aria-label={`${label}, ${value}`}
+              aria-pressed={color.toLowerCase() === value.toLowerCase()}
+              title={`${label} (${value})`}
+              style={{ backgroundColor: value }}
+              onClick={() => setColor(value)}
+            />
+          ))}
+          <label className="catalog-color-native-picker" title="Custom color">
+            <input
+              id={`${id}-custom`}
+              type="color"
+              value={previewColor}
+              onChange={(event) => setColor(event.target.value)}
+              aria-label="Choose custom color"
+            />
+          </label>
+        </div>
+        <div className="catalog-color-inputs">
+          <label className="catalog-color-hex-field" htmlFor={`${id}-hex`}>
+            HEX
+            <input
+              id={`${id}-hex`}
+              name="color"
+              value={color}
+              onChange={(event) => setColor(event.target.value)}
+              pattern="#[0-9A-Fa-f]{6}"
+              maxLength={7}
+              required
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? `${id}-error` : undefined}
+              title="Enter a 6-digit HEX color, such as #2563eb"
+            />
+          </label>
+          <div className="catalog-color-rgb-fields" aria-label="RGB values">
+            {([red, green, blue] as const).map((channel, index) => (
+              <label key={index}>
+                {(["R", "G", "B"] as const)[index]}
+                <input
+                  type="number"
+                  min={0}
+                  max={255}
+                  value={channel}
+                  onChange={(event) => {
+                    const channels = [red, green, blue];
+                    channels[index] = Math.max(
+                      0,
+                      Math.min(255, Number(event.target.value)),
+                    );
+                    setColor(rgbToHex(channels[0], channels[1], channels[2]));
+                  }}
+                  aria-label={`${["Red", "Green", "Blue"][index]} channel`}
+                />
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+    </details>
   );
+}
+
+function hexToRgb(hex: string) {
+  const value = hex.replace("#", "");
+  return [0, 2, 4].map((offset) =>
+    Number.parseInt(value.slice(offset, offset + 2), 16),
+  ) as [number, number, number];
+}
+
+function rgbToHex(red: number, green: number, blue: number) {
+  return `#${[red, green, blue]
+    .map((channel) => channel.toString(16).padStart(2, "0"))
+    .join("")}`;
 }
 
 function CatalogForm({
@@ -216,6 +281,7 @@ function CatalogColorForm({
           record.color ?? DEFAULT_CATALOG_COLOR,
         )}
         error={state.fieldErrors?.color}
+        previewLabel={record.name}
       />
       <button type="submit" disabled={pending} className="button-secondary">
         {pending ? "Saving…" : "Save color"}

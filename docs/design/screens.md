@@ -8,7 +8,7 @@
 - **Calendar:** Preserve the existing month grid and Event/Task visibility controls. The default date follows the current or explicitly selected period rules above.
 - **Officers:** Use the same list, detail, form, tab, badge, and dialog patterns. Officer role and branch controls follow the existing authorization rules.
 - **Points:** Keep Overview and History tabs consistent with the app. Distinguish ranking from the existing Admin adjustment entry without adding workflows or changing award semantics.
-- **Admin:** Keep landing, period, catalog, and embedded warning workflows within the same page headers, back links, forms, tables, dialogs, tabs, and action hierarchy. Branch, Event Type, and Task Type catalog colors use a compact preset plus HEX control; each color cue stays next to its readable name, with theme-aware text and surface contrast.
+- **Admin:** Keep landing, period, catalog, and embedded warning workflows within the same page headers, back links, forms, tables, dialogs, tabs, and action hierarchy. Branch, Event Type, and Task Type catalog colors use named swatches, a visible HEX value, a native custom color input, and a live tag preview; the editor opens only when needed. Their tags use the shared status-badge shape, with theme-aware text and surface contrast.
 - **Login and recovery:** Keep these focused on product identity, a clear explanation, and the existing sign-in or recovery action. Do not turn them into marketing pages.
 
 When an action is absent for a role or historical period, recompose the page so its remaining content uses the space well.
