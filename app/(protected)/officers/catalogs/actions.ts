@@ -29,6 +29,7 @@ export async function changeCatalog(
     operation: formData.get("operation") ?? "",
     id: formData.get("id") ?? "",
     name: formData.get("name") ?? "",
+    color: formData.get("color") ?? undefined,
   };
   const isLocation = rawCatalogMutationInput.catalog === "event_location";
   let validatedLocationMutation: ReturnType<
@@ -51,6 +52,15 @@ export async function changeCatalog(
     if (!validationResult.success)
       return validationFailure(validationResult.error, formData, ["name"]);
     validatedCatalogMutation = validationResult.data;
+  }
+
+  if (
+    validatedCatalogMutation?.operation === "color" &&
+    validatedCatalogMutation.catalog === "position"
+  ) {
+    return formFailure("Colors are not supported for Positions", formData, [
+      "color",
+    ]);
   }
 
   const supabase = await createClient();
@@ -80,6 +90,27 @@ export async function changeCatalog(
         { p_id: validatedLocationMutation.id },
       ));
     }
+  } else if (
+    validatedCatalogMutation?.operation === "create" &&
+    validatedCatalogMutation.catalog !== "position"
+  ) {
+    ({ error: mutationErrorResponse } = await supabase.rpc(
+      "create_colored_catalog_value",
+      {
+        p_catalog: validatedCatalogMutation.catalog,
+        p_name: validatedCatalogMutation.name,
+        p_color: validatedCatalogMutation.color ?? "#64748b",
+      },
+    ));
+  } else if (validatedCatalogMutation?.operation === "color") {
+    ({ error: mutationErrorResponse } = await supabase.rpc(
+      "set_catalog_color",
+      {
+        p_catalog: validatedCatalogMutation.catalog,
+        p_id: validatedCatalogMutation.id,
+        p_color: validatedCatalogMutation.color,
+      },
+    ));
   } else if (validatedCatalogMutation?.catalog === "task_type") {
     if (validatedCatalogMutation.operation === "create") {
       ({ error: mutationErrorResponse } = await supabase.rpc(
@@ -228,8 +259,10 @@ export async function changeCatalog(
           ? "removed"
           : operation === "restore"
             ? "restored"
-            : operation === "retire"
-              ? "retired"
-              : "reactivated";
+            : operation === "color"
+              ? "color updated"
+              : operation === "retire"
+                ? "retired"
+                : "reactivated";
   return { error: "", success: `${subject} ${verb}` };
 }

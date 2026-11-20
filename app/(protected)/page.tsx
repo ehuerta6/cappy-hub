@@ -176,7 +176,7 @@ export default async function DashboardPage({
       supabase
         .from("events")
         .select(
-          "*,event_types(name),active_signup:event_officers!left(officer_id,removed_at)",
+          "*,event_types(name,color),active_signup:event_officers!left(officer_id,removed_at)",
         )
         .eq("active_signup.officer_id", officer.id)
         .is("active_signup.removed_at", null)

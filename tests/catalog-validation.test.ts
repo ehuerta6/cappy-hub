@@ -18,6 +18,22 @@ it("models only valid catalog operation combinations", () => {
   ).toBe(true);
   expect(
     catalogMutationInputSchema.safeParse({
+      catalog: "event_type",
+      operation: "create",
+      name: "Workshop",
+      color: "#2563eb",
+    }).success,
+  ).toBe(true);
+  expect(
+    catalogMutationInputSchema.safeParse({
+      catalog: "branch",
+      operation: "color",
+      id: "4",
+      color: "blue",
+    }).success,
+  ).toBe(false);
+  expect(
+    catalogMutationInputSchema.safeParse({
       catalog: "position",
       operation: "rename",
       id: "4",

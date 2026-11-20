@@ -17,8 +17,8 @@ export type EventListItem = Pick<
   | "max_volunteers"
 > & {
   delete_points_suspended?: boolean;
-  event_types: { name: string };
-  event_branches: { branches: { name: string } }[];
+  event_types: { name: string; color: string };
+  event_branches: { branches: { name: string; color: string } }[];
   event_officers: {
     officer_id: number;
     removed_at?: string | null;

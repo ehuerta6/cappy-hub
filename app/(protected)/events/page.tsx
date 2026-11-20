@@ -16,8 +16,8 @@ import { createClient } from "@/lib/supabase/server";
 import { eventStatus, eventSignupOpen } from "@/lib/event-status";
 import {
   ActionLink,
-  Badge,
   BranchBadges,
+  CatalogValueBadge,
   ListFilterBar,
   PageHeader,
   SectionHeading,
@@ -91,7 +91,7 @@ export default async function EventsPage({
   const deletedLead =
     status === "deleted" && isLead(actor) && !canSeeAllBranches(actor);
   const eventSelection =
-    "id,name,event_date,starts_at,ends_at,status,deleted_at,delete_points_suspended,max_volunteers,participation_points_per_hour_at_end,event_types(name),event_branches(branch_id,branches(name)),filter_branch:event_branches(branch_id),scope_branch:event_branches(branch_id),event_officers(officer_id,removed_at,participation_type)";
+    "id,name,event_date,starts_at,ends_at,status,deleted_at,delete_points_suspended,max_volunteers,participation_points_per_hour_at_end,event_types(name,color),event_branches(branch_id,branches(name,color)),filter_branch:event_branches(branch_id),scope_branch:event_branches(branch_id),event_officers(officer_id,removed_at,participation_type)";
   const buildEventQuery = (includeFilters: boolean, countOnly = false) => {
     let query = supabase
       .from("events")
@@ -503,15 +503,16 @@ export default async function EventsPage({
                                     )}
                                   </td>
                                   <td>
-                                    <Badge tone="blue">
+                                    <CatalogValueBadge
+                                      color={event.event_types.color}
+                                    >
                                       {event.event_types.name}
-                                    </Badge>
+                                    </CatalogValueBadge>
                                   </td>
                                   <td>
                                     <BranchBadges
                                       branches={event.event_branches.map(
-                                        (eventBranch) =>
-                                          eventBranch.branches.name,
+                                        (eventBranch) => eventBranch.branches,
                                       )}
                                     />
                                   </td>

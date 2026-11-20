@@ -82,6 +82,9 @@ it("manages Task Types using the recoverable catalog actions", () => {
   expect(activeHtml).toContain('name="catalog" value="task_type"');
   expect(activeHtml).toContain('name="operation" value="create"');
   expect(activeHtml).toContain('name="operation" value="delete"');
+  expect(activeHtml).toContain('name="operation" value="color"');
+  expect(activeHtml).toContain('name="color" value="#64748b"');
+  expect(activeHtml).toContain("Custom HEX");
   expect(deletedHtml).toContain("Flyer");
   expect(deletedHtml).toContain("Deleted");
   expect(deletedHtml).toContain('name="operation" value="restore"');

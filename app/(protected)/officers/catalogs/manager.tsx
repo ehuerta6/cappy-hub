@@ -2,10 +2,26 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
-import { ActionFeedback, FieldError, SectionHeading } from "@/components/ui";
+import {
+  ActionFeedback,
+  CatalogValueBadge,
+  FieldError,
+  SectionHeading,
+} from "@/components/ui";
 import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { changeCatalog } from "./actions";
+
+const DEFAULT_CATALOG_COLOR = "#64748b";
+const CATALOG_COLOR_PRESETS = [
+  ["Slate", "#64748b"],
+  ["Blue", "#2563eb"],
+  ["Teal", "#0f766e"],
+  ["Green", "#15803d"],
+  ["Amber", "#b45309"],
+  ["Rose", "#be123c"],
+  ["Violet", "#7e22ce"],
+] as const;
 
 type Catalog =
   "position" | "branch" | "event_location" | "event_type" | "task_type";
@@ -16,7 +32,59 @@ export type CatalogRecord = {
   is_active?: boolean;
   available_for_new_events?: boolean;
   available_for_new_tasks?: boolean;
+  color?: string;
 };
+
+function CatalogColorPicker({
+  id,
+  initialColor,
+  error,
+}: {
+  id: string;
+  initialColor: string;
+  error?: string;
+}) {
+  const [color, setColor] = useState(initialColor);
+  const isPreset = CATALOG_COLOR_PRESETS.some(([, value]) => value === color);
+  return (
+    <div className="catalog-color-fields">
+      <label className="sr-only" htmlFor={`${id}-preset`}>
+        Preset color
+      </label>
+      <select
+        id={`${id}-preset`}
+        value={isPreset ? color : "custom"}
+        onChange={(event) => {
+          const nextColor = event.target.value;
+          if (nextColor !== "custom") setColor(nextColor);
+        }}
+      >
+        {CATALOG_COLOR_PRESETS.map(([label, value]) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+        <option value="custom">Custom HEX</option>
+      </select>
+      <label className="sr-only" htmlFor={`${id}-hex`}>
+        Custom HEX color
+      </label>
+      <input
+        id={`${id}-hex`}
+        name="color"
+        value={color}
+        onChange={(event) => setColor(event.target.value)}
+        pattern="#[0-9A-Fa-f]{6}"
+        maxLength={7}
+        required
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? `${id}-error` : undefined}
+        aria-label="Color in HEX format"
+        title="Enter a 6-digit HEX color, such as #2563eb"
+      />
+    </div>
+  );
+}
 
 function CatalogForm({
   catalog,
@@ -75,6 +143,22 @@ function CatalogForm({
             placeholder="Name"
           />
           <FieldError id={errorId}>{fieldErrors.name}</FieldError>
+          {catalog !== "position" && catalog !== "event_location" && (
+            <>
+              <CatalogColorPicker
+                id={`${fieldId}-color`}
+                initialColor={submittedValue(
+                  state.values,
+                  "color",
+                  DEFAULT_CATALOG_COLOR,
+                )}
+                error={fieldErrors.color}
+              />
+              <FieldError id={`${fieldId}-color-error`}>
+                {fieldErrors.color}
+              </FieldError>
+            </>
+          )}
         </>
       )}
       {operation === "delete" && record ? (
@@ -101,6 +185,44 @@ function CatalogForm({
           {pending ? "Adding…" : "Add"}
         </button>
       )}
+      <ActionFeedback state={state} />
+    </form>
+  );
+}
+
+function CatalogColorForm({
+  catalog,
+  record,
+}: {
+  catalog: Catalog;
+  record: CatalogRecord;
+}) {
+  const [state, action, pending] = useActionState(
+    changeCatalog,
+    initialFormActionState,
+  );
+  const fieldId = `${catalog}-color-${record.id}`;
+  return (
+    <form action={action} className="catalog-color-form">
+      <AcademicPeriodWriteContextField />
+      <input type="hidden" name="catalog" value={catalog} />
+      <input type="hidden" name="operation" value="color" />
+      <input type="hidden" name="id" value={record.id} />
+      <CatalogColorPicker
+        id={fieldId}
+        initialColor={submittedValue(
+          state.values,
+          "color",
+          record.color ?? DEFAULT_CATALOG_COLOR,
+        )}
+        error={state.fieldErrors?.color}
+      />
+      <button type="submit" disabled={pending} className="button-secondary">
+        {pending ? "Saving…" : "Save color"}
+      </button>
+      <FieldError id={`${fieldId}-error`}>
+        {state.fieldErrors?.color}
+      </FieldError>
       <ActionFeedback state={state} />
     </form>
   );
@@ -161,7 +283,9 @@ function CatalogRename({
   if (!editing) {
     return (
       <div className="catalog-record-name">
-        <p className="min-w-0 break-words">{record.name}</p>
+        <CatalogValueBadge color={record.color}>
+          {record.name}
+        </CatalogValueBadge>
         <button
           ref={renameButtonRef}
           type="button"
@@ -256,10 +380,17 @@ export default function CatalogManager({
               ) : (
                 <>
                   {readOnly ? (
-                    <p>{record.name}</p>
+                    <CatalogValueBadge color={record.color}>
+                      {record.name}
+                    </CatalogValueBadge>
                   ) : (
                     <CatalogRename catalog={catalog} record={record} />
                   )}
+                  {catalog !== "position" &&
+                    catalog !== "event_location" &&
+                    !readOnly && (
+                      <CatalogColorForm catalog={catalog} record={record} />
+                    )}
                   {deleted && (
                     <span className="catalog-record-status">Deleted</span>
                   )}
