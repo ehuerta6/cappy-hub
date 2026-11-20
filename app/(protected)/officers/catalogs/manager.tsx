@@ -59,6 +59,10 @@ function CatalogColorPicker({
   const pickerRef = useRef<HTMLDetailsElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [placement, setPlacement] = useState<"top" | "bottom">("top");
+  const [popoverMaxHeight, setPopoverMaxHeight] = useState(
+    "calc(100dvh - 1.5rem)",
+  );
+  const [popoverLeft, setPopoverLeft] = useState<number | null>(null);
   useEffect(() => {
     const closeOnOutsidePointer = (event: PointerEvent) => {
       if (
@@ -84,16 +88,40 @@ function CatalogColorPicker({
   const choosePlacement = () => {
     window.requestAnimationFrame(() => {
       const picker = pickerRef.current;
-      const trigger = picker?.querySelector("summary")?.getBoundingClientRect();
-      const popoverHeight = popoverRef.current?.offsetHeight ?? 0;
-      if (!picker?.open || !trigger) return;
-      const spaceAbove = trigger.top;
-      const spaceBelow = window.innerHeight - trigger.bottom;
-      setPlacement(
-        spaceAbove >= popoverHeight + 12 || spaceAbove >= spaceBelow
-          ? "top"
-          : "bottom",
+      const triggerElement = picker?.querySelector("summary");
+      const trigger = triggerElement?.getBoundingClientRect();
+      const popover = popoverRef.current;
+      const popoverHeight = popover?.scrollHeight ?? 0;
+      if (!picker?.open || !trigger || !popover || !triggerElement) return;
+      const viewportMargin = 12;
+      const triggerGap = 8;
+      const spaceAbove = Math.max(0, trigger.top - viewportMargin - triggerGap);
+      const spaceBelow = Math.max(
+        0,
+        window.innerHeight - trigger.bottom - viewportMargin - triggerGap,
       );
+      const fitsAbove = spaceAbove >= popoverHeight;
+      const fitsBelow = spaceBelow >= popoverHeight;
+      const nextPlacement =
+        fitsAbove || (!fitsBelow && spaceAbove >= spaceBelow)
+          ? "top"
+          : "bottom";
+      setPlacement(nextPlacement);
+      setPopoverMaxHeight(
+        `${Math.max(1, nextPlacement === "top" ? spaceAbove : spaceBelow)}px`,
+      );
+      const pickerRect = picker.getBoundingClientRect();
+      const popoverWidth = popover.getBoundingClientRect().width;
+      const desiredLeft =
+        align === "start" ? trigger.left : trigger.right - popoverWidth;
+      const clampedLeft = Math.max(
+        viewportMargin,
+        Math.min(
+          desiredLeft,
+          window.innerWidth - popoverWidth - viewportMargin,
+        ),
+      );
+      setPopoverLeft(clampedLeft - pickerRect.left);
     });
   };
   return (
@@ -113,7 +141,15 @@ function CatalogColorPicker({
         />
         <span>{previewColor.toUpperCase()}</span>
       </summary>
-      <div ref={popoverRef} className="catalog-color-popover">
+      <div
+        ref={popoverRef}
+        className="catalog-color-popover"
+        style={{
+          maxHeight: popoverMaxHeight,
+          left: popoverLeft === null ? undefined : `${popoverLeft}px`,
+          right: popoverLeft === null ? undefined : "auto",
+        }}
+      >
         <div className="catalog-color-popover-heading">
           <span>Choose a color</span>
           <CatalogValueBadge color={previewColor}>
