@@ -31,3 +31,34 @@ it("keeps the unassigned state clear without showing an empty progress meter", (
   expect(html).toContain("No Officers assigned");
   expect(html).not.toContain("<progress");
 });
+
+it("shows a compact completion badge when every assigned Officer is complete", () => {
+  const html = renderToStaticMarkup(
+    createElement(TaskAssignmentProgress, {
+      assignments: [
+        { officer_id: 1, completed_at: "2026-10-01T12:00:00Z" },
+        { officer_id: 2, completed_at: "2026-10-02T12:00:00Z" },
+      ],
+    }),
+  );
+
+  expect(html).toContain("All completed");
+  expect(html).not.toContain("<progress");
+});
+
+it("treats a roster containing only removed assignments as unassigned", () => {
+  const html = renderToStaticMarkup(
+    createElement(TaskAssignmentProgress, {
+      assignments: [
+        {
+          officer_id: 1,
+          completed_at: null,
+          removed_at: "2026-10-04T12:00:00Z",
+        },
+      ],
+    }),
+  );
+
+  expect(html).toContain("No Officers assigned");
+  expect(html).not.toContain("<progress");
+});

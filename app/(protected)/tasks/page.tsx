@@ -44,7 +44,7 @@ type TaskListRow = Tables<"tasks"> & {
   branches: Pick<Tables<"branches">, "name">;
   task_officer_assignments: Pick<
     Tables<"task_officer_assignments">,
-    "officer_id" | "completed_at" | "completion_approval_pending"
+    "officer_id" | "completed_at" | "completion_approval_pending" | "removed_at"
   >[];
 };
 

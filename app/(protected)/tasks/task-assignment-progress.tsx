@@ -8,10 +8,17 @@ export default function TaskAssignmentProgress({
 }: {
   assignments: readonly TaskAssignmentSummary[];
 }) {
-  if (assignments.length === 0)
+  const { completed, total } = taskProgressCounts(assignments);
+  if (total === 0)
     return <span className="text-sm text-muted">No Officers assigned</span>;
 
-  const { completed, total } = taskProgressCounts(assignments);
+  if (completed === total)
+    return (
+      <span className="status-badge badge-green task-assignment-all-complete">
+        All completed
+      </span>
+    );
+
   const officerLabel = total === 1 ? "Officer" : "Officers";
 
   return (
