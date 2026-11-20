@@ -1958,6 +1958,29 @@ export type Database = {
         };
         Returns: number;
       };
+      create_recurring_event_with_resources_and_officers: {
+        Args: {
+          p_branch_ids: number[];
+          p_description: string;
+          p_ends_at: string[];
+          p_event_dates: string[];
+          p_event_type_id: number;
+          p_location: string;
+          p_max_volunteers: number;
+          p_meeting_notes_url: string;
+          p_name: string;
+          p_officer_signups: Json;
+          p_recurrence_rule: string;
+          p_request_key: string;
+          p_resource_links: Json;
+          p_roster_scope: string;
+          p_signup_sheet_url: string;
+          p_slides_url: string;
+          p_starts_at: string[];
+          p_time_slots: Json;
+        };
+        Returns: number;
+      };
       create_recurring_task: {
         Args: {
           p_approval_required: boolean;
@@ -1998,6 +2021,24 @@ export type Database = {
           p_recurrence_rule: string;
           p_request_key: string;
           p_resource_links: Json;
+          p_task_type: string;
+          p_title: string;
+        };
+        Returns: number;
+      };
+      create_recurring_task_with_resources_and_officers: {
+        Args: {
+          p_approval_required: boolean;
+          p_branch_id: number;
+          p_description: string;
+          p_due_dates: string[];
+          p_event_ids: number[];
+          p_officer_ids: number[];
+          p_points: number;
+          p_recurrence_rule: string;
+          p_request_key: string;
+          p_resource_links: Json;
+          p_roster_scope: string;
           p_task_type: string;
           p_title: string;
         };
@@ -2328,6 +2369,27 @@ export type Database = {
         };
         Returns: number;
       };
+      save_event_with_resources_and_officers: {
+        Args: {
+          p_branch_ids: number[];
+          p_description: string;
+          p_ends_at: string;
+          p_event_date: string;
+          p_event_type_id: number;
+          p_location: string;
+          p_max_volunteers: number;
+          p_meeting_notes_url: string;
+          p_name: string;
+          p_officer_signups: Json;
+          p_resource_links: Json;
+          p_roster_scope: string;
+          p_signup_sheet_url: string;
+          p_slides_url: string;
+          p_starts_at: string;
+          p_time_slots: Json;
+        };
+        Returns: number;
+      };
       save_event_with_signup_sheet: {
         Args: {
           p_branch_ids: number[];
@@ -2390,6 +2452,21 @@ export type Database = {
           p_description: string;
           p_due_date: string;
           p_event_ids: number[];
+          p_points: number;
+          p_resource_links: Json;
+          p_task_type: string;
+          p_title: string;
+        };
+        Returns: number;
+      };
+      save_task_with_resources_and_officers: {
+        Args: {
+          p_approval_required: boolean;
+          p_branch_id: number;
+          p_description: string;
+          p_due_date: string;
+          p_event_ids: number[];
+          p_officer_ids: number[];
           p_points: number;
           p_resource_links: Json;
           p_task_type: string;

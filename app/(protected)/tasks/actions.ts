@@ -34,6 +34,8 @@ import {
   setTaskCompletionInputSchema,
   taskDetailsInputSchema,
   taskEventIdsSchema,
+  taskAssigneeIdsSchema,
+  taskAssignmentScopeSchema,
 } from "./validation";
 
 const taskFormFields = [
@@ -45,6 +47,8 @@ const taskFormFields = [
   "due_time",
   "points",
   "event_ids",
+  "officer_ids",
+  "assignment_scope",
   "resource_links",
   "recurrence_frequency",
   "recurrence_interval",
@@ -61,6 +65,7 @@ const taskFieldErrors = taskFormFields;
 const taskMultipleFields = [
   "recurrence_weekdays",
   "event_ids",
+  "officer_ids",
   "notification_branches",
   "notification_positions",
 ] as const;
@@ -128,6 +133,28 @@ export async function createTask(
       taskFormFields,
       taskMultipleFields,
     );
+  const assigneeIds = taskAssigneeIdsSchema.safeParse(
+    formData
+      .getAll("officer_ids")
+      .filter((value): value is string => typeof value === "string"),
+  );
+  if (!assigneeIds.success)
+    return validationFailure(
+      assigneeIds.error,
+      formData,
+      taskFormFields,
+      taskMultipleFields,
+    );
+  const assignmentScope = taskAssignmentScopeSchema.safeParse(
+    formData.get("assignment_scope") ?? "occurrence",
+  );
+  if (assigneeIds.data.length && !assignmentScope.success)
+    return validationFailure(
+      assignmentScope.error,
+      formData,
+      taskFormFields,
+      taskMultipleFields,
+    );
   const supabase = await createClient();
   const recurrence = recurrenceInput(validatedTaskInput);
   if (recurrence) {
@@ -144,7 +171,9 @@ export async function createTask(
       );
     }
     const { data, error } = await supabase.rpc(
-      "create_recurring_task_with_resources",
+      assigneeIds.data.length
+        ? "create_recurring_task_with_resources_and_officers"
+        : "create_recurring_task_with_resources",
       {
         p_title: validatedTaskInput.title,
         p_description: validatedTaskInput.description,
@@ -157,6 +186,12 @@ export async function createTask(
         p_due_dates: dates,
         p_event_ids: eventIds.data,
         p_resource_links: validatedTaskInput.resource_links,
+        ...(assigneeIds.data.length
+          ? {
+              p_officer_ids: assigneeIds.data,
+              p_roster_scope: assignmentScope.data,
+            }
+          : {}),
       },
     );
     if (error)
@@ -192,17 +227,23 @@ export async function createTask(
     revalidatePath("/events/[id]", "page");
     redirect(withSuccessNotice(`/tasks#task-${data}`, "task-created"));
   }
-  const { data, error } = await supabase.rpc("save_task_with_resources", {
-    p_title: validatedTaskInput.title,
-    p_description: validatedTaskInput.description,
-    p_task_type: validatedTaskInput.task_type,
-    p_branch_id: validatedTaskInput.branch_id,
-    p_due_date: validatedTaskInput.due_date,
-    p_points: validatedTaskInput.points,
-    p_approval_required: false,
-    p_event_ids: eventIds.data,
-    p_resource_links: validatedTaskInput.resource_links,
-  });
+  const { data, error } = await supabase.rpc(
+    assigneeIds.data.length
+      ? "save_task_with_resources_and_officers"
+      : "save_task_with_resources",
+    {
+      p_title: validatedTaskInput.title,
+      p_description: validatedTaskInput.description,
+      p_task_type: validatedTaskInput.task_type,
+      p_branch_id: validatedTaskInput.branch_id,
+      p_due_date: validatedTaskInput.due_date,
+      p_points: validatedTaskInput.points,
+      p_approval_required: false,
+      p_event_ids: eventIds.data,
+      p_resource_links: validatedTaskInput.resource_links,
+      ...(assigneeIds.data.length ? { p_officer_ids: assigneeIds.data } : {}),
+    },
+  );
   if (error)
     return formFailure(
       mutationError(error.message),

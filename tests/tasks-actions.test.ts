@@ -103,6 +103,62 @@ it("validates and submits multiple Event links through the atomic Task mutation"
   );
 });
 
+it("saves selected Officers in the atomic Task creation mutation", async () => {
+  const form = taskForm();
+  form.append("officer_ids", "12");
+  form.append("officer_ids", "13");
+
+  await createTask({ error: "", success: "" }, form);
+
+  expect(rpc).toHaveBeenCalledWith(
+    "save_task_with_resources_and_officers",
+    expect.objectContaining({
+      p_officer_ids: [12, 13],
+      p_event_ids: [],
+      p_resource_links: [],
+    }),
+  );
+});
+
+it("saves recurring Task assignments to every occurrence when requested", async () => {
+  const recurring = taskForm();
+  recurring.set("recurrence_frequency", "daily");
+  recurring.set("recurrence_interval", "1");
+  recurring.set("recurrence_end_mode", "count");
+  recurring.set("recurrence_count", "3");
+  recurring.set("assignment_scope", "series");
+  recurring.append("officer_ids", "12");
+
+  await createTask({ error: "", success: "" }, recurring);
+
+  expect(rpc).toHaveBeenCalledWith(
+    "create_recurring_task_with_resources_and_officers",
+    expect.objectContaining({
+      p_officer_ids: [12],
+      p_roster_scope: "series",
+    }),
+  );
+});
+
+it("defaults recurring Task assignments to the first occurrence", async () => {
+  const recurring = taskForm();
+  recurring.set("recurrence_frequency", "daily");
+  recurring.set("recurrence_interval", "1");
+  recurring.set("recurrence_end_mode", "count");
+  recurring.set("recurrence_count", "3");
+  recurring.append("officer_ids", "12");
+
+  await createTask({ error: "", success: "" }, recurring);
+
+  expect(rpc).toHaveBeenCalledWith(
+    "create_recurring_task_with_resources_and_officers",
+    expect.objectContaining({
+      p_officer_ids: [12],
+      p_roster_scope: "occurrence",
+    }),
+  );
+});
+
 it("retains selected Event IDs in Action state after validation fails", async () => {
   const form = taskForm();
   form.set("points", "invalid");

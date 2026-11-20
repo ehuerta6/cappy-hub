@@ -102,6 +102,26 @@ reset role;
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000972',true);
 set local role authenticated;
+select set_config('test.created_task_id',public.save_task_with_resources_and_officers(
+  'Assigned during creation','Task detail','Flyer',(select id from branches where name='intro'),
+  (current_timestamp at time zone 'America/Denver')::date+3,2,false,'{}'::bigint[],'[]'::jsonb,
+  array[-973,-974]::bigint[])::text,true);
+select is((select count(*) from public.task_officer_assignments
+  where task_id=current_setting('test.created_task_id')::bigint and officer_id in (-973,-974)),
+  2::bigint,'Task creation saves all selected Officers atomically, including one without Branch membership');
+reset role;
+select is((select count(*) from public.notifications
+  where kind='task.assigned' and entity_id=current_setting('test.created_task_id')::bigint
+    and recipient_officer_id in (-973,-974)),2::bigint,
+  'each newly assigned Officer receives one notice outside the Task audience');
+set local role authenticated;
+select throws_ok($$select public.save_task_with_resources_and_officers(
+  'Rolled back assignment','Task detail','Flyer',(select id from branches where name='intro'),
+  (current_timestamp at time zone 'America/Denver')::date+3,2,false,'{}'::bigint[],'[]'::jsonb,
+  array[-973,-975]::bigint[])$$,'P0001','Every selected officer must be active',
+  'an invalid selected Officer rolls back Task creation');
+select is((select count(*) from public.tasks where title='Rolled back assignment'),0::bigint,
+  'failed initial assignment leaves no misleading partial Task');
 select lives_ok($$select bulk_assign_task_officers(-9711,array[-973,-971]::bigint[])$$,
  'branch Lead bulk-assigns multiple active Officers');
 select is((select count(*) from task_officer_assignments where task_id=-9711),2::bigint,

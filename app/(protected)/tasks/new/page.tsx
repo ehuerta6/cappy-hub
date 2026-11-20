@@ -28,7 +28,7 @@ export default async function NewTaskPage({
   if (!canSeeAllBranches(actor) && (!isLead(actor) || !actor.branchIds.length))
     redirect("/access-denied");
   const supabase = await createClient();
-  const [branches, events, taskTypes, positions] = await Promise.all([
+  const [branches, events, taskTypes, positions, officers] = await Promise.all([
     supabase
       .from("branches")
       .select("id,name")
@@ -46,8 +46,19 @@ export default async function NewTaskPage({
       .eq("available_for_new_tasks", true)
       .order("name"),
     supabase.from("positions").select("id,name").order("name"),
+    supabase
+      .from("officers")
+      .select("id,name")
+      .eq("status", "active")
+      .order("name"),
   ]);
-  if (branches.error || events.error || taskTypes.error || positions.error)
+  if (
+    branches.error ||
+    events.error ||
+    taskTypes.error ||
+    positions.error ||
+    officers.error
+  )
     throw new Error("Failed to load Task form");
   return (
     <div data-form-page="task" className="space-y-6">
@@ -73,6 +84,7 @@ export default async function NewTaskPage({
               )
         }
         events={events.data}
+        officers={officers.data}
       />
     </div>
   );

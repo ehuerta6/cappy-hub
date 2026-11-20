@@ -101,6 +101,54 @@ it("submits an empty event_ids selection without adding a placeholder value", ()
   expect(html).not.toContain('name="event_ids" type="hidden"');
 });
 
+it("offers active Officer checkboxes on creation and omits them while editing", () => {
+  const officers = [
+    { id: 31, name: "Officer One" },
+    { id: 32, name: "Officer Two" },
+  ];
+  const createHtml = renderToStaticMarkup(
+    <TaskCreateForm
+      branches={[]}
+      taskTypes={[{ name: "Flyer" }]}
+      officers={officers}
+      recurrenceRequestKey="00000000-0000-4000-8000-000000000001"
+    />,
+  );
+  expect(createHtml).toContain("Assign Officers (optional)");
+  expect(createHtml).toContain('name="officer_ids" value="31"');
+  expect(createHtml).toContain('name="officer_ids" value="32"');
+  expect(createHtml).toContain('name="assignment_scope"');
+  expect(createHtml).toContain('value="occurrence" selected=""');
+  expect(createHtml).toContain("All occurrences in the series");
+
+  const task: Tables<"tasks"> = {
+    id: -10,
+    title: "Existing task",
+    description: "Task description",
+    task_type: "Flyer",
+    branch_id: -1,
+    due_date: "2026-10-20",
+    due_time: null,
+    points: 1,
+    approval_required: false,
+    created_by: -2,
+    created_at: "2026-10-01T00:00:00Z",
+    recurrence_key: null,
+    recurrence_series_id: null,
+    removed_at: null,
+    removed_by: null,
+  };
+  const editHtml = renderToStaticMarkup(
+    <TaskCreateForm
+      task={task}
+      branches={[]}
+      officers={officers}
+      recurrenceRequestKey="00000000-0000-4000-8000-000000000001"
+    />,
+  );
+  expect(editHtml).not.toContain('name="officer_ids"');
+});
+
 it("prefills an existing historical Event link when editing a Task", () => {
   const task: Tables<"tasks"> = {
     id: -8,

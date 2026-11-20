@@ -56,16 +56,17 @@ export function buildTaskListQuery(
   }: TaskListQueryOptions,
 ) {
   const taskSelection = [
-    "*,branches(name,color),task_types(color),task_officer_assignments(officer_id,completed_at,completion_approval_pending)",
+    "*,branches(name,color),task_types(color),task_officer_assignments(officer_id,completed_at,completion_approval_pending,removed_at)",
     assigneeId !== undefined &&
-      "assignee_filter:task_officer_assignments!inner(officer_id)",
-    status === "open" && "no_assignments:task_officer_assignments(task_id)",
+      "assignee_filter:task_officer_assignments!inner(officer_id,removed_at)",
+    status === "open" &&
+      "no_assignments:task_officer_assignments(task_id,removed_at)",
     status === "in_progress" &&
-      "incomplete_assignment:task_officer_assignments!inner(task_id,completed_at,completion_approval_pending)",
+      "incomplete_assignment:task_officer_assignments!inner(task_id,completed_at,completion_approval_pending,removed_at)",
     status === "complete" &&
-      "any_assignment:task_officer_assignments!inner(task_id)",
+      "any_assignment:task_officer_assignments!inner(task_id,removed_at)",
     status === "complete" &&
-      "incomplete_assignment:task_officer_assignments(completed_at,completion_approval_pending)",
+      "incomplete_assignment:task_officer_assignments(completed_at,completion_approval_pending,removed_at)",
   ]
     .filter(Boolean)
     .join(",");
@@ -99,19 +100,27 @@ export function buildTaskListQuery(
     );
   if (branchId !== undefined) tasksQuery = tasksQuery.eq("branch_id", branchId);
   if (assigneeId !== undefined)
-    tasksQuery = tasksQuery.eq("assignee_filter.officer_id", assigneeId);
+    tasksQuery = tasksQuery
+      .eq("assignee_filter.officer_id", assigneeId)
+      .is("assignee_filter.removed_at", null);
 
-  if (status === "open") tasksQuery = tasksQuery.is("no_assignments", null);
+  if (status === "open")
+    tasksQuery = tasksQuery
+      .is("no_assignments.removed_at", null)
+      .is("no_assignments", null);
   if (status === "in_progress")
-    tasksQuery = tasksQuery.or(
-      "completed_at.is.null,completion_approval_pending.eq.true",
-      { referencedTable: "incomplete_assignment" },
-    );
-  if (status === "complete")
     tasksQuery = tasksQuery
       .or("completed_at.is.null,completion_approval_pending.eq.true", {
         referencedTable: "incomplete_assignment",
       })
+      .is("incomplete_assignment.removed_at", null);
+  if (status === "complete")
+    tasksQuery = tasksQuery
+      .is("any_assignment.removed_at", null)
+      .or("completed_at.is.null,completion_approval_pending.eq.true", {
+        referencedTable: "incomplete_assignment",
+      })
+      .is("incomplete_assignment.removed_at", null)
       .is("incomplete_assignment", null);
 
   return tasksQuery

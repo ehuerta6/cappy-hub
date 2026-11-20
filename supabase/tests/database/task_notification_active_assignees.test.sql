@@ -70,8 +70,33 @@ select lives_ok('select public.remove_task_assignment(-9444001,-9444003)',
 select lives_ok('select public.remove_task_assignment(-9444001,-9444004)',
   'an Admin removes an assignee who also matches the explicit audience');
 reset role;
+select is((select count(*) from public.notifications
+  where recipient_officer_id=-9444003 and entity_id=-9444001
+    and kind='task.assignment_removed'),1::bigint,
+  'a removed Officer receives one personal notice outside the Task audience');
+select is((select count(*) from public.notifications
+  where recipient_officer_id=-9444004 and entity_id=-9444001
+    and kind='task.assignment_removed'),1::bigint,
+  'an Officer receives one removal notice even when they match the Task audience');
 
 select private.process_due_reminders();
+
+set local role authenticated;
+select lives_ok('select public.bulk_assign_task_officers(-9444001,array[-9444003]::bigint[])',
+  'an Admin can reassign a previously removed Officer');
+reset role;
+select is((select count(*) from public.notifications
+  where recipient_officer_id=-9444003 and entity_id=-9444001 and kind='task.assigned'),
+  2::bigint,'reassignment after a real removal sends one new assignment notice');
+set local role authenticated;
+select lives_ok('select public.remove_task_assignment(-9444001,-9444003)',
+  'an Admin can remove the reassignment');
+reset role;
+select is((select count(*) from public.notifications
+  where recipient_officer_id=-9444003 and entity_id=-9444001
+    and kind='task.assignment_removed'),2::bigint,
+  'a second actual removal sends one new notice');
+reset role;
 
 select is((select count(*) from public.notifications
   where recipient_officer_id=-9444002 and entity_id=-9444001 and kind='task.reminder'),

@@ -22,25 +22,37 @@ export default async function NewEventPage({
   const actor = await getAuthorizationContext();
   if (!canEditEvent(actor)) redirect("/access-denied");
   const supabase = await createClient();
-  const [branches, eventTypes, locations, positions] = await Promise.all([
-    supabase
-      .from("branches")
-      .select("id,name")
-      .eq("is_active", true)
-      .order("name"),
-    supabase
-      .from("event_types")
-      .select("id,name")
-      .eq("available_for_new_events", true)
-      .order("name"),
-    supabase
-      .from("event_locations")
-      .select("id,name")
-      .eq("is_active", true)
-      .order("name"),
-    supabase.from("positions").select("id,name").order("name"),
-  ]);
-  if (branches.error || eventTypes.error || locations.error || positions.error)
+  const [branches, eventTypes, locations, positions, officers] =
+    await Promise.all([
+      supabase
+        .from("branches")
+        .select("id,name")
+        .eq("is_active", true)
+        .order("name"),
+      supabase
+        .from("event_types")
+        .select("id,name")
+        .eq("available_for_new_events", true)
+        .order("name"),
+      supabase
+        .from("event_locations")
+        .select("id,name")
+        .eq("is_active", true)
+        .order("name"),
+      supabase.from("positions").select("id,name").order("name"),
+      supabase
+        .from("officers")
+        .select("id,name")
+        .eq("status", "active")
+        .order("name"),
+    ]);
+  if (
+    branches.error ||
+    eventTypes.error ||
+    locations.error ||
+    positions.error ||
+    officers.error
+  )
     throw new Error("Failed to load event form");
   return (
     <div data-form-page="event" className="space-y-6">
@@ -61,6 +73,7 @@ export default async function NewEventPage({
         positions={positions.data}
         eventTypes={eventTypes.data}
         locations={locations.data}
+        officers={officers.data}
       />
     </div>
   );

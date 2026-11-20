@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   splitTasksByOfficer,
+  taskProgressCounts,
   taskProgressLabel,
   taskStatus,
   taskStatusFromCounts,
@@ -53,6 +54,33 @@ describe("Task assignment summaries", () => {
     ).toBe("1/3 completed");
   });
 
+  it("counts approved completion only for progress meters", () => {
+    expect(
+      taskProgressCounts([
+        { officer_id: 1, completed_at: "2026-10-01T12:00:00Z" },
+        {
+          officer_id: 2,
+          completed_at: "2026-10-01T12:00:00Z",
+          completion_approval_pending: true,
+        },
+        { officer_id: 3, completed_at: null },
+      ]),
+    ).toEqual({ completed: 1, total: 3 });
+  });
+
+  it("excludes soft-removed assignments from the active roster", () => {
+    const assignments = [
+      {
+        officer_id: 1,
+        completed_at: null,
+        removed_at: "2026-10-04T12:00:00Z",
+      },
+    ];
+    expect(taskProgressCounts(assignments)).toEqual({ completed: 0, total: 0 });
+    expect(taskStatus(assignments)).toBe("Open");
+    expect(taskProgressLabel(assignments)).toBe("0 officers");
+  });
+
   it("groups by the signed-in Officer assignment, not other Officers", () => {
     const tasks = [
       {
@@ -63,10 +91,20 @@ describe("Task assignment summaries", () => {
         id: 2,
         task_officer_assignments: [{ officer_id: 11, completed_at: null }],
       },
+      {
+        id: 4,
+        task_officer_assignments: [
+          {
+            officer_id: 10,
+            completed_at: null,
+            removed_at: "2026-10-04T12:00:00Z",
+          },
+        ],
+      },
       { id: 3, task_officer_assignments: [] },
     ];
     const groups = splitTasksByOfficer(tasks, 10);
     expect(groups.yourTasks.map(({ id }) => id)).toEqual([1]);
-    expect(groups.otherTasks.map(({ id }) => id)).toEqual([2, 3]);
+    expect(groups.otherTasks.map(({ id }) => id)).toEqual([2, 4, 3]);
   });
 });
