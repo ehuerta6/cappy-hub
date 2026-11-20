@@ -1155,6 +1155,10 @@ it.each(["open", "in_progress", "complete"])(
     if (status === "open") {
       expect(html).toContain("No assignment");
       expect(html).toContain("Former assignment only");
+      expect(query.calls[0][1]).toContain(
+        "no_assignments:task_officer_assignments(task_id,removed_at)",
+      );
+      has(query, "is", "no_assignments.removed_at", null);
     }
     if (status === "in_progress")
       expect(html).toContain("Other Officer&#x27;s task");
