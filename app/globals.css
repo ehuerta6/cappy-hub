@@ -1830,21 +1830,24 @@ button.compact-action-button:focus-visible {
   color: var(--secondary);
 }
 .catalog-value-badge {
-  border-color: var(--catalog-value-color);
-  background: color-mix(
+  gap: 0.4rem;
+  border-color: color-mix(
     in srgb,
-    var(--catalog-value-color) 17%,
-    var(--surface)
+    var(--catalog-value-color) 24%,
+    var(--border)
   );
+  border-radius: 0.55rem;
+  background: color-mix(in srgb, var(--catalog-value-color) 9%, var(--surface));
   color: var(--foreground);
+  font-weight: 550;
   overflow-wrap: anywhere;
+  padding-inline: 0.625rem;
 }
 .catalog-value-badge::before {
-  width: 0.45rem;
-  height: 0.45rem;
+  width: 0.22rem;
+  height: 0.72rem;
   flex: 0 0 auto;
   border-radius: 999px;
-  border: 1px solid var(--border-strong);
   background: var(--catalog-value-color);
   content: "";
 }
