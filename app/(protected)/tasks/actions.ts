@@ -454,6 +454,7 @@ export async function setTaskAssignmentCompletion(
     p_task_id: validation.data.task_id,
     p_officer_id: validation.data.officer_id,
     p_completed: validation.data.completed,
+    p_period_context: String(form.get("writable_period") ?? ""),
   });
   if (error)
     return formFailure(mutationError(error.message), form, [

@@ -50,5 +50,9 @@ export const canEditEvent = (actor: AuthorizationContext) =>
 export const canManageTask = (actor: AuthorizationContext, branchId: number) =>
   canSeeAllBranches(actor) ||
   (isLead(actor) && actor.branchIds.includes(branchId));
+export const canChangeOtherTaskCompletion = (
+  actor: AuthorizationContext,
+  officerId: number,
+) => officerId !== actor.id && (isAdmin(actor) || isLead(actor));
 export const canManageOfficers = isAdmin;
 export const canManagePoints = isAdmin;

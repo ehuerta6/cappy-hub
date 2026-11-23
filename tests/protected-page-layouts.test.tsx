@@ -14,6 +14,7 @@ vi.mock("@/lib/authorization", () => ({
   canEditEvent: vi.fn(() => true),
   canManageEvent: vi.fn(() => true),
   canManageTask: vi.fn(() => true),
+  canChangeOtherTaskCompletion: vi.fn(() => false),
   canSeeAllBranches: () => true,
   isLead: () => false,
 }));
@@ -38,6 +39,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import { createClient } from "@/lib/supabase/server";
 import {
+  canChangeOtherTaskCompletion,
   canManageEvent,
   canManageTask,
   getAuthorizationContext,
@@ -168,6 +170,7 @@ beforeEach(() => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({ id: 1 } as never);
   vi.mocked(canManageEvent).mockReturnValue(true);
   vi.mocked(canManageTask).mockReturnValue(true);
+  vi.mocked(canChangeOtherTaskCompletion).mockReturnValue(false);
   vi.mocked(createClient).mockResolvedValue({
     rpc: () => {
       const query = {
@@ -436,18 +439,22 @@ it("allows an authorized manager to edit a standalone Task", async () => {
   Object.assign(task, { recurrence_series_id: 3 });
 });
 
-it("shows manager review controls and personal completion state to Officers", async () => {
+it("shows the manager's two-state completion control but keeps personal completion separate", async () => {
   const props = {
     params: Promise.resolve({ id: "7" }),
     searchParams: Promise.resolve({ section: "assignments" }),
   };
+  vi.mocked(canChangeOtherTaskCompletion).mockImplementation(
+    (authorization, officerId) => authorization.id !== officerId,
+  );
   const managerHtml = renderToStaticMarkup(await TaskDetail(props));
   expect(managerHtml).toContain('aria-label="Officers"');
   expect(managerHtml).toContain("Synthetic Officer");
   expect(managerHtml).toContain("Other Officer");
-  expect(managerHtml).toContain('aria-label="Completed for Synthetic Officer"');
-  expect(managerHtml).toContain('aria-label="Completed for Other Officer"');
-  expect(managerHtml).not.toContain("Mark complete");
+  expect(managerHtml).not.toContain(
+    'aria-label="Completed for Synthetic Officer"',
+  );
+  expect(managerHtml).toContain('aria-label="Completion for Other Officer"');
   expect(managerHtml).not.toContain("Awaiting approval");
   expect(managerHtml).not.toContain(">Approve<");
   const assignmentRows = managerHtml
@@ -457,12 +464,12 @@ it("shows manager review controls and personal completion state to Officers", as
   expect(assignmentRows).toHaveLength(3);
   expect(assignmentRows?.[1]).toContain("Other Officer");
   expect(assignmentRows?.[1]).toContain(
-    'aria-label="Completed for Other Officer"',
+    'aria-label="Completion for Other Officer"',
   );
   expect(assignmentRows?.[1]).toContain('name="officer_id" value="2"');
   expect(assignmentRows?.[1]).toContain("Remove assignment");
   expect(assignmentRows?.[2]).toContain("Synthetic Officer");
-  expect(assignmentRows?.[2]).toContain(
+  expect(assignmentRows?.[2]).not.toContain(
     'aria-label="Completed for Synthetic Officer"',
   );
   expect(assignmentRows?.[2]).toContain('name="officer_id" value="1"');
@@ -472,6 +479,7 @@ it("shows manager review controls and personal completion state to Officers", as
   expect(assignmentRows?.[2]).toContain("Remove assignment");
 
   vi.mocked(canManageTask).mockReturnValue(false);
+  vi.mocked(canChangeOtherTaskCompletion).mockReturnValue(false);
   const officerHtml = renderToStaticMarkup(await TaskDetail(props));
   expect(officerHtml).toContain("Mark complete");
   expect(officerHtml).not.toContain(
@@ -499,7 +507,8 @@ it("lets an unassigned Officer self-assign without exposing completion controls"
   Object.assign(task, { task_officer_assignments: previousAssignments });
 });
 
-it("shows manager review controls without the generic completion toggle", async () => {
+it("shows the two-state manager control for pending completion reports", async () => {
+  vi.mocked(canChangeOtherTaskCompletion).mockReturnValue(true);
   const assignment = task.task_officer_assignments[0];
   Object.assign(assignment, { completion_approval_pending: true });
   const html = renderToStaticMarkup(
@@ -512,10 +521,12 @@ it("shows manager review controls without the generic completion toggle", async 
     .split("<table>")[1]
     .split("</table>")[0]
     .match(/<tr>[\s\S]*?<\/tr>/g)?.[1];
-  expect(pendingRow).toContain("Awaiting approval");
-  expect(pendingRow).not.toContain('aria-label="Completed for Other Officer"');
-  expect(pendingRow).toContain("Approve completion");
-  expect(pendingRow).toContain("Reject completion");
+  expect(pendingRow).toContain("Reported completion awaiting review");
+  expect(pendingRow).toContain('aria-label="Completion for Other Officer"');
+  expect(pendingRow).toContain('name="completed" value="false"');
+  expect(pendingRow).toContain('name="completed" value="true"');
+  expect(pendingRow).not.toContain("Approve completion");
+  expect(pendingRow).not.toContain("Reject completion");
   Object.assign(assignment, { completion_approval_pending: false });
 });
 
@@ -587,6 +598,9 @@ it("does not repeat empty Task sections as Overview actions", async () => {
 });
 
 it("keeps Task detail previews to four and pages full related sections by six", async () => {
+  vi.mocked(canChangeOtherTaskCompletion).mockImplementation(
+    (authorization, officerId) => authorization.id !== officerId,
+  );
   const assignments = Array.from({ length: 8 }, (_, index) => ({
     officer_id: 8 - index,
     assigned_at: `2026-10-${String(index + 1).padStart(2, "0")}T12:00:00Z`,
@@ -679,7 +693,7 @@ it("keeps Task detail previews to four and pages full related sections by six", 
   });
   expect(assignmentPage).toContain("Officer 7");
   expect(assignmentPage).toContain("Officer 8");
-  expect(assignmentPage).toContain('aria-label="Completed for Officer 7"');
+  expect(assignmentPage).toContain('aria-label="Completion for Officer 7"');
   expect(assignmentPage).toContain("Add officers");
   expect(assignmentPage).toContain("Remove assignment");
   expect(assignmentPage).not.toContain("Officer 6</a>");

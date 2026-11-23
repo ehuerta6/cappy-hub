@@ -7,6 +7,7 @@ import {
 import {
   getAuthorizationContext,
   canManageTask as canManageTaskForBranch,
+  canChangeOtherTaskCompletion,
 } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -46,7 +47,6 @@ import {
   BulkTaskOfficersForm,
   RemoveTaskAssignmentForm,
   TaskCompletionControl,
-  TaskCompletionReviewControls,
 } from "../task-officer-controls";
 
 type TaskSection = "overview" | "assignments" | "events";
@@ -681,14 +681,18 @@ export default async function TaskDetailPage({
                           </Link>
                         </td>
                         <td>
-                          {canManageTask &&
-                          !task.removed_at &&
-                          !completionPending ? (
+                          {!periodSelection.isHistorical &&
+                          canChangeOtherTaskCompletion(
+                            actor,
+                            assignment.officer_id,
+                          ) &&
+                          !task.removed_at ? (
                             <TaskCompletionControl
                               taskId={task.id}
                               officerId={assignment.officer_id}
                               officerName={assignedOfficer.name}
                               completed={completed}
+                              pendingApproval={completionPending}
                             />
                           ) : completionPending ? (
                             "Awaiting approval"
@@ -703,13 +707,6 @@ export default async function TaskDetailPage({
                         </td>
                         {canManageTask && !task.removed_at && (
                           <td>
-                            {completionPending &&
-                              assignment.officer_id !== actor.id && (
-                                <TaskCompletionReviewControls
-                                  taskId={task.id}
-                                  officerId={assignment.officer_id}
-                                />
-                              )}
                             <RemoveTaskAssignmentForm
                               taskId={task.id}
                               officerId={assignment.officer_id}

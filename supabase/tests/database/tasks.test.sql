@@ -97,7 +97,7 @@ select is((select completed_at from task_officer_assignments where task_id=-9710
 select throws_ok($$select bulk_assign_task_officers(-9710,array[-974]::bigint[])$$,
  'P0001','Task outside branch scope','ordinary Officer cannot bulk-assign');
 select throws_ok($$select set_task_assignment_completion(-9710,-973,true)$$,
- 'P0001','Task outside branch scope','ordinary Officer cannot change completion');
+ 'P0001','Only Leads or Admins can change another Officer completion','ordinary Officer cannot change completion');
 reset role;
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000972',true);
@@ -136,7 +136,7 @@ select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000973'
 select throws_ok($$select remove_task_assignment(-9711,-973)$$,
  'P0001','Task outside branch scope','ordinary Officer cannot remove an assignment');
 select throws_ok($$select set_task_assignment_completion(-9711,-971,true)$$,
- 'P0001','Task outside branch scope','ordinary Officer cannot change another assignment completion');
+ 'P0001','Only Leads or Admins can change another Officer completion','ordinary Officer cannot change another assignment completion');
 reset role;
 select throws_ok($$insert into task_officer_assignments(task_id,officer_id,assigned_by)
  values(-9711,-973,-972)$$,
