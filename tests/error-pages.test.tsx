@@ -53,6 +53,12 @@ it("does not show the obsolete upcoming-only Event edit message", () => {
   );
 });
 
+it("explains when only overdue Tasks can be marked no longer needed", () => {
+  expect(
+    mutationError("Only overdue Tasks can be marked no longer needed"),
+  ).toBe("Only overdue Tasks can be marked no longer needed");
+});
+
 it("explains when an archived or cancelled Event cannot be newly linked", () => {
   expect(
     mutationError("Archived or cancelled Events cannot be newly linked"),

@@ -121,6 +121,11 @@ describe("calendar query pagination", () => {
       method: "lt",
       args: ["due_date", "2026-04-05"],
     });
+    expect(calls).toContainEqual({
+      table: "tasks",
+      method: "is",
+      args: ["no_longer_needed_at", null],
+    });
     expect(
       calls.filter(
         (call) => call.table === "events" && call.method === "range",

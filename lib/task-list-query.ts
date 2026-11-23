@@ -79,6 +79,8 @@ export function buildTaskListQuery(
   if (view === "deleted") tasksQuery = tasksQuery.not("removed_at", "is", null);
   else {
     tasksQuery = tasksQuery.is("removed_at", null);
+    if (view === "current" || view === "past")
+      tasksQuery = tasksQuery.is("no_longer_needed_at", null);
     const dateFilters = taskListDateFilters({
       view,
       today,

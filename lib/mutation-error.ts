@@ -95,6 +95,7 @@ const safeMessages = new Set([
   "Invalid task fields",
   "Task not found",
   "Task is not deleted",
+  "Only overdue Tasks can be marked no longer needed",
   "Archived or cancelled Events cannot be newly linked",
   "Cannot assign another officer",
   "Task is not assigned",

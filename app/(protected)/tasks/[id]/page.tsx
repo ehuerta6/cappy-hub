@@ -8,6 +8,8 @@ import {
   getAuthorizationContext,
   canManageTask as canManageTaskForBranch,
   canChangeOtherTaskCompletion,
+  isAdmin,
+  isLead,
 } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -39,6 +41,8 @@ import { taskStatusFromCounts } from "@/lib/task-status";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { TaskDeleteForm, TaskRestoreForm } from "../task-remove-form";
+import { TaskNeedStatusForm } from "../task-remove-form";
+import { currentDenverWeek } from "@/lib/current-denver-week";
 import { ResourceLinksList } from "@/components/resource-links-list";
 import TaskSelfAssignForm, {
   TaskSelfCompletionForm,
@@ -158,6 +162,7 @@ export default async function TaskDetailPage({
   if (!taskResult.data) notFound();
 
   const task = taskResult.data;
+  const { today } = currentDenverWeek(new Date());
   if (
     selectedPeriod &&
     (task.due_date < selectedPeriod.starts_on ||
@@ -167,6 +172,8 @@ export default async function TaskDetailPage({
   const canManageTask =
     !periodSelection.isHistorical &&
     canManageTaskForBranch(actor, task.branch_id);
+  const canChangeNeedStatus =
+    !periodSelection.isHistorical && (isAdmin(actor) || isLead(actor));
   if (task.removed_at && !canManageTask) notFound();
   const activeSection: TaskSection =
     section === "assignments" || section === "events" ? section : "overview";
@@ -437,7 +444,12 @@ export default async function TaskDetailPage({
               </dd>
               <dt>Status</dt>
               <dd>
-                <StatusBadge status={currentStatus} />
+                <span className="flex flex-wrap items-center gap-1.5">
+                  {task.no_longer_needed_at && (
+                    <StatusBadge status="No longer needed" />
+                  )}
+                  <StatusBadge status={currentStatus} />
+                </span>
               </dd>
               <dt>Your assignment</dt>
               <dd>
@@ -450,6 +462,14 @@ export default async function TaskDetailPage({
                       : "Not assigned"}
               </dd>
             </dl>
+            {canChangeNeedStatus &&
+              !task.removed_at &&
+              (task.no_longer_needed_at || task.due_date < today) && (
+                <TaskNeedStatusForm
+                  taskId={task.id}
+                  noLongerNeeded={Boolean(task.no_longer_needed_at)}
+                />
+              )}
             {series?.data && (
               <p className="text-sm text-muted">
                 Recurring occurrence. Its due date, Officer assignments,

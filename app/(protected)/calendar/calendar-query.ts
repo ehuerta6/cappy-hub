@@ -45,6 +45,7 @@ export function fetchCalendarRecords(supabase: SupabaseClient<Database>) {
         .from("tasks")
         .select("id,title,due_date")
         .is("removed_at", null)
+        .is("no_longer_needed_at", null)
         .order("due_date")
         .order("id")
         .range(from, to),
@@ -79,6 +80,7 @@ export function fetchCalendarRecordsForRange(
         .from("tasks")
         .select("id,title,due_date")
         .is("removed_at", null)
+        .is("no_longer_needed_at", null)
         .lt("due_date", range.endDate)
         .order("due_date")
         .order("id");

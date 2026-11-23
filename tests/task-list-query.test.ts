@@ -75,6 +75,7 @@ it("intersects a current-period Task range with the Current view", () => {
     "is",
     ["active_assignments.removed_at", null],
   ]);
+  expect(operations).toContainEqual(["is", ["no_longer_needed_at", null]]);
   expect(operations).toContainEqual([
     "is",
     ["incomplete_assignments.removed_at", null],
@@ -114,6 +115,7 @@ it("shows only completed past Tasks within the selected Academic Period", () => 
     ["active_assignments", "is", null],
   ]);
   expect(operations).toContainEqual(["is", ["incomplete_assignments", null]]);
+  expect(operations).toContainEqual(["is", ["no_longer_needed_at", null]]);
 });
 
 it("lets All remove only the timeframe boundary and keeps Academic Period", () => {
@@ -125,6 +127,7 @@ it("lets All remove only the timeframe boundary and keeps Academic Period", () =
 
   expect(operations).toContainEqual(["gte", ["due_date", "2026-08-16"]]);
   expect(operations).toContainEqual(["lte", ["due_date", "2026-12-20"]]);
+  expect(operations).not.toContainEqual(["is", ["no_longer_needed_at", null]]);
   expect(
     operations.some(([method]) => method === "lt" || method === "or"),
   ).toBe(false);

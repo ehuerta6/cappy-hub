@@ -328,6 +328,47 @@ export async function selfCompleteTaskAssignment(
   return { error: "", success: "Task completion updated" };
 }
 
+export async function setTaskNeedStatus(
+  _previous: FormActionState,
+  form: FormData,
+) {
+  await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: form.get("writable_period"),
+  });
+  const validation = taskRecordInputSchema.safeParse({
+    task_id: form.get("task_id") ?? "",
+  });
+  const value = form.get("no_longer_needed");
+  if (!validation.success)
+    return validationFailure(validation.error, form, ["task_id"]);
+  if (value !== "true" && value !== "false")
+    return formFailure("Select a Task status", form, ["task_id"]);
+  const periodContext = form.get("writable_period");
+  if (typeof periodContext !== "string")
+    return formFailure("Select a writable academic period", form, ["task_id"]);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_task_need_status", {
+    p_task_id: validation.data.task_id,
+    p_no_longer_needed: value === "true",
+    p_period_context: periodContext,
+  });
+  if (error)
+    return formFailure(mutationError(error.message), form, ["task_id"]);
+  revalidatePath("/tasks");
+  revalidatePath(`/tasks/${validation.data.task_id}`);
+  revalidatePath("/calendar");
+  revalidatePath("/points");
+  revalidatePath("/", "layout");
+  return {
+    error: "",
+    success:
+      value === "true"
+        ? "Task marked no longer needed"
+        : "Task restored to Needed",
+  };
+}
+
 async function reviewTaskCompletion(
   form: FormData,
   rpc:

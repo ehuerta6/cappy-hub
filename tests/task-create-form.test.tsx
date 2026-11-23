@@ -137,6 +137,8 @@ it("offers active Officer checkboxes on creation and omits them while editing", 
     recurrence_series_id: null,
     removed_at: null,
     removed_by: null,
+    no_longer_needed_at: null,
+    no_longer_needed_by: null,
   };
   const editHtml = renderToStaticMarkup(
     <TaskCreateForm
@@ -166,6 +168,8 @@ it("prefills an existing historical Event link when editing a Task", () => {
     recurrence_series_id: null,
     removed_at: null,
     removed_by: null,
+    no_longer_needed_at: null,
+    no_longer_needed_by: null,
   };
   const html = renderToStaticMarkup(
     <TaskCreateForm
@@ -199,6 +203,8 @@ it("keeps a deleted type selected while offering only available choices", () => 
     recurrence_series_id: null,
     removed_at: null,
     removed_by: null,
+    no_longer_needed_at: null,
+    no_longer_needed_by: null,
   };
   const html = renderToStaticMarkup(
     <TaskCreateForm
