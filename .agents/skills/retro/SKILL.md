@@ -124,9 +124,9 @@ Before creating an Issue, search open and closed AI-ToolKit Issues. Add evidence
 - tradeoffs or uncertainty;
 - testing and adoption status.
 
-Keep the full retro in Cappy Hub rather than copying it into AI-ToolKit. An Issue records a proposal; it does not authorize adopting or changing global configuration.
+Keep the full retro in Cappy Hub rather than copying it into AI-ToolKit. Exclude secrets, private data, and unnecessary project details from public Issues. State that an Issue records a proposal and does not authorize implementation, adoption, or promotion from `testing`.
 
-If no candidate meets the evidence and reuse threshold, say so and create no Issue. If repository access is unavailable, prepare a short draft and state the blocker.
+If no candidate meets the evidence and reuse threshold, say so and create no Issue. Never create an empty or speculative Issue because a retro completed. If GitHub access, repository identity, or Issue creation is unavailable, prepare a concise draft and state the blocker.
 
 ## Rules
 

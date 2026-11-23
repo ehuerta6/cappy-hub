@@ -31,7 +31,7 @@ The `.codex/agents/` directory contains two Cappy Hub-only Codex subagents, adap
 - [`cappy-pr-reviewer.toml`](../.codex/agents/cappy-pr-reviewer.toml) performs an independent, read-only review of a specified PR revision against the linked Issue, Cappy Hub contracts, and exact-head checks.
 - [`cappy-database-reviewer.toml`](../.codex/agents/cappy-database-reviewer.toml) adds a focused, read-only pass for Supabase/PostgreSQL changes, including migrations, RLS, RPC permissions, generated types, history, and upgrade compatibility.
 
-They are optional analysis tools. Their TOML files are validated in this change; runtime discovery by a local Codex installation has not been smoke-tested. Their findings do not count as formal GitHub approvals, replace required CI, or authorize merging. Do not add generic agents where an existing skill or built-in workflow already covers the job.
+They are optional analysis tools and review-only by instruction; Codex agents inherit the parent session's permissions. Their TOML files are validated in this change; runtime discovery by a local Codex installation has not been smoke-tested. Their findings do not count as formal GitHub approvals, replace required CI, or authorize merging. Do not add generic agents where an existing skill or built-in workflow already covers the job.
 
 ## Synchronize reusable skills
 
