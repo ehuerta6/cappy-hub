@@ -24,17 +24,22 @@ insert into tasks(id,title,description,task_type,branch_id,due_date,points,creat
 values
  (-97501,'Overdue need status','Overdue lifecycle test','Flyer',(select id from branches where name='intro'),current_setting('test.denver_today')::date-1,5,-97502),
  (-97502,'Future need status','Future lifecycle test','Post',(select id from branches where name='intro'),current_setting('test.denver_today')::date+2,5,-97502),
- (-97503,'Removed need status','Deleted lifecycle test','Story',(select id from branches where name='intro'),current_setting('test.denver_today')::date-1,5,-97502);
+ (-97503,'Removed need status','Deleted lifecycle test','Story',(select id from branches where name='intro'),current_setting('test.denver_today')::date-1,5,-97502),
+ (-97504,'Historical open need status','Historical lifecycle test','Post',(select id from branches where name='intro'),'2020-09-20',5,-97502),
+ (-97505,'Historical closed need status','Historical lifecycle test','Post',(select id from branches where name='intro'),'2020-09-21',5,-97502);
 update tasks set removed_at=pg_catalog.now(),removed_by=-97502 where id=-97503;
+update tasks set no_longer_needed_at=pg_catalog.now(),no_longer_needed_by=-97501 where id=-97505;
+insert into academic_periods(name,starts_on,ends_on)
+values('Need status historical period test','2020-09-20','2020-09-21');
 
 insert into task_officer_assignments(task_id,officer_id,assigned_by,completed_at,approved_at,approved_by,removed_at,removed_by)
 values
- (-97501,-97503,-97502,pg_catalog.now()-interval '2 days',pg_catalog.now()-interval '2 days',-97502,null,null),
+ (-97501,-97503,-97502,'2026-10-01 12:00-06'::timestamptz,'2026-10-01 12:05-06'::timestamptz,-97502,null,null),
  (-97501,-97504,-97502,null,null,null,null,null),
  (-97501,-97505,-97502,null,null,null,pg_catalog.now(),-97502),
  (-97501,-97506,-97502,null,null,null,null,null);
-insert into point_transactions(officer_id,task_id,points,reason,award_type,created_by)
-values(-97503,-97501,5,'Existing Task award','task','00000000-0000-4000-8000-000000097502');
+insert into point_transactions(id,officer_id,task_id,points,reason,award_type,created_by)
+values(-97501,-97503,-97501,5,'Existing Task award','task','00000000-0000-4000-8000-000000097502');
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000097502',true);
 set local role authenticated;
@@ -46,19 +51,35 @@ select is((select no_longer_needed_by from tasks where id=-97501),-97502::bigint
  'closing records the acting Lead');
 select ok((select no_longer_needed_at is not null from tasks where id=-97501),
  'closing stores a separate Task need status');
-select ok((select completed_at is not null and approved_at is not null
-  from task_officer_assignments where task_id=-97501 and officer_id=-97503),
- 'closing preserves a completed Officer assignment');
+select is((select completed_at from task_officer_assignments where task_id=-97501 and officer_id=-97503),
+ '2026-10-01 12:00-06'::timestamptz,'closing preserves the original completion time');
+select is((select approved_at from task_officer_assignments where task_id=-97501 and officer_id=-97503),
+ '2026-10-01 12:05-06'::timestamptz,'closing preserves the original approval time');
+select is((select approved_by from task_officer_assignments where task_id=-97501 and officer_id=-97503),
+ -97502::bigint,'closing preserves the original approver');
 select is((select completed_at from task_officer_assignments where task_id=-97501 and officer_id=-97504),
  null::timestamptz,'closing does not mark an incomplete Officer assignment complete');
 select is((select count(*) from point_transactions where task_id=-97501 and removed_at is null),
- 1::bigint,'closing preserves already awarded Points and creates no new award');
+ 1::bigint,'closing does not create another Point award');
+select is((select id from point_transactions where task_id=-97501 and removed_at is null),
+ -97501::bigint,'closing preserves the original Point transaction');
+select is((select points from point_transactions where id=-97501),
+ 5::numeric,'closing preserves the original Point value');
 select is((select count(*) from notifications where entity_id=-97501 and kind='task.need_status_changed'),
  2::bigint,'closing notifies active assigned Officers, including completed Officers');
 select is((select count(*) from notifications where recipient_officer_id=-97505 and entity_id=-97501 and kind='task.need_status_changed'),
  0::bigint,'closing does not notify an Officer whose assignment was removed');
 select is((select count(*) from notifications where recipient_officer_id=-97506 and entity_id=-97501 and kind='task.need_status_changed'),
  0::bigint,'closing does not notify an inactive Officer');
+
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000097501',true);
+set local role authenticated;
+select lives_ok($$select public.set_task_assignment_completion(-97501,-97504,true)$$,
+ 'an Admin can still edit an Officer completion after closing the Task');
+reset role;
+select ok((select no_longer_needed_at is not null from tasks where id=-97501)
+  and (select completed_at is not null from task_officer_assignments where task_id=-97501 and officer_id=-97504),
+ 'a completion edit does not reopen the Task need status');
 
 set local role authenticated;
 select lives_ok($$select public.set_task_need_status(-97501,true,'current')$$,
@@ -81,6 +102,18 @@ select ok((select no_longer_needed_at is null and no_longer_needed_by is null fr
  'restoration clears the separate need status');
 select is((select count(*) from notifications where entity_id=-97501 and kind='task.need_status_changed'),
  4::bigint,'restoration notifies the same active assignees once');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000097502',true);
+select throws_ok($$select public.set_task_need_status(-97504,true,
+  (select id::text from public.academic_periods where name='Need status historical period test'))$$,
+ 'P0001','Historical period is read-only',
+ 'a Lead cannot close a Task in a historical period');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000097501',true);
+select throws_ok($$select public.set_task_need_status(-97505,false,
+  (select id::text from public.academic_periods where name='Need status historical period test'))$$,
+ 'P0001','Historical period is read-only',
+ 'an Admin cannot restore a Task in a historical period');
+reset role;
 
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000097503',true);
 set local role authenticated;

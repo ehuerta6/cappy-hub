@@ -47,6 +47,15 @@ update public.officers set status='inactive' where id=-9444006;
 delete from public.task_reminder_offsets where task_id=-9444001;
 insert into public.task_reminder_offsets(task_id,minutes_before) values(-9444001,2880);
 
+-- A closed Task with an otherwise due reminder stays out of scheduled delivery.
+insert into public.tasks(id,title,description,task_type,branch_id,due_date,points,created_by,
+  no_longer_needed_at,no_longer_needed_by)
+values(-9444008,'Closed reminder recipient','Synthetic','Post',(select id from branches where name='intro'),
+  (now() at time zone 'America/Denver')::date+1,1,-9444001,now(),-9444001);
+insert into public.task_officer_assignments(task_id,officer_id,assigned_by)
+values(-9444008,-9444002,-9444001);
+insert into public.task_reminder_offsets(task_id,minutes_before) values(-9444008,2880);
+
 -- Earlier inbox history for the soon-removed assignee, already read.
 update public.notifications set read_at=timestamptz '2026-11-01 12:00:00+00'
 where recipient_officer_id=-9444003 and entity_type='task' and entity_id=-9444001
@@ -101,6 +110,9 @@ reset role;
 select is((select count(*) from public.notifications
   where recipient_officer_id=-9444002 and entity_id=-9444001 and kind='task.reminder'),
   1::bigint,'a current incomplete assignee receives the due Task reminder');
+select is((select count(*) from public.notifications
+  where recipient_officer_id=-9444002 and entity_id=-9444008 and kind='task.reminder'),
+  0::bigint,'a closed Task does not send its otherwise due reminder');
 select is((select count(*) from public.notifications
   where recipient_officer_id=-9444003 and entity_id=-9444001 and kind='task.reminder'),
   0::bigint,'a removed assignee no longer receives Task reminders');
