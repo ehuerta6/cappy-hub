@@ -28,9 +28,16 @@ operation.
 
 If Google Calendar fails, the Cappy Hub mutation remains saved and the Officer
 sees: “Cappy Hub saved this Event, but Google Calendar could not be updated.”
-There is no queued retry or periodic recovery. A later normal modification of
-the Event will send its then-current canonical state again. Google Calendar
-may differ from Cappy Hub until that happens.
+The failed Event occurrence is recorded and shown to authorized Event managers
+in the Events list and its detail page. A manager can select **Retry Calendar
+sync**; the retry checks the Event's manager scope and writable period, then
+sends only that occurrence's latest canonical state, including whether it is
+deleted. A successful retry clears the failure marker; another failure stays
+visible for follow-up.
+
+Recovery is manual: there is no queued retry or periodic job. A later normal
+Event operation also attempts to send its then-current state. Google Calendar
+may differ from Cappy Hub until one of those attempts succeeds.
 
 ## Initial activation
 

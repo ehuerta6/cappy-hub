@@ -27,6 +27,8 @@ Review the relevant:
 - review findings;
 - failures and rework.
 
+When evaluating a reusable skill, rule, or tool, identify the exact artifact and real task where it was used, along with the observed result or friction. If no real task exercised it, label it untested; passing a validator alone is not evidence of adoption.
+
 ### 2. Identify friction
 
 Look for concrete problems in:
@@ -59,6 +61,8 @@ Look for concrete problems in:
 - CI, linting, typing, tests, or validation had a gap.
 
 Prefer automation over prose rules for mechanical failures.
+
+When proposing a deterministic check for a repeated, evidenced failure, show when feasible that it catches the historical failure and accepts the correct case. Prefer fixing architecture, types, checks, or tests over adding redundant prose. Catalog or global configuration changes still require user approval; a retro recommendation does not adopt itself.
 
 #### Tools
 
@@ -107,6 +111,23 @@ Use:
 
 A retro recommendation is not automatically adopted.
 
+### 5. Route reusable AI-ToolKit findings
+
+Assess whether an evidence-backed finding belongs in canonical [`ehuerta6/AI-ToolKit`](https://github.com/ehuerta6/AI-ToolKit) or only in Cappy Hub. A finding qualifies for AI-ToolKit when actual work shows that reusable AI-ToolKit configuration caused or materially contributed to the friction and there is a plausible benefit beyond this project. Product behavior, architecture, local conventions, and one-off mistakes stay in Cappy Hub. Mark untested benefit as a hypothesis.
+
+Before creating an Issue, search open and closed AI-ToolKit Issues. Add evidence to an existing Issue when the scope matches; create a new focused Issue only for a distinct, evidence-backed candidate with no existing owner. In the Issue or comment, concisely include:
+
+- the source project and task;
+- the observed friction and concrete evidence;
+- the affected reusable AI-ToolKit artifact, when known;
+- the proposed change and expected benefit;
+- tradeoffs or uncertainty;
+- testing and adoption status.
+
+Keep the full retro in Cappy Hub rather than copying it into AI-ToolKit. Exclude secrets, private data, and unnecessary project details from public Issues. State that an Issue records a proposal and does not authorize implementation, adoption, or promotion from `testing`.
+
+If no candidate meets the evidence and reuse threshold, say so and create no Issue. Never create an empty or speculative Issue because a retro completed. If GitHub access, repository identity, or Issue creation is unavailable, prepare a concise draft and state the blocker.
+
 ## Rules
 
 - Evidence before policy.
@@ -126,4 +147,5 @@ A retro is complete when it clearly states:
 - what should change;
 - where the change belongs;
 - what should remain unchanged;
-- which recommendations still require testing.
+- which recommendations still require testing;
+- whether an evidence-backed AI-ToolKit candidate qualified and whether an existing Issue was updated or a new one was needed.

@@ -42,6 +42,12 @@ Use project-provided commands instead of inventing replacements.
 
 Before running checks in parallel, identify shared generated files. Sequence checks when one creates, regenerates, or removes files another consumes; parallelize independent checks when safe.
 
+### Interpret tool outcomes
+
+Classify a command by its output, purpose, and documented exit contract. For example, `rg` exit 1 means no matches (while exit 2 normally signals a search error); an `lsof` lookup may also return nonzero when there is no match, but can fail for other reasons. An expected no-match is not a failed check or proof that an unrelated check passed.
+
+For an unexpected result, inspect stdout/stderr, arguments and help, response shape where relevant, and the resolved executable, version, environment, or runtime before retrying. Set a small retry budget; each retry should test a changed hypothesis or follow a meaningful asynchronous state change. Stop when retries add no information or access is unavailable, and report any remaining gap. Do not hide genuine failures with blanket `|| true` or silent fallbacks.
+
 ### 3. Run focused checks
 
 During iteration, prefer the smallest check that exercises the changed behavior.
