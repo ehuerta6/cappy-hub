@@ -22,14 +22,14 @@ The 13 reusable workflow skills listed below are adapted from [`ehuerta6/AI-Tool
 | `verify-change`       | `skills/verify-change/SKILL.md`       | Uses Cappy Hub's configured checks and safe local database workflow                |
 | `writing-for-agents`  | `skills/writing-for-agents/SKILL.md`  | Applies the reusable writing rules to project instructions                         |
 
-`cappy-knowledge`, `database-change`, and `local-database-workflow` are Cappy Hub-specific skills. `impeccable` is separately maintained as an adaptation of the external [Impeccable project](https://github.com/pbakaus/impeccable), documented in its `SOURCE.md`. It was compared with AI-ToolKit's same-name skill during this review; its local viewport/state verification guidance remains intentionally in place.
+`cappy-knowledge`, [`cappy-google-calendar-review`](../.agents/skills/cappy-google-calendar-review/SKILL.md), `database-change`, and `local-database-workflow` are Cappy Hub-specific skills. `impeccable` is separately maintained as an adaptation of the external [Impeccable project](https://github.com/pbakaus/impeccable), documented in its `SOURCE.md`. It was compared with AI-ToolKit's same-name skill during this review; its local viewport/state verification guidance remains intentionally in place.
 
 ## Project-specific Codex agents
 
 The `.codex/agents/` directory contains two Cappy Hub-only Codex subagents, adapted from AI-ToolKit's [`pr-reviewer`](https://github.com/ehuerta6/AI-ToolKit/blob/d52e57d6d452ad90f30ac9488cdcd82d2d9bc6bd/agents/pr-reviewer.md) and [`supabase-database-reviewer`](https://github.com/ehuerta6/AI-ToolKit/blob/d52e57d6d452ad90f30ac9488cdcd82d2d9bc6bd/agents/supabase-database-reviewer.md). Their instructions are grounded in Cappy Hub's review skills, contracts, and database workflow:
 
-- [`cappy-pr-reviewer.toml`](../.codex/agents/cappy-pr-reviewer.toml) performs an independent, read-only review of a specified PR revision against the linked Issue, Cappy Hub contracts, and exact-head checks.
-- [`cappy-database-reviewer.toml`](../.codex/agents/cappy-database-reviewer.toml) adds a focused, read-only pass for Supabase/PostgreSQL changes, including migrations, RLS, RPC permissions, generated types, history, and upgrade compatibility.
+- [`cappy-pr-reviewer.toml`](../.codex/agents/cappy-pr-reviewer.toml) reviews a specified PR revision against the linked Issue, Cappy Hub contracts, and exact-head checks.
+- [`cappy-database-reviewer.toml`](../.codex/agents/cappy-database-reviewer.toml) adds a focused review for Supabase/PostgreSQL changes, including migrations, RLS, RPC permissions, generated types, history, and upgrade compatibility.
 
 They are optional analysis tools and review-only by instruction; Codex agents inherit the parent session's permissions. Their TOML files are validated in this change; runtime discovery by a local Codex installation has not been smoke-tested. Their findings do not count as formal GitHub approvals, replace required CI, or authorize merging. Do not add generic agents where an existing skill or built-in workflow already covers the job.
 

@@ -49,6 +49,8 @@ Read:
 
 When repository knowledge is relevant, inspect only the related notes and confirm that they distinguish approved intent from current behavior. If a diff reveals material possible staleness or contradiction, suggest a focused Knowledge Review; do not start a broad review unless requested.
 
+For Google Calendar mirror, recovery, credential, test, or documentation changes, also use `cappy-google-calendar-review` to check the Cappy Hub/Calendar lifecycle and its cross-boundary recovery contract.
+
 Review the whole change, not isolated snippets.
 
 The active GitHub Issue defines the implementation scope.

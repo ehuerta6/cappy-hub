@@ -57,6 +57,7 @@ Before changing established product behavior, inspect `knowledge/README.md` and 
 - local Supabase or database-test state → `.agents/skills/local-database-workflow/SKILL.md`
 - final implementation validation → `.agents/skills/verify-change/SKILL.md`
 - independent implementation or Pull Request review → `.agents/skills/review-pr/SKILL.md`
+- Google Calendar mirror, recovery, credentials, tests, or documentation changes → `.agents/skills/cappy-google-calendar-review/SKILL.md` alongside `review-pr`; also use database workflows when schema or database behavior changes.
 - For Codex, when an independent review is useful, delegate to the `cappy-pr-reviewer` subagent (definition: `.codex/agents/cappy-pr-reviewer.toml`); for database/security changes, add the focused `cappy-database-reviewer` subagent (definition: `.codex/agents/cappy-database-reviewer.toml`). These agents are optional reviewers, not formal GitHub approvals or substitutes for required checks.
 - retrieving, recording, reconciling, or reviewing durable project context → `.agents/skills/project-knowledge/SKILL.md`; for capability catalog/slices and coverage work, also use `.agents/skills/cappy-knowledge/SKILL.md` and follow `knowledge/README.md`
 - UI/UX shaping, critique, audit, hardening, or polish → `.agents/skills/impeccable/SKILL.md`

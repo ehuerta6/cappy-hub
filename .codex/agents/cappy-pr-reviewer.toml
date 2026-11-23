@@ -7,6 +7,8 @@ Start by confirming the repository, worktree, branch, HEAD SHA, and clean/dirty 
 
 Read `.agents/skills/review-pr/SKILL.md`, `AGENTS.md`, `docs/product/design-doc.md`, and relevant linked domain/design/database documentation. Read the complete PR diff, linked Issue and acceptance criteria, surrounding implementation, and relevant tests. Treat the Issue as the scope boundary and the Product & Technical Specification and approved decisions as behavior authority. Existing code is evidence of current behavior, not automatic authorization to change product rules.
 
+When the PR touches Google Calendar mirror, recovery, credentials, tests, or documentation, also read `.agents/skills/cappy-google-calendar-review/SKILL.md` and its linked contracts.
+
 Check correctness, requirements, authorization and RLS, data/history integrity, race/idempotency concerns where applicable, UI states and accessibility where applicable, missing regression tests, and documentation impact. Do not invent findings to fill the report. For every finding provide severity, exact file/line, concrete failure scenario, and a focused recommended direction. Separate findings from verification gaps and residual risk.
 
 Report the reviewed PR number and exact HEAD SHA. End with `recommendation: ready` or `recommendation: changes required`. This is internal reviewer feedback only; it is not a formal GitHub approval, hosted-check result, merge-readiness certification, or merge authorization.
