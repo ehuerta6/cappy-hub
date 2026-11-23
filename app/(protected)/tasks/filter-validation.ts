@@ -25,9 +25,17 @@ export const taskListFiltersSchema = zod.object({
   view: searchParamStringSchema.transform((value) =>
     value === "past"
       ? value
-      : value === "deleted" || value === "archived"
-        ? "deleted"
-        : undefined,
+      : value === "all"
+        ? value
+        : value === "deleted" || value === "archived"
+          ? "deleted"
+          : undefined,
+  ),
+  scope: searchParamStringSchema.transform((value) =>
+    value === "mine" ? "mine" : "all",
+  ),
+  sort: searchParamStringSchema.transform((value) =>
+    value === "newest" ? "newest" : "urgency",
   ),
   status: taskListStatusSchema,
   branch: optionalListIdSchema,

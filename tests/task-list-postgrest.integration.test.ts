@@ -67,6 +67,16 @@ describePostgrest("Tasks status filtering against local PostgREST", () => {
 
       const records = [
         {
+          key: "overdue-zero",
+          branchId: branch.data!.id,
+          dueDate: "2025-10-07",
+        },
+        {
+          key: "overdue-incomplete",
+          branchId: branch.data!.id,
+          dueDate: "2025-10-07",
+        },
+        {
           key: "current-zero",
           branchId: branch.data!.id,
           dueDate: "2099-10-08",
@@ -152,6 +162,7 @@ describePostgrest("Tasks status filtering against local PostgREST", () => {
         ["current-many-complete", officerB.id, completedAt],
         ["current-mixed", officerA.id, completedAt],
         ["current-mixed", officerB.id, null],
+        ["overdue-incomplete", officerA.id, null],
         ...Array.from(
           { length: 9 },
           (_, index) =>
@@ -176,6 +187,7 @@ describePostgrest("Tasks status filtering against local PostgREST", () => {
 
       const baseFilters = {
         today: "2026-01-01",
+        sort: "urgency" as const,
         search: marker,
         branchId: branch.data!.id,
         assigneeId: officerA.id,
@@ -189,12 +201,12 @@ describePostgrest("Tasks status filtering against local PostgREST", () => {
         assigneeId: undefined,
       });
       expect(openResult.error).toBeNull();
-      expect(openResult.count).toBe(1);
+      expect(openResult.count).toBe(2);
       expect(
         (openResult.data as unknown as { title: string }[] | null)?.map(
           (task) => task.title,
         ),
-      ).toEqual([`${marker} current-zero`]);
+      ).toEqual([`${marker} current-zero`, `${marker} overdue-zero`].sort());
 
       const impossibleOpenResult = await buildTaskListQuery(supabase, {
         ...baseFilters,
@@ -204,6 +216,21 @@ describePostgrest("Tasks status filtering against local PostgREST", () => {
       expect(impossibleOpenResult.error).toBeNull();
       expect(impossibleOpenResult.count).toBe(0);
       expect(impossibleOpenResult.data).toEqual([]);
+
+      const currentResult = await buildTaskListQuery(supabase, {
+        ...baseFilters,
+        view: "current",
+        assigneeId: undefined,
+      });
+      expect(currentResult.error).toBeNull();
+      expect(currentResult.count).toBe(16);
+      const currentTitles =
+        (currentResult.data as unknown as { title: string }[] | null)?.map(
+          ({ title }) => title,
+        ) ?? [];
+      expect(currentTitles).toContain(`${marker} overdue-zero`);
+      expect(currentTitles).toContain(`${marker} overdue-incomplete`);
+      expect(currentTitles).not.toContain(`${marker} past-complete`);
 
       const inProgressResult = await buildTaskListQuery(supabase, {
         ...baseFilters,
@@ -216,7 +243,11 @@ describePostgrest("Tasks status filtering against local PostgREST", () => {
           ?.map((task) => task.title)
           .sort(),
       ).toEqual(
-        [`${marker} current-mixed`, `${marker} current-one-incomplete`].sort(),
+        [
+          `${marker} current-mixed`,
+          `${marker} current-one-incomplete`,
+          `${marker} overdue-incomplete`,
+        ].sort(),
       );
 
       const completePageOne = await buildTaskListQuery(supabase, {
@@ -261,7 +292,7 @@ describePostgrest("Tasks status filtering against local PostgREST", () => {
       const pastResult = await buildTaskListQuery(supabase, {
         ...baseFilters,
         view: "past",
-        status: "complete",
+        assigneeId: undefined,
       });
       expect(pastResult.error).toBeNull();
       expect(pastResult.count).toBe(1);

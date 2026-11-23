@@ -78,9 +78,6 @@ type Call = [string, ...unknown[]];
 type Query = { table: string; calls: Call[] };
 
 function taskRowsForQuery(record: Query, source: unknown[]) {
-  const selection = String(
-    record.calls.find(([method]) => method === "select")?.[1] ?? "",
-  );
   const calls = record.calls;
   let result: Record<string, unknown>[] = source.map((row) => ({
     removed_at: null,
@@ -130,78 +127,87 @@ function taskRowsForQuery(record: Query, source: unknown[]) {
             assignment.officer_id === value && assignment.removed_at == null,
         ),
       );
+    if (method === "eq" && column === "my_assignment.officer_id")
+      result = result.filter((task) =>
+        (
+          task.task_officer_assignments as {
+            officer_id: number;
+            removed_at?: string | null;
+          }[]
+        ).some(
+          (assignment) =>
+            assignment.officer_id === value && assignment.removed_at == null,
+        ),
+      );
   }
+  const assignmentsFor = (task: Record<string, unknown>) =>
+    task.task_officer_assignments as {
+      officer_id: number;
+      completed_at: string | null;
+      completion_approval_pending?: boolean;
+      removed_at?: string | null;
+    }[];
+  const activeFor = (task: Record<string, unknown>) =>
+    assignmentsFor(task).filter((assignment) => assignment.removed_at == null);
+  const incompleteFor = (task: Record<string, unknown>) =>
+    activeFor(task).filter(
+      (assignment) =>
+        assignment.completed_at === null ||
+        assignment.completion_approval_pending === true,
+    );
   if (
     calls.some(
       ([method, column, value]) =>
-        method === "is" && column === "no_assignments" && value === null,
+        method === "is" && column === "active_assignments" && value === null,
+    )
+  )
+    result = result.filter((task) => activeFor(task).length === 0);
+  if (
+    calls.some(
+      ([method, column]) => method === "not" && column === "active_assignments",
+    )
+  )
+    result = result.filter((task) => activeFor(task).length > 0);
+  if (
+    calls.some(
+      ([method, column]) =>
+        method === "not" && column === "incomplete_assignments",
+    )
+  )
+    result = result.filter((task) => incompleteFor(task).length > 0);
+  if (
+    calls.some(
+      ([method, column, value]) =>
+        method === "is" &&
+        column === "incomplete_assignments" &&
+        value === null,
     )
   )
     result = result.filter(
-      (task) =>
-        !(
-          task.task_officer_assignments as { removed_at?: string | null }[]
-        ).some((assignment) => assignment.removed_at == null),
+      (task) => activeFor(task).length > 0 && incompleteFor(task).length === 0,
     );
-  const incompleteFilter = calls.some(
-    ([method, column, options]) =>
+  const currentScope = calls.find(
+    ([method, value]) =>
       method === "or" &&
-      column === "completed_at.is.null,completion_approval_pending.eq.true" &&
-      (options as { referencedTable?: string } | undefined)?.referencedTable ===
-        "incomplete_assignment",
-  );
-  if (
-    selection.includes(
-      "incomplete_assignment:task_officer_assignments!inner",
-    ) &&
-    incompleteFilter
-  )
-    result = result.filter((task) =>
-      (
-        task.task_officer_assignments as {
-          completed_at: string | null;
-          completion_approval_pending?: boolean;
-          removed_at?: string | null;
-        }[]
-      ).some(
-        (assignment) =>
-          assignment.removed_at == null &&
-          (assignment.completed_at === null ||
-            assignment.completion_approval_pending === true),
-      ),
-    );
-  if (
-    selection.includes("any_assignment:task_officer_assignments!inner(") &&
-    calls.some(
-      ([method, column, value]) =>
-        method === "is" && column === "incomplete_assignment" && value === null,
-    ) &&
-    incompleteFilter
-  )
-    result = result.filter((task) => {
-      const assignments = task.task_officer_assignments as {
-        completed_at: string | null;
-        completion_approval_pending?: boolean;
-        removed_at?: string | null;
-      }[];
-      const activeAssignments = assignments.filter(
-        (assignment) => assignment.removed_at == null,
+      typeof value === "string" &&
+      value.includes("due_date.gte."),
+  )?.[1];
+  if (typeof currentScope === "string") {
+    const today = currentScope.match(/due_date\.gte\.(\d{4}-\d{2}-\d{2})/)?.[1];
+    if (today)
+      result = result.filter(
+        (task) =>
+          String(task.due_date) >= today ||
+          activeFor(task).length === 0 ||
+          incompleteFor(task).length > 0,
       );
-      return (
-        activeAssignments.length > 0 &&
-        activeAssignments.every(
-          (assignment) =>
-            assignment.completed_at !== null &&
-            assignment.completion_approval_pending !== true,
-        )
-      );
-    });
+  }
   const orders = calls.filter(([method]) => method === "order");
   for (const [, column, options] of [...orders].reverse()) {
-    if (column === "due_date" || column === "id") {
+    if (column === "due_date" || column === "created_at" || column === "id") {
       const ascending = (options as { ascending: boolean }).ascending;
       result.sort((left, right) => {
-        const key = column as "id" | "due_date";
+        const key = column as "id" | "due_date" | "created_at";
         const a = left[key] as number | string;
         const b = right[key] as number | string;
         const comparison =
@@ -323,7 +329,13 @@ beforeEach(() => {
         // Points baseline includes its authorization-sensitive removed predicate.
         const pointsBaseline =
           table === "point_history" && record.calls.length === 2;
-        const tasksBaseline = table === "tasks" && head;
+        const tasksBaseline =
+          table === "tasks" &&
+          head &&
+          !record.calls.some(
+            ([method, column]) =>
+              method === "eq" && column === "assigned_to_me.officer_id",
+          );
         const data = rows[table] ?? [];
         const range = record.calls.find(([method]) => method === "range");
         const taskRows =
@@ -447,6 +459,75 @@ it("keeps cancelled Events out of the default browsing groups", async () => {
     "starts_at",
     { ascending: true },
   ]);
+});
+
+it("filters My events by this Officer's active attendee or volunteer signup", async () => {
+  filteredCount = 1;
+  const html = await render(EventsPage, {
+    period: "-1",
+    scope: "mine",
+    q: "workshop",
+    branch: "3",
+  });
+  const listQuery = forTable("events").find(({ calls }) =>
+    calls.some(([method]) => method === "order"),
+  )!;
+  expect(listQuery.calls[0][1]).toContain(
+    "my_signup:event_officers(officer_id,removed_at,participation_type)",
+  );
+  has(listQuery, "eq", "my_signup.officer_id", actor.id);
+  has(listQuery, "is", "my_signup.removed_at", null);
+  has(listQuery, "not", "my_signup", "is", null);
+  has(listQuery, "in", "my_signup.participation_type", [
+    "attendee",
+    "volunteer",
+  ]);
+  has(listQuery, "eq", "filter_branch.branch_id", 3);
+  expect(listQuery.calls.find(([method]) => method === "or")?.[1]).toContain(
+    "name.imatch",
+  );
+  expect(html).toContain('aria-label="Event quick views"');
+  expect(html).toContain('aria-current="page" class=');
+  expect(html).toContain(">My events</a>");
+  expect(html).toContain("/events?period=-1&amp;q=workshop&amp;branch=3");
+});
+
+it("filters Assigned to me by the active assignment and preserves other Task filters in quick views", async () => {
+  filteredCount = 1;
+  const html = await render(TasksPage, {
+    period: "-1",
+    scope: "mine",
+    view: "all",
+    sort: "newest",
+    q: "Mock",
+    branch: "2",
+    status: "open",
+  });
+  const listQuery = forTable("tasks").find(({ calls }) =>
+    calls.some(([method]) => method === "range"),
+  )!;
+  expect(listQuery.calls[0][1]).toContain(
+    "my_assignment:task_officer_assignments!inner(officer_id,removed_at)",
+  );
+  has(listQuery, "eq", "my_assignment.officer_id", actor.id);
+  has(listQuery, "is", "my_assignment.removed_at", null);
+  has(listQuery, "eq", "branch_id", 2);
+  has(listQuery, "is", "active_assignments.removed_at", null);
+  has(listQuery, "order", "created_at", { ascending: false });
+
+  expect(html).toContain('aria-current="page" class=');
+  expect(html).toContain(">Assigned to me</a>");
+  expect(html).toContain(
+    "/tasks?period=-1&amp;q=Mock&amp;view=all&amp;status=open&amp;branch=2&amp;scope=mine&amp;sort=newest",
+  );
+  expect(html).toContain('<option value="all" selected="">All</option>');
+  expect(html).toContain('<option value="newest" selected="">Newest</option>');
+});
+
+it("shows an All-specific empty state when there are no Tasks in the timeframe", async () => {
+  const html = await render(TasksPage, { view: "all" });
+  expect(html).toContain("No tasks in this view.");
+  expect(html).not.toContain("No current tasks.");
 });
 
 it("shows Calendar recovery only for Events in the manager's branch scope", async () => {
@@ -1147,7 +1228,14 @@ it.each(["open", "in_progress", "complete"])(
     )!;
     has(query, "is", "removed_at", null);
     has(query, "eq", "branch_id", 3);
-    expect(query.calls).toContainEqual(["gte", "due_date", expect.any(String)]);
+    expect(
+      query.calls.some(
+        ([method, value]) =>
+          method === "or" &&
+          typeof value === "string" &&
+          value.includes("due_date.gte."),
+      ),
+    ).toBe(true);
     expect(query.calls[0][1]).toContain("task_officer_assignments(");
     expect(html).not.toContain("Awaiting approval");
     expect(html).not.toContain("Mark complete");
@@ -1156,9 +1244,9 @@ it.each(["open", "in_progress", "complete"])(
       expect(html).toContain("No assignment");
       expect(html).toContain("Former assignment only");
       expect(query.calls[0][1]).toContain(
-        "no_assignments:task_officer_assignments(task_id,removed_at)",
+        "active_assignments:task_officer_assignments(task_id,removed_at)",
       );
-      has(query, "is", "no_assignments.removed_at", null);
+      has(query, "is", "active_assignments.removed_at", null);
     }
     if (status === "in_progress")
       expect(html).toContain("Other Officer&#x27;s task");
@@ -1168,19 +1256,19 @@ it.each(["open", "in_progress", "complete"])(
       expect(html).toContain("Completed team task");
       expect(html).not.toContain("Mixed assignments task");
       expect(query.calls[0][1]).toContain(
-        "any_assignment:task_officer_assignments!inner(task_id,removed_at)",
+        "active_assignments:task_officer_assignments(task_id,removed_at)",
       );
       expect(query.calls[0][1]).toContain(
-        "incomplete_assignment:task_officer_assignments(completed_at,completion_approval_pending,removed_at)",
+        "incomplete_assignments:task_officer_assignments(task_id,completed_at,completion_approval_pending,removed_at)",
       );
       expect(query.calls).toContainEqual([
         "or",
         "completed_at.is.null,completion_approval_pending.eq.true",
-        { referencedTable: "incomplete_assignment" },
+        { referencedTable: "incomplete_assignments" },
       ]);
-      has(query, "is", "any_assignment.removed_at", null);
-      has(query, "is", "incomplete_assignment.removed_at", null);
-      has(query, "is", "incomplete_assignment", null);
+      has(query, "is", "active_assignments.removed_at", null);
+      has(query, "is", "incomplete_assignments.removed_at", null);
+      has(query, "is", "incomplete_assignments", null);
     }
     if (status !== "open") expect(html).not.toContain("Former assignment only");
   },
@@ -1259,7 +1347,10 @@ it("groups current Tasks by Denver week before splitting multi-Officer assignmen
       calls.some(([method]) => method === "order"),
     )!;
     has(query, "is", "removed_at", null);
-    has(query, "gte", "due_date", "2026-10-05");
+    expect(query.calls).toContainEqual([
+      "or",
+      "due_date.gte.2026-10-05,and(due_date.lt.2026-10-05,or(active_assignments.is.null,incomplete_assignments.not.is.null))",
+    ]);
     has(query, "order", "due_date", { ascending: true });
     has(query, "order", "id", { ascending: true });
     expect(query.calls[0][1]).toContain("task_officer_assignments(");
@@ -1280,16 +1371,17 @@ it("groups current Tasks by Denver week before splitting multi-Officer assignmen
     );
     expect(
       html.match(/role="region" aria-label="[^"]+" tabindex="0"/g),
-    ).toHaveLength(3);
+    ).toHaveLength(4);
     expect(html.indexOf("Today&#x27;s work")).toBeLessThan(
       html.indexOf("Sunday deadline"),
     );
     expect(html.indexOf("Sunday deadline")).toBeLessThan(
       html.indexOf("Next Monday task"),
     );
-    expect(html).not.toContain("Yesterday task");
+    expect(html).toContain("Yesterday task");
+    expect(html).toContain("Overdue");
     expect(html).not.toContain("Removed future task");
-    expect(html).not.toContain('aria-label="Past tasks"');
+    expect(html).toContain('aria-label="Overdue tasks"');
     expect(html).toContain("Assign to me");
   } finally {
     vi.useRealTimers();
@@ -1356,12 +1448,18 @@ it("keeps Past separate from workflow status and preserves all assignment rows",
     )!;
     has(query, "lt", "due_date", "2026-10-05");
     has(query, "eq", "branch_id", 2);
-    expect(query.calls.find(([method]) => method === "or")?.[1]).toContain(
-      "title.imatch",
-    );
-    expect(query.calls.find(([method]) => method === "or")?.[1]).toContain(
-      "description.imatch",
-    );
+    expect(
+      query.calls.find(
+        ([, value]) =>
+          typeof value === "string" && value.includes("title.imatch"),
+      )?.[1],
+    ).toContain("title.imatch");
+    expect(
+      query.calls.find(
+        ([, value]) =>
+          typeof value === "string" && value.includes("title.imatch"),
+      )?.[1],
+    ).toContain("description.imatch");
     expect(query.calls[0][1]).toContain(
       "task_officer_assignments(officer_id,completed_at",
     );
@@ -1382,16 +1480,22 @@ it("keeps Past separate from workflow status and preserves all assignment rows",
 });
 
 it.each([
-  ["open", [], "Past open Task"],
-  ["in_progress", [{ officer_id: 2, completed_at: null }], "Past active Task"],
+  ["open", [], "Past open Task", false],
+  [
+    "in_progress",
+    [{ officer_id: 2, completed_at: null }],
+    "Past active Task",
+    false,
+  ],
   [
     "complete",
     [{ officer_id: 2, completed_at: "2026-10-03T12:00:00Z" }],
     "Past complete Task",
+    true,
   ],
 ] as const)(
-  "filters Past Tasks independently by %s workflow status",
-  async (status, assignments, title) => {
+  "keeps Past limited to completed overdue Tasks when %s status is selected",
+  async (status, assignments, title, visibleInPast) => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-05T06:00:00.000Z"));
     try {
@@ -1421,7 +1525,8 @@ it.each([
       ];
 
       const html = await render(TasksPage, { view: "past", status });
-      expect(html).toContain(title);
+      if (visibleInPast) expect(html).toContain(title);
+      else expect(html).not.toContain(title);
       expect(html).not.toContain("Current decoy");
       expect(html).not.toContain("Awaiting approval");
     } finally {
@@ -1523,15 +1628,15 @@ it("filters assignee, status, branch, search and view before the eight-row page"
     "assignee_filter:task_officer_assignments!inner(officer_id,removed_at)",
   );
   expect(query.calls[0][1]).toContain(
-    "incomplete_assignment:task_officer_assignments!inner(task_id,completed_at,completion_approval_pending,removed_at)",
+    "incomplete_assignments:task_officer_assignments(task_id,completed_at,completion_approval_pending,removed_at)",
   );
   has(query, "eq", "assignee_filter.officer_id", 2);
   has(query, "is", "assignee_filter.removed_at", null);
-  has(query, "is", "incomplete_assignment.removed_at", null);
+  has(query, "is", "incomplete_assignments.removed_at", null);
   expect(query.calls).toContainEqual([
     "or",
     "completed_at.is.null,completion_approval_pending.eq.true",
-    { referencedTable: "incomplete_assignment" },
+    { referencedTable: "incomplete_assignments" },
   ]);
   has(query, "eq", "branch_id", 2);
   has(query, "range", 0, 7);
@@ -1565,7 +1670,7 @@ it("combines Open and Assignee filters on the server with no false matches", asy
   const html = await render(TasksPage, { assignee: "2", status: "open" });
   const query = forTable("tasks")[0];
   has(query, "eq", "assignee_filter.officer_id", 2);
-  has(query, "is", "no_assignments", null);
+  has(query, "is", "active_assignments", null);
   expect(html).toContain("No tasks match these filters.");
   expect(html).toContain("0 tasks");
 });
@@ -1823,14 +1928,13 @@ it("applies the same period and Current bounds to Task pagination and totals", a
     )!;
 
     for (const query of [taskListQuery, taskCountQuery]) {
-      has(query, "gte", "due_date", "2026-11-02");
+      has(query, "gte", "due_date", "2026-08-16");
       has(query, "lte", "due_date", "2026-12-20");
     }
-    expect(
-      taskListQuery.calls.findIndex(([method]) => method === "gte"),
-    ).toBeLessThan(
-      taskListQuery.calls.findIndex(([method]) => method === "range"),
-    );
+    expect(taskListQuery.calls).toContainEqual([
+      "or",
+      "due_date.gte.2026-11-02,and(due_date.lt.2026-11-02,or(active_assignments.is.null,incomplete_assignments.not.is.null))",
+    ]);
   } finally {
     vi.useRealTimers();
   }
