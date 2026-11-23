@@ -65,6 +65,12 @@ it("parses each page's domain filters", () => {
     assignee: 2,
     branch: 3,
   });
+  expect(
+    taskListFiltersSchema.parse({ view: "all", scope: "mine", sort: "newest" }),
+  ).toMatchObject({ view: "all", scope: "mine", sort: "newest" });
+  expect(
+    eventListFiltersSchema.parse({ scope: "mine", page: "2" }),
+  ).toMatchObject({ scope: "mine", page: 2 });
   expect(taskListFiltersSchema.parse({ view: "current" }).view).toBeUndefined();
   expect(taskListFiltersSchema.parse({ view: "next" }).view).toBeUndefined();
   expect(taskListFiltersSchema.parse({ view: "deleted" }).view).toBe("deleted");

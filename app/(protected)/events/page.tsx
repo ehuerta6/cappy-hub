@@ -69,6 +69,7 @@ export default async function EventsPage({
     type: typeId,
     branch: branchId,
     page: requestedPage,
+    scope,
   } = filters;
   const now = new Date();
   const nowIso = now.toISOString();
@@ -78,6 +79,7 @@ export default async function EventsPage({
   if (params.period !== undefined)
     filtersInUrl.set("period", String(params.period));
   if (search) filtersInUrl.set("q", search);
+  if (scope === "mine") filtersInUrl.set("scope", "mine");
   if (status) filtersInUrl.set("status", status);
   if (typeId !== undefined) filtersInUrl.set("type", String(typeId));
   if (branchId !== undefined) filtersInUrl.set("branch", String(branchId));
@@ -91,7 +93,7 @@ export default async function EventsPage({
   const deletedLead =
     status === "deleted" && isLead(actor) && !canSeeAllBranches(actor);
   const eventSelection =
-    "id,name,event_date,starts_at,ends_at,status,deleted_at,delete_points_suspended,max_volunteers,participation_points_per_hour_at_end,event_types(name,color),event_branches(branch_id,branches(name,color)),filter_branch:event_branches(branch_id),scope_branch:event_branches(branch_id),event_officers(officer_id,removed_at,participation_type)";
+    "id,name,event_date,starts_at,ends_at,status,deleted_at,delete_points_suspended,max_volunteers,participation_points_per_hour_at_end,event_types(name,color),event_branches(branch_id,branches(name,color)),filter_branch:event_branches(branch_id),scope_branch:event_branches(branch_id),event_officers(officer_id,removed_at,participation_type),my_signup:event_officers(officer_id,removed_at,participation_type)" as const;
   const buildEventQuery = (includeFilters: boolean, countOnly = false) => {
     let query = supabase
       .from("events")
@@ -129,6 +131,12 @@ export default async function EventsPage({
     if (status === "cancelled") query = query.eq("status", "cancelled");
 
     if (includeFilters) {
+      if (scope === "mine")
+        query = query
+          .eq("my_signup.officer_id", actor.id)
+          .is("my_signup.removed_at", null)
+          .not("my_signup", "is", null)
+          .in("my_signup.participation_type", ["attendee", "volunteer"]);
       if (search)
         query = query.or(
           searchOrFilter(search, ["name", "description", "location"]),
@@ -263,12 +271,20 @@ export default async function EventsPage({
     branch: branchId?.toString(),
     page: page > 1 ? String(page) : undefined,
     period: params.period,
+    scope: scope === "mine" ? scope : undefined,
   });
-  const hasFilters = Boolean(search || status || typeId || branchId);
+  const hasFilters = Boolean(
+    search || status || typeId || branchId || scope === "mine",
+  );
   const filteredToNothing =
     totalCount === 0 &&
     (baseCount.count ?? 0) > 0 &&
-    Boolean(search || typeId !== undefined || branchId !== undefined);
+    Boolean(
+      search ||
+      typeId !== undefined ||
+      branchId !== undefined ||
+      scope === "mine",
+    );
   const emptyMessage = filteredToNothing
     ? "No events match these filters."
     : status === "past"
@@ -362,16 +378,46 @@ export default async function EventsPage({
           )}
         </section>
       )}
+      <nav
+        aria-label="Event quick views"
+        className="flex flex-wrap gap-5 border-b border-border"
+      >
+        {[
+          { scope: "all" as const, label: "All events" },
+          { scope: "mine" as const, label: "My events" },
+        ].map(({ scope: itemScope, label }) => {
+          const query = new URLSearchParams(filtersInUrl);
+          if (itemScope === "mine") query.set("scope", "mine");
+          else query.delete("scope");
+          query.delete("page");
+          const serialized = query.toString();
+          return (
+            <Link
+              key={itemScope}
+              href={(serialized ? `/events?${serialized}` : "/events") as Route}
+              aria-current={scope === itemScope ? "page" : undefined}
+              className={`min-h-10 border-b-2 px-1 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${scope === itemScope ? "border-brand text-brand" : "border-transparent text-secondary hover:text-foreground"}`}
+            >
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
       <ListFilterBar
-        key={JSON.stringify([search, status, typeId, branchId])}
+        key={JSON.stringify([search, status, typeId, branchId, scope])}
         action="/events"
         label="Event filters"
         active={hasFilters}
-        clearHref="/events"
+        clearHref={
+          params.period !== undefined
+            ? (`/events?period=${encodeURIComponent(String(params.period))}` as Route)
+            : "/events"
+        }
       >
         {params.period !== undefined && (
           <input type="hidden" name="period" value={String(params.period)} />
         )}
+        {scope === "mine" && <input type="hidden" name="scope" value="mine" />}
         <label className="min-w-56 flex-1">
           Search events
           <input

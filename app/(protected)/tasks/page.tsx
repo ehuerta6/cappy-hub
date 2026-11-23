@@ -6,6 +6,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import {
   ActionLink,
+  Badge,
   BranchBadges,
   CatalogValueBadge,
   ListFilterBar,
@@ -23,6 +24,7 @@ import {
   buildTaskListQuery,
   taskListDateFilters,
   TASKS_PER_PAGE,
+  type TaskListSort,
 } from "@/lib/task-list-query";
 import { taskListFiltersSchema } from "./filter-validation";
 import { SearchableSelect } from "@/components/searchable-select";
@@ -68,6 +70,8 @@ export default async function TasksPage({
     branch: branchId,
     assignee: assigneeId,
     page: requestedPage,
+    scope,
+    sort,
   } = filters;
   const mayBrowseDeleted =
     canSeeAllBranches(actor) || (isLead(actor) && actor.branchIds.length > 0);
@@ -82,6 +86,8 @@ export default async function TasksPage({
     status,
     branch: branchId?.toString(),
     assignee: assigneeId?.toString(),
+    scope: scope === "mine" ? scope : undefined,
+    sort: sort === "newest" ? sort : undefined,
     page: requestedPage > 1 ? String(requestedPage) : undefined,
     period: params.period,
   });
@@ -94,27 +100,36 @@ export default async function TasksPage({
     view,
     today,
     dateRange,
-    periodIsHistorical: periodSelection.isHistorical,
   });
   const tasksQuery = buildTaskListQuery(supabase, {
     view,
+    sort: sort as TaskListSort,
     today,
     search,
     status,
     branchId,
     assigneeId,
+    assignedToOfficerId: scope === "mine" ? actor.id : undefined,
     branchScope:
       view === "deleted" && isLead(actor) && !canSeeAllBranches(actor)
         ? actor.branchIds
         : undefined,
     page: requestedPage,
     dateRange,
-    periodIsHistorical: periodSelection.isHistorical,
   });
 
   let taskCountQuery = supabase
     .from("tasks")
-    .select("id", { count: "exact", head: true });
+    .select(
+      scope === "mine"
+        ? "id,assigned_to_me:task_officer_assignments!inner(officer_id,removed_at)"
+        : "id",
+      { count: "exact", head: true },
+    );
+  if (scope === "mine")
+    taskCountQuery = taskCountQuery
+      .eq("assigned_to_me.officer_id", actor.id)
+      .is("assigned_to_me.removed_at", null);
   if (view === "deleted")
     taskCountQuery = taskCountQuery.not("removed_at", "is", null);
   else {
@@ -154,28 +169,48 @@ export default async function TasksPage({
 
   const tasks = tasksResult.data as unknown as TaskListRow[];
   const deletedTasks = view === "deleted" ? tasks : [];
-  const organizedTasks = organizeTaskList(
-    tasks,
-    view,
-    today,
-    sunday,
-    periodSelection.isHistorical,
-  );
+  const organizedTasks = organizeTaskList(tasks, view, today, sunday, sort);
   const splitTasks = (items: typeof tasks) =>
     splitTasksByOfficer(items, actor.id);
   const filteredToNothing =
     totalCount === 0 &&
     (taskCountResult.count ?? 0) > 0 &&
     Boolean(
-      search || status || branchId !== undefined || assigneeId !== undefined,
+      search ||
+      status ||
+      branchId !== undefined ||
+      assigneeId !== undefined ||
+      scope === "mine",
     );
   const hasFilters = Boolean(
     search ||
     status ||
     branchId !== undefined ||
     assigneeId !== undefined ||
+    scope === "mine" ||
+    sort !== "urgency" ||
     view !== "current",
   );
+
+  const filtersInUrl = new URLSearchParams();
+  if (params.period !== undefined)
+    filtersInUrl.set("period", String(params.period));
+  if (search) filtersInUrl.set("q", search);
+  if (view !== "current") filtersInUrl.set("view", view);
+  if (status) filtersInUrl.set("status", status);
+  if (branchId !== undefined) filtersInUrl.set("branch", String(branchId));
+  if (assigneeId !== undefined)
+    filtersInUrl.set("assignee", String(assigneeId));
+  if (scope === "mine") filtersInUrl.set("scope", "mine");
+  if (sort === "newest") filtersInUrl.set("sort", "newest");
+  const quickViewHref = (nextScope: "all" | "mine") => {
+    const query = new URLSearchParams(filtersInUrl);
+    if (nextScope === "mine") query.set("scope", "mine");
+    else query.delete("scope");
+    query.delete("page");
+    const serialized = query.toString();
+    return (serialized ? `/tasks?${serialized}` : "/tasks") as Route;
+  };
 
   const renderGroup = (
     sectionTitle: string,
@@ -213,6 +248,8 @@ export default async function TasksPage({
                   (assignment) => assignment.officer_id === actor.id,
                 );
                 const taskState = taskStatus(assignments);
+                const overdue =
+                  task.due_date < today && taskState !== "Complete";
                 return (
                   <tr key={task.id} id={`task-${task.id}`}>
                     <td className="min-w-0">
@@ -224,7 +261,10 @@ export default async function TasksPage({
                       </Link>
                     </td>
                     <td className="whitespace-nowrap">
-                      {formatTaskDeadline(task.due_date, task.due_time)}
+                      <span className="inline-flex flex-wrap items-center gap-2">
+                        {overdue && <Badge tone="amber">Overdue</Badge>}
+                        {formatTaskDeadline(task.due_date, task.due_time)}
+                      </span>
                     </td>
                     <td>
                       <CatalogValueBadge color={task.task_types?.color}>
@@ -314,16 +354,39 @@ export default async function TasksPage({
         }
       />
       <SuccessNotice status={params.feedback} />
+      <nav
+        aria-label="Task quick views"
+        className="flex flex-wrap gap-5 border-b border-border"
+      >
+        {[
+          { scope: "all" as const, label: "All tasks" },
+          { scope: "mine" as const, label: "Assigned to me" },
+        ].map(({ scope: itemScope, label }) => (
+          <Link
+            key={itemScope}
+            href={quickViewHref(itemScope)}
+            aria-current={scope === itemScope ? "page" : undefined}
+            className={`min-h-10 border-b-2 px-1 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${scope === itemScope ? "border-brand text-brand" : "border-transparent text-secondary hover:text-foreground"}`}
+          >
+            {label}
+          </Link>
+        ))}
+      </nav>
       <ListFilterBar
         key={JSON.stringify(filters)}
         action="/tasks"
         label="Task filters"
         active={hasFilters}
-        clearHref="/tasks"
+        clearHref={
+          params.period !== undefined
+            ? (`/tasks?period=${encodeURIComponent(String(params.period))}` as Route)
+            : "/tasks"
+        }
       >
         {params.period !== undefined && (
           <input type="hidden" name="period" value={String(params.period)} />
         )}
+        {scope === "mine" && <input type="hidden" name="scope" value="mine" />}
         <label className="min-w-56 flex-1">
           Search tasks
           <input
@@ -335,11 +398,19 @@ export default async function TasksPage({
           />
         </label>
         <label className="min-w-40">
-          View
+          Timeframe
           <select name="view" defaultValue={view}>
             <option value="current">Current</option>
             <option value="past">Past</option>
+            <option value="all">All</option>
             {mayBrowseDeleted && <option value="deleted">Deleted</option>}
+          </select>
+        </label>
+        <label className="min-w-40">
+          Sort by
+          <select name="sort" defaultValue={sort}>
+            <option value="urgency">Most urgent</option>
+            <option value="newest">Newest</option>
           </select>
         </label>
         <label className="min-w-44">
@@ -425,7 +496,7 @@ export default async function TasksPage({
               "Your tasks",
               splitTasks(organizedTasks.tasks).yourTasks,
               false,
-              !periodSelection.isHistorical,
+              false,
             )}
             {renderGroup(
               selectedPeriod?.name ?? "Past tasks",
@@ -436,8 +507,34 @@ export default async function TasksPage({
             )}
           </section>
         ) : null
+      ) : organizedTasks.view === "all" ? (
+        <section
+          aria-label={selectedPeriod?.name ?? "All tasks"}
+          className="space-y-4"
+        >
+          <SectionHeading title={selectedPeriod?.name ?? "All tasks"} />
+          {renderGroup(
+            selectedPeriod?.name ?? "All tasks",
+            "Your tasks",
+            splitTasks(organizedTasks.tasks).yourTasks,
+            false,
+            !periodSelection.isHistorical,
+          )}
+          {renderGroup(
+            selectedPeriod?.name ?? "All tasks",
+            "Other tasks",
+            splitTasks(organizedTasks.tasks).otherTasks,
+            !periodSelection.isHistorical,
+            false,
+          )}
+        </section>
       ) : (
         <>
+          {renderSection(
+            "Overdue tasks",
+            organizedTasks.view === "current" ? organizedTasks.overdue : [],
+            true,
+          )}
           {renderSection(
             "This week's tasks",
             organizedTasks.view === "current" ? organizedTasks.thisWeek : [],

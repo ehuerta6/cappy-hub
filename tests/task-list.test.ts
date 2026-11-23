@@ -12,7 +12,7 @@ const task = (
   removed_at: string | null = null,
 ) => ({ id, due_date, removed_at });
 
-it("organizes today-through-Sunday and upcoming dates nearest first", () => {
+it("keeps overdue work separate from today's and upcoming dates", () => {
   const result = organizeTaskList(
     [
       task(1, "2026-10-05"),
@@ -29,11 +29,12 @@ it("organizes today-through-Sunday and upcoming dates nearest first", () => {
 
   expect(result.view).toBe("current");
   if (result.view !== "current") return;
+  expect(result.overdue.map(({ id }) => id)).toEqual([5]);
   expect(result.thisWeek.map(({ id }) => id)).toEqual([1, 2, 3]);
   expect(result.upcoming.map(({ id }) => id)).toEqual([4]);
 });
 
-it("shows only pre-today Tasks in Past, newest due first with deterministic ties", () => {
+it("orders completed past Tasks by due date with deterministic ties", () => {
   const result = organizeTaskList(
     [
       task(1, "2026-10-04"),
@@ -49,7 +50,25 @@ it("shows only pre-today Tasks in Past, newest due first with deterministic ties
 
   expect(result.view).toBe("past");
   if (result.view !== "past") return;
-  expect(result.tasks.map(({ id }) => id)).toEqual([1, 4, 3]);
+  expect(result.tasks.map(({ id }) => id)).toEqual([4, 3, 1]);
+});
+
+it("orders Newest by creation timestamp and uses Task ID to break ties", () => {
+  const result = organizeTaskList(
+    [
+      { ...task(1, "2026-10-05"), created_at: "2026-10-01T10:00:00Z" },
+      { ...task(3, "2026-10-05"), created_at: "2026-10-02T10:00:00Z" },
+      { ...task(2, "2026-10-06"), created_at: "2026-10-02T10:00:00Z" },
+    ],
+    "all",
+    "2026-10-05",
+    "2026-10-11",
+    "newest",
+  );
+
+  expect(result.view).toBe("all");
+  if (result.view === "all")
+    expect(result.tasks.map(({ id }) => id)).toEqual([3, 2, 1]);
 });
 
 it("shows deleted Tasks only in the explicit Deleted view", () => {
