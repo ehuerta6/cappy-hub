@@ -23,6 +23,16 @@ For Cappy Hub, project-specific product requirements, architecture, security rul
 
 ## Process
 
+### 0. Confirm the review checkout
+
+Before evaluating the diff:
+
+- identify the repository and worktree path, branch, `HEAD` SHA, and working-tree state;
+- compare the inspected revision with the intended PR head SHA;
+- if they differ, report the mismatch and inspect the intended PR revision before assessing the change; never silently review a stale or different checkout.
+
+Keep this preflight focused on identifying the revision. Use `github-flow` for the wider Git and PR workflow.
+
 ### 1. Gather context
 
 Read:

@@ -109,6 +109,8 @@ Do not force another workflow onto the task when it is unnecessary.
 
 Make focused edits.
 
+For large, risky, uncertain, or hard-to-review changes, work through a few coherent increments. After each meaningful increment, run its focused check and inspect the product and test diffs together. Make an end-to-end slice available early when practical; skip extra checkpoints for small, straightforward changes.
+
 When behavior changes:
 
 - add or update meaningful tests;
@@ -117,6 +119,8 @@ When behavior changes:
 - reuse existing dependencies when suitable;
 - preserve current architecture unless the requirement demands otherwise;
 - enforce important invariants at the appropriate trusted boundary.
+
+Confirm that passing tests still check the intended behavior; do not weaken, delete, skip, or rewrite assertions just to make a check pass. Test changes must reflect the approved behavior.
 
 Do not weaken authorization, Row Level Security, database constraints, or production-data protections to make implementation easier.
 
