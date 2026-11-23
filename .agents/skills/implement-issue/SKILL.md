@@ -109,7 +109,7 @@ Do not force another workflow onto the task when it is unnecessary.
 
 Make focused edits.
 
-For large, risky, uncertain, or hard-to-review changes, work through a few coherent increments. After each meaningful increment, run its focused check and inspect the product and test diffs together. Make an end-to-end slice available early when practical; skip extra checkpoints for small, straightforward changes.
+For large, risky, uncertain, or hard-to-review changes, work through a few coherent increments. After each meaningful increment, run its focused check and inspect the product and test diffs together. Make an end-to-end slice available early when practical. During autonomous work, perform these checkpoints internally and summarize meaningful evidence; during interactive pairing, invite direction at useful checkpoints without requiring approval for each edit. Skip extra checkpoints for small, straightforward changes.
 
 When behavior changes:
 

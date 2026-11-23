@@ -47,6 +47,8 @@ Read:
 - surrounding implementation where needed;
 - related migrations and tests when database behavior changed.
 
+When repository knowledge is relevant, inspect only the related notes and confirm that they distinguish approved intent from current behavior. If a diff reveals material possible staleness or contradiction, suggest a focused Knowledge Review; do not start a broad review unless requested.
+
 Review the whole change, not isolated snippets.
 
 The active GitHub Issue defines the implementation scope.

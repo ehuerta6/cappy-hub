@@ -27,6 +27,8 @@ Review the relevant:
 - review findings;
 - failures and rework.
 
+When evaluating a reusable skill, rule, or tool, identify the exact artifact and real task where it was used, along with the observed result or friction. If no real task exercised it, label it untested; passing a validator alone is not evidence of adoption.
+
 ### 2. Identify friction
 
 Look for concrete problems in:
@@ -59,6 +61,8 @@ Look for concrete problems in:
 - CI, linting, typing, tests, or validation had a gap.
 
 Prefer automation over prose rules for mechanical failures.
+
+When proposing a deterministic check for a repeated, evidenced failure, show when feasible that it catches the historical failure and accepts the correct case. Prefer fixing architecture, types, checks, or tests over adding redundant prose. Catalog or global configuration changes still require user approval; a retro recommendation does not adopt itself.
 
 #### Tools
 
