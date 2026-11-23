@@ -2513,10 +2513,24 @@ export type Database = {
         Args: { p_id: number; p_is_active: boolean };
         Returns: undefined;
       };
-      set_task_assignment_completion: {
-        Args: { p_completed: boolean; p_officer_id: number; p_task_id: number };
-        Returns: undefined;
-      };
+      set_task_assignment_completion:
+        | {
+            Args: {
+              p_completed: boolean;
+              p_officer_id: number;
+              p_task_id: number;
+            };
+            Returns: undefined;
+          }
+        | {
+            Args: {
+              p_completed: boolean;
+              p_officer_id: number;
+              p_period_context: string;
+              p_task_id: number;
+            };
+            Returns: undefined;
+          };
       set_task_due_time: {
         Args: {
           p_due_time: string;

@@ -300,7 +300,8 @@ it("restricts self-reported Task completion, reviews it, and awards only approve
     insert into public.task_officer_assignments(task_id,officer_id,assigned_by)
       values (${taskId},${officerId},${leadId}),(${taskId},${otherOfficerId},${leadId}),
         (${leadTaskId},${leadId},${leadId}),(${otherBranchTaskId},${otherOfficerId},${adminId}),
-        (${adminTaskId},${adminId},${adminId}),(${futureTaskId},${officerId},${leadId}),
+        (${adminTaskId},${adminId},${adminId}),(${adminTaskId},${otherOfficerId},${adminId}),
+        (${futureTaskId},${officerId},${leadId}),
         (${historicalTaskId},${officerId},${leadId});
     insert into public.academic_periods(id,name,starts_on,ends_on)
       values (${historicalPeriodId},'Historical completion test',date '2020-01-01',date '2020-06-30');
@@ -346,6 +347,11 @@ it("restricts self-reported Task completion, reviews it, and awards only approve
     runSql(
       `update public.task_officer_assignments set removed_at=statement_timestamp(), removed_by=${leadId} where task_id=${taskId} and officer_id=${otherOfficerId};`,
     );
+    expect(
+      runSql(
+        `select count(*) from public.notifications where recipient_officer_id=${otherOfficerId} and kind='task.assignment_removed' and entity_id=${taskId};`,
+      ).trim(),
+    ).toBe("1");
     runSql(`
       begin; set local role authenticated;
       select set_config('request.jwt.claim.sub','${leadAuth}',true);
@@ -364,12 +370,12 @@ it("restricts self-reported Task completion, reviews it, and awards only approve
 
     runSql(`
       begin; set local role authenticated;
-      select set_config('request.jwt.claim.sub','${leadAuth}',true);
+      select set_config('request.jwt.claim.sub','${officerAuth}',true);
       do $$ begin
-        perform public.set_task_assignment_completion(${taskId},${officerId},false);
-        raise exception 'generic completion correction should not reject a pending report';
+        perform public.set_task_assignment_completion(${taskId},${otherOfficerId},false);
+        raise exception 'ordinary Officers cannot change another completion';
       exception when others then
-        if sqlerrm not like '%Task completion is awaiting approval%' then raise; end if;
+        if sqlerrm not like '%Only Leads or Admins can change another Officer completion%' then raise; end if;
       end $$; commit;
     `);
     expect(
@@ -433,6 +439,16 @@ it("restricts self-reported Task completion, reviews it, and awards only approve
         `select count(*) from public.point_transactions where task_id=${leadTaskId} and award_type='task' and removed_at is null;`,
       ).trim(),
     ).toBe("1");
+    runSql(`
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${leadAuth}',true);
+      do $$ begin
+        perform public.set_task_assignment_completion(${leadTaskId},${leadId},false);
+        raise exception 'managers cannot use the other-Officer control on themselves';
+      exception when others then
+        if sqlerrm not like '%Leads and Admins may only change another Officer%completion%' then raise; end if;
+      end $$; commit;
+    `);
 
     runSql(`
       begin; set local role authenticated;
@@ -460,6 +476,57 @@ it("restricts self-reported Task completion, reviews it, and awards only approve
 
     runSql(`
       begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${leadAuth}',true);
+      select public.set_task_assignment_completion(${otherBranchTaskId},${otherOfficerId},true); commit;
+    `);
+    expect(
+      runSql(
+        `select (completed_at is not null and not completion_approval_pending and approved_by=${leadId})::text from public.task_officer_assignments where task_id=${otherBranchTaskId} and officer_id=${otherOfficerId};`,
+      ).trim(),
+    ).toBe("true");
+    expect(
+      runSql(
+        `select count(*)||':'||sum(points) from public.point_transactions where task_id=${otherBranchTaskId} and award_type='task' and removed_at is null;`,
+      ).trim(),
+    ).toBe("1:2");
+    expect(
+      runSql(
+        `select count(*) from public.notifications where recipient_officer_id=${otherOfficerId} and kind='task.completion_changed' and entity_id=${otherBranchTaskId};`,
+      ).trim(),
+    ).toBe("1");
+    runSql(`
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${leadAuth}',true);
+      select public.set_task_assignment_completion(${otherBranchTaskId},${otherOfficerId},true); commit;
+    `);
+    expect(
+      runSql(
+        `select count(*) from public.notifications where recipient_officer_id=${otherOfficerId} and kind='task.completion_changed' and entity_id=${otherBranchTaskId};`,
+      ).trim(),
+    ).toBe("1");
+    runSql(`
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${leadAuth}',true);
+      select public.set_task_assignment_completion(${otherBranchTaskId},${otherOfficerId},false); commit;
+    `);
+    expect(
+      runSql(
+        `select count(*) from public.point_transactions where task_id=${otherBranchTaskId} and award_type='task' and removed_at is null;`,
+      ).trim(),
+    ).toBe("0");
+    expect(
+      runSql(
+        `select (count(*)=1 and bool_and(removed_at is not null))::text from public.point_transactions where task_id=${otherBranchTaskId} and award_type='task';`,
+      ).trim(),
+    ).toBe("true");
+    expect(
+      runSql(
+        `select count(*) from public.notifications where recipient_officer_id=${otherOfficerId} and kind='task.completion_changed' and entity_id=${otherBranchTaskId};`,
+      ).trim(),
+    ).toBe("2");
+
+    runSql(`
+      begin; set local role authenticated;
       select set_config('request.jwt.claim.sub','${adminAuth}',true);
       select public.self_complete_task_assignment(${adminTaskId},'none'); commit;
     `);
@@ -473,7 +540,40 @@ it("restricts self-reported Task completion, reviews it, and awards only approve
         `select count(*) from public.point_transactions where task_id=${adminTaskId} and award_type='task' and removed_at is null;`,
       ).trim(),
     ).toBe("1");
+    runSql(`
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${adminAuth}',true);
+      select public.set_task_assignment_completion(${adminTaskId},${otherOfficerId},true); commit;
+    `);
+    expect(
+      runSql(
+        `select (completed_at is not null and approved_by=${adminId})::text from public.task_officer_assignments where task_id=${adminTaskId} and officer_id=${otherOfficerId};`,
+      ).trim(),
+    ).toBe("true");
+    expect(
+      runSql(
+        `select count(*) from public.notifications where recipient_officer_id=${otherOfficerId} and kind='task.completion_changed' and entity_id=${adminTaskId};`,
+      ).trim(),
+    ).toBe("1");
 
+    runSql(`
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${officerAuth}',true);
+      select public.self_complete_task_assignment(${futureTaskId},'none'); commit;
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${leadAuth}',true);
+      select public.set_task_assignment_completion(${futureTaskId},${officerId},false); commit;
+    `);
+    expect(
+      runSql(
+        `select (completed_at is null and not completion_approval_pending)::text from public.task_officer_assignments where task_id=${futureTaskId} and officer_id=${officerId};`,
+      ).trim(),
+    ).toBe("true");
+    expect(
+      runSql(
+        `select count(*) from public.notifications where recipient_officer_id=${officerId} and kind='task.completion_changed' and entity_id=${futureTaskId};`,
+      ).trim(),
+    ).toBe("1");
     runSql(`
       begin; set local role authenticated;
       select set_config('request.jwt.claim.sub','${officerAuth}',true);
@@ -511,6 +611,27 @@ it("restricts self-reported Task completion, reviews it, and awards only approve
         `select (completed_at is null and not completion_approval_pending)::text from public.task_officer_assignments where task_id=${historicalTaskId} and officer_id=${officerId};`,
       ).trim(),
     ).toBe("true");
+    runSql(`
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${leadAuth}',true);
+      do $$ begin
+        perform public.set_task_assignment_completion(
+          ${historicalTaskId},${officerId},true,'${historicalPeriodId}');
+        raise exception 'historical manager completion should fail';
+      exception when others then
+        if sqlerrm not like '%Historical period is read-only%' then raise; end if;
+      end $$; commit;
+    `);
+    runSql(`
+      begin; set local role authenticated;
+      select set_config('request.jwt.claim.sub','${leadAuth}',true);
+      do $$ begin
+        perform public.set_task_assignment_completion(${historicalTaskId},${officerId},true);
+        raise exception 'legacy RPC must not bypass historical write protection';
+      exception when others then
+        if sqlerrm not like '%Historical period is read-only%' then raise; end if;
+      end $$; commit;
+    `);
   } finally {
     runSql(`
       delete from public.audit_logs where actor_officer_id in (${officerId},${otherOfficerId},${leadId},${adminId})

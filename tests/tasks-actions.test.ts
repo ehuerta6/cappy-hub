@@ -314,6 +314,7 @@ it.each(["true", "false"])(
     form.set("task_id", "-9");
     form.set("officer_id", "-10");
     form.set("completed", completed);
+    form.set("writable_period", "current");
     expect(
       await setTaskAssignmentCompletion({ error: "", success: "" }, form),
     ).toMatchObject({
@@ -325,6 +326,7 @@ it.each(["true", "false"])(
       p_task_id: -9,
       p_officer_id: -10,
       p_completed: completed === "true",
+      p_period_context: "current",
     });
   },
 );

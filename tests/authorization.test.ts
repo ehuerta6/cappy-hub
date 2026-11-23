@@ -19,6 +19,7 @@ vi.mock("next/navigation", () => ({
 
 import {
   canEditEvent,
+  canChangeOtherTaskCompletion,
   canManageEvent,
   canManageTask,
   getAuthorizationContext,
@@ -39,7 +40,8 @@ const actor = (
   branchIds: number[],
   applicationRole = "officer",
   positionName = "",
-) => ({ positionCode, positionName, branchIds, applicationRole }) as never;
+) =>
+  ({ id: 8, positionCode, positionName, branchIds, applicationRole }) as never;
 
 describe("Event editing and manager authorization", () => {
   it("allows a Lead to manage Events across Branches, including global Events", () => {
@@ -57,6 +59,16 @@ describe("Event editing and manager authorization", () => {
 
     expect(canManageTask(lead, 1)).toBe(true);
     expect(canManageTask(lead, 3)).toBe(false);
+  });
+
+  it("lets Leads and Admins change another Officer's completion globally", () => {
+    expect(canChangeOtherTaskCompletion(actor("lead", [1]), 21)).toBe(true);
+    expect(canChangeOtherTaskCompletion(actor("lead", []), 21)).toBe(true);
+    expect(canChangeOtherTaskCompletion(actor("lead", [1]), 8)).toBe(false);
+    expect(canChangeOtherTaskCompletion(actor("officer", [1]), 21)).toBe(false);
+    expect(
+      canChangeOtherTaskCompletion(actor("officer", [], "admin"), 21),
+    ).toBe(true);
   });
 
   it("preserves admin and Event executive access", () => {

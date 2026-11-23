@@ -18,7 +18,6 @@ vi.mock("@/app/(protected)/tasks/actions", () => ({
 import {
   BulkTaskOfficersForm,
   TaskCompletionControl,
-  TaskCompletionReviewControls,
 } from "@/app/(protected)/tasks/task-officer-controls";
 import {
   bulkAssignTaskOfficers,
@@ -81,7 +80,7 @@ it("keeps the bulk Officer checklist behind an on-demand dialog", () => {
   expect(html).toContain(">Add selected officers</button>");
 });
 
-it("does not show a completion Save action until the state is changed", () => {
+it("offers an immediate, mutually exclusive completion choice", () => {
   const html = renderToStaticMarkup(
     <TaskCompletionControl
       taskId={17}
@@ -91,22 +90,93 @@ it("does not show a completion Save action until the state is changed", () => {
     />,
   );
 
-  expect(html).toContain('aria-label="Completed for Avery Chen"');
-  expect(html).toContain('name="completed" value="false"');
+  expect(html).toContain('aria-label="Completion for Avery Chen"');
+  expect(html).toContain('name="completed" checked="" value="false"');
+  expect(html).toContain('name="completed" value="true"');
+  expect(html).toContain("Not completed");
+  expect(html).toContain("Completed");
   expect(html).not.toContain(">Save</button>");
 });
 
-it("offers distinct manager approval and rejection actions", () => {
+it("lets a manager decide a pending completion with the same two-state control", () => {
   const html = renderToStaticMarkup(
-    <TaskCompletionReviewControls taskId={17} officerId={3} />,
+    <TaskCompletionControl
+      taskId={17}
+      officerId={3}
+      officerName="Avery Chen"
+      completed
+      pendingApproval
+    />,
   );
-  expect(html).toContain('name="task_id" value="17"');
-  expect(html).toContain('name="officer_id" value="3"');
-  expect(html).toContain(">Approve completion</button>");
-  expect(html).toContain(">Reject completion</button>");
+  expect(html).toContain("Reported completion awaiting review");
+  expect(html).not.toContain('name="completed" value="false" checked=""');
+  expect(html).not.toContain('name="completed" value="true" checked=""');
+  expect(html).not.toContain("Approve completion");
+  expect(html).not.toContain("Reject completion");
 });
 
-it("keeps completion state synchronized through successful saves and failures", async () => {
+it("hides previous completion feedback while a new choice is saving", async () => {
+  let resolveSecond:
+    ((state: { error: string; success: string }) => void) | undefined;
+  let submissions = 0;
+  vi.mocked(setTaskAssignmentCompletion).mockImplementation(
+    async (_previous, formData) => {
+      submissions += 1;
+      if (submissions === 1) {
+        return {
+          error: "",
+          success:
+            formData.get("completed") === "true"
+              ? "Marked completed"
+              : "Marked not completed",
+        };
+      }
+      return new Promise((resolve) => {
+        resolveSecond = resolve;
+      });
+    },
+  );
+
+  const render = (completed: boolean) =>
+    root.render(
+      createElement(TaskCompletionControl, {
+        taskId: 17,
+        officerId: 3,
+        officerName: "Avery Chen",
+        completed,
+      }),
+    );
+  await act(async () => render(false));
+  const completedChoice = host.querySelector<HTMLInputElement>(
+    'input[type="radio"][value="true"]',
+  );
+  const notCompletedChoice = host.querySelector<HTMLInputElement>(
+    'input[type="radio"][value="false"]',
+  );
+  if (!completedChoice || !notCompletedChoice)
+    throw new Error("Task completion choices not found");
+
+  await act(async () => {
+    completedChoice.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(host.textContent).toContain("Marked completed");
+  await act(async () => render(true));
+
+  await act(async () => {
+    notCompletedChoice.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(host.textContent).toContain("Saving…");
+  expect(host.textContent).not.toContain("Marked completed");
+
+  await act(async () => {
+    resolveSecond?.({ error: "", success: "Marked not completed" });
+  });
+  expect(host.textContent).toContain("Marked not completed");
+});
+
+it("saves a completion choice immediately and restores it after a failure", async () => {
   let persisted = false;
   let submissions = 0;
   vi.mocked(setTaskAssignmentCompletion).mockImplementation(
@@ -138,52 +208,57 @@ it("keeps completion state synchronized through successful saves and failures", 
       }),
     );
   await act(async () => render(false));
-  const checkbox = host.querySelector<HTMLInputElement>(
-    'input[type="checkbox"]',
+  const completedChoice = host.querySelector<HTMLInputElement>(
+    'input[type="radio"][value="true"]',
+  );
+  const notCompletedChoice = host.querySelector<HTMLInputElement>(
+    'input[type="radio"][value="false"]',
   );
   const form = host.querySelector<HTMLFormElement>("form");
-  if (!checkbox || !form) throw new Error("Task completion form not found");
-  const submit = async () => {
-    await act(async () => {
-      form.requestSubmit();
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
-  };
+  if (!completedChoice || !notCompletedChoice || !form)
+    throw new Error("Task completion choices not found");
 
-  expect(checkbox.checked).toBe(false);
+  expect(notCompletedChoice.checked).toBe(true);
   expect(host.textContent).toContain("Not completed");
 
-  await act(async () => checkbox.click());
-  expect(checkbox.checked).toBe(true);
-  await submit();
+  await act(async () => {
+    completedChoice.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(setTaskAssignmentCompletion).toHaveBeenCalledTimes(1);
   expect(persisted).toBe(true);
-  expect(checkbox.checked).toBe(true);
   await act(async () => render(persisted));
+  expect(completedChoice.checked).toBe(true);
+  expect(new FormData(form).get("completed")).toBe("true");
   expect(host.textContent).toContain("Completed");
   expect(host.textContent).toContain("Marked completed");
 
-  await act(async () => checkbox.click());
-  expect(checkbox.checked).toBe(false);
-  await submit();
+  await act(async () => {
+    notCompletedChoice.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
   expect(persisted).toBe(false);
-  expect(checkbox.checked).toBe(false);
   await act(async () => render(persisted));
+  expect(notCompletedChoice.checked).toBe(true);
+  expect(new FormData(form).get("completed")).toBe("false");
   expect(host.textContent).toContain("Not completed");
   expect(host.textContent).toContain("Marked not completed");
 
-  await act(async () => checkbox.click());
-  await submit();
+  await act(async () => {
+    completedChoice.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
   expect(persisted).toBe(true);
-  expect(checkbox.checked).toBe(true);
   await act(async () => render(persisted));
   expect(host.textContent).toContain("Marked completed");
 
-  await act(async () => checkbox.click());
-  expect(checkbox.checked).toBe(false);
-  await submit();
+  await act(async () => {
+    notCompletedChoice.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
   expect(persisted).toBe(true);
-  expect(checkbox.checked).toBe(false);
-  expect(new FormData(form).get("completed")).toBe("false");
+  expect(completedChoice.checked).toBe(true);
+  expect(new FormData(form).get("completed")).toBe("true");
   expect(host.textContent).toContain("Could not update task completion");
   expect(host.textContent).not.toContain("Marked not completed");
 });

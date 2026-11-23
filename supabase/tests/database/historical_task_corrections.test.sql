@@ -122,15 +122,15 @@ select isnt((select removed_at from point_transactions where task_id=-33101 and 
 insert into tasks(id,title,description,task_type,branch_id,due_date,points,created_by)
  values(-33102,'Rollback Task','Synthetic','Flyer',(select id from branches where name='intro'),
  (statement_timestamp() at time zone 'America/Denver')::date-2,5,-33101);
-select bulk_assign_task_officers(-33102,array[-33102]::bigint[]);
-select set_task_assignment_completion(-33102,-33102,true);
+select bulk_assign_task_officers(-33102,array[-33101]::bigint[]);
+select set_task_assignment_completion(-33102,-33101,true);
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033101',true);
-select update_point_transaction((select id from point_transactions where task_id=-33102 and officer_id=-33102),8);
+select update_point_transaction((select id from point_transactions where task_id=-33102 and officer_id=-33101),8);
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000033102',true);
 set local role authenticated;
 select update_task_details(-33102,'Rollback Task','Synthetic','Flyer',
  (select id from branches where name='intro'),(statement_timestamp() at time zone 'America/Denver')::date-2,10);
-select is((select points from point_transactions where task_id=-33102 and officer_id=-33102),10::numeric,
+select is((select points from point_transactions where task_id=-33102 and officer_id=-33101),10::numeric,
  'source fixed value replaces a directly edited automatic Task amount');
 reset role;
 select is((select details->'before'->>'points' from audit_logs where action='points.task_updated' and details->>'task_id'='-33102' order by id desc limit 1),'8',
@@ -148,7 +148,7 @@ select throws_ok($$select update_task_details(-33102,'Rollback','Synthetic','Fly
  (select id from branches where name='intro'),(statement_timestamp() at time zone 'America/Denver')::date-1,20)$$,
  'P0001','Synthetic Task audit failure','audit failure rolls back source and reconciliation');
 select is((select points from tasks where id=-33102),10::numeric,'failed correction preserves source value');
-select is((select points from point_transactions where task_id=-33102 and officer_id=-33102),10::numeric,'failed correction preserves the reconciled award');
+select is((select points from point_transactions where task_id=-33102 and officer_id=-33101),10::numeric,'failed correction preserves the reconciled award');
 reset role;
 select * from finish();
 rollback;

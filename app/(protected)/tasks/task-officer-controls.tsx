@@ -7,7 +7,6 @@ import {
   useEffect,
   useRef,
   useState,
-  type FormEvent,
 } from "react";
 import {
   ActionFeedback,
@@ -25,8 +24,6 @@ import { initialFormActionState, submittedValues } from "@/lib/form-feedback";
 import {
   bulkAssignTaskOfficers,
   removeTaskAssignment,
-  approveTaskAssignmentCompletion,
-  rejectTaskAssignmentCompletion,
   setTaskAssignmentCompletion,
 } from "./actions";
 
@@ -200,97 +197,52 @@ export function TaskCompletionControl({
     setTaskAssignmentCompletion,
     initialFormActionState,
   );
-  const [checked, setChecked] = useState(completed);
-  const changed = checked !== completed;
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    startTransition(() => action(formData));
-  }
+  const [requestedCompletion, setRequestedCompletion] = useState(completed);
+  const checked = pending ? requestedCompletion : completed;
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2">
+    <form className="space-y-1">
       <AcademicPeriodWriteContextField />
       <input type="hidden" name="task_id" value={taskId} />
       <input type="hidden" name="officer_id" value={officerId} />
-      <input type="hidden" name="completed" value={String(checked)} />
-      <span>
-        {pendingApproval
-          ? "Awaiting approval"
-          : checked
-            ? "Completed"
-            : "Not completed"}
-      </span>
-      <label className="flex min-h-11 items-center gap-2">
-        <input
-          type="checkbox"
-          aria-label={`Completed for ${officerName}`}
-          checked={checked}
-          disabled={pending || pendingApproval}
-          onChange={(event) => setChecked(event.currentTarget.checked)}
-        />
-        <span className="sr-only">Completed</span>
-      </label>
-      {changed && (
-        <button className="button-secondary" type="submit" disabled={pending}>
-          {pending ? "Saving…" : "Save"}
-        </button>
-      )}
-      {(state.error || (state.success && !changed)) && (
-        <ActionFeedback state={state} />
-      )}
-    </form>
-  );
-}
-
-export function TaskCompletionReviewControls({
-  taskId,
-  officerId,
-}: {
-  taskId: number;
-  officerId: number;
-}) {
-  const [approveState, approveAction, approving] = useActionState(
-    approveTaskAssignmentCompletion,
-    initialFormActionState,
-  );
-  const [rejectState, rejectAction, rejecting] = useActionState(
-    rejectTaskAssignmentCompletion,
-    initialFormActionState,
-  );
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <form
-        action={approveAction}
-        className="flex flex-wrap items-center gap-2"
+      <fieldset
+        disabled={pending}
+        aria-label={`Completion for ${officerName}`}
+        className="flex flex-wrap gap-1"
       >
-        <AcademicPeriodWriteContextField />
-        <input type="hidden" name="task_id" value={taskId} />
-        <input type="hidden" name="officer_id" value={officerId} />
-        <button
-          className="button-secondary"
-          type="submit"
-          disabled={approving || rejecting}
-        >
-          {approving ? "Approving…" : "Approve completion"}
-        </button>
-        <ActionFeedback state={approveState} />
-      </form>
-      <form action={rejectAction} className="flex flex-wrap items-center gap-2">
-        <AcademicPeriodWriteContextField />
-        <input type="hidden" name="task_id" value={taskId} />
-        <input type="hidden" name="officer_id" value={officerId} />
-        <button
-          className="button-secondary"
-          type="submit"
-          disabled={approving || rejecting}
-        >
-          {rejecting ? "Rejecting…" : "Reject completion"}
-        </button>
-        <ActionFeedback state={rejectState} />
-      </form>
-    </div>
+        {([false, true] as const).map((value) => (
+          <label
+            key={String(value)}
+            className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-border px-2 text-sm hover:bg-surface-muted has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand"
+          >
+            <input
+              type="radio"
+              name="completed"
+              value={String(value)}
+              checked={!pendingApproval && checked === value}
+              onChange={(event) => {
+                if (pending || !event.currentTarget.form) return;
+                setRequestedCompletion(value);
+                const formData = new FormData(event.currentTarget.form);
+                startTransition(() => action(formData));
+              }}
+            />
+            {value ? "Completed" : "Not completed"}
+          </label>
+        ))}
+      </fieldset>
+      {pendingApproval && (
+        <p className="text-sm text-muted">
+          Reported completion awaiting review. Choose a state to decide it.
+        </p>
+      )}
+      {pending && (
+        <p role="status" className="text-sm text-muted">
+          Saving…
+        </p>
+      )}
+      {!pending && <ActionFeedback state={state} />}
+    </form>
   );
 }
 
