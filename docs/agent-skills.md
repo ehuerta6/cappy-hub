@@ -24,9 +24,18 @@ The 13 reusable workflow skills listed below are adapted from [`ehuerta6/AI-Tool
 
 `cappy-knowledge`, `database-change`, and `local-database-workflow` are Cappy Hub-specific skills. `impeccable` is separately maintained as an adaptation of the external [Impeccable project](https://github.com/pbakaus/impeccable), documented in its `SOURCE.md`. It was compared with AI-ToolKit's same-name skill during this review; its local viewport/state verification guidance remains intentionally in place.
 
+## Project-specific Codex agents
+
+The `.codex/agents/` directory contains two Cappy Hub-only Codex subagents, adapted from AI-ToolKit's [`pr-reviewer`](https://github.com/ehuerta6/AI-ToolKit/blob/d52e57d6d452ad90f30ac9488cdcd82d2d9bc6bd/agents/pr-reviewer.md) and [`supabase-database-reviewer`](https://github.com/ehuerta6/AI-ToolKit/blob/d52e57d6d452ad90f30ac9488cdcd82d2d9bc6bd/agents/supabase-database-reviewer.md). Their instructions are grounded in Cappy Hub's review skills, contracts, and database workflow:
+
+- [`cappy-pr-reviewer.toml`](../.codex/agents/cappy-pr-reviewer.toml) performs an independent, read-only review of a specified PR revision against the linked Issue, Cappy Hub contracts, and exact-head checks.
+- [`cappy-database-reviewer.toml`](../.codex/agents/cappy-database-reviewer.toml) adds a focused, read-only pass for Supabase/PostgreSQL changes, including migrations, RLS, RPC permissions, generated types, history, and upgrade compatibility.
+
+They are optional analysis tools. Their TOML files are validated in this change; runtime discovery by a local Codex installation has not been smoke-tested. Their findings do not count as formal GitHub approvals, replace required CI, or authorize merging. Do not add generic agents where an existing skill or built-in workflow already covers the job.
+
 ## Synchronize reusable skills
 
-Do not copy AI-ToolKit skills over the local files or use `npx skills update -g` to update them. Global CLI updates manage the user's installed global copies; they do not update these committed, project-adapted files. A wholesale overwrite would also discard Cappy Hub's product, security, database, and workflow requirements.
+Do not copy AI-ToolKit skills over the local files or use `npx skills update -g` as a synchronization step. The Skills CLI updates skills installed and tracked by that CLI; it does not reconcile this repository's 13 committed, project-adapted files with their upstream source. A wholesale overwrite would also discard Cappy Hub's product, security, database, and workflow requirements. See the [Skills CLI documentation](https://www.skills.sh/docs/cli).
 
 When AI-ToolKit changes:
 
@@ -35,6 +44,8 @@ When AI-ToolKit changes:
 3. Merge reusable improvements into the local skill while preserving project requirements and the source precedence in `AGENTS.md`. Keep the local diff understandable; do not duplicate a full skill just to record upstream wording.
 4. Update the reviewed source revision in this document after the mapped skills have been reconciled. State meaningful intentional skips in the relevant skill or PR description.
 5. Validate Markdown links and skill frontmatter, inspect the complete diff, and review the instructions against `AGENTS.md`, the owning docs, and the active issue/PR workflow.
+
+When adding a project-local Codex agent, place its TOML definition in `.codex/agents/`, keep it scoped to a real Cappy Hub review gap, and route it to the canonical project skills and docs. Validate the TOML and check that its role does not duplicate another agent or turn its report into an approval.
 
 For example, in a local AI-ToolKit clone, compare the old and new upstream snapshots with:
 
