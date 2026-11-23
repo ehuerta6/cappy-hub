@@ -482,7 +482,9 @@ export default async function TasksPage({
             ? `No Tasks in ${selectedPeriod.name} for this view.`
             : view === "past"
               ? "No past tasks."
-              : "No current tasks."}
+              : view === "all"
+                ? "No tasks in this view."
+                : "No current tasks."}
         </p>
       ) : organizedTasks.view === "past" ? (
         organizedTasks.tasks.length > 0 ? (

@@ -94,18 +94,30 @@ export function buildTaskListQuery(
       tasksQuery = tasksQuery.or(
         `due_date.gte.${dateFilters.currentFrom},and(due_date.lt.${dateFilters.currentFrom},or(active_assignments.is.null,incomplete_assignments.not.is.null))`,
       );
-    if (view === "current" || view === "past")
-      tasksQuery = tasksQuery
-        .is("active_assignments.removed_at", null)
-        .or("completed_at.is.null,completion_approval_pending.eq.true", {
-          referencedTable: "incomplete_assignments",
-        })
-        .is("incomplete_assignments.removed_at", null);
     if (view === "past")
       tasksQuery = tasksQuery
         .not("active_assignments", "is", null)
         .is("incomplete_assignments", null);
   }
+
+  if (
+    view === "current" ||
+    view === "past" ||
+    status === "open" ||
+    status === "complete"
+  )
+    tasksQuery = tasksQuery.is("active_assignments.removed_at", null);
+  if (
+    view === "current" ||
+    view === "past" ||
+    status === "in_progress" ||
+    status === "complete"
+  )
+    tasksQuery = tasksQuery
+      .or("completed_at.is.null,completion_approval_pending.eq.true", {
+        referencedTable: "incomplete_assignments",
+      })
+      .is("incomplete_assignments.removed_at", null);
 
   if (view === "deleted" && branchScope?.length)
     tasksQuery = tasksQuery.in("branch_id", branchScope);

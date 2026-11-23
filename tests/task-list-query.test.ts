@@ -163,3 +163,37 @@ it("sorts Newest by creation time and uses IDs to keep pagination stable", () =>
   ]);
   expect(operations).toContainEqual(["order", ["id", { ascending: false }]]);
 });
+
+it.each([
+  ["all", "in_progress"],
+  ["all", "complete"],
+  ["deleted", "in_progress"],
+  ["deleted", "complete"],
+] as const)(
+  "limits %s %s status checks to active assignment rows",
+  (view, status) => {
+    const { operations, supabase } = queryRecorder();
+    buildTaskListQuery(supabase as never, {
+      ...baseOptions,
+      view,
+      status,
+    });
+
+    expect(String(operations[0][1][0])).toContain(
+      "incomplete_assignments:task_officer_assignments(",
+    );
+    expect(operations).toContainEqual([
+      "or",
+      [
+        "completed_at.is.null,completion_approval_pending.eq.true",
+        {
+          referencedTable: "incomplete_assignments",
+        },
+      ],
+    ]);
+    expect(operations).toContainEqual([
+      "is",
+      ["incomplete_assignments.removed_at", null],
+    ]);
+  },
+);

@@ -524,6 +524,12 @@ it("filters Assigned to me by the active assignment and preserves other Task fil
   expect(html).toContain('<option value="newest" selected="">Newest</option>');
 });
 
+it("shows an All-specific empty state when there are no Tasks in the timeframe", async () => {
+  const html = await render(TasksPage, { view: "all" });
+  expect(html).toContain("No tasks in this view.");
+  expect(html).not.toContain("No current tasks.");
+});
+
 it("shows Calendar recovery only for Events in the manager's branch scope", async () => {
   admin = false;
   lead = true;
