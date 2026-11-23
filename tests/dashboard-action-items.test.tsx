@@ -49,6 +49,7 @@ const task = (id: number, assignments = [assignment()], changes = {}) => ({
   due_time: null,
   task_officer_assignments: assignments,
   removed_at: null,
+  no_longer_needed_at: null,
   ...changes,
 });
 const warning = (id: number, changes = {}) => ({
@@ -203,6 +204,18 @@ it("includes only this Officer's incomplete assignments", async () => {
   expect(taskUrl.searchParams.get("select")).toContain(
     "task_officer_assignments!inner",
   );
+});
+
+it("does not surface Tasks closed as no longer needed as action items", async () => {
+  tasks = [
+    task(10, [assignment()], {
+      no_longer_needed_at: "2026-10-06T12:00:00Z",
+    }),
+  ];
+  const result = await load();
+  expect(result!.items).toEqual([]);
+  const taskUrl = urls.find((url) => url.pathname.endsWith("tasks"))!;
+  expect(taskUrl.searchParams.get("no_longer_needed_at")).toBe("is.null");
 });
 
 it("does not add manager approval tasks to the dashboard", async () => {

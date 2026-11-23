@@ -27,6 +27,7 @@ import {
   approveTaskAssignmentCompletion,
   rejectTaskAssignmentCompletion,
   setTaskAssignmentCompletion,
+  setTaskNeedStatus,
 } from "@/app/(protected)/tasks/actions";
 
 const rpc = vi.fn();
@@ -398,6 +399,28 @@ it("restores a deleted Task through the trusted RPC", async () => {
     success: "Task restored",
   });
   expect(rpc).toHaveBeenCalledWith("restore_task", { p_task_id: 9 });
+});
+
+it("sets the global Task need status through the trusted RPC", async () => {
+  const form = new FormData();
+  form.set("task_id", "19");
+  form.set("no_longer_needed", "true");
+  form.set("writable_period", "current");
+  expect(await setTaskNeedStatus({ error: "", success: "" }, form)).toEqual({
+    error: "",
+    success: "Task marked no longer needed",
+  });
+  expect(getAuthorizationContext).toHaveBeenCalledWith({
+    enforceWritablePeriod: true,
+    periodContext: "current",
+  });
+  expect(rpc).toHaveBeenCalledWith("set_task_need_status", {
+    p_task_id: 19,
+    p_no_longer_needed: true,
+    p_period_context: "current",
+  });
+  expect(revalidatePath).toHaveBeenCalledWith("/calendar");
+  expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
 });
 
 it("restores only the selected recurring Task batch scope", async () => {

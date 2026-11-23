@@ -249,7 +249,9 @@ export default async function TasksPage({
                 );
                 const taskState = taskStatus(assignments);
                 const overdue =
-                  task.due_date < today && taskState !== "Complete";
+                  !task.no_longer_needed_at &&
+                  task.due_date < today &&
+                  taskState !== "Complete";
                 return (
                   <tr key={task.id} id={`task-${task.id}`}>
                     <td className="min-w-0">
@@ -278,7 +280,12 @@ export default async function TasksPage({
                       <TaskAssignmentProgress assignments={assignments} />
                     </td>
                     <td>
-                      <StatusBadge status={taskState} />
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        {task.no_longer_needed_at && (
+                          <StatusBadge status="No longer needed" />
+                        )}
+                        <StatusBadge status={taskState} />
+                      </span>
                     </td>
                     {(allowSelfAssign || allowSelfCompletion) && (
                       <td className="min-w-0">

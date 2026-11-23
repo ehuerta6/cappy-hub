@@ -13,15 +13,18 @@ vi.mock("@/app/(protected)/tasks/actions", () => ({
   removeTaskAssignment: vi.fn(),
   rejectTaskAssignmentCompletion: vi.fn(),
   setTaskAssignmentCompletion: vi.fn(),
+  setTaskNeedStatus: vi.fn(),
 }));
 
 import {
   BulkTaskOfficersForm,
   TaskCompletionControl,
 } from "@/app/(protected)/tasks/task-officer-controls";
+import { TaskNeedStatusForm } from "@/app/(protected)/tasks/task-remove-form";
 import {
   bulkAssignTaskOfficers,
   setTaskAssignmentCompletion,
+  setTaskNeedStatus,
 } from "@/app/(protected)/tasks/actions";
 
 declare global {
@@ -98,7 +101,70 @@ it("offers an immediate, mutually exclusive completion choice", () => {
   expect(html).not.toContain(">Save</button>");
 });
 
-it("lets a manager decide a pending completion with the same two-state control", () => {
+it("offers immediate Needed and No longer needed lifecycle choices", () => {
+  const closeHtml = renderToStaticMarkup(
+    <TaskNeedStatusForm taskId={17} noLongerNeeded={false} />,
+  );
+  const restoreHtml = renderToStaticMarkup(
+    <TaskNeedStatusForm taskId={17} noLongerNeeded />,
+  );
+
+  expect(closeHtml).toContain('name="no_longer_needed" value="true"');
+  expect(closeHtml).toContain("Mark no longer needed");
+  expect(restoreHtml).toContain('name="no_longer_needed" value="false"');
+  expect(restoreHtml).toContain("Restore to Needed");
+  expect(closeHtml).not.toContain("<dialog");
+});
+
+it("hides previous lifecycle feedback while the opposite change is saving", async () => {
+  let resolveRestore:
+    ((state: { error: string; success: string }) => void) | undefined;
+  let submissions = 0;
+  vi.mocked(setTaskNeedStatus).mockImplementation(
+    async (_previous, formData) => {
+      void _previous;
+      submissions += 1;
+      expect(formData.get("no_longer_needed")).toBe(
+        submissions === 1 ? "true" : "false",
+      );
+      if (submissions === 1)
+        return { error: "", success: "Task marked no longer needed" };
+      return new Promise((resolve) => {
+        resolveRestore = resolve;
+      });
+    },
+  );
+
+  const render = (noLongerNeeded: boolean) =>
+    root.render(
+      createElement(TaskNeedStatusForm, { taskId: 17, noLongerNeeded }),
+    );
+  await act(async () => render(false));
+  const submit = async () => {
+    const button = host.querySelector<HTMLButtonElement>(
+      'button[type="submit"]',
+    );
+    if (!button) throw new Error("Task lifecycle button not found");
+    await act(async () => {
+      button.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  };
+
+  await submit();
+  expect(host.textContent).toContain("Task marked no longer needed");
+  await act(async () => render(true));
+  await submit();
+
+  expect(host.textContent).toContain("Saving…");
+  expect(host.textContent).not.toContain("Task marked no longer needed");
+  await act(async () => {
+    resolveRestore?.({ error: "", success: "Task restored to Needed" });
+  });
+  expect(host.textContent).toContain("Task restored to Needed");
+});
+
+it("lets a Lead or Admin decide a pending completion with the same two-state control", () => {
   const html = renderToStaticMarkup(
     <TaskCompletionControl
       taskId={17}

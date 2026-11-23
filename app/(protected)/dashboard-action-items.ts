@@ -163,6 +163,7 @@ export async function loadDashboardActionItems(
       .from("tasks")
       .select(taskSelection)
       .is("removed_at", null)
+      .is("no_longer_needed_at", null)
       .order("due_date")
       .order("id")
       .limit(queryLimit);

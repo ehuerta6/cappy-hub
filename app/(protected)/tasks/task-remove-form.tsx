@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import { ActionFeedback } from "@/components/ui";
 import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
 import { initialFormActionState } from "@/lib/form-feedback";
-import { removeTask, restoreTask } from "./actions";
+import { removeTask, restoreTask, setTaskNeedStatus } from "./actions";
 
 const lifecycleScopeContext = {
   label: "Scope",
@@ -87,6 +87,35 @@ export function TaskDeleteForm({
       >
         {series && <RecurrenceLifecycleScope />}
       </ConfirmationDialog>
+    </form>
+  );
+}
+
+export function TaskNeedStatusForm({
+  taskId,
+  noLongerNeeded,
+}: {
+  taskId: number;
+  noLongerNeeded: boolean;
+}) {
+  const [state, action, pending] = useActionState(
+    setTaskNeedStatus,
+    initialFormActionState,
+  );
+  const nextValue = !noLongerNeeded;
+  return (
+    <form action={action} className="flex flex-wrap items-center gap-2">
+      <AcademicPeriodWriteContextField />
+      <input type="hidden" name="task_id" value={taskId} />
+      <input type="hidden" name="no_longer_needed" value={String(nextValue)} />
+      <button type="submit" className="button-secondary" disabled={pending}>
+        {pending
+          ? "Saving…"
+          : noLongerNeeded
+            ? "Restore to Needed"
+            : "Mark no longer needed"}
+      </button>
+      {!pending && <ActionFeedback state={state} />}
     </form>
   );
 }

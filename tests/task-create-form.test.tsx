@@ -27,6 +27,29 @@ const events = [
   },
 ];
 
+const taskFixture = (
+  overrides: Partial<Tables<"tasks">> = {},
+): Tables<"tasks"> => ({
+  id: -8,
+  title: "Existing task",
+  description: "Task description",
+  task_type: "Flyer",
+  branch_id: -1,
+  due_date: "2026-10-20",
+  due_time: null,
+  points: 1,
+  approval_required: false,
+  created_by: -2,
+  created_at: "2026-10-01T00:00:00Z",
+  recurrence_key: null,
+  recurrence_series_id: null,
+  removed_at: null,
+  removed_by: null,
+  no_longer_needed_at: null,
+  no_longer_needed_by: null,
+  ...overrides,
+});
+
 it("offers searchable Event links and retains a historical linked Event", () => {
   const html = renderToStaticMarkup(
     <TaskCreateForm
@@ -121,23 +144,7 @@ it("offers active Officer checkboxes on creation and omits them while editing", 
   expect(createHtml).toContain('value="occurrence" selected=""');
   expect(createHtml).toContain("All occurrences in the series");
 
-  const task: Tables<"tasks"> = {
-    id: -10,
-    title: "Existing task",
-    description: "Task description",
-    task_type: "Flyer",
-    branch_id: -1,
-    due_date: "2026-10-20",
-    due_time: null,
-    points: 1,
-    approval_required: false,
-    created_by: -2,
-    created_at: "2026-10-01T00:00:00Z",
-    recurrence_key: null,
-    recurrence_series_id: null,
-    removed_at: null,
-    removed_by: null,
-  };
+  const task = taskFixture({ id: -10 });
   const editHtml = renderToStaticMarkup(
     <TaskCreateForm
       task={task}
@@ -150,23 +157,7 @@ it("offers active Officer checkboxes on creation and omits them while editing", 
 });
 
 it("prefills an existing historical Event link when editing a Task", () => {
-  const task: Tables<"tasks"> = {
-    id: -8,
-    title: "Existing task",
-    description: "Task description",
-    task_type: "Flyer",
-    branch_id: -1,
-    due_date: "2026-10-20",
-    due_time: null,
-    points: 1,
-    approval_required: false,
-    created_by: -2,
-    created_at: "2026-10-01T00:00:00Z",
-    recurrence_key: null,
-    recurrence_series_id: null,
-    removed_at: null,
-    removed_by: null,
-  };
+  const task = taskFixture();
   const html = renderToStaticMarkup(
     <TaskCreateForm
       task={task}
@@ -183,23 +174,7 @@ it("prefills an existing historical Event link when editing a Task", () => {
 });
 
 it("keeps a deleted type selected while offering only available choices", () => {
-  const task: Tables<"tasks"> = {
-    id: -9,
-    title: "Existing task",
-    description: "Task description",
-    task_type: "Legacy type",
-    branch_id: -1,
-    due_date: "2026-10-20",
-    due_time: null,
-    points: 1,
-    approval_required: false,
-    created_by: -2,
-    created_at: "2026-10-01T00:00:00Z",
-    recurrence_key: null,
-    recurrence_series_id: null,
-    removed_at: null,
-    removed_by: null,
-  };
+  const task = taskFixture({ id: -9, task_type: "Legacy type" });
   const html = renderToStaticMarkup(
     <TaskCreateForm
       task={task}

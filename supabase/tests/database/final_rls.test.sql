@@ -72,6 +72,7 @@ select ok(has_function_privilege('authenticated','public.self_assign_task(bigint
   and has_function_privilege('authenticated','public.self_complete_task_assignment(bigint,text)','EXECUTE')
   and has_function_privilege('authenticated','public.approve_task_assignment_completion(bigint,bigint,text)','EXECUTE')
   and has_function_privilege('authenticated','public.reject_task_assignment_completion(bigint,bigint,text)','EXECUTE')
+  and has_function_privilege('authenticated','public.set_task_need_status(bigint,boolean,text)','EXECUTE')
   and has_function_privilege('authenticated','public.remove_task_assignment(bigint,bigint)','EXECUTE')
   and has_function_privilege('authenticated','public.update_task_details(bigint,text,text,text,bigint,date,numeric)','EXECUTE')
   and has_table_privilege('authenticated','public.task_officer_assignments','SELECT')
@@ -177,6 +178,7 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       ,'public.bulk_assign_task_officers(bigint,bigint[])'::regprocedure
       ,'public.set_task_assignment_completion(bigint,bigint,boolean)'::regprocedure
       ,'public.set_task_assignment_completion(bigint,bigint,boolean,text)'::regprocedure
+      ,'public.set_task_need_status(bigint,boolean,text)'::regprocedure
       ,'public.self_complete_task_assignment(bigint,text)'::regprocedure
       ,'public.approve_task_assignment_completion(bigint,bigint,text)'::regprocedure
       ,'public.reject_task_assignment_completion(bigint,bigint,text)'::regprocedure

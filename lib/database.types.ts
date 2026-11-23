@@ -1464,6 +1464,8 @@ export type Database = {
           due_date: string;
           due_time: string | null;
           id: number;
+          no_longer_needed_at: string | null;
+          no_longer_needed_by: number | null;
           points: number;
           recurrence_key: string | null;
           recurrence_series_id: number | null;
@@ -1481,6 +1483,8 @@ export type Database = {
           due_date: string;
           due_time?: string | null;
           id?: number;
+          no_longer_needed_at?: string | null;
+          no_longer_needed_by?: number | null;
           points: number;
           recurrence_key?: string | null;
           recurrence_series_id?: number | null;
@@ -1498,6 +1502,8 @@ export type Database = {
           due_date?: string;
           due_time?: string | null;
           id?: number;
+          no_longer_needed_at?: string | null;
+          no_longer_needed_by?: number | null;
           points?: number;
           recurrence_key?: string | null;
           recurrence_series_id?: number | null;
@@ -1524,6 +1530,20 @@ export type Database = {
           {
             foreignKeyName: "tasks_created_by_fkey";
             columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "officers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_no_longer_needed_by_fkey";
+            columns: ["no_longer_needed_by"];
+            isOneToOne: false;
+            referencedRelation: "officer_point_totals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_no_longer_needed_by_fkey";
+            columns: ["no_longer_needed_by"];
             isOneToOne: false;
             referencedRelation: "officers";
             referencedColumns: ["id"];
@@ -2543,6 +2563,14 @@ export type Database = {
       };
       set_task_event_links: {
         Args: { p_event_ids: number[]; p_task_ids: number[] };
+        Returns: undefined;
+      };
+      set_task_need_status: {
+        Args: {
+          p_no_longer_needed: boolean;
+          p_period_context: string;
+          p_task_id: number;
+        };
         Returns: undefined;
       };
       set_task_notification_settings: {

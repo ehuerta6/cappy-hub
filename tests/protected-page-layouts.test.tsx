@@ -10,13 +10,13 @@ vi.mock("react", async (original) => ({
 vi.mock("@/lib/authorization", () => ({
   getAuthorizationContext: vi.fn(),
   canManageOfficers: () => true,
-  isAdmin: () => true,
   canEditEvent: vi.fn(() => true),
   canManageEvent: vi.fn(() => true),
   canManageTask: vi.fn(() => true),
   canChangeOtherTaskCompletion: vi.fn(() => false),
   canSeeAllBranches: () => true,
-  isLead: () => false,
+  isAdmin: vi.fn(() => true),
+  isLead: vi.fn(() => false),
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/academic-periods", async (importOriginal) => ({
@@ -43,6 +43,8 @@ import {
   canManageEvent,
   canManageTask,
   getAuthorizationContext,
+  isAdmin,
+  isLead,
 } from "@/lib/authorization";
 import TaskEdit from "@/app/(protected)/tasks/[id]/edit/page";
 import HistoryTable from "@/app/(protected)/points/history-table";
@@ -108,6 +110,7 @@ const task = {
   task_events: [],
   recurrence_series_id: 3,
   due_date: "2099-10-08",
+  no_longer_needed_at: null as string | null,
 };
 let officersForList: Record<string, unknown>[];
 let eventRosterRows: Record<string, unknown>[];
@@ -124,6 +127,8 @@ let eventRosterOrderCalls: string[];
 let eventRelatedOrderCalls: [string, string][];
 const queryLog: { table: string; method: string; args: unknown[] }[] = [];
 beforeEach(() => {
+  task.due_date = "2099-10-08";
+  task.no_longer_needed_at = null;
   event.starts_at = "2099-10-08T23:00:00Z";
   event.ends_at = "2099-10-09T01:00:00Z";
   event.participation_points_per_hour_at_end = null;
@@ -171,6 +176,8 @@ beforeEach(() => {
   vi.mocked(canManageEvent).mockReturnValue(true);
   vi.mocked(canManageTask).mockReturnValue(true);
   vi.mocked(canChangeOtherTaskCompletion).mockReturnValue(false);
+  vi.mocked(isAdmin).mockReturnValue(true);
+  vi.mocked(isLead).mockReturnValue(false);
   vi.mocked(createClient).mockResolvedValue({
     rpc: () => {
       const query = {
@@ -487,6 +494,37 @@ it("shows the manager's two-state completion control but keeps personal completi
   );
   expect(officerHtml).not.toContain('aria-label="Completed for Other Officer"');
   expect(officerHtml).not.toContain("Remove assignment");
+});
+
+it("shows the closed outcome to Officers and lets Leads restore it across Branches", async () => {
+  Object.assign(task, { due_date: "2000-01-01", no_longer_needed_at: null });
+  vi.mocked(canManageTask).mockReturnValue(false);
+  vi.mocked(isAdmin).mockReturnValue(false);
+  vi.mocked(isLead).mockReturnValue(true);
+
+  const props = {
+    params: Promise.resolve({ id: "7" }),
+    searchParams: Promise.resolve({}),
+  };
+  const overdueLeadHtml = renderToStaticMarkup(await TaskDetail(props));
+  expect(overdueLeadHtml).toContain("Mark no longer needed");
+
+  Object.assign(task, { due_date: "2099-10-08" });
+  const futureLeadHtml = renderToStaticMarkup(await TaskDetail(props));
+  expect(futureLeadHtml).not.toContain("Mark no longer needed");
+
+  Object.assign(task, { due_date: "2000-01-01" });
+  Object.assign(task, { no_longer_needed_at: "2026-10-10T12:00:00Z" });
+  const closedLeadHtml = renderToStaticMarkup(await TaskDetail(props));
+  expect(closedLeadHtml).toContain("No Longer Needed");
+  expect(closedLeadHtml).toContain("In Progress");
+  expect(closedLeadHtml).toContain("Restore to Needed");
+
+  vi.mocked(isLead).mockReturnValue(false);
+  const closedOfficerHtml = renderToStaticMarkup(await TaskDetail(props));
+  expect(closedOfficerHtml).toContain("No Longer Needed");
+  expect(closedOfficerHtml).not.toContain("Restore to Needed");
+  expect(closedOfficerHtml).not.toContain("Mark no longer needed");
 });
 
 it("lets an unassigned Officer self-assign without exposing completion controls", async () => {
