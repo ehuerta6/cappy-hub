@@ -14,7 +14,7 @@ and maintainer retries.
 
 ## AI-assisted development
 
-Follow the repository's [`AGENTS.md`](../AGENTS.md) for project requirements and workflow routing. Shared skills are committed under [`.agents/skills/`](../.agents/skills/). Codex discovers these project-local skills, so contributors do not need separate personal global installations. Read the relevant skill and linked project documentation before using a workflow.
+Follow the repository's [`AGENTS.md`](../AGENTS.md) for project requirements and workflow routing. Shared skills are committed under [`.agents/skills/`](../.agents/skills/). Codex discovers these project-local skills, so contributors do not need separate personal global installations. Read the relevant skill and linked project documentation before using a workflow. See [Agent skills](agent-skills.md) for the upstream source and synchronization process.
 
 Have an idea? Open an Issue describing the problem, what you think should change, and why it would improve Cappy Hub. You do not need to know the implementation in advance.
 

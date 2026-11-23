@@ -76,6 +76,12 @@ Before committing:
 - remove accidental files;
 - confirm no secrets are included.
 
+When using GitHub CLI during PR delivery:
+
+- Treat `gh pr checks` exit code 8 as pending checks, not as proof of failure or success. Inspect the individual results for the current head SHA.
+- Before constructing a `gh api --jq` filter, inspect the endpoint's response shape with bounded output. Do not assume its root type or nesting.
+- Recheck asynchronous CI after a meaningful state change or reasonable interval. Avoid repeatedly polling unchanged state, and report pending, skipped, or authorization-blocked checks accurately.
+
 ### 4. Prepare the PR
 
 When a PR is part of the repository workflow:

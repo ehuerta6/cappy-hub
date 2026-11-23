@@ -78,7 +78,7 @@ Each criterion should describe an observable result, not an implementation step.
 
 ## Verification
 
-Describe how the finished behavior can be demonstrated or tested.
+Describe how the finished behavior can be demonstrated or tested. For interactive changes, specify observable user journeys, meaningful side effects, and negative or authorization cases where relevant. Reuse the existing validation strategy; do not invent test infrastructure in the specification.
 
 Use the project's existing test and validation strategy where possible.
 
@@ -110,6 +110,6 @@ A spec is ready when another agent can read it and understand:
 
 If important `Open questions` remain, the spec is not ready for implementation.
 
-Use `grill-me` to resolve them first.
+Use `grill-me` to resolve them first, then update the specification without silently deciding open questions.
 
 Once approved, the spec can be passed to `to-issues`.
