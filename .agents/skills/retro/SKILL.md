@@ -111,7 +111,16 @@ A retro recommendation is not automatically adopted.
 
 Assess whether an evidence-backed finding belongs in canonical [`ehuerta6/AI-ToolKit`](https://github.com/ehuerta6/AI-ToolKit) or only in Cappy Hub. A finding qualifies for AI-ToolKit when actual work shows that reusable AI-ToolKit configuration caused or materially contributed to the friction and there is a plausible benefit beyond this project. Product behavior, architecture, local conventions, and one-off mistakes stay in Cappy Hub. Mark untested benefit as a hypothesis.
 
-Before creating an Issue, search open and closed AI-ToolKit Issues. Add evidence to an existing Issue when the scope matches; create a new focused Issue only for a distinct, evidence-backed candidate with no existing owner. Keep the full retro in Cappy Hub rather than copying it into AI-ToolKit. An Issue records a proposal; it does not authorize adopting or changing global configuration.
+Before creating an Issue, search open and closed AI-ToolKit Issues. Add evidence to an existing Issue when the scope matches; create a new focused Issue only for a distinct, evidence-backed candidate with no existing owner. In the Issue or comment, concisely include:
+
+- the source project and task;
+- the observed friction and concrete evidence;
+- the affected reusable AI-ToolKit artifact, when known;
+- the proposed change and expected benefit;
+- tradeoffs or uncertainty;
+- testing and adoption status.
+
+Keep the full retro in Cappy Hub rather than copying it into AI-ToolKit. An Issue records a proposal; it does not authorize adopting or changing global configuration.
 
 If no candidate meets the evidence and reuse threshold, say so and create no Issue. If repository access is unavailable, prepare a short draft and state the blocker.
 
