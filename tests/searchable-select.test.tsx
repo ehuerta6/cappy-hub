@@ -55,8 +55,8 @@ async function renderSelect(
   };
 }
 
-function changeInput(input: HTMLInputElement, value: string) {
-  act(() => {
+async function changeInput(input: HTMLInputElement, value: string) {
+  await act(async () => {
     Object.getOwnPropertyDescriptor(
       HTMLInputElement.prototype,
       "value",
@@ -71,8 +71,8 @@ function changeInput(input: HTMLInputElement, value: string) {
   });
 }
 
-function press(input: HTMLInputElement, key: string) {
-  act(() => {
+async function press(input: HTMLInputElement, key: string) {
+  await act(async () => {
     input.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
   });
 }
@@ -82,26 +82,26 @@ it("starts empty, filters names, selects one stable ID by keyboard, and retains 
   expect(input.getAttribute("aria-required")).toBe("true");
   expect(new FormData(form).getAll("officer_id")).toEqual([""]);
 
-  act(() => {
+  await act(async () => {
     input.focus();
     input.click();
   });
-  changeInput(input, "Jordan");
+  await changeInput(input, "Jordan");
   expect(document.querySelectorAll('[role="option"]')).toHaveLength(1);
   expect(document.querySelector('[role="option"]')?.textContent).toContain(
     "Jordan",
   );
-  press(input, "ArrowDown");
-  press(input, "Enter");
+  await press(input, "ArrowDown");
+  await press(input, "Enter");
   expect(hidden.value).toBe("7");
   expect(host.textContent).toContain("Selected: Jordan");
   expect(new FormData(form).getAll("officer_id")).toEqual(["7"]);
 
-  changeInput(input, "Nobody");
+  await changeInput(input, "Nobody");
   expect(document.body.textContent).toContain("No matching options.");
   expect(host.textContent).toContain("Selected: Jordan");
   expect(hidden.value).toBe("7");
-  changeInput(input, "");
+  await changeInput(input, "");
   expect(new FormData(form).getAll("officer_id")).toEqual(["7"]);
 });
 
@@ -124,15 +124,15 @@ it("restores a selected numeric ID and serializes the corresponding GET field", 
 it("clears only through the clear control and never accepts an unknown initial ID", async () => {
   const { form, input, hidden } = await renderSelect({ initialValue: "999" });
   expect(hidden.value).toBe("");
-  act(() => {
+  await act(async () => {
     input.click();
   });
-  press(input, "ArrowDown");
-  press(input, "ArrowDown");
-  press(input, "Enter");
+  await press(input, "ArrowDown");
+  await press(input, "ArrowDown");
+  await press(input, "Enter");
   expect(hidden.value).toBe("3");
 
-  act(() => {
+  await act(async () => {
     host
       .querySelector<HTMLButtonElement>(
         'button[aria-label="Clear officer search or selection"]',
@@ -144,16 +144,16 @@ it("clears only through the clear control and never accepts an unknown initial I
 
 it("selects an Officer with a pointer click", async () => {
   const { form, input } = await renderSelect();
-  act(() => {
+  await act(async () => {
     input.focus();
     input.click();
   });
-  changeInput(input, "Avery");
+  await changeInput(input, "Avery");
   const option = [
     ...document.querySelectorAll<HTMLElement>('[role="option"]'),
   ].find((item) => item.textContent === "Avery Officer");
   expect(option).toBeDefined();
-  act(() => {
+  await act(async () => {
     option?.dispatchEvent(
       new MouseEvent("mousedown", { bubbles: true, button: 0 }),
     );

@@ -180,3 +180,39 @@ it("keeps the preview open for inside clicks, dismisses it, and restores focus o
   expect(container.querySelector("#notification-preview")).toBeNull();
   expect(document.activeElement).toBe(bell);
 });
+
+it("dismisses the mobile controls menu and restores focus to the toggle on Escape", () => {
+  Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
+    value: true,
+    configurable: true,
+  });
+  const container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  act(() => {
+    root?.render(
+      createElement(SiteNavigation, {
+        isAdmin: false,
+        account: createElement("span", null, "Officer"),
+        recentNotifications: [],
+        unreadNotificationCount: 0,
+      }),
+    );
+  });
+
+  const toggle = container.querySelector<HTMLButtonElement>(
+    'button[aria-controls="shell-controls"]',
+  )!;
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+
+  act(() => toggle.click());
+  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+
+  act(() => {
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+  });
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  expect(document.activeElement).toBe(toggle);
+});
