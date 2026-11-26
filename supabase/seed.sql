@@ -275,7 +275,8 @@ values
   (-2050, -1010, 'volunteer'), (-2051, -1010, 'volunteer'), (-2052, -1010, 'volunteer'),
   (-2060, -1201, 'volunteer'), (-2060, -1202, 'attendee'),
   (-2062, -1207, 'volunteer'), (-2063, -1207, 'volunteer'),
-  (-2101, -1022, 'volunteer'), (-2102, -1013, 'volunteer'), (-2103, -1017, 'volunteer'), (-2104, -1016, 'volunteer');
+  (-2101, -1022, 'volunteer'), (-2102, -1013, 'volunteer'), (-2103, -1017, 'volunteer'),
+  (-2104, -1013, 'volunteer'), (-2104, -1016, 'volunteer');
 
 with base as (
   select (now() at time zone 'America/Denver')::date as today
