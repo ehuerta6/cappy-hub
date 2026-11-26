@@ -247,14 +247,18 @@ const from = vi.fn((table: string) => {
                     operations.find(([method]) => method === "limit")?.[1][0],
                   ),
                 )
-              : table === "point_transactions"
-                ? transactions.slice(
-                    0,
-                    Number(
-                      operations.find(([method]) => method === "limit")?.[1][0],
-                    ),
-                  )
-                : result.data,
+              : table === "events"
+                ? visibleEvents
+                : table === "point_transactions"
+                  ? transactions.slice(
+                      0,
+                      Number(
+                        operations.find(
+                          ([method]) => method === "limit",
+                        )?.[1][0],
+                      ),
+                    )
+                  : result.data,
         count: table === "events" && head ? visibleEvents.length : undefined,
       }).then(resolve);
     },
@@ -364,7 +368,7 @@ it("keeps ended Events out of the default current-period view", async () => {
   expect(html).toContain("Upcoming period Event");
   const pageQuery = dashboardQueries.find(
     ({ table, operations }) =>
-      table === "events" && operations.some(([method]) => method === "range"),
+      table === "events" && operations.some(([method]) => method === "order"),
   );
   expect(pageQuery?.operations).toContainEqual([
     "gte",
@@ -405,7 +409,7 @@ it("shows past Events only after selecting the Past filter", async () => {
 
   expect(html).toContain("Past period Event");
   expect(html).not.toContain("Upcoming period Event");
-  expect(html).toContain('aria-label="Events table: Past events: Your events"');
+  expect(html).toContain("Status: Past");
 });
 
 it("shows the selected historical period as an intentional history view", async () => {
@@ -437,7 +441,7 @@ it("shows the selected historical period as an intentional history view", async 
   expect(html).toContain("All events in period");
   const pageQuery = dashboardQueries.find(
     ({ table, operations }) =>
-      table === "events" && operations.some(([method]) => method === "range"),
+      table === "events" && operations.some(([method]) => method === "order"),
   );
   expect(pageQuery?.operations).toContainEqual([
     "gte",
@@ -449,13 +453,8 @@ it("shows the selected historical period as an intentional history view", async 
   ]);
 });
 
-it("renders bounded Events in period tables grouped by participation", async () => {
+it("renders unpaginated Events with inline participation controls", async () => {
   const html = await renderEvents();
-  expect(html).toContain(">Your events</h3>");
-  expect(html).toContain(">Other events</h3>");
-  expect(html).toContain(
-    'aria-label="Events table: Upcoming events: Your events"',
-  );
   const your = html.split("Participating event</a>")[1].split("</tr>")[0];
   const other = html.split("Available event</a>")[1].split("</tr>")[0];
   expect(html).not.toContain('scope="rowgroup"');
@@ -467,15 +466,6 @@ it("renders bounded Events in period tables grouped by participation", async () 
   expect(other).toContain("Upcoming");
   expect(html).toContain('<th scope="col">Action</th>');
   expect(html).not.toMatch(/Your participation|Your signup/i);
-  expect(from.mock.calls.filter(([table]) => table === "events")).toHaveLength(
-    3,
-  );
-  expect(
-    dashboardQueries.find(
-      ({ table, operations }) =>
-        table === "events" && operations.some(([method]) => method === "range"),
-    )?.operations,
-  ).toContainEqual(["range", [0, 7]]);
 });
 
 it("offers signup while happening, but never for past, cancelled, removed or processed events", async () => {
@@ -559,12 +549,7 @@ it("preserves all three summary metric values and the existing summary/activity 
     ["single", []],
   ]);
   expect(operations("events")).toEqual([
-    [
-      "select",
-      [
-        "*,event_types(name,color),active_signup:event_officers!left(officer_id,removed_at)",
-      ],
-    ],
+    ["select", [expect.stringContaining("active_signup:event_officers!left")]],
     ["eq", ["active_signup.officer_id", actor.id]],
     ["is", ["active_signup.removed_at", null]],
     ["is", ["active_signup", null]],
@@ -621,7 +606,7 @@ it("places the single sign out form and officer context inside the protected hea
   expect(header).toContain("theme-toggle");
   expect(header).toContain("Local Officer");
   expect(html.match(/Sign out/g)).toHaveLength(1);
-  expect(html.split("</header>")[1].split("<script>")[0]).toBe(
+  expect(html.split("</header>")[1]).toContain(
     '<main id="main-content" tabindex="-1" class="protected-page-width">Page content</main>',
   );
   expect(header).toContain('aria-current="page"');
@@ -756,7 +741,6 @@ it("shows a bounded upcoming-event preview of Events without an active signup", 
   expect(list).toContain('href="/events/6"');
   expect(list).not.toContain('href="/events/7"');
   expect(list).not.toContain("Signed up");
-  expect(list).toContain("Not signed up");
   expect(list).toContain("0 officers");
   expect(list).toContain('href="/events"');
   expect(countedEventIds).toEqual([2, 3, 4, 5, 6]);

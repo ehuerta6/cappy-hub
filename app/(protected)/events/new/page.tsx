@@ -8,6 +8,8 @@ import {
   getAcademicPeriodData,
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
+import { denverParts } from "@/lib/event-time";
+
 export default async function NewEventPage({
   searchParams,
 }: {
@@ -22,7 +24,12 @@ export default async function NewEventPage({
   const actor = await getAuthorizationContext();
   if (!canEditEvent(actor)) redirect("/access-denied");
   const supabase = await createClient();
-  const [branches, eventTypes, locations, positions, officers] =
+
+  const rawFrom = Array.isArray(params.from) ? params.from[0] : params.from;
+  const duplicateFromId =
+    rawFrom && /^[1-9]\d*$/.test(rawFrom) ? Number(rawFrom) : null;
+
+  const [branches, eventTypes, locations, positions, officers, sourceEvent] =
     await Promise.all([
       supabase
         .from("branches")
@@ -45,6 +52,15 @@ export default async function NewEventPage({
         .select("id,name")
         .eq("status", "active")
         .order("name"),
+      duplicateFromId
+        ? supabase
+            .from("events")
+            .select(
+              "id,name,description,location,event_type_id,max_volunteers,starts_at,ends_at,event_branches(branch_id),resource_links(id,kind,label,url,legacy_key,sort_order)",
+            )
+            .eq("id", duplicateFromId)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
     ]);
   if (
     branches.error ||
@@ -54,6 +70,31 @@ export default async function NewEventPage({
     officers.error
   )
     throw new Error("Failed to load event form");
+
+  const dup = sourceEvent.error ? null : sourceEvent.data;
+  const validEventTypeIds = new Set(eventTypes.data.map((t) => t.id));
+  const validBranchIds = new Set(branches.data.map((b) => b.id));
+  const duplicateDraft = dup
+    ? {
+        name: dup.name,
+        description: dup.description,
+        location: dup.location ?? "",
+        event_type_id: validEventTypeIds.has(dup.event_type_id)
+          ? dup.event_type_id
+          : null,
+        max_volunteers: dup.max_volunteers,
+        start_time: denverParts(dup.starts_at).time,
+        end_time: denverParts(dup.ends_at).time,
+      }
+    : undefined;
+  const duplicateBranchIds = dup
+    ? dup.event_branches
+        .map((b) => b.branch_id)
+        .filter((id) => validBranchIds.has(id))
+    : [];
+  const duplicateResourceLinks = (dup?.resource_links ??
+    []) as import("@/lib/resource-links").ResourceLinkView[];
+
   return (
     <div data-form-page="event" className="space-y-6">
       <ContextualBackLink
@@ -65,7 +106,14 @@ export default async function NewEventPage({
       >
         Back to events
       </ContextualBackLink>
-      <PageHeader title="New event" />
+      <PageHeader
+        title="New event"
+        description={
+          dup
+            ? `Duplicating details from "${dup.name}" — choose a date for the new event.`
+            : undefined
+        }
+      />
       <EventForm
         recurrenceRequestKey={crypto.randomUUID()}
         allowGlobal={canEditEvent(actor)}
@@ -74,6 +122,9 @@ export default async function NewEventPage({
         eventTypes={eventTypes.data}
         locations={locations.data}
         officers={officers.data}
+        duplicateDraft={duplicateDraft}
+        branchIds={duplicateBranchIds}
+        resourceLinks={duplicateResourceLinks}
       />
     </div>
   );

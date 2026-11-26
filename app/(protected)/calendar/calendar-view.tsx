@@ -34,16 +34,20 @@ export default function CalendarView({
   periodId = null,
   periodQuery,
   initialDate,
+  initialEntries,
+  scope,
 }: {
   periodId?: number | null;
   periodQuery?: string;
   initialDate?: string;
+  initialEntries?: CalendarEntry[];
+  scope?: "all" | "mine" | "branch";
 } = {}) {
   const router = useRouter();
   const { theme } = useTheme();
   const [visible, setVisible] = useState({ event: true, task: true });
-  const [entries, setEntries] = useState<CalendarEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [entries, setEntries] = useState<CalendarEntry[]>(initialEntries ?? []);
+  const [loading, setLoading] = useState(initialEntries === undefined);
   const [loadError, setLoadError] = useState(false);
   const latestRequest = useRef(0);
   const latestRange = useRef<string | null>(null);
@@ -55,6 +59,8 @@ export default function CalendarView({
       const end = info.end.toISOString();
       const rangeKey = `${start}/${end}`;
       if (rangeKey === latestRange.current) return;
+      const isInitialHydration =
+        latestRange.current === null && initialEntries !== undefined;
       latestRange.current = rangeKey;
       const requestId = ++latestRequest.current;
 
@@ -62,17 +68,23 @@ export default function CalendarView({
       // Defer the action and React updates until after that lifecycle completes.
       window.setTimeout(() => {
         if (requestId !== latestRequest.current) return;
-        setEntries([]);
-        setLoading(true);
+        if (!isInitialHydration) setLoading(true);
         setLoadError(false);
-        void fetchCalendarRange(start, end, periodId)
+        void (
+          scope && scope !== "all"
+            ? fetchCalendarRange(start, end, periodId, scope)
+            : fetchCalendarRange(start, end, periodId)
+        )
           .then((nextEntries) => {
             if (requestId === latestRequest.current) setEntries(nextEntries);
           })
           .catch(() => {
             if (requestId === latestRequest.current) {
-              setEntries([]);
-              setLoadError(true);
+              latestRange.current = null;
+              if (!isInitialHydration) {
+                setEntries([]);
+                setLoadError(true);
+              }
             }
           })
           .finally(() => {
@@ -80,12 +92,17 @@ export default function CalendarView({
           });
       }, 0);
     },
-    [periodId],
+    [initialEntries, periodId, scope],
   );
 
+  const visibleEventCount = displayedEntries.filter(
+    (entry) => entry.extendedProps.kind === "event",
+  ).length;
+  const visibleTaskCount = displayedEntries.length - visibleEventCount;
+
   return (
-    <div className="calendar-shell min-w-0 rounded-md border border-border bg-surface p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <div className="calendar-shell min-w-0 rounded-lg border border-border bg-surface p-4 sm:p-5">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <fieldset className="calendar-filters">
           <legend className="sr-only">Show Calendar entries</legend>
           {(["event", "task"] as const).map((kind) => (
@@ -104,7 +121,12 @@ export default function CalendarView({
             </label>
           ))}
         </fieldset>
-        <p className="text-xs">Event times · America/Denver</p>
+        <p className="text-xs tabular-nums text-muted">
+          {!loading && !loadError && entries.length > 0
+            ? `${visibleEventCount} event${visibleEventCount === 1 ? "" : "s"} · ${visibleTaskCount} task${visibleTaskCount === 1 ? "" : "s"} · `
+            : ""}
+          America/Denver
+        </p>
       </div>
       {loading && (
         <p className="calendar-empty" role="status">
@@ -112,10 +134,22 @@ export default function CalendarView({
         </p>
       )}
       {loadError && (
-        <p className="calendar-empty" role="alert">
-          Could not load Calendar entries. Try another month or refresh the
-          page.
-        </p>
+        <div
+          className="feedback-message feedback-error mb-3 flex flex-wrap items-center justify-between gap-2 text-sm"
+          role="alert"
+        >
+          <span>
+            Could not load Calendar entries. Try another month or refresh the
+            page.
+          </span>
+          <button
+            type="button"
+            className="button-secondary"
+            onClick={() => router.refresh()}
+          >
+            Retry
+          </button>
+        </div>
       )}
       {!loading && !loadError && displayedEntries.length === 0 && (
         <p className="calendar-empty" role="status">

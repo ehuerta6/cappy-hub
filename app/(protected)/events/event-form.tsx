@@ -3,6 +3,7 @@
 import { useActionState, useRef, useState } from "react";
 import type { Tables } from "@/lib/database.types";
 import { denverParts } from "@/lib/event-time";
+import { formatLabel } from "@/lib/presentation";
 import {
   initialFormActionState,
   submittedValue,
@@ -51,6 +52,7 @@ export default function EventForm({
   resourceLinks = [],
   pointsImpactOfficerCount = 0,
   pointsImpactOccurrences = [],
+  duplicateDraft,
 }: {
   returnTo?: string;
   branches: Pick<Tables<"branches">, "id" | "name">[];
@@ -78,6 +80,15 @@ export default function EventForm({
   /** Distinct Officers with active or schedule-suspended participation awards. */
   pointsImpactOfficerCount?: number;
   pointsImpactOccurrences?: RecurrencePointsImpactOccurrence[];
+  duplicateDraft?: {
+    name: string;
+    description: string;
+    location: string;
+    event_type_id: number | null;
+    max_volunteers: number | null;
+    start_time: string;
+    end_time: string;
+  };
 }) {
   const [state, action, pending] = useActionState(
     saveEvent,
@@ -89,13 +100,15 @@ export default function EventForm({
     ),
   );
   const fieldErrors = state.fieldErrors ?? {};
-  const selectedOfficerIds = new Set(
-    submittedValues(state.values, "officer_ids").map(Number),
+  const [officerQuery, setOfficerQuery] = useState("");
+  const [selectedOfficerIds, setSelectedOfficerIds] = useState<Set<number>>(
+    () => new Set(submittedValues(state.values, "officer_ids").map(Number)),
   );
+  const normalizedOfficerQuery = officerQuery.trim().toLowerCase();
   const restoredLocation = submittedValue(
     state.values,
     "location",
-    event?.location ?? "",
+    event?.location ?? duplicateDraft?.location ?? "",
   );
   const [locationDraft, setLocationDraft] = useState(() => ({
     source: restoredLocation,
@@ -113,12 +126,16 @@ export default function EventForm({
   const initialStartTime = submittedValue(
     state.values,
     "start_time",
-    event?.starts_at ? denverParts(event.starts_at).time : "",
+    event?.starts_at
+      ? denverParts(event.starts_at).time
+      : (duplicateDraft?.start_time ?? ""),
   );
   const initialEndTime = submittedValue(
     state.values,
     "end_time",
-    event?.ends_at ? denverParts(event.ends_at).time : "",
+    event?.ends_at
+      ? denverParts(event.ends_at).time
+      : (duplicateDraft?.end_time ?? ""),
   );
   const [startTime, setStartTime] = useState(initialStartTime);
   const [endTime, setEndTime] = useState(initialEndTime);
@@ -126,7 +143,7 @@ export default function EventForm({
     submittedValue(
       state.values,
       "event_type_id",
-      String(event?.event_type_id ?? ""),
+      String(event?.event_type_id ?? duplicateDraft?.event_type_id ?? ""),
     ),
   );
 
@@ -289,7 +306,7 @@ export default function EventForm({
               defaultValue={submittedValue(
                 state.values,
                 "name",
-                event?.name ?? "",
+                event?.name ?? duplicateDraft?.name ?? "",
               )}
             />
             <FieldError id="event-name-error">{fieldErrors.name}</FieldError>
@@ -307,7 +324,7 @@ export default function EventForm({
               defaultValue={submittedValue(
                 state.values,
                 "description",
-                event?.description ?? "",
+                event?.description ?? duplicateDraft?.description ?? "",
               )}
             />
             <FieldError id="event-description-error">
@@ -327,7 +344,9 @@ export default function EventForm({
               defaultValue={submittedValue(
                 state.values,
                 "event_type_id",
-                String(event?.event_type_id ?? ""),
+                String(
+                  event?.event_type_id ?? duplicateDraft?.event_type_id ?? "",
+                ),
               )}
               onChange={(changeEvent) =>
                 setSelectedEventTypeId(changeEvent.currentTarget.value)
@@ -351,126 +370,6 @@ export default function EventForm({
           </label>
         </div>
       </fieldset>
-
-      {!event && (
-        <fieldset className="event-form-section">
-          <legend>Register Officers (optional)</legend>
-          <p className="text-sm text-muted">
-            Choose Volunteer or Attend for each selected Officer. For recurring
-            Events, you can register them for this occurrence or the whole
-            series. When Time Slots are configured, each Volunteer needs one or
-            more slots.
-          </p>
-          {officers.length ? (
-            <div className="space-y-2">
-              {officers.map((officer) => (
-                <div
-                  key={officer.id}
-                  className="flex flex-wrap items-center gap-x-4 gap-y-2"
-                >
-                  <label className="flex items-center gap-2 text-sm font-normal">
-                    <input
-                      type="checkbox"
-                      name="officer_ids"
-                      value={officer.id}
-                      defaultChecked={selectedOfficerIds.has(officer.id)}
-                    />
-                    {officer.name}
-                  </label>
-                  <label className="flex items-center gap-2 text-sm font-normal">
-                    Participation
-                    <select
-                      name={`participation_type_${officer.id}`}
-                      value={
-                        participationByOfficer[officer.id] ??
-                        submittedValue(
-                          state.values,
-                          `participation_type_${officer.id}`,
-                          "volunteer",
-                        )
-                      }
-                      onChange={(changeEvent) =>
-                        setParticipationByOfficer((previous) => ({
-                          ...previous,
-                          [officer.id]: changeEvent.currentTarget.value as
-                            "volunteer" | "attendee",
-                        }))
-                      }
-                    >
-                      <option value="volunteer">Volunteer</option>
-                      <option value="attendee" disabled={timeSlotsEnabled}>
-                        Attend
-                        {timeSlotsEnabled
-                          ? " (unavailable with Time Slots)"
-                          : ""}
-                      </option>
-                    </select>
-                  </label>
-                  {timeSlotsEnabled &&
-                    (participationByOfficer[officer.id] ??
-                      submittedValue(
-                        state.values,
-                        `participation_type_${officer.id}`,
-                        "volunteer",
-                      )) === "volunteer" && (
-                      <fieldset className="w-full pl-7">
-                        <legend className="text-sm font-medium">
-                          Volunteer Time Slots (select one or more)
-                        </legend>
-                        <div className="flex flex-wrap gap-x-4 gap-y-1">
-                          {currentTimeSlots.map((slot, index) => (
-                            <label
-                              key={`${slot.start_time}-${slot.end_time}-${index}`}
-                              className="flex items-center gap-2 text-sm font-normal"
-                            >
-                              <input
-                                type="checkbox"
-                                name={`officer_slot_indexes_${officer.id}`}
-                                value={index + 1}
-                                defaultChecked={submittedValues(
-                                  state.values,
-                                  `officer_slot_indexes_${officer.id}`,
-                                ).includes(String(index + 1))}
-                              />
-                              {slot.start_time}–{slot.end_time}
-                            </label>
-                          ))}
-                          {!currentTimeSlots.length && (
-                            <p className="text-sm text-muted">
-                              Configure at least one Time Slot below.
-                            </p>
-                          )}
-                        </div>
-                      </fieldset>
-                    )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted">No active Officers available.</p>
-          )}
-          <FieldError id="event-officers-error">
-            {fieldErrors.officer_ids}
-          </FieldError>
-          <label>
-            Apply registrations to
-            <select
-              name="roster_scope"
-              defaultValue={submittedValue(
-                state.values,
-                "roster_scope",
-                "occurrence",
-              )}
-            >
-              <option value="occurrence">This occurrence only</option>
-              <option value="series">All occurrences in the series</option>
-            </select>
-            <FieldError id="event-roster-scope-error">
-              {fieldErrors.roster_scope}
-            </FieldError>
-          </label>
-        </fieldset>
-      )}
 
       <fieldset className="event-form-section">
         <legend>Schedule and location</legend>
@@ -529,11 +428,7 @@ export default function EventForm({
               aria-describedby={
                 fieldErrors.start_time ? "event-start-time-error" : undefined
               }
-              defaultValue={submittedValue(
-                state.values,
-                "start_time",
-                event?.starts_at ? denverParts(event.starts_at).time : "",
-              )}
+              defaultValue={initialStartTime}
               onChange={(changeEvent) =>
                 setStartTime(changeEvent.currentTarget.value)
               }
@@ -555,11 +450,7 @@ export default function EventForm({
               aria-describedby={
                 fieldErrors.end_time ? "event-end-time-error" : undefined
               }
-              defaultValue={submittedValue(
-                state.values,
-                "end_time",
-                event?.ends_at ? denverParts(event.ends_at).time : "",
-              )}
+              defaultValue={initialEndTime}
               onChange={(changeEvent) =>
                 setEndTime(changeEvent.currentTarget.value)
               }
@@ -570,6 +461,193 @@ export default function EventForm({
           </label>
         </div>
       </fieldset>
+
+      {!event && (
+        <fieldset className="event-form-section lg:col-span-2">
+          <legend>Register Officers (optional)</legend>
+          <details
+            className="group"
+            open={
+              selectedOfficerIds.size > 0 ||
+              Boolean(fieldErrors.officer_ids || fieldErrors.roster_scope)
+            }
+          >
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-1 text-sm text-muted hover:text-foreground [&::-webkit-details-marker]:hidden">
+              <span>
+                Pre-register Officers as Volunteers or Attendees on creation
+                {selectedOfficerIds.size > 0
+                  ? ` (${selectedOfficerIds.size} selected)`
+                  : ""}
+              </span>
+              <span className="rounded border border-border-strong bg-surface-muted px-2.5 py-1 text-xs font-medium text-secondary">
+                Configure
+              </span>
+            </summary>
+            <div className="mt-3 space-y-3 border-t border-border pt-3">
+              <p className="event-form-section-description">
+                Choose Volunteer or Attend for each selected Officer. For
+                recurring Events, you can register them for this occurrence or
+                the whole series. When Time Slots are configured, each Volunteer
+                needs one or more slots.
+              </p>
+              {officers.length ? (
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="search"
+                      value={officerQuery}
+                      onChange={(e) => setOfficerQuery(e.currentTarget.value)}
+                      placeholder="Filter officers by name…"
+                      aria-label="Filter officers by name"
+                      className="min-w-44 flex-1 text-sm"
+                    />
+                    <span className="text-xs font-medium tabular-nums text-muted">
+                      {selectedOfficerIds.size} selected
+                    </span>
+                    {selectedOfficerIds.size > 0 && (
+                      <button
+                        type="button"
+                        className="button-secondary min-h-8 px-2.5 py-1 text-xs"
+                        onClick={() => setSelectedOfficerIds(new Set())}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-60 divide-y divide-border overflow-y-auto rounded-md border border-border bg-surface-muted/40 px-3 py-1">
+                    {officers.map((officer) => {
+                      const matches =
+                        !normalizedOfficerQuery ||
+                        officer.name
+                          .toLowerCase()
+                          .includes(normalizedOfficerQuery);
+                      const isChecked = selectedOfficerIds.has(officer.id);
+                      return (
+                        <div
+                          key={officer.id}
+                          className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-2 ${matches ? "" : "hidden"}`}
+                        >
+                          <label className="flex items-center gap-2 text-sm font-normal">
+                            <input
+                              type="checkbox"
+                              name="officer_ids"
+                              value={officer.id}
+                              checked={isChecked}
+                              onChange={() =>
+                                setSelectedOfficerIds((current) => {
+                                  const next = new Set(current);
+                                  if (next.has(officer.id))
+                                    next.delete(officer.id);
+                                  else next.add(officer.id);
+                                  return next;
+                                })
+                              }
+                            />
+                            {officer.name}
+                          </label>
+                          <label className="flex items-center gap-2 text-sm font-normal">
+                            Participation
+                            <select
+                              name={`participation_type_${officer.id}`}
+                              value={
+                                participationByOfficer[officer.id] ??
+                                submittedValue(
+                                  state.values,
+                                  `participation_type_${officer.id}`,
+                                  "volunteer",
+                                )
+                              }
+                              onChange={(changeEvent) =>
+                                setParticipationByOfficer((previous) => ({
+                                  ...previous,
+                                  [officer.id]: changeEvent.currentTarget
+                                    .value as "volunteer" | "attendee",
+                                }))
+                              }
+                            >
+                              <option value="volunteer">Volunteer</option>
+                              <option
+                                value="attendee"
+                                disabled={timeSlotsEnabled}
+                              >
+                                Attend
+                                {timeSlotsEnabled
+                                  ? " (unavailable with Time Slots)"
+                                  : ""}
+                              </option>
+                            </select>
+                          </label>
+                          {timeSlotsEnabled &&
+                            (participationByOfficer[officer.id] ??
+                              submittedValue(
+                                state.values,
+                                `participation_type_${officer.id}`,
+                                "volunteer",
+                              )) === "volunteer" && (
+                              <fieldset className="w-full pl-7">
+                                <legend className="text-sm font-medium">
+                                  Volunteer Time Slots (select one or more)
+                                </legend>
+                                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                                  {currentTimeSlots.map((slot, index) => (
+                                    <label
+                                      key={`${slot.start_time}-${slot.end_time}-${index}`}
+                                      className="flex items-center gap-2 text-sm font-normal"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        name={`officer_slot_indexes_${officer.id}`}
+                                        value={index + 1}
+                                        defaultChecked={submittedValues(
+                                          state.values,
+                                          `officer_slot_indexes_${officer.id}`,
+                                        ).includes(String(index + 1))}
+                                      />
+                                      {slot.start_time}–{slot.end_time}
+                                    </label>
+                                  ))}
+                                  {!currentTimeSlots.length && (
+                                    <p className="text-sm text-muted">
+                                      Configure at least one Time Slot below.
+                                    </p>
+                                  )}
+                                </div>
+                              </fieldset>
+                            )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted">
+                  No active Officers available.
+                </p>
+              )}
+              <FieldError id="event-officers-error">
+                {fieldErrors.officer_ids}
+              </FieldError>
+              <label className="grid max-w-xs gap-1.5 text-sm font-medium text-secondary">
+                Apply registrations to
+                <select
+                  name="roster_scope"
+                  defaultValue={submittedValue(
+                    state.values,
+                    "roster_scope",
+                    "occurrence",
+                  )}
+                >
+                  <option value="occurrence">This occurrence only</option>
+                  <option value="series">All occurrences in the series</option>
+                </select>
+                <FieldError id="event-roster-scope-error">
+                  {fieldErrors.roster_scope}
+                </FieldError>
+              </label>
+            </div>
+          </details>
+        </fieldset>
+      )}
 
       <TimeSlotsEditor
         eventStart={startTime}
@@ -618,7 +696,7 @@ export default function EventForm({
         }}
       />
 
-      <fieldset className="event-form-section">
+      <fieldset className="event-form-section lg:col-span-2">
         <legend>Participation and capacity</legend>
         {timeSlotsEnabled ? (
           <p className="text-sm text-muted">
@@ -640,7 +718,9 @@ export default function EventForm({
               defaultValue={submittedValue(
                 state.values,
                 "max_volunteers",
-                event?.max_volunteers?.toString() ?? "",
+                event?.max_volunteers?.toString() ??
+                  duplicateDraft?.max_volunteers?.toString() ??
+                  "",
               )}
             />
             <span className="text-sm text-muted">
@@ -704,7 +784,7 @@ export default function EventForm({
                   )
                 }
               />
-              {branch.name}
+              {formatLabel(branch.name)}
             </label>
           ))}
           <FieldError id="event-branches-error">
@@ -754,21 +834,23 @@ export default function EventForm({
         <ActionFeedback state={state} />
       </div>
 
-      {pointsImpactMessage ? (
-        <ConfirmationDialog
-          title="Recalculate participation Points?"
-          description={pointsImpactMessage}
-          triggerLabel={submitLabel}
-          confirmLabel="Save event"
-          pending={pending}
-          triggerClassName="lg:col-span-2 w-fit"
-          validateFormBeforeOpen
-        />
-      ) : (
-        <button className="lg:col-span-2 w-fit" disabled={pending}>
-          {submitLabel}
-        </button>
-      )}
+      <div className="lg:col-span-2 flex items-center justify-end border-t border-border pt-4">
+        {pointsImpactMessage ? (
+          <ConfirmationDialog
+            title="Recalculate participation Points?"
+            description={pointsImpactMessage}
+            triggerLabel={submitLabel}
+            confirmLabel="Save event"
+            pending={pending}
+            triggerClassName="w-fit"
+            validateFormBeforeOpen
+          />
+        ) : (
+          <button type="submit" className="w-fit" disabled={pending}>
+            {submitLabel}
+          </button>
+        )}
+      </div>
     </form>
   );
 }

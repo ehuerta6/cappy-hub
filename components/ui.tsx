@@ -1,11 +1,14 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { Route } from "next";
-import Form from "next/form";
 import Link from "next/link";
 import { displayPoints } from "@/lib/participation";
 import { formatLabel } from "@/lib/presentation";
 import type { FormActionState } from "@/lib/form-feedback";
 import { successNotice } from "@/lib/mutation-feedback";
+import {
+  AutoSubmitFilterForm,
+  FilterSubmitButton,
+} from "@/components/list-filter-auto-submit";
 
 export const fieldLabelClassName = "block text-sm font-medium text-secondary";
 export const fieldDescriptionClassName = "text-sm text-muted";
@@ -19,10 +22,10 @@ export const dialogDescriptionClassName = "text-sm leading-5 text-secondary";
 export const dialogFooterClassName =
   "flex flex-wrap justify-end gap-2 border-t border-border pt-4";
 export const popupSurfaceClassName =
-  "cappy-popup overflow-hidden rounded-md border border-border-strong bg-surface text-foreground shadow-lg";
+  "cappy-popup overflow-hidden rounded-lg border border-border-strong bg-surface text-foreground shadow-lg";
 export const popupListClassName = "max-h-72 overflow-y-auto";
 export const popupOptionClassName =
-  "flex cursor-default items-start gap-2 rounded px-2 py-2 text-sm text-secondary outline-none data-[highlighted]:bg-hover data-[selected]:bg-hover data-[selected]:font-medium data-[selected]:text-foreground";
+  "flex cursor-default items-start gap-2 rounded-md px-2 py-2 text-sm text-secondary outline-none data-[highlighted]:bg-hover data-[selected]:bg-hover data-[selected]:font-medium data-[selected]:text-foreground";
 
 export function FormMessage({
   kind,
@@ -183,7 +186,7 @@ export function CatalogValueBadge({
   color?: string | null;
 }) {
   const safeColor =
-    color && /^#[0-9A-Fa-f]{6}$/.test(color) ? color : "#64748b";
+    color && /^#[0-9A-Fa-f]{6}$/.test(color) ? color : "var(--muted)";
   return (
     <span
       className="catalog-value-badge status-badge inline-flex items-center rounded-full border px-1.5 py-0.5 text-xs font-medium leading-4"
@@ -293,32 +296,36 @@ export function TableFrame({
   );
 }
 
+export type ActiveFilterChip = {
+  label: string;
+  removeHref: Route;
+};
+
 export function ListFilterBar({
   action,
   label,
   active,
   clearHref,
+  activeFilters,
   children,
 }: {
   action: Route;
   label: string;
   active: boolean;
   clearHref: Route;
+  activeFilters?: ActiveFilterChip[];
   children: ReactNode;
 }) {
   return (
     <div className="list-filter-bar rounded-lg border border-border bg-surface/40 p-3">
-      <Form
+      <AutoSubmitFilterForm
         action={action}
-        role="search"
-        aria-label={label}
+        label={label}
         className="!flex w-full !max-w-none flex-wrap items-end gap-2.5"
       >
         {children}
         <div className="flex w-full min-h-10 flex-wrap items-center gap-3 sm:w-auto">
-          <button type="submit" className="min-h-11 lg:min-h-0">
-            Apply filters
-          </button>
+          <FilterSubmitButton />
           {active && (
             <Link
               href={clearHref}
@@ -329,7 +336,27 @@ export function ListFilterBar({
             </Link>
           )}
         </div>
-      </Form>
+      </AutoSubmitFilterForm>
+      {activeFilters && activeFilters.length > 0 && (
+        <div
+          className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-border pt-2.5"
+          aria-label="Active filters"
+        >
+          {activeFilters.map((chip) => (
+            <Link
+              key={`${chip.label}-${chip.removeHref}`}
+              href={chip.removeHref}
+              aria-label={`Remove filter: ${chip.label}`}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-secondary transition-colors hover:border-brand-border hover:bg-brand-bg hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              <span>{chip.label}</span>
+              <span aria-hidden="true" className="text-muted">
+                ×
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

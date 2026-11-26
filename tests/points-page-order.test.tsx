@@ -163,6 +163,7 @@ beforeEach(() => {
                         { id: 2, name: "Second Officer", total_points: 8 },
                       ]
                     ).map(({ id, name, total_points }) => ({
+                      id,
                       officer_id: id,
                       officer_name: name,
                       points: total_points,
@@ -233,10 +234,10 @@ it("renders rank numbers from the sorted totals", async () => {
 
   expect(html).toContain('<th scope="col">Rank</th>');
   expect(html).toMatch(
-    /class="tabular-nums text-muted">1<\/span><\/td><td><a[^>]*>First Officer<\/a>/,
+    /tabular-nums[^"]*">1<\/span><\/td><td>.*?<a[^>]*>First Officer<\/a>/,
   );
   expect(html).toMatch(
-    /class="tabular-nums text-muted">2<\/span><\/td><td><a[^>]*>Second Officer<\/a>/,
+    /tabular-nums[^"]*">2<\/span><\/td><td>.*?<a[^>]*>Second Officer<\/a>/,
   );
   expect(html).toContain('class="points-total text-right"');
   expect(html).toContain("+12");
@@ -309,7 +310,7 @@ it("shows History when explicitly selected", async () => {
   expect(queriedTables).not.toContain("officers");
   expect(
     queriedTables.filter((table) => table === "point_history"),
-  ).toHaveLength(3);
+  ).toHaveLength(2);
   expect(queriedTables).not.toContain("officer_point_totals");
   expect(queriedTables).not.toContain("application_config");
 });

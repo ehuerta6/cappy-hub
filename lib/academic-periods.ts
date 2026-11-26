@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/lib/database.types";
 
@@ -13,26 +14,28 @@ export type AcademicPeriodSelection = {
   explicitNoPeriod: boolean;
 };
 
-export async function getAcademicPeriodData(): Promise<AcademicPeriodData> {
-  const supabase = await createClient();
-  const [periodsResult, contextResult] = await Promise.all([
-    supabase
-      .from("academic_periods")
-      .select("id,name,starts_on,ends_on,created_at,updated_at")
-      .order("starts_on", { ascending: false })
-      .order("id", { ascending: false }),
-    supabase.rpc("academic_period_context"),
-  ]);
-  if (periodsResult.error || contextResult.error)
-    throw new Error("Failed to load academic periods");
-  const context = contextResult.data[0];
-  if (!context) throw new Error("Academic period context is unavailable");
-  return {
-    periods: periodsResult.data,
-    currentDate: context.current_date_denver,
-    currentPeriodId: context.current_period_id,
-  };
-}
+export const getAcademicPeriodData = cache(
+  async function getAcademicPeriodData(): Promise<AcademicPeriodData> {
+    const supabase = await createClient();
+    const [periodsResult, contextResult] = await Promise.all([
+      supabase
+        .from("academic_periods")
+        .select("id,name,starts_on,ends_on,created_at,updated_at")
+        .order("starts_on", { ascending: false })
+        .order("id", { ascending: false }),
+      supabase.rpc("academic_period_context"),
+    ]);
+    if (periodsResult.error || contextResult.error)
+      throw new Error("Failed to load academic periods");
+    const context = contextResult.data[0];
+    if (!context) throw new Error("Academic period context is unavailable");
+    return {
+      periods: periodsResult.data,
+      currentDate: context.current_date_denver,
+      currentPeriodId: context.current_period_id,
+    };
+  },
+);
 
 export function resolveAcademicPeriod(
   selected: string | string[] | undefined,

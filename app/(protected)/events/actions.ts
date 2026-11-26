@@ -865,6 +865,7 @@ export async function retryGoogleCalendarSync(
   const synced = await syncGoogleCalendarEvents([event.id], supabase);
   revalidatePath("/events");
   revalidatePath(`/events/${event.id}`);
+  revalidatePath("/admin");
   return synced
     ? { error: "", success: "Google Calendar is up to date" }
     : { error: calendarSyncWarning, success: "" };

@@ -1,31 +1,21 @@
-import Link from "next/link";
-import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/ui";
 import NotificationList from "./notification-list";
 import { getAuthorizationContext } from "@/lib/authorization";
+import { enrichOfficerNotifications } from "@/lib/notification-enrichment";
 import { createClient } from "@/lib/supabase/server";
 import styles from "./notifications.module.css";
 
-const PAGE_SIZE = 50;
-
-export default async function NotificationsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ page?: string }>;
-}) {
+export default async function NotificationsPage() {
   await getAuthorizationContext();
-  const params = await searchParams;
-  const page = Number(params.page ?? "1");
-  if (!Number.isSafeInteger(page) || page < 1) notFound();
   const supabase = await createClient();
-  const from = (page - 1) * PAGE_SIZE;
   const [notifications, count, unreadCount] = await Promise.all([
     supabase
       .from("notifications")
-      .select("id,title,message,kind,entity_type,priority,created_at,read_at")
+      .select(
+        "id,title,message,kind,entity_type,entity_id,href,priority,created_at,read_at",
+      )
       .order("created_at", { ascending: false })
-      .order("id", { ascending: false })
-      .range(from, from + PAGE_SIZE - 1),
+      .order("id", { ascending: false }),
     supabase.from("notifications").select("id", { count: "exact", head: true }),
     supabase
       .from("notifications")
@@ -35,10 +25,13 @@ export default async function NotificationsPage({
   if (notifications.error || count.error || unreadCount.error)
     throw new Error("Could not load notifications");
   const total = count.count ?? 0;
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const enrichedNotifications = await enrichOfficerNotifications(
+    supabase,
+    notifications.data ?? [],
+  );
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} data-page-width="wide">
       <PageHeader
         title="Notifications"
         description="Your in-app notification history, with read status."
@@ -49,27 +42,18 @@ export default async function NotificationsPage({
           <p>New notifications will appear here.</p>
         </section>
       ) : (
-        <NotificationList
-          notifications={notifications.data}
-          unreadCount={unreadCount.count ?? 0}
-        />
-      )}
-      {pages > 1 && (
-        <nav className={styles.pagination} aria-label="Notification pages">
-          {page > 1 ? (
-            <Link href={`/notifications?page=${page - 1}`}>Newer</Link>
-          ) : (
-            <span />
+        <>
+          {total > enrichedNotifications.length && (
+            <p role="status" className="text-xs text-muted">
+              Showing latest {enrichedNotifications.length} of {total}{" "}
+              notifications.
+            </p>
           )}
-          <span>
-            Page {page} of {pages}
-          </span>
-          {page < pages ? (
-            <Link href={`/notifications?page=${page + 1}`}>Older</Link>
-          ) : (
-            <span />
-          )}
-        </nav>
+          <NotificationList
+            notifications={enrichedNotifications}
+            unreadCount={unreadCount.count ?? 0}
+          />
+        </>
       )}
     </div>
   );

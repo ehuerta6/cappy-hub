@@ -46,8 +46,11 @@ export default function OfficerForm({
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
       {officer && <input type="hidden" name="id" value={officer.id} />}
 
-      <fieldset className="event-form-section col-span-full">
-        <legend>Officer details</legend>
+      <fieldset className="event-form-section">
+        <legend>Officer details &amp; contact</legend>
+        <p className="event-form-section-description">
+          Provide at least one email address.
+        </p>
         <div className="event-form-fields">
           <label className="col-span-full">
             Name
@@ -66,16 +69,7 @@ export default function OfficerForm({
             />
             <FieldError id="officer-name-error">{fieldErrors.name}</FieldError>
           </label>
-        </div>
-      </fieldset>
-
-      <fieldset className="event-form-section col-span-full">
-        <legend>Contact information</legend>
-        <p className="event-form-section-description">
-          Provide at least one email address.
-        </p>
-        <div className="event-form-fields">
-          <label className={fieldLabelClassName}>
+          <label className={`col-span-full ${fieldLabelClassName}`}>
             UTEP email (optional)
             <input
               name="utep_email"
@@ -94,7 +88,7 @@ export default function OfficerForm({
               {fieldErrors.utep_email}
             </FieldError>
           </label>
-          <label className={fieldLabelClassName}>
+          <label className={`col-span-full ${fieldLabelClassName}`}>
             Personal email (optional)
             <input
               name="personal_email"
@@ -118,10 +112,10 @@ export default function OfficerForm({
         </div>
       </fieldset>
 
-      <fieldset className="event-form-section col-span-full">
+      <fieldset className="event-form-section">
         <legend>Role and branch assignment</legend>
         <div className="event-form-fields">
-          <label className={fieldLabelClassName}>
+          <label className={`col-span-full ${fieldLabelClassName}`}>
             Position
             <select
               name="position_id"
@@ -199,43 +193,58 @@ export default function OfficerForm({
               </FieldError>
             </label>
           )}
+          <fieldset
+            className="event-form-branches col-span-full mt-1 border-0 p-0"
+            aria-invalid={Boolean(fieldErrors.branches)}
+            aria-describedby={
+              fieldErrors.branches ? "officer-branches-error" : undefined
+            }
+          >
+            <legend className="mb-2 px-0 text-sm font-medium text-secondary">
+              Branches (optional)
+            </legend>
+            <div className="flex flex-wrap gap-2">
+              {branches.map((branch) => {
+                const checked = selectedBranches.includes(String(branch.id));
+                return (
+                  <label
+                    key={branch.id}
+                    className={`inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+                      checked
+                        ? "border-brand-border bg-brand-bg text-brand"
+                        : "border-border bg-surface-muted/50 text-secondary hover:border-border-strong hover:text-foreground"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      name="branches"
+                      value={branch.id}
+                      checked={checked}
+                      onChange={() =>
+                        setSelectedBranches((current) =>
+                          current.includes(String(branch.id))
+                            ? current.filter((id) => id !== String(branch.id))
+                            : [...current, String(branch.id)],
+                        )
+                      }
+                    />
+                    {formatLabel(branch.name)}
+                  </label>
+                );
+              })}
+            </div>
+            <FieldError id="officer-branches-error">
+              {fieldErrors.branches}
+            </FieldError>
+          </fieldset>
         </div>
       </fieldset>
 
-      <fieldset
-        className="event-form-section event-form-branches col-span-full"
-        aria-invalid={Boolean(fieldErrors.branches)}
-        aria-describedby={
-          fieldErrors.branches ? "officer-branches-error" : undefined
-        }
-      >
-        <legend>Branches (optional)</legend>
-        {branches.map((branch) => (
-          <label key={branch.id}>
-            <input
-              type="checkbox"
-              name="branches"
-              value={branch.id}
-              checked={selectedBranches.includes(String(branch.id))}
-              onChange={() =>
-                setSelectedBranches((current) =>
-                  current.includes(String(branch.id))
-                    ? current.filter((id) => id !== String(branch.id))
-                    : [...current, String(branch.id)],
-                )
-              }
-            />{" "}
-            {branch.name}
-          </label>
-        ))}
-        <FieldError id="officer-branches-error">
-          {fieldErrors.branches}
-        </FieldError>
-      </fieldset>
-
-      <div className="col-span-full grid justify-items-start gap-3">
-        <ActionFeedback state={state} />
-        <button disabled={pending}>
+      <div className="col-span-full flex flex-wrap items-center justify-between gap-4 border-t border-border pt-4">
+        <div className="min-w-0 flex-1">
+          {(state.error || state.success) && <ActionFeedback state={state} />}
+        </div>
+        <button type="submit" disabled={pending}>
           {pending ? (officer ? "Saving…" : "Creating…") : "Save officer"}
         </button>
       </div>

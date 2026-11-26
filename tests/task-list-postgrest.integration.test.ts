@@ -26,7 +26,7 @@ const isConfigured = Boolean(postgrestUrl && serviceRoleKey);
 const describePostgrest = describe.skipIf(!isConfigured);
 
 describePostgrest("Tasks status filtering against local PostgREST", () => {
-  it("filters zero, complete, incomplete, and mixed assignments before pagination", async () => {
+  it("filters zero, complete, incomplete, and mixed assignments accurately", async () => {
     const supabase = createClient<Database>(postgrestUrl!, serviceRoleKey!, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
@@ -191,7 +191,6 @@ describePostgrest("Tasks status filtering against local PostgREST", () => {
         search: marker,
         branchId: branch.data!.id,
         assigneeId: officerA.id,
-        page: 1,
       };
 
       const openResult = await buildTaskListQuery(supabase, {
@@ -250,33 +249,19 @@ describePostgrest("Tasks status filtering against local PostgREST", () => {
         ].sort(),
       );
 
-      const completePageOne = await buildTaskListQuery(supabase, {
+      const completeResult = await buildTaskListQuery(supabase, {
         ...baseFilters,
         view: "current",
         status: "complete",
-        page: 1,
       });
-      const completePageTwo = await buildTaskListQuery(supabase, {
-        ...baseFilters,
-        view: "current",
-        status: "complete",
-        page: 2,
-      });
-      expect(completePageOne.error).toBeNull();
-      expect(completePageTwo.error).toBeNull();
-      expect(completePageOne.count).toBe(11);
-      expect(completePageOne.data).toHaveLength(8);
-      expect(completePageTwo.data).toHaveLength(3);
-      const completePageIds = [
-        ...((completePageOne.data ?? []) as unknown as { id: number }[]).map(
-          (task) => task.id,
-        ),
-        ...((completePageTwo.data ?? []) as unknown as { id: number }[]).map(
-          (task) => task.id,
-        ),
-      ];
-      expect(new Set(completePageIds).size).toBe(11);
-      expect(completePageIds).toEqual(
+      expect(completeResult.error).toBeNull();
+      expect(completeResult.count).toBe(11);
+      expect(completeResult.data).toHaveLength(11);
+      const completeIds = (
+        (completeResult.data ?? []) as unknown as { id: number }[]
+      ).map((task) => task.id);
+      expect(new Set(completeIds).size).toBe(11);
+      expect(completeIds).toEqual(
         [
           "current-one-complete",
           "current-many-complete",

@@ -131,7 +131,7 @@ export default function HistoryTable({
                   ? formatCalendarDate(transaction.activity_date)
                   : "—"}
               </td>
-              {canMutate && (
+              {isAdmin && (
                 <td>
                   <div>{actorName(transaction)}</div>
                   {transaction.removed_at && (
@@ -158,7 +158,7 @@ export default function HistoryTable({
                   )}
                 </td>
               )}
-              {isAdmin && (
+              {canMutate && (
                 <td className="min-w-0">
                   {transaction.id &&
                     transaction.premature_confirmation_available && (

@@ -41,6 +41,8 @@ export async function reviewNotificationsForCurrentPage(
     p_entity_id: entityId,
   });
   if (error) throw new Error("Could not update notification review state");
+  revalidatePath("/", "layout");
+  revalidatePath("/notifications");
 }
 
 export async function setNotificationReadStatus(

@@ -23,16 +23,14 @@ Examples include `feat/officer-search`, `fix/event-signup-state`, and `docs/upda
 
 Keep the change focused. If it changes the database, include its migration and corresponding application changes in the same PR. See [Database Development](database-development.md).
 
-Before opening a PR, run:
+Before opening a PR, run the fast combined local check (formatting, ESLint, TypeScript, and unit tests) plus the production build:
 
 ```bash
-npm run lint
-npm run format:check
-npm run typecheck
+npm run check
 npm run build
 ```
 
-Before running the full `npm test` suite, use the migrations-only local database state:
+You can also run individual suites (`npm run test:unit` for non-DB unit tests, or `npm run test:db` for `tests/database.test.ts`). Before running database tests or the full `npm test` suite, use the migrations-only local database state:
 
 ```bash
 npm run db:start
@@ -50,7 +48,7 @@ Do not use production data for development or testing.
 
 The active **Protect Main** GitHub ruleset should require these exact status checks:
 
-- `Quality checks` — formatting, lint, type checks, database tests and migration verification, seed verification, and production build.
+- `Quality checks` — aggregates two parallel jobs: **Static checks & build** (migration guards, formatting, ESLint, TypeScript, unit tests, and cached Next.js production build) and **Database, migrations & seed** (pgTAP/database tests, upgrade replay, generated type checks, `supabase db lint`, and synthetic seed + Auth verification). Docs-only PRs run formatting and skip the database/build jobs while still passing `Quality checks`; pushes to `main` and manual `workflow_dispatch` runs always execute the full pipeline.
 - `Verify Preview login` — produced by the separate **Preview runtime smoke** workflow for same-repository PRs.
 
 The replacement **Contributor Preview verification** workflow publishes

@@ -8,6 +8,8 @@ export default function AccessDeniedPage() {
   return (
     <RecoverySurface
       title="Access denied"
+      eyebrow="403 · Restricted"
+      icon="danger"
       description="This Google account does not have access to Cappy Hub."
     >
       <form action={signOut} className="mt-6">

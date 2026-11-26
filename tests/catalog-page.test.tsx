@@ -23,7 +23,6 @@ const mocks = vi.hoisted(() => ({
   tables: [] as string[],
   filters: [] as Array<[string, string, boolean]>,
   orders: [] as Array<[string, string]>,
-  ranges: [] as Array<[string, number, number]>,
 }));
 
 vi.mock("@/lib/academic-periods", async (importOriginal) => ({
@@ -46,8 +45,6 @@ vi.mock("@/lib/supabase/server", () => ({
     from: (table: string) => {
       mocks.tables.push(table);
       let isCountQuery = false;
-      let start = 0;
-      let end = 0;
       const query = {
         select: (_fields: string, options?: { head?: boolean }) => {
           isCountQuery = options?.head === true;
@@ -62,12 +59,6 @@ vi.mock("@/lib/supabase/server", () => ({
             column,
             options?.ascending === false ? "desc" : "asc",
           ]);
-          return query;
-        },
-        range: (from: number, to: number) => {
-          start = from;
-          end = to;
-          mocks.ranges.push([table, from, to]);
           return query;
         },
         then: (
@@ -86,8 +77,8 @@ vi.mock("@/lib/supabase/server", () => ({
                   error: null,
                 }
               : {
-                  data: mocks.data[table].slice(start, end + 1),
-                  count: null,
+                  data: mocks.data[table],
+                  count: mocks.data[table].length,
                   error: null,
                 },
           ).then(resolve, reject),
@@ -132,7 +123,6 @@ beforeEach(() => {
   mocks.tables.length = 0;
   mocks.filters.length = 0;
   mocks.orders.length = 0;
-  mocks.ranges.length = 0;
 });
 
 async function renderPage(
@@ -150,65 +140,50 @@ it.each([
   ["locations", "event_locations"],
   ["types", "event_types"],
   ["task-types", "task_types"],
-] as const)("loads only the selected %s category", async (category, table) => {
-  mocks.counts[table] = 1;
-  mocks.data[table] = [{ id: 1, name: "Selected record" }];
-  const html = await renderPage({ category });
+] as const)(
+  "renders the selected %s category with tab counts",
+  async (category, table) => {
+    mocks.counts[table] = 1;
+    mocks.data[table] = [{ id: 1, name: "Selected record" }];
+    const html = await renderPage({ category });
 
-  expect(mocks.tables).toEqual([table, table]);
-  expect(html).toContain("Catalog categories");
-  expect(html).toContain('aria-current="page"');
-  for (const category of [
-    "positions",
-    "branches",
-    "locations",
-    "types",
-    "task-types",
-  ])
-    expect(html).toContain(`href="/officers/catalogs?category=${category}"`);
-  expect(html).toContain("Selected record");
-});
+    expect(mocks.tables).toContain(table);
+    expect(html).toContain("Catalog categories");
+    expect(html).toContain('aria-current="page"');
+    for (const tab of [
+      "positions",
+      "branches",
+      "locations",
+      "types",
+      "task-types",
+    ])
+      expect(html).toContain(`href="/officers/catalogs?category=${tab}"`);
+    expect(html).toContain("Selected record");
+  },
+);
 
-it("fetches only eight ordered records and preserves the category in pager links", async () => {
+it("loads all ordered records for a category without pagination", async () => {
   mocks.counts.branches = 18;
   mocks.data.branches = Array.from({ length: 18 }, (_, index) => ({
     id: index + 1,
     name: `Branch ${index + 1}`,
     is_active: true,
   }));
-  const html = await renderPage({ category: "branches", page: "2" });
+  const html = await renderPage({ category: "branches" });
 
-  expect(mocks.ranges).toEqual([["branches", 8, 15]]);
   expect(mocks.orders).toEqual([
     ["name", "asc"],
     ["id", "asc"],
   ]);
-  expect(html).toContain("18 records");
-  expect(html).toContain('href="/officers/catalogs?category=branches"');
-  expect(html).toContain(
-    'href="/officers/catalogs?category=branches&amp;page=3"',
-  );
-  expect(html).toContain('name="category" value="branches"');
-  expect(html).toContain('value="Branch 9"');
-  expect(html).not.toContain('value="Branch 17"');
+  expect(html).toContain('value="Branch 1"');
+  expect(html).toContain('value="Branch 18"');
+  expect(html).not.toContain("Branches pages");
 });
 
-it("returns non-overlapping records on adjacent pages", async () => {
-  mocks.counts.branches = 16;
-  mocks.data.branches = Array.from({ length: 16 }, (_, index) => ({
-    id: index + 1,
-    name: `Branch ${index + 1}`,
-    is_active: true,
-  }));
-  const firstPage = await renderPage({ category: "branches" });
-  const secondPage = await renderPage({ category: "branches", page: "2" });
-
-  expect(mocks.ranges).toEqual([
-    ["branches", 0, 7],
-    ["branches", 8, 15],
-  ]);
-  for (let number = 1; number <= 16; number++)
-    expect(`${firstPage}${secondPage}`).toContain(`Branch ${number}`);
+it("redirects legacy page query params to the canonical unpaginated category URL", async () => {
+  await expect(renderPage({ category: "branches", page: "2" })).rejects.toThrow(
+    "REDIRECT:/officers/catalogs?category=branches",
+  );
 });
 
 it("redirects the default or invalid category to Positions", async () => {
@@ -220,37 +195,23 @@ it("redirects the default or invalid category to Positions", async () => {
   ).rejects.toThrow("REDIRECT:/officers/catalogs?category=positions");
 });
 
-it("canonicalizes an out-of-range page to the current last page", async () => {
-  mocks.counts.event_locations = 17;
-  await expect(
-    renderPage({ category: "locations", page: "9" }),
-  ).rejects.toThrow("REDIRECT:/officers/catalogs?category=locations&page=3");
-});
-
-it("keeps empty and single-page categories valid without a pager", async () => {
+it("keeps empty categories clean without a pager", async () => {
   const empty = await renderPage({ category: "positions" });
   expect(empty).toContain("No positions yet");
   expect(empty).not.toContain("Positions pages");
-
-  mocks.counts.positions = 1;
-  mocks.data.positions = [
-    { id: 1, name: "Officer", code: "officer", is_active: true },
-  ];
-  const single = await renderPage({ category: "positions" });
-  expect(single).toContain("1 record");
-  expect(single).not.toContain("Positions pages");
 });
 
-it("shows Task Type rows in active and deleted catalog views", async () => {
+it("shows Task Type rows in deleted catalog views with restore actions", async () => {
   mocks.counts.task_types = 1;
   mocks.data.task_types = [
     { id: 12, name: "Flyer", available_for_new_tasks: false },
   ];
   const html = await renderPage({ category: "task-types", status: "deleted" });
 
-  expect(mocks.filters).toEqual([
-    ["task_types", "available_for_new_tasks", false],
-    ["task_types", "available_for_new_tasks", false],
+  expect(mocks.filters).toContainEqual([
+    "task_types",
+    "available_for_new_tasks",
+    false,
   ]);
   expect(html).toContain("Task Types");
   expect(html).toContain("Flyer");
@@ -268,7 +229,7 @@ it.each(["lead", "officer"])(
   },
 );
 
-it("filters deleted values and preserves status through pagination", async () => {
+it("filters deleted event types and hides create/delete actions", async () => {
   mocks.counts.event_types = 10;
   mocks.data.event_types = Array.from({ length: 10 }, (_, i) => ({
     id: i + 1,
@@ -276,13 +237,11 @@ it("filters deleted values and preserves status through pagination", async () =>
     available_for_new_events: false,
   }));
   const html = await renderPage({ category: "types", status: "deleted" });
-  expect(mocks.filters).toEqual([
-    ["event_types", "available_for_new_events", false],
-    ["event_types", "available_for_new_events", false],
+  expect(mocks.filters).toContainEqual([
+    "event_types",
+    "available_for_new_events",
+    false,
   ]);
-  expect(html).toContain(
-    'href="/officers/catalogs?category=types&amp;status=deleted&amp;page=2"',
-  );
   expect(html).toContain('name="operation" value="restore"');
   expect(html).not.toContain('name="operation" value="create"');
   expect(html).not.toContain('name="operation" value="delete"');

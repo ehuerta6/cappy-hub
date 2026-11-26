@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  startTransition,
   useActionState,
   useCallback,
   useEffect,
@@ -9,6 +10,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
+import { emitToast } from "@/components/toast-region";
 import {
   ActionFeedback,
   dialogContentClassName,
@@ -31,8 +33,26 @@ import {
 
 const initial = initialFormActionState;
 
-export function CreateWarningForm({ officerId }: { officerId: number }) {
-  return <WarningForm officerId={officerId} />;
+const WARNING_REASON_PRESETS = [
+  "Missed event shift without notice",
+  "Missed task deadline",
+  "Unexcused meeting absence",
+  "Late event cancellation",
+] as const;
+
+export function CreateWarningForm({
+  officerId,
+  approvedWarningCount,
+}: {
+  officerId: number;
+  approvedWarningCount?: number;
+}) {
+  return (
+    <WarningForm
+      officerId={officerId}
+      approvedWarningCount={approvedWarningCount}
+    />
+  );
 }
 
 export function EditWarningForm({
@@ -52,9 +72,11 @@ export function EditWarningForm({
 function WarningForm({
   officerId,
   warning,
+  approvedWarningCount,
 }: {
   officerId: number;
   warning?: { id: number; reason: string };
+  approvedWarningCount?: number;
 }) {
   const title = warning ? "Edit warning" : "Create warning";
   const formId = warning ? `edit-warning-${warning.id}` : "create-warning";
@@ -84,9 +106,10 @@ function WarningForm({
   const handleSuccess = useCallback(
     (message: string) => {
       setSuccess(message);
+      emitToast(message, "success");
       setFormKey((key) => key + 1);
       setOpen(false);
-      router.refresh();
+      startTransition(() => router.refresh());
     },
     [router],
   );
@@ -131,6 +154,23 @@ function WarningForm({
                 ? "Corrections are recorded in the audit history. Historical status and approval history are preserved."
                 : "This warning takes effect immediately. Admins can correct its reason later, with a record in the audit history."}
             </p>
+            {!warning && approvedWarningCount !== undefined && (
+              <p
+                className={`mt-2 rounded-md border px-3 py-2 text-xs font-medium ${
+                  approvedWarningCount >= 2
+                    ? "border-warning-border bg-warning-bg text-warning"
+                    : "border-border bg-surface-muted text-secondary"
+                }`}
+              >
+                Currently {approvedWarningCount} approved warning
+                {approvedWarningCount === 1 ? "" : "s"}
+                {approvedWarningCount === 2
+                  ? " — adding this warning will reach the 3-warning Admin Review threshold."
+                  : approvedWarningCount >= 3
+                    ? " — already at or above the 3-warning Admin Review threshold."
+                    : "."}
+              </p>
+            )}
           </header>
           <WarningFields
             key={formKey}
@@ -160,6 +200,7 @@ function WarningFields({
     warning ? updateWarning : createWarning,
     initial,
   );
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fieldErrors = state.fieldErrors ?? {};
 
   useEffect(() => {
@@ -177,9 +218,34 @@ function WarningFields({
       <AcademicPeriodWriteContextField />
       <input type="hidden" name="officer_id" value={officerId} />
       {warning && <input type="hidden" name="warning_id" value={warning.id} />}
+      {!warning && (
+        <div
+          className="flex flex-wrap items-center gap-1.5"
+          role="group"
+          aria-label="Common warning reasons"
+        >
+          {WARNING_REASON_PRESETS.map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                if (textareaRef.current) {
+                  textareaRef.current.value = preset;
+                  textareaRef.current.focus();
+                }
+              }}
+              className="!min-h-7 rounded-full border border-border bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-secondary hover:border-brand-border hover:bg-brand-bg hover:text-brand"
+            >
+              {preset}
+            </button>
+          ))}
+        </div>
+      )}
       <label>
         Reason
         <textarea
+          ref={textareaRef}
           data-initial-focus
           name="reason"
           required
@@ -209,7 +275,7 @@ function WarningFields({
         >
           Cancel
         </button>
-        <button disabled={pending}>
+        <button type="submit" disabled={pending}>
           {pending ? "Saving…" : warning ? "Save changes" : "Create warning"}
         </button>
       </div>
@@ -227,6 +293,9 @@ export function DeleteWarningForm({
   origin?: "manual" | "automatic";
 }) {
   const [state, action, pending] = useActionState(deleteWarning, initial);
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
       <AcademicPeriodWriteContextField />
@@ -243,7 +312,7 @@ export function DeleteWarningForm({
         confirmLabel="Delete warning"
         destructive
         pending={pending}
-        triggerClassName="button-secondary"
+        triggerClassName="button-secondary button-danger"
       />
       <ActionFeedback state={state} />
     </form>
@@ -260,6 +329,9 @@ export function RestoreWarningForm({
   origin?: "manual" | "automatic";
 }) {
   const [state, action, pending] = useActionState(restoreWarning, initial);
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
       <AcademicPeriodWriteContextField />

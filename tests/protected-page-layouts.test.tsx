@@ -37,6 +37,7 @@ vi.mock("next/navigation", () => ({
   redirect: vi.fn(),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+
 import { createClient } from "@/lib/supabase/server";
 import {
   canChangeOtherTaskCompletion,
@@ -59,7 +60,6 @@ import TasksPage from "@/app/(protected)/tasks/page";
 import TaskDetail from "@/app/(protected)/tasks/[id]/page";
 import TaskActionForm from "@/app/(protected)/tasks/task-action-form";
 import { formatEventSchedule } from "@/lib/presentation";
-import { redirect } from "next/navigation";
 
 const officer = {
   id: 7,
@@ -119,16 +119,28 @@ let eventRosterCount = 0;
 let personalRosterCount = 0;
 let eventTaskRows: Record<string, unknown>[];
 let resourceLinkRows: Record<string, unknown>[];
-let eventTaskCount = 0;
-let eventPointCount = 0;
-let eventPointRanges: [number, number][];
-let eventRelatedRanges: [string, number, number][];
 let eventRosterOrderCalls: string[];
 let eventRelatedOrderCalls: [string, string][];
 const queryLog: { table: string; method: string; args: unknown[] }[] = [];
+
 beforeEach(() => {
   task.due_date = "2099-10-08";
   task.no_longer_needed_at = null;
+  task.task_officer_assignments = [
+    {
+      officer_id: 2,
+      assigned_at: "2026-10-02T12:00:00Z",
+      completed_at: "2026-10-03T12:00:00Z",
+      officers: { id: 2, name: "Other Officer" },
+    },
+    {
+      officer_id: 1,
+      assigned_at: "2026-10-01T12:00:00Z",
+      completed_at: null,
+      officers: { id: 1, name: "Synthetic Officer" },
+    },
+  ];
+  task.task_events = [];
   event.starts_at = "2099-10-08T23:00:00Z";
   event.ends_at = "2099-10-09T01:00:00Z";
   event.participation_points_per_hour_at_end = null;
@@ -160,10 +172,6 @@ beforeEach(() => {
       sort_order: 2,
     },
   ];
-  eventTaskCount = 0;
-  eventPointCount = 0;
-  eventPointRanges = [];
-  eventRelatedRanges = [];
   eventRosterOrderCalls = [];
   eventRelatedOrderCalls = [];
   queryLog.length = 0;
@@ -172,7 +180,10 @@ beforeEach(() => {
     vi.fn(),
     false,
   ] as never);
-  vi.mocked(getAuthorizationContext).mockResolvedValue({ id: 1 } as never);
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 1,
+    branchIds: [],
+  } as never);
   vi.mocked(canManageEvent).mockReturnValue(true);
   vi.mocked(canManageTask).mockReturnValue(true);
   vi.mocked(canChangeOtherTaskCompletion).mockReturnValue(false);
@@ -202,8 +213,6 @@ beforeEach(() => {
     from: (table: string) => {
       const filters = new Map<string, unknown>();
       const query = {
-        rangeStart: 0,
-        rangeEnd: Number.POSITIVE_INFINITY,
         select: (selection: string, options?: Record<string, unknown>) => {
           queryLog.push({
             table,
@@ -225,6 +234,7 @@ beforeEach(() => {
         not: () => query,
         lt: () => query,
         lte: () => query,
+        filter: () => query,
         order: (column: string, options?: { referencedTable?: string }) => {
           queryLog.push({ table, method: "order", args: [column, options] });
           eventRelatedOrderCalls.push([
@@ -240,14 +250,6 @@ beforeEach(() => {
                 : column,
             );
           }
-          return query;
-        },
-        range: (from: number, to: number) => {
-          queryLog.push({ table, method: "range", args: [from, to] });
-          query.rangeStart = from;
-          query.rangeEnd = to;
-          eventRelatedRanges.push([table, from, to]);
-          if (table === "point_transactions") eventPointRanges.push([from, to]);
           return query;
         },
         limit: () => query,
@@ -286,27 +288,15 @@ beforeEach(() => {
               table === "officers"
                 ? officersForList
                 : table === "task_officer_assignments"
-                  ? task.task_officer_assignments.slice(
-                      query.rangeStart,
-                      query.rangeEnd + 1,
-                    )
+                  ? task.task_officer_assignments
                   : table === "presentation_slots"
                     ? historicalPresentationRows
                     : table === "event_officers"
-                      ? eventRosterRows.slice(
-                          query.rangeStart,
-                          query.rangeEnd + 1,
-                        )
+                      ? eventRosterRows
                       : table === "task_events" && filters.has("task_id")
-                        ? task.task_events.slice(
-                            query.rangeStart,
-                            query.rangeEnd + 1,
-                          )
+                        ? task.task_events
                         : table === "task_events"
-                          ? eventTaskRows.slice(
-                              query.rangeStart,
-                              query.rangeEnd + 1,
-                            )
+                          ? eventTaskRows
                           : table === "resource_links"
                             ? resourceLinkRows.filter(
                                 (row) =>
@@ -328,10 +318,8 @@ beforeEach(() => {
                     : table === "task_events" && filters.has("task_id")
                       ? task.task_events.length
                       : table === "task_events"
-                        ? eventTaskCount
-                        : table === "point_transactions"
-                          ? eventPointCount
-                          : 0,
+                        ? eventTaskRows.length
+                        : 0,
             error: null,
           }).then(resolve),
       };
@@ -446,44 +434,22 @@ it("allows an authorized manager to edit a standalone Task", async () => {
   Object.assign(task, { recurrence_series_id: 3 });
 });
 
-it("shows the manager's two-state completion control but keeps personal completion separate", async () => {
+it("shows the manager's two-state completion control on flattened Task detail while keeping personal completion separate", async () => {
   const props = {
     params: Promise.resolve({ id: "7" }),
-    searchParams: Promise.resolve({ section: "assignments" }),
+    searchParams: Promise.resolve({}),
   };
   vi.mocked(canChangeOtherTaskCompletion).mockImplementation(
     (authorization, officerId) => authorization.id !== officerId,
   );
   const managerHtml = renderToStaticMarkup(await TaskDetail(props));
-  expect(managerHtml).toContain('aria-label="Officers"');
   expect(managerHtml).toContain("Synthetic Officer");
   expect(managerHtml).toContain("Other Officer");
   expect(managerHtml).not.toContain(
     'aria-label="Completed for Synthetic Officer"',
   );
   expect(managerHtml).toContain('aria-label="Completion for Other Officer"');
-  expect(managerHtml).not.toContain("Awaiting approval");
-  expect(managerHtml).not.toContain(">Approve<");
-  const assignmentRows = managerHtml
-    .split("<table>")[1]
-    .split("</table>")[0]
-    .match(/<tr>[\s\S]*?<\/tr>/g);
-  expect(assignmentRows).toHaveLength(3);
-  expect(assignmentRows?.[1]).toContain("Other Officer");
-  expect(assignmentRows?.[1]).toContain(
-    'aria-label="Completion for Other Officer"',
-  );
-  expect(assignmentRows?.[1]).toContain('name="officer_id" value="2"');
-  expect(assignmentRows?.[1]).toContain("Remove assignment");
-  expect(assignmentRows?.[2]).toContain("Synthetic Officer");
-  expect(assignmentRows?.[2]).not.toContain(
-    'aria-label="Completed for Synthetic Officer"',
-  );
-  expect(assignmentRows?.[2]).toContain('name="officer_id" value="1"');
-  expect(assignmentRows?.[2]).toContain(
-    'aria-label="Remove Synthetic Officer from task"',
-  );
-  expect(assignmentRows?.[2]).toContain("Remove assignment");
+  expect(managerHtml).toContain('aria-label="Remove Other Officer from task"');
 
   vi.mocked(canManageTask).mockReturnValue(false);
   vi.mocked(canChangeOtherTaskCompletion).mockReturnValue(false);
@@ -492,8 +458,9 @@ it("shows the manager's two-state completion control but keeps personal completi
   expect(officerHtml).not.toContain(
     'aria-label="Completed for Synthetic Officer"',
   );
-  expect(officerHtml).not.toContain('aria-label="Completed for Other Officer"');
-  expect(officerHtml).not.toContain("Remove assignment");
+  expect(officerHtml).not.toContain(
+    'aria-label="Remove Other Officer from task"',
+  );
 });
 
 it("shows the closed outcome to Officers and lets Leads restore it across Branches", async () => {
@@ -536,7 +503,7 @@ it("lets an unassigned Officer self-assign without exposing completion controls"
   const html = renderToStaticMarkup(
     await TaskDetail({
       params: Promise.resolve({ id: "7" }),
-      searchParams: Promise.resolve({ section: "assignments" }),
+      searchParams: Promise.resolve({}),
     }),
   );
   expect(html).toContain('aria-label="Assign this task to me"');
@@ -545,107 +512,31 @@ it("lets an unassigned Officer self-assign without exposing completion controls"
   Object.assign(task, { task_officer_assignments: previousAssignments });
 });
 
-it("shows the two-state manager control for pending completion reports", async () => {
+it("shows the two-state manager control for pending completion reports on flattened Task detail", async () => {
   vi.mocked(canChangeOtherTaskCompletion).mockReturnValue(true);
   const assignment = task.task_officer_assignments[0];
   Object.assign(assignment, { completion_approval_pending: true });
   const html = renderToStaticMarkup(
     await TaskDetail({
       params: Promise.resolve({ id: "7" }),
-      searchParams: Promise.resolve({ section: "assignments" }),
-    }),
-  );
-  const pendingRow = html
-    .split("<table>")[1]
-    .split("</table>")[0]
-    .match(/<tr>[\s\S]*?<\/tr>/g)?.[1];
-  expect(pendingRow).toContain("Reported completion awaiting review");
-  expect(pendingRow).toContain('aria-label="Completion for Other Officer"');
-  expect(pendingRow).toContain('name="completed" value="false"');
-  expect(pendingRow).toContain('name="completed" value="true"');
-  expect(pendingRow).not.toContain("Approve completion");
-  expect(pendingRow).not.toContain("Reject completion");
-  Object.assign(assignment, { completion_approval_pending: false });
-});
-
-it("shows pending approval in the Task assignment preview", async () => {
-  const assignment = task.task_officer_assignments[0];
-  Object.assign(assignment, { completion_approval_pending: true });
-  const html = renderToStaticMarkup(
-    await TaskDetail({
-      params: Promise.resolve({ id: "7" }),
       searchParams: Promise.resolve({}),
     }),
   );
-  const preview = html
-    .split('aria-label="Assignment preview"')[1]
-    .split("</section>")[0];
-  const pendingRow = preview
-    .split("<li")
-    .find((row) => row.includes("Other Officer"));
-  expect(pendingRow).toContain("Awaiting approval");
-  expect(pendingRow).not.toContain("Completed</span>");
+  expect(html).toContain('aria-label="Completion for Other Officer"');
+  expect(html).toContain('name="completed" value="false"');
+  expect(html).toContain('name="completed" value="true"');
   Object.assign(assignment, { completion_approval_pending: false });
 });
 
-it("shows assignment count and manager add controls in the Overview", async () => {
+it("renders all assignments and linked events directly on flattened Task detail", async () => {
   officersForList = [{ id: 3, name: "Available Officer" }];
-  const managerHtml = renderToStaticMarkup(
-    await TaskDetail({
-      params: Promise.resolve({ id: "7" }),
-      searchParams: Promise.resolve({}),
-    }),
-  );
-  const preview = managerHtml
-    .split('aria-label="Assignment preview"')[1]
-    .split("</section>")[0];
-  expect(preview).toContain("Assignments (2)");
-  expect(preview).toContain(">Add officers</button>");
-  expect(preview).toContain('name="officer_ids" value="3"');
-  expect(preview).toContain("View all");
-
-  vi.mocked(canManageTask).mockReturnValue(false);
-  const officerHtml = renderToStaticMarkup(
-    await TaskDetail({
-      params: Promise.resolve({ id: "7" }),
-      searchParams: Promise.resolve({}),
-    }),
-  );
-  const officerPreview = officerHtml
-    .split('aria-label="Assignment preview"')[1]
-    .split("</section>")[0];
-  expect(officerPreview).toContain("Assignments (2)");
-  expect(officerPreview).not.toContain("Add officers");
-  expect(officerPreview).not.toContain('name="officer_ids"');
-  expect(officerPreview).toContain("View all");
-});
-
-it("does not repeat empty Task sections as Overview actions", async () => {
-  Object.assign(task, { task_officer_assignments: [], task_events: [] });
-  const html = renderToStaticMarkup(
-    await TaskDetail({
-      params: Promise.resolve({ id: "7" }),
-      searchParams: Promise.resolve({}),
-    }),
-  );
-
-  expect(html).toContain("Assignments (0)");
-  expect(html).toContain("Linked Events (0)");
-  expect(html).not.toContain(">View all</a>");
-  expect(html).toContain('aria-label="Task detail sections"');
-});
-
-it("keeps Task detail previews to four and pages full related sections by six", async () => {
-  vi.mocked(canChangeOtherTaskCompletion).mockImplementation(
-    (authorization, officerId) => authorization.id !== officerId,
-  );
-  const assignments = Array.from({ length: 8 }, (_, index) => ({
+  task.task_officer_assignments = Array.from({ length: 8 }, (_, index) => ({
     officer_id: 8 - index,
     assigned_at: `2026-10-${String(index + 1).padStart(2, "0")}T12:00:00Z`,
     completed_at: null,
     officers: { id: 8 - index, name: `Officer ${index + 1}` },
   }));
-  const events = Array.from({ length: 7 }, (_, index) => ({
+  task.task_events = Array.from({ length: 5 }, (_, index) => ({
     event_id: 7 - index,
     events: {
       id: 8 - index,
@@ -654,192 +545,20 @@ it("keeps Task detail previews to four and pages full related sections by six", 
       status: "upcoming",
       deleted_at: null,
     },
-  }));
-  Object.assign(task, {
-    task_officer_assignments: assignments,
-    task_events: events,
-  });
-  const returnTo = "/tasks?status=open&page=2";
-  queryLog.length = 0;
-  vi.mocked(redirect).mockClear();
-  const overview = renderToStaticMarkup(
+  })) as never;
+
+  const html = renderToStaticMarkup(
     await TaskDetail({
       params: Promise.resolve({ id: "7" }),
-      searchParams: Promise.resolve({ returnTo }),
+      searchParams: Promise.resolve({}),
     }),
   );
-  expect(overview).toContain("Officer 4");
-  expect(overview).not.toContain("Officer 5");
-  expect(overview).toContain("Event 4");
-  expect(overview).not.toContain("Event 5");
-  expect(overview).toContain("Assignments (8)");
-  expect(overview).toContain("Linked Events (7)");
-  expect(overview).toContain("returnTo=%2Ftasks%3Fstatus%3Dopen%26page%3D2");
-  expect(queryLog).toContainEqual({
-    table: "task_officer_assignments",
-    method: "range",
-    args: [0, 3],
-  });
-  expect(queryLog).toContainEqual({
-    table: "task_events",
-    method: "range",
-    args: [0, 3],
-  });
-  expect(redirect).not.toHaveBeenCalled();
-
-  queryLog.length = 0;
-  vi.mocked(redirect).mockClear();
-  const assignmentPage = renderToStaticMarkup(
-    await TaskDetail({
-      params: Promise.resolve({ id: "7" }),
-      searchParams: Promise.resolve({
-        section: "assignments",
-        assignmentPage: "2",
-        returnTo,
-      }),
-    }),
-  );
-  const assignmentPageQuery = queryLog.find(
-    (call) =>
-      call.table === "task_officer_assignments" &&
-      call.method === "range" &&
-      call.args[0] === 6,
-  );
-  expect(assignmentPageQuery?.args).toEqual([6, 11]);
-  expect(queryLog).toContainEqual({
-    table: "task_officer_assignments",
-    method: "select",
-    args: [
-      "officer_id,assigned_at,completed_at,completion_approval_pending,officers!task_officer_assignments_officer_id_fkey(id,name)",
-      { count: "exact" },
-    ],
-  });
-  expect(queryLog).toContainEqual({
-    table: "task_officer_assignments",
-    method: "eq",
-    args: ["officer_id", 1],
-  });
-  expect(queryLog).toContainEqual({
-    table: "task_officer_assignments",
-    method: "order",
-    args: ["officers(name)", { ascending: true }],
-  });
-  expect(queryLog).toContainEqual({
-    table: "task_officer_assignments",
-    method: "order",
-    args: ["officer_id", { ascending: true }],
-  });
-  expect(assignmentPage).toContain("Officer 7");
-  expect(assignmentPage).toContain("Officer 8");
-  expect(assignmentPage).toContain('aria-label="Completion for Officer 7"');
-  expect(assignmentPage).toContain("Add officers");
-  expect(assignmentPage).toContain("Remove assignment");
-  expect(assignmentPage).not.toContain("Officer 6</a>");
-  expect(assignmentPage).toContain('aria-label="Select assignment list page"');
-  expect(assignmentPage).toContain("of 2");
-  expect(assignmentPage).toContain(
-    "returnTo=%2Ftasks%3Fstatus%3Dopen%26page%3D2",
-  );
-  expect(redirect).not.toHaveBeenCalled();
-
-  vi.mocked(redirect).mockClear();
-  await TaskDetail({
-    params: Promise.resolve({ id: "7" }),
-    searchParams: Promise.resolve({
-      section: "assignments",
-      assignmentPage: "3",
-      returnTo,
-    }),
-  });
-  expect(redirect).toHaveBeenCalledWith(
-    "/tasks/7?section=assignments&assignmentPage=2&returnTo=%2Ftasks%3Fstatus%3Dopen%26page%3D2",
-  );
-  expect(queryLog).not.toContainEqual({
-    table: "task_officer_assignments",
-    method: "range",
-    args: [12, 17],
-  });
-
-  queryLog.length = 0;
-  vi.mocked(redirect).mockClear();
-  const eventPage = renderToStaticMarkup(
-    await TaskDetail({
-      params: Promise.resolve({ id: "7" }),
-      searchParams: Promise.resolve({
-        section: "events",
-        eventPage: "2",
-        returnTo,
-      }),
-    }),
-  );
-  const eventPageQuery = queryLog.find(
-    (call) =>
-      call.table === "task_events" &&
-      call.method === "range" &&
-      call.args[0] === 6,
-  );
-  expect(redirect).not.toHaveBeenCalled();
-  expect(eventPageQuery?.args).toEqual([6, 11]);
-  expect(queryLog).toContainEqual({
-    table: "task_events",
-    method: "select",
-    args: [
-      "event_id,events!inner(id,name,event_date,status,deleted_at)",
-      { count: "exact" },
-    ],
-  });
-  expect(queryLog).toContainEqual({
-    table: "task_events",
-    method: "order",
-    args: ["events(event_date)", { ascending: true }],
-  });
-  expect(queryLog).toContainEqual({
-    table: "task_events",
-    method: "order",
-    args: ["events(name)", { ascending: true }],
-  });
-  expect(queryLog).toContainEqual({
-    table: "task_events",
-    method: "order",
-    args: ["event_id", { ascending: true }],
-  });
-  const assignmentOrderIndex = queryLog.findIndex(
-    (call) =>
-      call.table === "task_officer_assignments" && call.method === "order",
-  );
-  const assignmentRangeIndex = queryLog.findIndex(
-    (call) =>
-      call.table === "task_officer_assignments" && call.method === "range",
-  );
-  expect(assignmentOrderIndex).toBeLessThan(assignmentRangeIndex);
-  const eventOrderIndex = queryLog.findIndex(
-    (call) => call.table === "task_events" && call.method === "order",
-  );
-  const eventRangeIndex = queryLog.findIndex(
-    (call) => call.table === "task_events" && call.method === "range",
-  );
-  expect(eventOrderIndex).toBeLessThan(eventRangeIndex);
-  expect(eventPage).toContain("Event 7");
-  expect(eventPage).not.toContain("Event 6</a>");
-  expect(eventPage).toContain('aria-label="Select linked event list page"');
-  expect(eventPage).toContain("of 2");
-  Object.assign(task, {
-    task_officer_assignments: [
-      {
-        officer_id: 1,
-        assigned_at: "2026-10-01T12:00:00Z",
-        completed_at: null,
-        officers: { id: 1, name: "Synthetic Officer" },
-      },
-      {
-        officer_id: 2,
-        assigned_at: "2026-10-02T12:00:00Z",
-        completed_at: "2026-10-03T12:00:00Z",
-        officers: { id: 2, name: "Other Officer" },
-      },
-    ],
-    task_events: [],
-  });
+  expect(html).toContain("Assignments (8)");
+  expect(html).toContain("Officer 1");
+  expect(html).toContain("Officer 8");
+  expect(html).toContain("Event 1");
+  expect(html).toContain("Event 5");
+  expect(html).not.toContain('aria-label="Task detail sections"');
 });
 
 it("does not add contextual Back links to Officer or Task main pages", async () => {
@@ -855,7 +574,7 @@ it("does not add contextual Back links to Officer or Task main pages", async () 
   ).not.toContain("Back to");
 });
 
-it("groups both Officer contacts in the wide directory table", async () => {
+it("renders Officer contacts, position, classification, branches, and status in the cards directory", async () => {
   officersForList = [
     {
       id: 7,
@@ -874,22 +593,18 @@ it("groups both Officer contacts in the wide directory table", async () => {
   );
 
   expect(html).toContain('data-page-width="wide"');
-  for (const heading of [
-    "Name",
-    "Contact",
-    "Position",
-    "Classification",
-    "Branches",
-    "Status",
-  ])
-    expect(html).toContain(`>${heading}</th>`);
+  expect(html).toContain("Synthetic Officer");
+  expect(html).toContain("President");
+  expect(html).toContain("Senior");
+  expect(html).toContain("Intro");
+  expect(html).toContain("Active");
   expect(html).toContain("synthetic@utep.edu");
   expect(html).toContain("officer@example.com");
   expect(html).toContain(">UTEP</span>");
   expect(html).toContain(">Personal</span>");
 });
 
-it("groups Event details, files and participation while retaining management controls and history", async () => {
+it("groups Event details, files, and participation on flattened Event detail", async () => {
   const html = renderToStaticMarkup(
     await EventDetail({ params: Promise.resolve({ id: "7" }) }),
   );
@@ -908,13 +623,9 @@ it("groups Event details, files and participation while retaining management con
   expect(details).toContain('rel="noopener noreferrer"');
   const participation = html.split('aria-label="Participation"')[1];
   expect(participation).toContain("Your participation:");
-  expect(participation).toContain("Participation");
   expect(participation).toContain("No officers signed up.");
-  expect(participation).not.toContain("<table");
   expect(participation).toContain("No active officers are available to add.");
-  expect(participation).not.toContain("Add officer");
   expect(html).not.toContain("Event point history (0)");
-  expect(html).toContain('href="/events/7?section=points&amp;returnTo=');
 });
 
 it("keeps manager bulk signup available when eligible Officers exist", async () => {
@@ -980,83 +691,26 @@ it("shows historical presentations after an Event type edit without active contr
   }
 });
 
-it("renders a bounded populated Event roster preview with a full-roster link", async () => {
-  eventRosterCount = 7;
-  eventRosterRows = ["Alpha Officer", "Bravo Officer", "Charlie Officer"].map(
-    (name, index) => ({
-      officer_id: index + 1,
-      officers: { id: index + 1, name },
-    }),
-  );
-
-  const html = renderToStaticMarkup(
-    await EventDetail({ params: Promise.resolve({ id: "7" }) }),
-  );
-  const participation = html.split('aria-label="Participation"')[1];
-
-  expect(participation).toContain("Alpha Officer");
-  expect(participation).toContain("Bravo Officer");
-  expect(participation).toContain("Charlie Officer");
-  expect(participation).not.toContain("Delta Officer");
-  expect(participation).toContain("View full roster");
-  expect(participation).not.toContain("Remove signup");
-  expect(participation).not.toContain("No officers signed up.");
-  expect(eventRelatedRanges).toContainEqual(["event_officers", 0, 2]);
-});
-
-it("paginates the complete roster in database name order with signup removal available", async () => {
-  const names = [
-    "Alpha",
-    "Alpha",
-    "Bravo",
-    "Charlie",
-    "Delta",
-    "Echo",
-    "Foxtrot",
-    "Hotel",
-  ];
+it("renders the complete roster in database name order with signup removal available", async () => {
+  const names = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Hotel"];
   eventRosterCount = names.length;
-  const officerIds = [7, 8, 6, 5, 4, 3, 2, 1];
   eventRosterRows = names.map((name, index) => ({
-    officer_id: officerIds[index],
-    officers: { id: officerIds[index], name },
+    officer_id: index + 1,
+    participation_type: "volunteer",
+    officers: { id: index + 1, name, utep_email: null, personal_email: null },
   }));
 
-  const pageOne = await EventDetail({
-    params: Promise.resolve({ id: "7" }),
-    searchParams: Promise.resolve({
-      section: "roster",
-      returnTo: "/events?status=past",
+  const html = renderToStaticMarkup(
+    await EventDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({ returnTo: "/events?status=past" }),
     }),
-  });
-  const htmlOne = renderToStaticMarkup(pageOne);
-  const rosterOne = htmlOne.split('aria-label="Confirmed roster"')[1];
-  expect(rosterOne).toContain('aria-label="Select roster list page"');
-  expect(rosterOne).toContain("of 2");
-  expect(rosterOne).toContain(
-    'href="/events/7?section=roster&amp;page=2&amp;returnTo=%2Fevents%3Fstatus%3Dpast"',
   );
-  expect(rosterOne.indexOf("Alpha")).toBeLessThan(rosterOne.indexOf("Echo"));
-  expect(rosterOne).toContain("Remove signup");
-  expect(rosterOne).not.toContain("Hotel");
-
-  const pageTwo = await EventDetail({
-    params: Promise.resolve({ id: "7" }),
-    searchParams: Promise.resolve({ section: "roster", page: "2" }),
-  });
-  const htmlTwo = renderToStaticMarkup(pageTwo);
-  const rosterTwo = htmlTwo.split('aria-label="Confirmed roster"')[1];
-  expect(rosterTwo).toContain("Hotel");
-  expect(rosterTwo).not.toContain("Alpha</a>");
-  expect(rosterTwo.match(/<tr>/g)).toHaveLength(3);
-  expect(eventRelatedRanges).toContainEqual(["event_officers", 0, 5]);
-  expect(eventRelatedRanges).toContainEqual(["event_officers", 6, 11]);
-  expect(eventRosterOrderCalls).toEqual([
-    "officers(name)",
-    "officer_id",
-    "officers(name)",
-    "officer_id",
-  ]);
+  const roster = html.split('aria-label="Confirmed roster"')[1];
+  expect(roster).toContain("Confirmed roster (6)");
+  expect(roster.indexOf("Alpha")).toBeLessThan(roster.indexOf("Hotel"));
+  expect(roster).toContain("Remove signup");
+  expect(eventRosterOrderCalls).toEqual(["officers(name)", "officer_id"]);
 });
 
 it("keeps historical ordinary roster removal available only to managers", async () => {
@@ -1067,25 +721,25 @@ it("keeps historical ordinary roster removal available only to managers", async 
   eventRosterRows = [
     { officer_id: 7, officers: { id: 7, name: "Synthetic Officer" } },
   ];
-  vi.mocked(getAuthorizationContext).mockResolvedValue({ id: 1 } as never);
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 1,
+    branchIds: [],
+  } as never);
 
   const managerHtml = renderToStaticMarkup(
-    await EventDetail({
-      params: Promise.resolve({ id: "7" }),
-      searchParams: Promise.resolve({ section: "roster" }),
-    }),
+    await EventDetail({ params: Promise.resolve({ id: "7" }) }),
   );
   expect(managerHtml.split('aria-label="Confirmed roster"')[1]).toContain(
     "Remove signup",
   );
 
   vi.mocked(canManageEvent).mockReturnValue(false);
-  vi.mocked(getAuthorizationContext).mockResolvedValue({ id: 7 } as never);
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 7,
+    branchIds: [],
+  } as never);
   const officerHtml = renderToStaticMarkup(
-    await EventDetail({
-      params: Promise.resolve({ id: "7" }),
-      searchParams: Promise.resolve({ section: "roster" }),
-    }),
+    await EventDetail({ params: Promise.resolve({ id: "7" }) }),
   );
   expect(officerHtml.split('aria-label="Confirmed roster"')[1]).toContain(
     "Closed",
@@ -1095,9 +749,12 @@ it("keeps historical ordinary roster removal available only to managers", async 
   );
 });
 
-it("shows the current Officer's signup removal in Overview outside the roster preview", async () => {
-  vi.mocked(getAuthorizationContext).mockResolvedValue({ id: 99 } as never);
-  eventRosterCount = 8;
+it("shows the current Officer's signup removal in Participation", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 99,
+    branchIds: [],
+  } as never);
+  eventRosterCount = 3;
   personalRosterCount = 1;
   eventRosterRows = Array.from({ length: 3 }, (_, index) => ({
     officer_id: index + 1,
@@ -1110,14 +767,13 @@ it("shows the current Officer's signup removal in Overview outside the roster pr
   const participation = html.split('aria-label="Participation"')[1];
   expect(participation).toContain("Remove signup");
   expect(participation).toContain('name="officer_id" value="99"');
-  expect(participation).not.toContain("Officer 99");
 });
 
 it("does not render the retired waitlist section or query its former table", async () => {
   const html = renderToStaticMarkup(
     await EventDetail({
       params: Promise.resolve({ id: "7" }),
-      searchParams: Promise.resolve({ section: "waitlist", page: "2" }),
+      searchParams: Promise.resolve({ section: "waitlist" }),
     }),
   );
 
@@ -1126,39 +782,12 @@ it("does not render the retired waitlist section or query its former table", asy
   expect(queryLog.some(({ table }) => table === "event_waitlist")).toBe(false);
 });
 
-it("paginates linked Tasks with a bounded database query", async () => {
-  eventTaskCount = 7;
-  eventTaskRows = Array.from({ length: 7 }, (_, index) => ({
-    task_id: 17 - index,
-    tasks: {
-      id: 17 - index,
-      title: `Task ${index + 1}`,
-      removed_at: null,
-    },
-  }));
-
-  const html = renderToStaticMarkup(
-    await EventDetail({
-      params: Promise.resolve({ id: "7" }),
-      searchParams: Promise.resolve({ section: "tasks", page: "2" }),
-    }),
-  );
-
-  expect(html).toContain('aria-label="Select tasks list page"');
-  expect(html).toContain("of 2");
-  expect(html).toContain("Task 7");
-  expect(eventRelatedRanges).toContainEqual(["task_events", 6, 11]);
-  expect(
-    eventRelatedOrderCalls.filter(([table]) => table === "task_events"),
-  ).toEqual([
-    ["task_events", "tasks(title)"],
-    ["task_events", "task_id"],
-  ]);
-});
-
-it("keeps deleted linked Tasks visible without linking viewers to inaccessible detail", async () => {
-  eventTaskCount = 1;
+it("renders all linked Tasks and keeps deleted linked Tasks non-clickable", async () => {
   eventTaskRows = [
+    {
+      task_id: 17,
+      tasks: { id: 17, title: "Active linked Task", removed_at: null },
+    },
     {
       task_id: 19,
       tasks: {
@@ -1170,70 +799,21 @@ it("keeps deleted linked Tasks visible without linking viewers to inaccessible d
   ];
 
   const html = renderToStaticMarkup(
-    await EventDetail({
-      params: Promise.resolve({ id: "7" }),
-      searchParams: Promise.resolve({ section: "tasks" }),
-    }),
+    await EventDetail({ params: Promise.resolve({ id: "7" }) }),
   );
 
+  expect(html).toContain("Linked Tasks (2)");
+  expect(html).toContain("Active linked Task");
+  expect(html).toContain('href="/tasks/17');
   expect(html).toContain("Deleted linked Task");
   expect(html).toContain("Deleted</span>");
   expect(html).not.toContain('href="/tasks/19"');
-});
-
-it("loads Event point history by URL page beyond the previous 100-row preview", async () => {
-  eventPointCount = 125;
-  const html = renderToStaticMarkup(
-    await EventDetail({
-      params: Promise.resolve({ id: "7" }),
-      searchParams: Promise.resolve({ section: "points", page: "21" }),
-    }),
-  );
-
-  expect(html).toContain('aria-label="Select points list page"');
-  expect(html).toContain("of 21");
-  expect(eventPointRanges).toEqual([[120, 125]]);
   expect(
-    eventRelatedOrderCalls.filter(([table]) => table === "point_transactions"),
+    eventRelatedOrderCalls.filter(([table]) => table === "task_events"),
   ).toEqual([
-    ["point_transactions", "created_at"],
-    ["point_transactions", "id"],
+    ["task_events", "tasks(title)"],
+    ["task_events", "task_id"],
   ]);
-});
-
-it.each(["0", "invalid", "99"])(
-  "redirects noncanonical Event page %s to the effective URL",
-  async (page) => {
-    vi.mocked(redirect).mockClear();
-    eventRosterCount = 8;
-
-    await EventDetail({
-      params: Promise.resolve({ id: "7" }),
-      searchParams: Promise.resolve({
-        section: "roster",
-        page,
-        returnTo: "/events?status=past",
-      }),
-    });
-
-    expect(redirect).toHaveBeenCalledWith(
-      page === "99"
-        ? "/events/7?section=roster&page=2&returnTo=%2Fevents%3Fstatus%3Dpast"
-        : "/events/7?section=roster&returnTo=%2Fevents%3Fstatus%3Dpast",
-    );
-  },
-);
-
-it("keeps a valid Event page URL canonical", async () => {
-  vi.mocked(redirect).mockClear();
-  eventRosterCount = 8;
-
-  await EventDetail({
-    params: Promise.resolve({ id: "7" }),
-    searchParams: Promise.resolve({ section: "roster", page: "2" }),
-  });
-
-  expect(redirect).not.toHaveBeenCalled();
 });
 
 it("retains Officer operational sections and full point history", async () => {
@@ -1247,22 +827,18 @@ it("retains Officer operational sections and full point history", async () => {
     "UTEP email",
     "Application access",
     "Access level",
-    "Total points:",
-    "Approved warnings:",
+    "Total points",
     "Point history",
   ])
     expect(html).toContain(text);
   expect(html.match(/Application role/g)).toHaveLength(1);
-  expect(html.match(/View all point history/g)).toHaveLength(1);
-  expect(html).toContain("View associated Tasks");
-  expect(html).not.toContain("No warnings.");
-  expect(html).not.toContain("No approved warnings.");
+  expect(html).toContain('aria-label="Associated tasks"');
   expect(html).toContain('aria-label="Warnings"');
   expect(html).toContain("Create warning");
   expect(html).toContain('aria-labelledby="create-warning-title"');
   expect(html).toContain("This warning takes effect immediately");
   expect(html).toContain('aria-label="Associated events"');
-  expect(html).toContain('href="/points?officer=7"');
+  expect(html).toContain('href="/points?view=history&amp;officer=7"');
 });
 
 it.each([
@@ -1332,13 +908,12 @@ it("retains list context while changing the Officer warning filter", async () =>
       }),
     }),
   );
-  expect(html).toContain(
-    'href="/officers/7?section=warnings&amp;returnTo=%2Fofficers%3Fq%3Dsynthetic"',
-  );
+  expect(html).toContain("returnTo=%2Fofficers%3Fq%3Dsynthetic");
+  expect(html).toContain('aria-label="Warning status"');
 });
 
 it("Point History record links carry the same filtered page into Officers, Events and Tasks", () => {
-  const returnTo = "/points?q=workshop&type=task&page=3";
+  const returnTo = "/points?q=workshop&type=task";
   const transactions = [
     {
       id: 1,

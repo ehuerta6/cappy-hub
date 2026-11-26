@@ -52,6 +52,14 @@ async function click(selector: string) {
   await act(async () => button.click());
 }
 
+function findButtonByText(text: string): HTMLButtonElement {
+  const button = [
+    ...(host?.querySelectorAll<HTMLButtonElement>("button") ?? []),
+  ].find((btn) => btn.textContent?.trim() === text);
+  if (!button) throw new Error(`Missing button with text: ${text}`);
+  return button;
+}
+
 afterEach(async () => {
   if (root) await act(async () => root?.unmount());
   host?.remove();
@@ -62,7 +70,7 @@ afterEach(async () => {
 it("adds a row and places focus in its editable label", async () => {
   await renderEditor();
 
-  await click("button:not([aria-label])");
+  await act(async () => findButtonByText("Add link").click());
 
   expect(document.activeElement).toBe(
     host?.querySelector('[aria-label="Link 1 label"]'),
@@ -71,6 +79,20 @@ it("adds a row and places focus in its editable label", async () => {
     host?.querySelector<HTMLInputElement>('input[name="resource_links"]')
       ?.value,
   ).toContain('"url":""');
+});
+
+it("prefills preset label and focuses URL input on quick-add", async () => {
+  await renderEditor();
+
+  await act(async () => findButtonByText("+ Slides").click());
+
+  expect(document.activeElement).toBe(
+    host?.querySelector('[aria-label="Link 1 URL"]'),
+  );
+  expect(
+    host?.querySelector<HTMLInputElement>('input[name="resource_links"]')
+      ?.value,
+  ).toContain('"kind":"slides"');
 });
 
 it("preserves legacy link fields without submitting internal row identities", async () => {
@@ -150,9 +172,7 @@ it("returns focus to Add link when removing the only row", async () => {
   await click('button[aria-label="Remove link 1"]');
 
   expect(host?.querySelector("[aria-label$='URL']")).toBeNull();
-  expect(document.activeElement).toBe(
-    host?.querySelector("button:not([aria-label])"),
-  );
+  expect(document.activeElement).toBe(findButtonByText("Add link"));
 });
 
 it("associates and announces resource validation errors", async () => {

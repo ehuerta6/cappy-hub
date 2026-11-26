@@ -8,13 +8,10 @@ const state = vi.hoisted(() => ({
     positionCode?: string;
   },
   targetOfficerId: 7,
-  pointCount: 11,
-  ranges: [] as Array<{ table: string; from: number; to: number }>,
   orders: [] as Array<{ table: string; column: string; options?: unknown }>,
   operations: [] as string[],
   eventRows: [] as Array<{ events: Record<string, unknown> }>,
   deletedWarnings: false,
-  redirects: [] as string[],
 }));
 
 vi.mock("@/lib/authorization", () => ({
@@ -26,8 +23,6 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     from: (table: string) => {
       let countOnly = false;
-      let start = 0;
-      let end = 24;
       const query = {
         select: (_columns?: string, options?: { head?: boolean }) => {
           countOnly = options?.head === true;
@@ -48,13 +43,6 @@ vi.mock("@/lib/supabase/server", () => ({
         order: (column: string, options?: unknown) => {
           state.orders.push({ table, column, options });
           state.operations.push(`${table}:order:${column}`);
-          return query;
-        },
-        range: (from: number, to: number) => {
-          start = from;
-          end = to;
-          state.ranges.push({ table, from, to });
-          state.operations.push(`${table}:range`);
           return query;
         },
         limit: () => query,
@@ -125,19 +113,15 @@ vi.mock("@/lib/supabase/server", () => ({
                   : [],
             count:
               table === "officer_warnings"
-                ? 6
+                ? 3
                 : table === "event_officers"
-                  ? 7
-                  : table === "point_transactions"
-                    ? state.pointCount
-                    : 0,
+                  ? 3
+                  : 0,
             error: null,
           }).then((result) =>
             resolve({
               ...result,
-              data: countOnly
-                ? null
-                : (result.data as unknown[]).slice(start, end + 1),
+              data: countOnly ? null : result.data,
             }),
           ),
       };
@@ -159,19 +143,17 @@ vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("Not found");
   },
-  redirect: (url: string) => {
-    state.redirects.push(url);
-  },
+  redirect: vi.fn(),
 }));
 
 import OfficerDetail from "@/app/(protected)/officers/[id]/page";
 
-it("shows only active Events in Officer detail associations", async () => {
+it("shows all active Events and warnings on the flattened Officer profile without sub-tabs", async () => {
   state.actor = { id: 7, applicationRole: "officer" };
   state.targetOfficerId = 7;
-  state.ranges = [];
   state.orders = [];
   state.operations = [];
+  state.eventRows = [];
   const html = renderToStaticMarkup(
     await OfficerDetail({
       params: Promise.resolve({ id: "7" }),
@@ -179,18 +161,14 @@ it("shows only active Events in Officer detail associations", async () => {
     }),
   );
 
+  expect(html).not.toContain('aria-label="Officer profile sections"');
   expect(html).toContain("Active event");
   expect(html).not.toContain("Cancelled event");
   expect(html).not.toContain("Removed event");
   expect(html).toContain("Warning reason 1");
-  expect(html).not.toContain('aria-label="Warning status"');
   expect(html).toContain("Warning reason 2");
-  expect(html).not.toContain("Warning reason 3");
-  expect(state.ranges).toContainEqual({
-    table: "officer_warnings",
-    from: 0,
-    to: 1,
-  });
+  expect(html).toContain("Warning reason 3");
+  expect(html).not.toContain('aria-label="Warning status"');
   expect(state.orders).toContainEqual({
     table: "event_officers",
     column: "events(event_date)",
@@ -201,27 +179,9 @@ it("shows only active Events in Officer detail associations", async () => {
     column: "events(id)",
     options: { ascending: false },
   });
-  const eventOrderIndex = state.orders.findIndex(
-    ({ table, column }) =>
-      table === "event_officers" && column === "events(event_date)",
-  );
-  expect(eventOrderIndex).toBeGreaterThanOrEqual(0);
-  expect(
-    state.operations.indexOf("event_officers:order:events(event_date)"),
-  ).toBeLessThan(state.operations.indexOf("event_officers:range"));
-  expect(state.ranges).toContainEqual({
-    table: "event_officers",
-    from: 0,
-    to: 3,
-  });
-  expect(state.ranges).toContainEqual({
-    table: "point_transactions",
-    from: 0,
-    to: 2,
-  });
 });
 
-it("keeps Warning status navigation hidden when an Officer views another profile", async () => {
+it("keeps Warnings hidden when an Officer views another profile", async () => {
   state.actor = { id: 9, applicationRole: "officer" };
   state.targetOfficerId = 7;
   const html = renderToStaticMarkup(
@@ -231,7 +191,6 @@ it("keeps Warning status navigation hidden when an Officer views another profile
     }),
   );
 
-  expect(html).toContain('aria-label="Officer profile sections"');
   expect(html).not.toContain("Warning status");
   expect(html).not.toContain("Warning reason 1");
 });
@@ -259,7 +218,7 @@ it("allows a Lead to see their own permitted warnings but not another Officer's"
   expect(anotherProfile).not.toContain('aria-label="Warnings"');
 });
 
-it("keeps everyday Warning views simple and removes legacy approval details", async () => {
+it("keeps everyday Admin Warning views simple and removes legacy approval details", async () => {
   state.actor = { id: 99, applicationRole: "admin" };
   state.targetOfficerId = 7;
   const html = renderToStaticMarkup(
@@ -273,9 +232,6 @@ it("keeps everyday Warning views simple and removes legacy approval details", as
   );
 
   expect(html).toContain('aria-label="Warning status"');
-  expect(html).toContain(
-    'aria-current="page" class="border-b-2 px-3 py-2 border-brand font-semibold text-brand" href="/officers/7?section=warnings&amp;returnTo=%2Fofficers%3Fq%3Dclub"',
-  );
   expect(html).toContain("Deleted");
   expect(html).toContain("All history");
   expect(html).not.toContain(">Pending</a>");
@@ -302,111 +258,4 @@ it("shows the Admin Deleted view with a Restore action", async () => {
   expect(html).toContain("Restore");
   expect(state.operations).toContain("officer_warnings:not:deleted_at:is:null");
   state.deletedWarnings = false;
-});
-
-it("uses server-side five-row paging for the full Point section", async () => {
-  state.actor = { id: 7, applicationRole: "officer" };
-  state.targetOfficerId = 7;
-  state.ranges = [];
-  const html = renderToStaticMarkup(
-    await OfficerDetail({
-      params: Promise.resolve({ id: "7" }),
-      searchParams: Promise.resolve({ section: "points", page: "2" }),
-    }),
-  );
-
-  expect(html).toContain('aria-current="page"');
-  expect(state.ranges).toContainEqual({
-    table: "point_transactions",
-    from: 5,
-    to: 9,
-  });
-});
-
-it.each(["0", "abc", "9007199254740992"])(
-  "canonicalizes invalid page %s to page one in the active section",
-  async (page) => {
-    state.actor = { id: 7, applicationRole: "officer" };
-    state.targetOfficerId = 7;
-    state.redirects = [];
-
-    await OfficerDetail({
-      params: Promise.resolve({ id: "7" }),
-      searchParams: Promise.resolve({
-        section: "events",
-        page,
-        returnTo: "/officers?q=club",
-      }),
-    });
-
-    expect(state.redirects).toContain(
-      "/officers/7?returnTo=%2Fofficers%3Fq%3Dclub&section=events",
-    );
-  },
-);
-
-it("drops obsolete Warning status filters when canonicalizing an invalid page", async () => {
-  state.actor = { id: 99, applicationRole: "admin" };
-  state.targetOfficerId = 7;
-  state.redirects = [];
-
-  await OfficerDetail({
-    params: Promise.resolve({ id: "7" }),
-    searchParams: Promise.resolve({
-      section: "warnings",
-      page: "0",
-      warningStatus: "approved",
-      returnTo: "/officers?q=club",
-    }),
-  });
-
-  expect(state.redirects).toContain(
-    "/officers/7?returnTo=%2Fofficers%3Fq%3Dclub&section=warnings",
-  );
-});
-
-it("orders paginated associated Events by date before range despite reversed IDs", async () => {
-  state.actor = { id: 7, applicationRole: "officer" };
-  state.targetOfficerId = 7;
-  state.eventRows = Array.from({ length: 7 }, (_, index) => ({
-    events: {
-      id: index + 1,
-      name: `Event ${7 - index}`,
-      event_date: `2099-10-${String(8 - index).padStart(2, "0")}`,
-      starts_at: `2099-10-${String(8 - index).padStart(2, "0")}T23:00:00Z`,
-      ends_at: `2099-10-${String(9 - index).padStart(2, "0")}T01:00:00Z`,
-      status: "upcoming",
-      deleted_at: null,
-    },
-  }));
-  state.orders = [];
-  state.operations = [];
-  state.ranges = [];
-
-  const html = renderToStaticMarkup(
-    await OfficerDetail({
-      params: Promise.resolve({ id: "7" }),
-      searchParams: Promise.resolve({ section: "events", page: "2" }),
-    }),
-  );
-
-  expect(state.ranges).toContainEqual({
-    table: "event_officers",
-    from: 5,
-    to: 9,
-  });
-  expect(state.orders).toContainEqual({
-    table: "event_officers",
-    column: "events(event_date)",
-    options: { ascending: false },
-  });
-  expect(state.orders).toContainEqual({
-    table: "event_officers",
-    column: "events(id)",
-    options: { ascending: false },
-  });
-  expect(
-    state.operations.indexOf("event_officers:order:events(event_date)"),
-  ).toBeLessThan(state.operations.indexOf("event_officers:range"));
-  expect(html.indexOf("Event 2")).toBeLessThan(html.indexOf("Event 1"));
 });

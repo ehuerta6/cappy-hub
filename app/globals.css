@@ -251,14 +251,19 @@
 
   .catalog-category-link {
     border-bottom: 2px solid transparent;
-    padding: 0.55rem 0.75rem;
+    border-radius: 0.25rem 0.25rem 0 0;
+    padding: 0.5rem 0.75rem;
     color: var(--muted);
     font-size: 0.875rem;
     font-weight: 500;
     text-decoration: none;
+    transition:
+      color 120ms ease,
+      background-color 120ms ease;
   }
 
   .catalog-category-link:hover {
+    background: var(--hover);
     color: var(--foreground);
   }
 
@@ -271,6 +276,7 @@
   .catalog-category-link-active {
     border-bottom-color: var(--brand);
     color: var(--brand);
+    font-weight: 600;
   }
 
   .catalog-record-list,
@@ -439,18 +445,6 @@
   .event-form-resources > summary:focus-visible {
     outline: 2px solid var(--brand);
     outline-offset: 2px;
-  }
-
-  .event-form-resources-content {
-    padding-top: 0.25rem;
-  }
-
-  .event-form-resources-content .event-form-section-description {
-    margin-bottom: 0.625rem;
-  }
-
-  .event-form-resources-content .event-form-fields {
-    gap: 0.75rem 1rem;
   }
 
   .event-form-section-description {
@@ -854,7 +848,7 @@
 
 .event-form-section {
   border: 1px solid var(--border);
-  border-radius: 0.6rem;
+  border-radius: 0.5rem;
   background: var(--surface);
 }
 
@@ -996,7 +990,7 @@
   width: 100%;
   min-height: 2.5rem;
   border: 1px solid var(--border-strong);
-  border-radius: 0.35rem;
+  border-radius: 0.375rem;
   background: var(--background);
   padding: 0.4rem 0.55rem;
   color: var(--foreground);
@@ -1073,7 +1067,7 @@
 
 @media (max-width: 1279px) {
   .table-frame--compact > table {
-    table-layout: fixed;
+    table-layout: auto;
   }
 }
 
@@ -1249,42 +1243,6 @@
   visibility: hidden;
 }
 
-.list-pagination__page-select {
-  appearance: none;
-  width: 4.5rem;
-  min-width: 4.5rem;
-  max-width: 4.5rem;
-  height: 2.25rem;
-  padding: 0.25rem 1.5rem 0.25rem 0.5rem;
-  text-align: center;
-  font-size: 0.875rem;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.list-pagination__caret {
-  position: absolute;
-  left: 3.5rem;
-  top: 50%;
-  width: 0.375rem;
-  height: 0.375rem;
-  border-right: 1.5px solid var(--muted);
-  border-bottom: 1.5px solid var(--muted);
-  transform: translateY(-70%) rotate(45deg);
-  pointer-events: none;
-}
-
-.list-pagination__page-input {
-  width: 4.5rem;
-  min-width: 4.5rem;
-  max-width: 4.5rem;
-  height: 2.25rem;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.875rem;
-  font-variant-numeric: tabular-nums;
-}
-
 .theme-toggle {
   flex-wrap: nowrap;
   white-space: nowrap;
@@ -1417,7 +1375,7 @@ select.header-control {
 }
 .list-filter-bar {
   border-color: var(--border);
-  border-radius: 0.4rem;
+  border-radius: 0.5rem;
   background: var(--surface);
   padding: 0.9rem 1rem;
 }
@@ -1484,18 +1442,12 @@ select.header-control {
 .points-ranking-empty {
   margin: 0;
   border: 1px dashed var(--border-strong);
-  border-radius: 0.45rem;
-  padding: 1.25rem;
+  border-radius: 0.5rem;
+  background: var(--surface);
+  padding: 2rem 1.5rem;
   color: var(--muted);
   font-size: 0.875rem;
-}
-
-.points-readonly-note {
-  margin: 1.25rem 0 0;
-  border-top: 1px solid var(--border);
-  padding-top: 0.9rem;
-  color: var(--muted);
-  font-size: 0.8rem;
+  text-align: center;
 }
 
 [data-nav-page] .list-filter-bar form[role="search"] {
@@ -1544,7 +1496,7 @@ select.header-control {
 
 [data-nav-page] .table-frame {
   border-color: var(--page-line);
-  border-radius: 0.55rem;
+  border-radius: 0.5rem;
   box-shadow: 0 1px 0 color-mix(in srgb, var(--foreground) 2%, transparent);
 }
 
@@ -1605,7 +1557,7 @@ select.header-control {
 [data-nav-page="points"] .points-view-tabs a {
   border: 0;
   border-bottom: 2px solid transparent;
-  border-radius: 0.3rem 0.3rem 0 0;
+  border-radius: 0.25rem 0.25rem 0 0;
   padding: 0.65rem 0.9rem;
   color: var(--muted);
 }
@@ -1653,7 +1605,7 @@ select.header-control {
 }
 
 .admin-area-link {
-  border-radius: 0.4rem;
+  border-radius: 0.5rem;
   background: var(--surface);
   transition:
     border-color 120ms ease,
@@ -1670,7 +1622,7 @@ select.header-control {
   outline-offset: 2px;
 }
 .table-frame {
-  border-radius: 0.4rem;
+  border-radius: 0.5rem;
   background: var(--surface);
 }
 thead {
@@ -1757,8 +1709,7 @@ button.button-secondary:hover:not(:disabled),
   background: var(--foreground);
   color: var(--background);
 }
-button:disabled,
-.button-disabled {
+button:disabled {
   border-color: var(--border);
   background: var(--surface-muted);
   color: var(--subtle);
@@ -1905,14 +1856,10 @@ button.compact-action-button:focus-visible {
   gap: 0.8rem;
   overflow-y: auto;
   border: 1px solid var(--border-strong);
-  border-radius: 0.625rem;
+  border-radius: 0.5rem;
   background: var(--surface);
   padding: 0.8rem;
   box-shadow: 0 12px 32px rgb(0 0 0 / 18%);
-}
-.catalog-color-picker--start .catalog-color-popover {
-  right: auto;
-  left: 0;
 }
 .catalog-color-picker[data-placement="bottom"] .catalog-color-popover {
   top: calc(100% + 0.45rem);
@@ -1997,7 +1944,7 @@ button.compact-action-button:focus-visible {
   width: 100%;
   min-height: 2.15rem;
   padding: 0.4rem 0.5rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
   font-size: 0.8rem;
 }
 .catalog-color-rgb-fields {
@@ -2081,7 +2028,7 @@ button.compact-action-button:focus-visible {
   color: var(--warning);
 }
 .cappy-dialog {
-  border-radius: 0.55rem;
+  border-radius: 0.5rem;
   box-shadow: 0 16px 48px rgb(0 0 0 / 0.24);
   font-family: var(--font-geist-sans), sans-serif;
 }
@@ -2091,7 +2038,7 @@ button.compact-action-button:focus-visible {
 }
 .cappy-popup {
   border-color: var(--border-strong);
-  border-radius: 0.45rem;
+  border-radius: 0.5rem;
   background: var(--surface);
   box-shadow:
     0 12px 32px rgb(0 0 0 / 0.18),
@@ -2123,10 +2070,13 @@ nav[aria-label="Task detail sections"] a {
   min-height: 2.5rem;
   border-bottom: 2px solid transparent;
   border-radius: 0.25rem 0.25rem 0 0;
-  padding: 0.5rem 0.7rem;
+  padding: 0.5rem 0.75rem;
   color: var(--muted);
-  font-size: 0.8rem;
-  font-weight: 550;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
 }
 
 nav[aria-label="Event sections"] a:hover,
@@ -2142,8 +2092,8 @@ nav[aria-label="Points views"] a[aria-current="page"],
 nav[aria-label="Officer profile sections"] a[aria-current="page"],
 nav[aria-label="Task detail sections"] a[aria-current="page"] {
   border-bottom-color: var(--brand);
-  color: var(--foreground);
-  font-weight: 650;
+  color: var(--brand);
+  font-weight: 600;
 }
 
 .task-assignment-progress {
@@ -2187,6 +2137,579 @@ nav[aria-label="Task detail sections"] a[aria-current="page"] {
   background: var(--brand);
 }
 
+.app-shell {
+  display: flex;
+  min-height: 100dvh;
+  width: 100%;
+  flex-direction: column;
+}
+
+@media (min-width: 1024px) {
+  .app-shell {
+    flex-direction: row;
+  }
+}
+
+.app-main-wrap {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  padding: 1.25rem 1rem 3.5rem;
+}
+
+@media (min-width: 640px) {
+  .app-main-wrap {
+    padding: 1.5rem 1.5rem 3.5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .app-main-wrap {
+    padding: 1.75rem 2.25rem 4rem;
+  }
+}
+
+nav[aria-label="Catalog status"] {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+nav[aria-label="Catalog status"] a {
+  display: inline-flex;
+  min-height: 2.35rem;
+  align-items: center;
+  border-bottom: 2px solid transparent;
+  border-radius: 0.25rem 0.25rem 0 0;
+  padding: 0.45rem 0.75rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+nav[aria-label="Catalog status"] a:hover {
+  background: var(--hover);
+  color: var(--foreground);
+}
+
+nav[aria-label="Catalog status"] a[aria-current="page"] {
+  border-bottom-color: var(--brand);
+  color: var(--brand);
+  font-weight: 600;
+}
+
+/* System-wide Impeccable refinement layer (preserves original Cappy Hub tokens) */
+.table-frame--compact th {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  padding: 0.625rem 0.75rem;
+}
+
+.table-frame--compact td {
+  padding: 0.6rem 0.75rem;
+}
+
+.section-heading h2::before,
+[data-nav-page="events"] h3::before,
+[data-nav-page="tasks"] h3::before {
+  display: none;
+}
+
+.points-ranking-wrap,
+.points-ranking-table {
+  width: 100%;
+  max-width: none;
+}
+
+.points-ranking-table {
+  min-width: 42rem;
+}
+
+[data-nav-page="points"] .points-view-tabs {
+  gap: 0.2rem;
+}
+
+[data-nav-page="points"] .points-view-tabs a {
+  border-radius: 0.25rem 0.25rem 0 0;
+  padding: 0.5rem 0.75rem;
+}
+
+[data-nav-page="points"] .points-view-tabs a[aria-current="page"] {
+  border-bottom-color: var(--brand);
+  background: transparent;
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.event-form-section {
+  border-radius: 0.5rem;
+  padding: 1rem 1.15rem 1.15rem;
+}
+
+.event-form-section > legend {
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  background: var(--surface-muted);
+  padding: 0.15rem 0.55rem;
+  color: var(--foreground);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+[data-record-page="event"] > .grid > section,
+[data-record-page="task"] > .grid > section,
+[data-record-page="task"] > .grid > div > section,
+[data-record-page="officer"] > .space-y-5 > .grid:first-child {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  padding: 1.1rem 1.25rem;
+}
+
+[data-record-page="event"] > .grid > section > .section-heading:first-child,
+[data-record-page="task"] > .grid > section > .section-heading:first-child,
+[data-record-page="task"] > .grid > div > section .section-heading {
+  margin-top: 0;
+}
+
+/* Fix badge text wrapping mid-word inside tables (e.g. Workshop) */
+.status-badge,
+.catalog-value-badge {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  flex-shrink: 0;
+}
+
+/* Calendar revamp (Cappy Hub monochrome + Calendar blue/amber standards) */
+.calendar-shell {
+  border-radius: 0.5rem;
+}
+
+.calendar-shell .calendar-grid-unavailable [role="grid"] {
+  visibility: visible;
+  opacity: 0.45;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+.calendar-shell .calendar-filters {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.calendar-shell .calendar-filters label {
+  display: inline-flex;
+  min-height: 2.15rem;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  padding: 0.25rem 0.8rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 550;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.calendar-shell .calendar-filters label:hover {
+  border-color: var(--border-strong);
+  color: var(--foreground);
+}
+
+.calendar-shell .calendar-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.9rem;
+}
+
+.calendar-shell .calendar-title {
+  color: var(--foreground);
+  font-size: 1.2rem;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+
+.calendar-shell button {
+  min-width: 2.15rem;
+  min-height: 2.15rem;
+  border-radius: 0.375rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 550;
+}
+
+.calendar-shell .calendar-weekday {
+  background: var(--surface-muted);
+  padding-block: 0.6rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.calendar-shell .calendar-day {
+  min-height: clamp(6.75rem, calc((100vh - 20rem) / 6), 12.5rem);
+  padding: 0.2rem;
+}
+
+.calendar-shell .calendar-date {
+  padding: 0.3rem 0.4rem;
+  color: var(--secondary);
+  font-size: 0.78rem;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar-shell .calendar-today {
+  background: color-mix(in srgb, var(--info-bg) 42%, var(--surface)) !important;
+}
+
+.calendar-shell .calendar-today .calendar-date {
+  color: var(--brand);
+  font-weight: 700;
+}
+
+.calendar-shell .calendar-entry {
+  margin: 2px 3px;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    transform 120ms ease;
+}
+
+.calendar-shell .calendar-entry-event {
+  border-color: var(--info-border);
+  border-left: 3px solid var(--info);
+  background: var(--info-bg);
+}
+
+.calendar-shell .calendar-entry-task {
+  border-color: var(--warning-border);
+  border-left: 3px solid var(--warning);
+  background: var(--warning-bg);
+}
+
+.calendar-shell .calendar-entry-content {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.28rem 0.42rem;
+  font-size: 0.76rem;
+  line-height: 1.3;
+}
+
+.calendar-shell .calendar-entry-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.01em;
+  opacity: 0.9;
+}
+
+.calendar-shell .calendar-entry-kind {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.calendar-shell .calendar-entry-title {
+  color: var(--foreground);
+  font-weight: 550;
+}
+
+.calendar-shell .calendar-entry:hover {
+  border-color: var(--border-strong);
+  filter: brightness(1.04);
+  outline: none;
+}
+
+.calendar-shell .calendar-more {
+  display: inline-block;
+  margin: 2px 4px;
+  border-radius: 0.25rem;
+  padding: 0.15rem 0.4rem;
+  color: var(--brand);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.calendar-shell .calendar-more:hover {
+  background: var(--brand-bg);
+  text-decoration: underline;
+}
+
+.calendar-shell.calendar-popover {
+  border: 1px solid var(--border-strong);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  box-shadow: 0 14px 36px rgb(0 0 0 / 0.22);
+}
+
+/* Tune Tasks filter-bar wrap breakpoint for the desktop sidebar layout */
+@media (max-width: 1439px) {
+  [data-nav-page="tasks"] .list-filter-bar form[role="search"] {
+    grid-template-columns: repeat(3, minmax(10rem, 1fr));
+  }
+
+  [data-nav-page="tasks"]
+    .list-filter-bar
+    form[role="search"]
+    > label:first-of-type {
+    grid-column: span 2;
+  }
+}
+
+/* Streamlined detail, create, and edit pages (less bulk, cleaner rhythm) */
+[data-form-page] {
+  max-width: 68rem;
+}
+
+[data-form-page] .event-form {
+  max-width: 68rem;
+  gap: 1.15rem;
+}
+
+[data-form-page] .event-form-section {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  padding: 1rem 1.25rem 1.2rem;
+}
+
+[data-form-page] .event-form-section > legend {
+  border: 0;
+  background: transparent;
+  padding: 0 0.25rem;
+  color: var(--foreground);
+  font-size: 0.85rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+[data-form-page] .event-form-fields {
+  gap: 0.85rem 1rem;
+}
+
+[data-form-page] input:not([type="checkbox"]):not([type="radio"]),
+[data-form-page] select,
+[data-form-page] textarea {
+  padding: 0.5rem 0.7rem;
+  font-size: 0.875rem;
+}
+
+[data-form-page] textarea {
+  min-height: 5.5rem;
+}
+
+[data-record-page] {
+  max-width: 78rem;
+}
+
+[data-record-page] dl {
+  gap: 0;
+}
+
+[data-record-page] dl > dt,
+[data-record-page] dl > dd {
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+  padding-block: 0.55rem;
+  margin-top: 0;
+}
+
+[data-record-page] dl > dt:last-of-type,
+[data-record-page] dl > dd:last-of-type {
+  border-bottom: 0;
+}
+
+[data-record-page] dl > dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+[data-record-page] dl > dd {
+  color: var(--foreground);
+  font-size: 0.875rem;
+}
+
+/* Phase 5 live visual fixes: Points row actions, Tasks Assignee baseline */
+.point-actions {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.point-actions button {
+  min-height: 2.05rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+[data-nav-page="tasks"]
+  .list-filter-bar
+  form[role="search"]
+  > div:has([role="combobox"]) {
+  gap: 0;
+}
+
+[data-nav-page="tasks"]
+  .list-filter-bar
+  form[role="search"]
+  > div:has([role="combobox"])
+  > label {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: var(--secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+/* Phase 8-10 craft polish: danger button accent, recurrence border, catalog grid */
+button.button-danger,
+.button-danger {
+  border-color: var(--danger-border);
+  color: var(--danger);
+}
+
+button.button-danger:hover:not(:disabled),
+.button-danger:hover:not([aria-disabled="true"]) {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+[data-form-page] .recurrence-fields {
+  border-color: var(--border);
+  border-radius: 0.5rem;
+}
+
+.catalog-position-list li:nth-last-child(-n + 3) {
+  border-bottom: 0;
+}
+
+/* Toast notifications (Cappy Hub minimal monochrome surface + smooth enter/exit) */
+@keyframes cappy-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes cappy-toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+}
+
+.cappy-toast {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 15.5rem;
+  max-width: min(23rem, calc(100vw - 2rem));
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--surface) 94%, var(--surface-muted));
+  backdrop-filter: blur(10px);
+  padding: 0.6rem 0.65rem 0.6rem 0.75rem;
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  line-height: 1.35;
+  box-shadow:
+    0 10px 28px rgb(0 0 0 / 0.22),
+    0 1px 3px rgb(0 0 0 / 0.14);
+  animation: cappy-toast-in 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.cappy-toast--leaving {
+  animation: cappy-toast-out 160ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.cappy-toast--error {
+  border-color: var(--danger-border);
+}
+
+.cappy-toast-icon {
+  display: inline-flex;
+  width: 1.35rem;
+  height: 1.35rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+}
+
+.cappy-toast--success .cappy-toast-icon {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.cappy-toast--error .cappy-toast-icon {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+button.cappy-toast-dismiss {
+  display: inline-flex;
+  width: 1.5rem;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  min-height: 1.5rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  padding: 0;
+  color: var(--muted);
+  opacity: 0.7;
+  transition:
+    opacity 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+button.cappy-toast-dismiss:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--hover);
+  color: var(--foreground);
+  opacity: 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   button,
   a,
@@ -2194,5 +2717,10 @@ nav[aria-label="Task detail sections"] a[aria-current="page"] {
   select,
   textarea {
     transition: none;
+  }
+
+  .cappy-toast,
+  .cappy-toast--leaving {
+    animation: none;
   }
 }

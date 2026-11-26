@@ -15,6 +15,7 @@ import {
   confirmPrematureParticipation,
 } from "./actions";
 import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
+import { emitToast } from "@/components/toast-region";
 import {
   usePointHistoryAmount,
   useSetPointHistoryAmount,
@@ -39,12 +40,17 @@ export default function PointActions({
     (amount: number, message: string) => {
       setAmount(transactionId, amount);
       setEditSuccess(message);
+      emitToast(message, "success");
       setEditing(false);
     },
     [setAmount, transactionId],
   );
   const editTrigger = useRef<HTMLButtonElement>(null);
   const wasEditing = useRef(false);
+
+  useEffect(() => {
+    if (removeState.success) emitToast(removeState.success, "success");
+  }, [removeState.success]);
 
   useEffect(() => {
     if (wasEditing.current && !editing) editTrigger.current?.focus();
@@ -65,7 +71,10 @@ export default function PointActions({
           ref={editTrigger}
           type="button"
           className="button-secondary"
-          onClick={() => setEditing(true)}
+          onClick={() => {
+            setEditSuccess("");
+            setEditing(true);
+          }}
         >
           Edit points
         </button>
@@ -80,7 +89,7 @@ export default function PointActions({
           confirmLabel="Remove transaction"
           destructive
           pending={removing}
-          triggerClassName="button-secondary"
+          triggerClassName="button-secondary button-danger"
         />
       </form>
       <ActionFeedback state={removeState} />
@@ -155,7 +164,9 @@ function EditPointForm({
           {fieldErrors.points}
         </FieldError>
       </label>
-      <button disabled={pending}>{pending ? "Saving…" : "Save points"}</button>
+      <button type="submit" disabled={pending}>
+        {pending ? "Saving…" : "Save points"}
+      </button>
       <button
         type="button"
         className="button-secondary"

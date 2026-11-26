@@ -5,6 +5,7 @@ on:
     branches: [main]
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,27 +16,73 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  checks:
-    name: Quality checks
+  detect:
+    name: Detect changed scope
     runs-on: ubuntu-latest
-    env:
-      # GitHub runners may already have a process bound to Supabase's default
-      # local Postgres port. Keep CI's disposable database on its own port.
-      SUPABASE_DB_PORT: 55432
+    timeout-minutes: 3
+    outputs:
+      docs_only: ${{ steps.scope.outputs.docs_only }}
     steps:
-      - name: Check out repository
+      - name: Check out repository for PR diff
+        if: github.event_name == 'pull_request'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Classify changed files
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [[ "$EVENT_NAME" != "pull_request" || -z "$BASE_SHA" ]]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed_files="$(git diff --name-only "$BASE_SHA"...HEAD)"
+          if [[ -z "$changed_files" ]]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          docs_only=true
+          while IFS= read -r file; do
+            case "$file" in
+              docs/*|knowledge/*|.github/ISSUE_TEMPLATE/*|.github/PULL_REQUEST_TEMPLATE.md|*.md)
+                ;;
+              *)
+                docs_only=false
+                break
+                ;;
+            esac
+          done <<< "$changed_files"
+
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+
+  static:
+    name: Static checks & build
+    needs: [detect]
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ needs.detect.outputs.docs_only == 'true' && 1 || 0 }}
+
       - name: Protect existing migrations from changes
-        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        if: >-
+          needs.detect.outputs.docs_only != 'true' &&
+          (github.event_name == 'pull_request' || github.event_name == 'push')
         env:
           GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: node scripts/check-migration-immutability.mjs
 
       - name: Guard new migrations for rollout compatibility
-        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        if: >-
+          needs.detect.outputs.docs_only != 'true' &&
+          (github.event_name == 'pull_request' || github.event_name == 'push')
         env:
           GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: node scripts/check-destructive-migrations.mjs
@@ -53,10 +100,53 @@ jobs:
         run: npm run format:check
 
       - name: Run ESLint
+        if: needs.detect.outputs.docs_only != 'true'
         run: npm run lint
 
       - name: Check TypeScript types
+        if: needs.detect.outputs.docs_only != 'true'
         run: npm run typecheck
+
+      - name: Run unit tests
+        if: needs.detect.outputs.docs_only != 'true'
+        run: npm run test:unit
+
+      - name: Cache Next.js build output
+        if: needs.detect.outputs.docs_only != 'true'
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('package-lock.json') }}-${{ hashFiles('app/**', 'components/**', 'lib/**', 'next.config.ts') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('package-lock.json') }}-
+            ${{ runner.os }}-nextjs-
+
+      - name: Build for production
+        if: needs.detect.outputs.docs_only != 'true'
+        run: npm run build
+
+  database:
+    name: Database, migrations & seed
+    needs: [detect]
+    if: needs.detect.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # GitHub runners may already have a process bound to Supabase's default
+      # local Postgres port. Keep CI's disposable database on its own port.
+      SUPABASE_DB_PORT: 55432
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Clean up leftover local Supabase containers
         run: npx supabase stop --no-backup || true
@@ -76,8 +166,8 @@ jobs:
           docker network ls || true
           sudo ss -ltnp | grep -E ':(54321|54322|54323|54324|54327|55432)\b' || true
 
-      - name: Run automated tests
-        run: npm test
+      - name: Run database tests
+        run: npm run test:db
 
       - name: Verify populated POC upgrade and fresh replay
         run: npm run test:db:upgrade
@@ -95,9 +185,43 @@ jobs:
         # test:local-seed just loaded and validated this disposable database.
         run: node scripts/setup-local-dev.mjs --reuse-ci-seed
 
-      - name: Build for production
-        run: npm run build
-
       - name: Stop disposable database
         if: always()
         run: npx supabase stop --no-backup || true
+
+  checks:
+    name: Quality checks
+    needs: [detect, static, database]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Summarize and enforce required CI jobs
+        env:
+          DOCS_ONLY: ${{ needs.detect.outputs.docs_only }}
+          DETECT_RESULT: ${{ needs.detect.result }}
+          STATIC_RESULT: ${{ needs.static.result }}
+          DB_RESULT: ${{ needs.database.result }}
+        run: |
+          {
+            echo "### CI Quality Checks Summary"
+            echo ""
+            echo "| Job | Result |"
+            echo "| --- | --- |"
+            echo "| Scope detection (\`docs_only=$DOCS_ONLY\`) | \`$DETECT_RESULT\` |"
+            echo "| Static checks & build | \`$STATIC_RESULT\` |"
+            echo "| Database, migrations & seed | \`$DB_RESULT\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "$DETECT_RESULT" != "success" ]]; then
+            echo "Scope detection failed ($DETECT_RESULT)."
+            exit 1
+          fi
+          if [[ "$STATIC_RESULT" != "success" ]]; then
+            echo "Static checks & build failed ($STATIC_RESULT)."
+            exit 1
+          fi
+          if [[ "$DB_RESULT" != "success" && ! ( "$DOCS_ONLY" == "true" && "$DB_RESULT" == "skipped" ) ]]; then
+            echo "Database, migrations & seed failed ($DB_RESULT)."
+            exit 1
+          fi

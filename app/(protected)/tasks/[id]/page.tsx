@@ -18,8 +18,7 @@ import {
 } from "@/lib/academic-periods";
 import { notFound } from "next/navigation";
 import ContextualBackLink from "@/components/contextual-back-link";
-import { ListPagination } from "@/components/list-pagination";
-import type { Route } from "next";
+import { CopyCanonicalLinkButton } from "@/components/copy-button";
 import {
   ActionLink,
   BranchBadges,
@@ -39,100 +38,22 @@ import {
 } from "@/lib/presentation";
 import { taskStatusFromCounts } from "@/lib/task-status";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { TaskDeleteForm, TaskRestoreForm } from "../task-remove-form";
-import { TaskNeedStatusForm } from "../task-remove-form";
+import {
+  TaskDeleteForm,
+  TaskNeedStatusForm,
+  TaskRestoreForm,
+} from "../task-remove-form";
 import { currentDenverWeek } from "@/lib/current-denver-week";
 import { ResourceLinksList } from "@/components/resource-links-list";
 import TaskSelfAssignForm, {
   TaskSelfCompletionForm,
 } from "../task-action-form";
 import {
+  ApproveAllPendingButton,
   BulkTaskOfficersForm,
   RemoveTaskAssignmentForm,
   TaskCompletionControl,
 } from "../task-officer-controls";
-
-type TaskSection = "overview" | "assignments" | "events";
-const TASK_DETAIL_PREVIEW_SIZE = 4;
-const TASK_DETAIL_PAGE_SIZE = 6;
-
-function parseRequestedPage(value: string | string[] | undefined) {
-  if (typeof value !== "string" || !/^[1-9]\d*$/.test(value)) return 1;
-  const page = Number(value);
-  return Number.isSafeInteger(page) ? Math.min(page, 100_000) : 1;
-}
-
-function isCanonicalPage(value: string | string[] | undefined, page: number) {
-  return value === (page > 1 ? String(page) : undefined);
-}
-
-function taskSectionUrl(
-  taskId: string,
-  section: TaskSection,
-  returnTo: unknown,
-  page?: number,
-  feedback?: unknown,
-) {
-  const query = new URLSearchParams();
-  if (section !== "overview") query.set("section", section);
-  if (page && page > 1)
-    query.set(
-      section === "assignments" ? "assignmentPage" : "eventPage",
-      String(page),
-    );
-  const safeDestination = safeReturnTo(returnTo);
-  if (safeDestination) {
-    query.set("returnTo", safeDestination);
-    const period = new URL(
-      safeDestination,
-      "https://cappy.invalid",
-    ).searchParams.get("period");
-    if (period !== null) query.set("period", period);
-  }
-  if (feedback === "task-created" || feedback === "task-updated")
-    query.set("feedback", feedback);
-  const search = query.toString();
-  return `/tasks/${taskId}${search ? `?${search}` : ""}` as `/tasks/${string}`;
-}
-
-function TaskDetailPagination({
-  taskId,
-  section,
-  page,
-  totalPages,
-  returnTo,
-  feedback,
-}: {
-  taskId: string;
-  section: Exclude<TaskSection, "overview">;
-  page: number;
-  totalPages: number;
-  returnTo: unknown;
-  feedback: unknown;
-}) {
-  if (totalPages < 2) return null;
-  const pageParam = section === "assignments" ? "assignmentPage" : "eventPage";
-  const filters = new URLSearchParams();
-  filters.set("section", section);
-  const destination = safeReturnTo(returnTo);
-  if (destination) filters.set("returnTo", destination);
-  if (feedback === "task-created" || feedback === "task-updated")
-    filters.set("feedback", feedback);
-  return (
-    <ListPagination
-      pathname={`/tasks/${taskId}` as Route}
-      label={`${section === "assignments" ? "Assignment" : "Linked Event"} list`}
-      filters={filters}
-      page={page}
-      totalPages={totalPages}
-      pageParam={pageParam}
-      getPageHref={(target) =>
-        taskSectionUrl(taskId, section, returnTo, target, feedback) as Route
-      }
-    />
-  );
-}
 
 export default async function TaskDetailPage({
   params,
@@ -142,17 +63,19 @@ export default async function TaskDetailPage({
   searchParams?: Promise<NavigationSearchParams>;
 }) {
   const context = (await searchParams) ?? {};
-  const { returnTo, feedback, section, assignmentPage, eventPage } = context;
+  const { returnTo, feedback } = context;
   const contextualReturnTo =
     safeReturnTo(returnTo) ?? listReturnUrl("/tasks", context);
-  const periodData = await getAcademicPeriodData();
+  const [periodData, actor, { id: taskIdParam }, supabase] = await Promise.all([
+    getAcademicPeriodData(),
+    getAuthorizationContext(),
+    params,
+    createClient(),
+  ]);
   const periodSelection = resolveAcademicPeriod(context.period, periodData);
   const selectedPeriod = periodSelection.period;
-  const actor = await getAuthorizationContext();
-  const { id: taskIdParam } = await params;
   if (!/^-?[1-9]\d*$/.test(taskIdParam)) notFound();
   const taskId = Number(taskIdParam);
-  const supabase = await createClient();
   const taskResult = await supabase
     .from("tasks")
     .select("*,branches(name,color),task_types(color)")
@@ -175,56 +98,30 @@ export default async function TaskDetailPage({
   const canChangeNeedStatus =
     !periodSelection.isHistorical && (isAdmin(actor) || isLead(actor));
   if (task.removed_at && !canManageTask) notFound();
-  const activeSection: TaskSection =
-    section === "assignments" || section === "events" ? section : "overview";
-  const requestedAssignmentPage = parseRequestedPage(
-    activeSection === "assignments" ? assignmentPage : undefined,
-  );
-  const requestedEventPage = parseRequestedPage(
-    activeSection === "events" ? eventPage : undefined,
-  );
-  const assignmentPageSize =
-    activeSection === "assignments"
-      ? TASK_DETAIL_PAGE_SIZE
-      : TASK_DETAIL_PREVIEW_SIZE;
-  const eventPageSize =
-    activeSection === "events"
-      ? TASK_DETAIL_PAGE_SIZE
-      : TASK_DETAIL_PREVIEW_SIZE;
+
   const [
     assignmentsResult,
     eventsResult,
-    incompleteAssignmentsResult,
     actorAssignmentResult,
-    assignedOfficerIdsResult,
     officersResult,
     resourceLinksResult,
+    series,
   ] = await Promise.all([
     supabase
       .from("task_officer_assignments")
       .select(
         "officer_id,assigned_at,completed_at,completion_approval_pending,officers!task_officer_assignments_officer_id_fkey(id,name)",
-        { count: "exact" },
       )
       .eq("task_id", taskId)
       .order("officers(name)", { ascending: true })
-      .order("officer_id", { ascending: true })
-      .range(0, assignmentPageSize - 1),
+      .order("officer_id", { ascending: true }),
     supabase
       .from("task_events")
-      .select("event_id,events!inner(id,name,event_date,status,deleted_at)", {
-        count: "exact",
-      })
+      .select("event_id,events!inner(id,name,event_date,status,deleted_at)")
       .eq("task_id", taskId)
       .order("events(event_date)", { ascending: true })
       .order("events(name)", { ascending: true })
-      .order("event_id", { ascending: true })
-      .range(0, eventPageSize - 1),
-    supabase
-      .from("task_officer_assignments")
-      .select("officer_id", { count: "exact", head: true })
-      .eq("task_id", taskId)
-      .or("completed_at.is.null,completion_approval_pending.eq.true"),
+      .order("event_id", { ascending: true }),
     supabase
       .from("task_officer_assignments")
       .select("officer_id,completed_at,completion_approval_pending")
@@ -233,14 +130,8 @@ export default async function TaskDetailPage({
       .maybeSingle(),
     canManageTask && !task.removed_at
       ? supabase
-          .from("task_officer_assignments")
-          .select("officer_id")
-          .eq("task_id", taskId)
-      : Promise.resolve({ data: [], error: null }),
-    canManageTask && !task.removed_at
-      ? supabase
           .from("officers")
-          .select("id,name")
+          .select("id,name,officer_branches(branches(name))")
           .eq("status", "active")
           .order("name")
       : Promise.resolve({ data: [], error: null }),
@@ -250,392 +141,207 @@ export default async function TaskDetailPage({
       .eq("task_id", task.id)
       .order("sort_order")
       .order("id"),
+    task.recurrence_series_id === null
+      ? Promise.resolve(undefined)
+      : supabase
+          .from("task_series")
+          .select("id,revision,recurrence_rule,starts_on")
+          .eq("id", task.recurrence_series_id)
+          .single(),
   ]);
   if (
     assignmentsResult.error ||
     eventsResult.error ||
-    incompleteAssignmentsResult.error ||
     actorAssignmentResult.error ||
-    assignedOfficerIdsResult.error ||
     officersResult.error ||
-    resourceLinksResult.error ||
-    assignmentsResult.count === null ||
-    eventsResult.count === null ||
-    incompleteAssignmentsResult.count === null
+    resourceLinksResult.error
   )
     throw new Error("Failed to load task details");
-  const assignmentCount = assignmentsResult.count;
-  const eventCount = eventsResult.count;
-  const incompleteAssignmentCount = incompleteAssignmentsResult.count;
-  const assignmentPages = Math.max(
-    1,
-    Math.ceil(assignmentCount / TASK_DETAIL_PAGE_SIZE),
-  );
-  const eventPages = Math.max(1, Math.ceil(eventCount / TASK_DETAIL_PAGE_SIZE));
-  const currentAssignmentPage = Math.min(
-    requestedAssignmentPage,
-    assignmentPages,
-  );
-  const currentEventPage = Math.min(requestedEventPage, eventPages);
-  const activePage =
-    activeSection === "assignments"
-      ? currentAssignmentPage
-      : activeSection === "events"
-        ? currentEventPage
-        : 1;
-  const activePageValue =
-    activeSection === "assignments"
-      ? assignmentPage
-      : activeSection === "events"
-        ? eventPage
-        : undefined;
-  const sectionIsCanonical =
-    activeSection === "overview"
-      ? section === undefined
-      : section === activeSection;
-  const pageParamsAreCanonical =
-    (activeSection === "assignments" || assignmentPage === undefined) &&
-    (activeSection === "events" || eventPage === undefined) &&
-    isCanonicalPage(activePageValue, activePage);
-  const safeFeedback =
-    feedback === "task-created" || feedback === "task-updated"
-      ? feedback
-      : undefined;
-  if (
-    !sectionIsCanonical ||
-    !pageParamsAreCanonical ||
-    safeReturnTo(returnTo) !== returnTo ||
-    safeFeedback !== feedback
-  )
-    redirect(
-      taskSectionUrl(
-        taskIdParam,
-        activeSection,
-        contextualReturnTo,
-        activePage,
-        safeFeedback,
-      ),
-    );
+  if (series?.error) throw new Error("Failed to load recurring series");
 
-  let assignments = assignmentsResult.data ?? [];
-  let linkedEvents = eventsResult.data ?? [];
-  if (activeSection === "assignments" && currentAssignmentPage > 1) {
-    const page = await supabase
-      .from("task_officer_assignments")
-      .select(
-        "officer_id,assigned_at,completed_at,completion_approval_pending,officers!task_officer_assignments_officer_id_fkey(id,name)",
-      )
-      .eq("task_id", taskId)
-      .order("officers(name)", { ascending: true })
-      .order("officer_id", { ascending: true })
-      .range(
-        (currentAssignmentPage - 1) * TASK_DETAIL_PAGE_SIZE,
-        currentAssignmentPage * TASK_DETAIL_PAGE_SIZE - 1,
-      );
-    if (page.error) throw new Error("Failed to load task assignments");
-    assignments = page.data ?? [];
-  } else if (activeSection === "events" && currentEventPage > 1) {
-    const page = await supabase
-      .from("task_events")
-      .select("event_id,events!inner(id,name,event_date,status,deleted_at)")
-      .eq("task_id", taskId)
-      .order("events(event_date)", { ascending: true })
-      .order("events(name)", { ascending: true })
-      .order("event_id", { ascending: true })
-      .range(
-        (currentEventPage - 1) * TASK_DETAIL_PAGE_SIZE,
-        currentEventPage * TASK_DETAIL_PAGE_SIZE - 1,
-      );
-    if (page.error) throw new Error("Failed to load linked task events");
-    linkedEvents = page.data ?? [];
-  }
+  const assignments = [...(assignmentsResult.data ?? [])].sort(
+    (left, right) => {
+      const leftPending = left.completion_approval_pending ? 1 : 0;
+      const rightPending = right.completion_approval_pending ? 1 : 0;
+      return rightPending - leftPending;
+    },
+  );
+  const linkedEvents = eventsResult.data ?? [];
+  const assignmentCount = assignments.length;
+  const incompleteAssignmentCount = assignments.filter(
+    (assignment) =>
+      assignment.completed_at === null ||
+      assignment.completion_approval_pending,
+  ).length;
   const assignedOfficerIds = new Set(
-    (assignedOfficerIdsResult.data ?? []).map(({ officer_id }) => officer_id),
+    assignments.map(({ officer_id }) => officer_id),
   );
   const availableOfficers = (officersResult.data ?? [])
     .filter((officer) => !assignedOfficerIds.has(officer.id))
-    .map(({ id, name }) => ({ id, name }));
-  const visibleAssignments = assignments;
-  const visibleEvents = linkedEvents;
-  const series =
-    task.recurrence_series_id === null
-      ? undefined
-      : await supabase
-          .from("task_series")
-          .select("id,revision,recurrence_rule,starts_on")
-          .eq("id", task.recurrence_series_id)
-          .single();
-  if (series?.error) throw new Error("Failed to load recurring series");
+    .map(({ id, name, officer_branches }) => ({
+      id,
+      name,
+      branches: (officer_branches ?? [])
+        .map((ob) => ob.branches?.name)
+        .filter((b): b is string => Boolean(b)),
+    }));
+  const pendingApprovalOfficerIds = assignments
+    .filter(
+      (assignment) =>
+        assignment.completion_approval_pending &&
+        canChangeOtherTaskCompletion(actor, assignment.officer_id),
+    )
+    .map((assignment) => assignment.officer_id);
   const myAssignment = actorAssignmentResult.data;
   const currentStatus = taskStatusFromCounts(
     assignmentCount,
     incompleteAssignmentCount,
   );
+  const hasActions =
+    (canChangeNeedStatus &&
+      !task.removed_at &&
+      (task.no_longer_needed_at || task.due_date < today)) ||
+    (!periodSelection.isHistorical &&
+      !task.removed_at &&
+      (!myAssignment || !myAssignment.completed_at)) ||
+    canManageTask;
+
   return (
-    <div data-record-page="task" className="space-y-4">
+    <div data-record-page="task" className="space-y-5">
       <ContextualBackLink href="/tasks" returnTo={contextualReturnTo}>
         Back to tasks
       </ContextualBackLink>
       <PageHeader
         title={task.title}
         action={
-          canManageTask && !task.removed_at ? (
-            <ActionLink
-              href={withReturnTo(
-                `/tasks/${taskIdParam}/edit`,
-                contextualReturnTo,
-              )}
-            >
-              {series?.data ? "Edit recurring task" : "Edit task"}
-            </ActionLink>
-          ) : undefined
+          <div className="flex flex-wrap items-center gap-2">
+            <CopyCanonicalLinkButton path={`/tasks/${taskIdParam}`} />
+            {canManageTask && !task.removed_at && (
+              <ActionLink
+                href={withReturnTo(
+                  `/tasks/${taskIdParam}/edit`,
+                  contextualReturnTo,
+                )}
+              >
+                {series?.data ? "Edit recurring task" : "Edit task"}
+              </ActionLink>
+            )}
+          </div>
         }
       />
       <SuccessNotice status={feedback} />
-      <nav
-        aria-label="Task detail sections"
-        className="flex flex-wrap gap-2 border-b border-border"
-      >
-        {(
-          [
-            ["overview", "Overview"],
-            ["assignments", `Assignments (${assignmentCount})`],
-            ["events", `Linked Events (${eventCount})`],
-          ] as const
-        ).map(([target, label]) => (
-          <Link
-            key={target}
-            href={taskSectionUrl(taskIdParam, target, contextualReturnTo)}
-            aria-current={activeSection === target ? "page" : undefined}
-            className={`border-b-2 px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${activeSection === target ? "border-brand font-medium text-brand" : "border-transparent text-muted hover:text-foreground"}`}
-          >
-            {label}
-          </Link>
-        ))}
-      </nav>
 
-      {activeSection === "overview" ? (
-        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-          <section aria-label="Task overview" className="min-w-0 space-y-3">
-            <SectionHeading title="Task overview" />
-            {task.removed_at && (
-              <p>Deleted {formatDateTime(task.removed_at)}</p>
-            )}
-            <p className="whitespace-pre-wrap break-words">
-              {task.description || "No description"}
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <section aria-label="Task overview" className="min-w-0 space-y-3">
+          <SectionHeading title="Task overview" />
+          {task.removed_at && (
+            <p className="text-sm text-danger">
+              Deleted {formatDateTime(task.removed_at)}
             </p>
-            <ResourceLinksList resources={resourceLinksResult.data} />
-            <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm [&>dt]:mt-0 [&>dd]:mt-0 [&>dd]:min-w-0 [&>dd]:break-words">
-              <dt>Type</dt>
-              <dd>
-                <CatalogValueBadge color={task.task_types?.color}>
-                  {formatLabel(task.task_type)}
-                </CatalogValueBadge>
-              </dd>
-              <dt>Branch</dt>
-              <dd>
-                <BranchBadges branches={[task.branches]} />
-              </dd>
-              <dt>Due</dt>
-              <dd>{formatTaskDeadline(task.due_date, task.due_time)}</dd>
-              <dt>Points</dt>
-              <dd>
-                <PointValue value={task.points} />
-              </dd>
-              <dt>Status</dt>
-              <dd>
-                <span className="flex flex-wrap items-center gap-1.5">
-                  {task.no_longer_needed_at && (
-                    <StatusBadge status="No longer needed" />
-                  )}
-                  <StatusBadge status={currentStatus} />
-                </span>
-              </dd>
-              <dt>Your assignment</dt>
-              <dd>
-                {myAssignment?.completion_approval_pending
-                  ? "Awaiting approval"
-                  : myAssignment?.completed_at
-                    ? "Completed"
-                    : myAssignment
-                      ? "Not completed"
-                      : "Not assigned"}
-              </dd>
-            </dl>
-            {canChangeNeedStatus &&
-              !task.removed_at &&
-              (task.no_longer_needed_at || task.due_date < today) && (
-                <TaskNeedStatusForm
-                  taskId={task.id}
-                  noLongerNeeded={Boolean(task.no_longer_needed_at)}
-                />
-              )}
-            {series?.data && (
-              <p className="text-sm text-muted">
-                Recurring occurrence. Its due date, Officer assignments,
-                completion, and points belong to this Task only.
-              </p>
-            )}
-            {!periodSelection.isHistorical &&
-              !task.removed_at &&
-              !myAssignment && <TaskSelfAssignForm taskId={task.id} />}
-            {!periodSelection.isHistorical &&
-              !task.removed_at &&
-              myAssignment &&
-              !myAssignment.completed_at && (
-                <TaskSelfCompletionForm taskId={task.id} />
-              )}
-            {canManageTask && task.removed_at && (
-              <TaskRestoreForm
-                taskId={task.id}
-                series={series?.data ?? undefined}
-                requestKey={crypto.randomUUID()}
-              />
-            )}
-            {canManageTask && !task.removed_at && (
-              <TaskDeleteForm
-                taskId={task.id}
-                series={series?.data ?? undefined}
-                requestKey={crypto.randomUUID()}
-              />
-            )}
-          </section>
-          <div className="min-w-0 space-y-5">
-            <section aria-label="Assignment preview" className="space-y-2">
-              <div className="flex items-baseline justify-between gap-3">
-                <SectionHeading title={`Assignments (${assignmentCount})`} />
-                {assignmentCount > 0 && (
-                  <Link
-                    className="text-sm underline"
-                    href={taskSectionUrl(
-                      taskIdParam,
-                      "assignments",
-                      contextualReturnTo,
-                    )}
-                  >
-                    View all
-                  </Link>
+          )}
+          <p className="whitespace-pre-wrap break-words text-sm text-foreground">
+            {task.description || "No description"}
+          </p>
+          <ResourceLinksList resources={resourceLinksResult.data} />
+          <dl className="grid grid-cols-[7.5rem_minmax(0,1fr)] text-sm [&>dd]:min-w-0 [&>dd]:break-words">
+            <dt>Type</dt>
+            <dd>
+              <CatalogValueBadge color={task.task_types?.color}>
+                {formatLabel(task.task_type)}
+              </CatalogValueBadge>
+            </dd>
+            <dt>Branch</dt>
+            <dd>
+              <BranchBadges branches={[task.branches]} />
+            </dd>
+            <dt>Due</dt>
+            <dd>{formatTaskDeadline(task.due_date, task.due_time)}</dd>
+            <dt>Points</dt>
+            <dd>
+              <PointValue value={task.points} />
+            </dd>
+            <dt>Status</dt>
+            <dd>
+              <span className="flex flex-wrap items-center gap-1.5">
+                {task.no_longer_needed_at && (
+                  <StatusBadge status="No longer needed" />
                 )}
-              </div>
-              {visibleAssignments.length ? (
-                <ul className="space-y-1">
-                  {visibleAssignments.map(
-                    ({
-                      officer_id,
-                      completed_at,
-                      completion_approval_pending,
-                      officers: assignedOfficer,
-                    }) => (
-                      <li
-                        key={officer_id}
-                        className="flex flex-wrap justify-between gap-x-3"
-                      >
-                        <Link
-                          href={withReturnTo(
-                            `/officers/${assignedOfficer.id}`,
-                            contextualReturnTo,
-                          )}
-                        >
-                          {assignedOfficer.name}
-                        </Link>
-                        <span className="text-sm text-muted">
-                          {completion_approval_pending
-                            ? "Awaiting approval"
-                            : completed_at
-                              ? "Completed"
-                              : "Not completed"}
-                        </span>
-                      </li>
-                    ),
-                  )}
-                </ul>
-              ) : (
-                <p>No Officers are assigned to this task.</p>
-              )}
-              {assignmentCount > TASK_DETAIL_PREVIEW_SIZE && (
-                <p className="text-sm text-muted">
-                  Showing {visibleAssignments.length} of {assignmentCount}{" "}
-                  assignments.
-                </p>
+                <StatusBadge status={currentStatus} />
+              </span>
+            </dd>
+            <dt>Your assignment</dt>
+            <dd>
+              {myAssignment?.completion_approval_pending
+                ? "Awaiting approval"
+                : myAssignment?.completed_at
+                  ? "Completed"
+                  : myAssignment
+                    ? "Not completed"
+                    : "Not assigned"}
+            </dd>
+          </dl>
+          {series?.data && (
+            <p className="text-xs text-muted">
+              Recurring occurrence. Its due date, Officer assignments,
+              completion, and points belong to this Task only.
+            </p>
+          )}
+          {hasActions && (
+            <div className="flex flex-wrap items-center gap-2.5 border-t border-border pt-3 [&>form]:w-auto">
+              {!periodSelection.isHistorical &&
+                !task.removed_at &&
+                !myAssignment && <TaskSelfAssignForm taskId={task.id} />}
+              {!periodSelection.isHistorical &&
+                !task.removed_at &&
+                myAssignment &&
+                !myAssignment.completed_at && (
+                  <TaskSelfCompletionForm taskId={task.id} />
+                )}
+              {canChangeNeedStatus &&
+                !task.removed_at &&
+                (task.no_longer_needed_at || task.due_date < today) && (
+                  <TaskNeedStatusForm
+                    taskId={task.id}
+                    noLongerNeeded={Boolean(task.no_longer_needed_at)}
+                  />
+                )}
+              {canManageTask && task.removed_at && (
+                <TaskRestoreForm
+                  taskId={task.id}
+                  series={series?.data ?? undefined}
+                  requestKey={crypto.randomUUID()}
+                />
               )}
               {canManageTask && !task.removed_at && (
-                <BulkTaskOfficersForm
+                <TaskDeleteForm
                   taskId={task.id}
-                  officers={availableOfficers}
+                  series={series?.data ?? undefined}
+                  requestKey={crypto.randomUUID()}
                 />
               )}
-            </section>
-            <section aria-label="Linked Events preview" className="space-y-2">
-              <div className="flex items-baseline justify-between gap-3">
-                <SectionHeading title="Linked Events" />
-                {eventCount > 0 && (
-                  <Link
-                    className="text-sm underline"
-                    href={taskSectionUrl(
-                      taskIdParam,
-                      "events",
-                      contextualReturnTo,
-                    )}
-                  >
-                    View all
-                  </Link>
-                )}
-              </div>
-              {visibleEvents.length ? (
-                <ul className="space-y-1">
-                  {visibleEvents.map(({ events: linkedEvent }) => (
-                    <li
-                      key={linkedEvent.id}
-                      className="flex flex-wrap justify-between gap-x-3"
-                    >
-                      <Link
-                        href={withReturnTo(
-                          `/events/${linkedEvent.id}`,
-                          contextualReturnTo,
-                        )}
-                      >
-                        {linkedEvent.name}
-                      </Link>
-                      <span className="text-sm text-muted">
-                        {linkedEvent.deleted_at
-                          ? "Archived"
-                          : linkedEvent.status === "cancelled"
-                            ? "Cancelled"
-                            : formatCalendarDate(linkedEvent.event_date)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p>No linked Events.</p>
-              )}
-              {eventCount > TASK_DETAIL_PREVIEW_SIZE && (
-                <p className="text-sm text-muted">
-                  Showing {visibleEvents.length} of {eventCount} linked Events.
-                </p>
-              )}
-            </section>
-          </div>
-        </div>
-      ) : activeSection === "events" ? (
+            </div>
+          )}
+        </section>
+
         <section aria-label="Linked Events" className="min-w-0 space-y-3">
-          <SectionHeading title="Linked Events" />
-          {visibleEvents.length ? (
-            <ul className="space-y-2">
-              {visibleEvents.map(({ events: linkedEvent }) => (
+          <SectionHeading title={`Linked Events (${linkedEvents.length})`} />
+          {linkedEvents.length ? (
+            <ul className="divide-y divide-border rounded-lg border border-border bg-surface-muted/30 px-3 text-sm">
+              {linkedEvents.map(({ events: linkedEvent }) => (
                 <li
                   key={linkedEvent.id}
-                  className="flex flex-wrap justify-between gap-x-4"
+                  className="flex flex-wrap items-center justify-between gap-x-3 py-2"
                 >
                   <Link
                     href={withReturnTo(
                       `/events/${linkedEvent.id}`,
                       contextualReturnTo,
                     )}
+                    className="font-medium text-foreground hover:text-brand hover:underline"
                   >
                     {linkedEvent.name}
                   </Link>
-                  <span className="text-sm text-muted">
+                  <span className="text-xs text-muted">
                     {linkedEvent.deleted_at
                       ? "Archived"
                       : linkedEvent.status === "cancelled"
@@ -646,117 +352,126 @@ export default async function TaskDetailPage({
               ))}
             </ul>
           ) : (
-            <p>No linked Events.</p>
+            <p className="text-sm text-muted">No linked Events.</p>
           )}
-          {eventCount > TASK_DETAIL_PREVIEW_SIZE && (
-            <p className="text-sm text-muted">
-              Showing {visibleEvents.length} of {eventCount} linked Events.
-            </p>
-          )}
-          <TaskDetailPagination
-            taskId={taskIdParam}
-            section="events"
-            page={currentEventPage}
-            totalPages={eventPages}
-            returnTo={contextualReturnTo}
-            feedback={feedback}
-          />
         </section>
-      ) : (
-        <section aria-label="Officers" className="min-w-0 space-y-3">
-          <SectionHeading title="Assignments" />
-          {!periodSelection.isHistorical &&
+      </div>
+
+      <section
+        aria-label="Assignments"
+        className="min-w-0 space-y-3 rounded-lg border border-border bg-surface p-4 [&>.section-heading:first-child]:mt-0"
+      >
+        <SectionHeading
+          title={`Assignments (${assignmentCount})`}
+          description={
+            assignmentCount > 0
+              ? `${assignmentCount - incompleteAssignmentCount} / ${assignmentCount} completed${
+                  assignments.filter((a) => a.completion_approval_pending)
+                    .length > 0
+                    ? ` · ${assignments.filter((a) => a.completion_approval_pending).length} pending approval`
+                    : ""
+                }${
+                  canManageTask && !task.removed_at
+                    ? " · Removing an assignment excludes its Task points."
+                    : ""
+                }`
+              : undefined
+          }
+          action={
+            !periodSelection.isHistorical &&
             !task.removed_at &&
-            !myAssignment && <TaskSelfAssignForm taskId={task.id} />}
-          {assignmentCount === 0 ? (
-            <p>No Officers are assigned to this task.</p>
-          ) : (
-            <TableFrame compact label="Task assignment progress">
-              <table>
-                <thead>
-                  <tr>
-                    <th scope="col">Officer</th>
-                    <th scope="col">Completion</th>
-                    {canManageTask && !task.removed_at && (
-                      <th scope="col">Actions</th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleAssignments.map((assignment) => {
-                    const assignedOfficer = assignment.officers;
-                    const completed = assignment.completed_at !== null;
-                    const completionPending =
-                      assignment.completion_approval_pending;
-                    return (
-                      <tr key={assignment.officer_id}>
-                        <td>
-                          <Link
-                            href={withReturnTo(
-                              `/officers/${assignedOfficer.id}`,
-                              contextualReturnTo,
-                            )}
-                          >
-                            {assignedOfficer.name}
-                          </Link>
-                        </td>
-                        <td>
-                          {!periodSelection.isHistorical &&
-                          canChangeOtherTaskCompletion(
-                            actor,
-                            assignment.officer_id,
-                          ) &&
-                          !task.removed_at ? (
-                            <TaskCompletionControl
-                              taskId={task.id}
-                              officerId={assignment.officer_id}
-                              officerName={assignedOfficer.name}
-                              completed={completed}
-                              pendingApproval={completionPending}
-                            />
-                          ) : completionPending ? (
-                            "Awaiting approval"
-                          ) : completed ? (
-                            "Completed"
-                          ) : assignment.officer_id === actor.id &&
-                            !periodSelection.isHistorical ? (
-                            <TaskSelfCompletionForm taskId={task.id} />
-                          ) : (
-                            "Not completed"
+            pendingApprovalOfficerIds.length > 0 ? (
+              <ApproveAllPendingButton
+                taskId={task.id}
+                officerIds={pendingApprovalOfficerIds}
+              />
+            ) : undefined
+          }
+        />
+        {assignmentCount === 0 ? (
+          <p className="text-sm text-muted">
+            No Officers are assigned to this task.
+          </p>
+        ) : (
+          <TableFrame compact label="Task assignment progress">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Officer</th>
+                  <th scope="col">Completion</th>
+                  {canManageTask && !task.removed_at && (
+                    <th scope="col">Actions</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {assignments.map((assignment) => {
+                  const assignedOfficer = assignment.officers;
+                  const completed = assignment.completed_at !== null;
+                  const completionPending =
+                    assignment.completion_approval_pending;
+                  return (
+                    <tr
+                      key={assignment.officer_id}
+                      className={
+                        completionPending ? "bg-warning-bg/25" : undefined
+                      }
+                    >
+                      <td>
+                        <Link
+                          href={withReturnTo(
+                            `/officers/${assignedOfficer.id}`,
+                            contextualReturnTo,
                           )}
-                        </td>
-                        {canManageTask && !task.removed_at && (
-                          <td>
-                            <RemoveTaskAssignmentForm
-                              taskId={task.id}
-                              officerId={assignment.officer_id}
-                              officerName={assignedOfficer.name}
-                            />
-                          </td>
+                        >
+                          {assignedOfficer.name}
+                        </Link>
+                      </td>
+                      <td>
+                        {!periodSelection.isHistorical &&
+                        canChangeOtherTaskCompletion(
+                          actor,
+                          assignment.officer_id,
+                        ) &&
+                        !task.removed_at ? (
+                          <TaskCompletionControl
+                            taskId={task.id}
+                            officerId={assignment.officer_id}
+                            officerName={assignedOfficer.name}
+                            completed={completed}
+                            pendingApproval={completionPending}
+                          />
+                        ) : completionPending ? (
+                          "Awaiting approval"
+                        ) : completed ? (
+                          "Completed"
+                        ) : assignment.officer_id === actor.id &&
+                          !periodSelection.isHistorical ? (
+                          <TaskSelfCompletionForm taskId={task.id} />
+                        ) : (
+                          "Not completed"
                         )}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </TableFrame>
-          )}
-          {canManageTask && !task.removed_at && (
-            <BulkTaskOfficersForm
-              taskId={task.id}
-              officers={availableOfficers}
-            />
-          )}
-          <TaskDetailPagination
-            taskId={taskIdParam}
-            section="assignments"
-            page={currentAssignmentPage}
-            totalPages={assignmentPages}
-            returnTo={contextualReturnTo}
-            feedback={feedback}
-          />
-        </section>
-      )}
+                      </td>
+                      {canManageTask && !task.removed_at && (
+                        <td>
+                          <RemoveTaskAssignmentForm
+                            taskId={task.id}
+                            officerId={assignment.officer_id}
+                            officerName={assignedOfficer.name}
+                          />
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </TableFrame>
+        )}
+        {canManageTask && !task.removed_at && (
+          <BulkTaskOfficersForm taskId={task.id} officers={availableOfficers} />
+        )}
+      </section>
     </div>
   );
 }

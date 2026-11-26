@@ -443,12 +443,12 @@ it("restores focus to the empty-state message when the roster empties before the
 it.each([
   {
     failure: "validation",
-    taskId: Number.NaN,
+    taskId: 0,
     state: {
       error: "Task not found",
       success: "",
       fieldErrors: { task_id: "Task not found" },
-      values: { task_id: "NaN", officer_ids: ["3", "4"] },
+      values: { task_id: "0", officer_ids: ["3", "4"] },
     },
     message: "Task not found",
   },

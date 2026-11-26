@@ -82,8 +82,8 @@ export function organizeEventList(
   };
 }
 
-// Group only adjacent page rows: moving all personal Events ahead of other
-// Events would change the schedule order used by server pagination.
+// Group only adjacent rows so moving personal Events ahead of other Events
+// never changes the chronological schedule order.
 export function groupEventPage(
   events: EventListItem[],
   status: EventListStatus,

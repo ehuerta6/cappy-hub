@@ -1,5 +1,6 @@
 "use client";
 
+import { useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { AcademicPeriod } from "@/lib/academic-periods";
 import type { Route } from "next";
@@ -16,6 +17,7 @@ export default function AcademicPeriodSelector({
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
   const requested = searchParams.get("period");
   const selectedId =
     requested === null || requested === "current"
@@ -48,18 +50,24 @@ export default function AcademicPeriodSelector({
     if (value === "current") next.delete("period");
     else next.set("period", value);
     const query = next.toString();
-    router.push((query ? `${pathname}?${query}` : pathname) as Route);
+    startTransition(() => {
+      router.push((query ? `${pathname}?${query}` : pathname) as Route);
+    });
   }
 
   return (
-    <div className="academic-period-control flex min-w-0 flex-col gap-0.5">
+    <div
+      className="academic-period-control flex min-w-0 flex-col gap-0.5"
+      aria-busy={isPending}
+    >
       <label className="sr-only" htmlFor="academic-period-select">
         View academic period
       </label>
       <select
         id="academic-period-select"
         aria-describedby="academic-period-state"
-        className="header-control academic-period-select focus-visible:outline-2 focus-visible:outline-offset-2"
+        disabled={isPending}
+        className={`header-control academic-period-select focus-visible:outline-2 focus-visible:outline-offset-2 ${isPending ? "opacity-70" : ""}`}
         value={selectValue}
         onChange={(event) => selectPeriod(event.target.value)}
       >
@@ -83,15 +91,17 @@ export default function AcademicPeriodSelector({
         aria-live="polite"
         className="text-xs text-muted"
       >
-        {historical
-          ? "Historical · read only"
-          : selectedPeriod
-            ? selectedPeriod.id === currentPeriodId
-              ? "Current period"
-              : selectedPeriod.starts_on > currentDate
-                ? "Future period"
-                : "Period view"
-            : emptyLabel}
+        {isPending
+          ? "Loading period…"
+          : historical
+            ? "Historical · read only"
+            : selectedPeriod
+              ? selectedPeriod.id === currentPeriodId
+                ? "Current period"
+                : selectedPeriod.starts_on > currentDate
+                  ? "Future period"
+                  : "Period view"
+              : emptyLabel}
       </span>
     </div>
   );

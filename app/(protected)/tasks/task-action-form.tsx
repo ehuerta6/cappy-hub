@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { ActionFeedback } from "@/components/ui";
 import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
+import { emitToast } from "@/components/toast-region";
 import { initialFormActionState } from "@/lib/form-feedback";
 import { selfAssignTask, selfCompleteTaskAssignment } from "./actions";
 
@@ -11,6 +12,10 @@ export default function TaskSelfAssignForm({ taskId }: { taskId: number }) {
     selfAssignTask,
     initialFormActionState,
   );
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
+
   return (
     <form action={action} className="flex flex-wrap items-center gap-1">
       <AcademicPeriodWriteContextField />
@@ -41,6 +46,10 @@ export function TaskSelfCompletionForm({
     selfCompleteTaskAssignment,
     initialFormActionState,
   );
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
+
   if (pendingApproval)
     return <span className="text-sm text-muted">Awaiting approval</span>;
   if (completed) return <span>Completed</span>;

@@ -43,20 +43,12 @@ export function selectedCatalogCategory(
     : "positions";
 }
 
-export function selectedCatalogPage(value: string | string[] | undefined) {
-  if (typeof value !== "string" || !/^[1-9]\d*$/.test(value)) return 1;
-  const page = Number(value);
-  return Number.isSafeInteger(page) ? page : 1;
-}
-
 export function catalogUrl(
   category: CatalogCategory,
-  page = 1,
   status: "active" | "deleted" = "active",
 ) {
   const params = new URLSearchParams();
   params.set("category", category);
   if (status === "deleted") params.set("status", status);
-  if (page > 1) params.set("page", String(page));
   return `/officers/catalogs?${params.toString()}` as const;
 }

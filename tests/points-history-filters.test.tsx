@@ -53,13 +53,15 @@ async function renderFilters({
   )!;
 }
 
-it("keeps history search, award type, and Admin status as the basic GET filters", async () => {
+it("keeps history search, award type, date range, and Admin status as the GET filters", async () => {
   const form = await renderFilters();
 
   expect([...new FormData(form).entries()]).toEqual([
     ["view", "history"],
     ["q", "arrays"],
     ["type", "correction"],
+    ["from", ""],
+    ["to", ""],
     ["status", "removed"],
   ]);
   expect(
@@ -67,6 +69,12 @@ it("keeps history search, award type, and Admin status as the basic GET filters"
   ).toBe("Officer, reason, event, or task");
   expect(form.querySelector('select[name="type"]')?.textContent).toContain(
     "Correction",
+  );
+  expect(form.querySelector('input[name="from"]')?.getAttribute("type")).toBe(
+    "date",
+  );
+  expect(form.querySelector('input[name="to"]')?.getAttribute("type")).toBe(
+    "date",
   );
   expect(form.querySelector('select[name="status"]')?.textContent).toContain(
     "Removed",
@@ -86,6 +94,8 @@ it("does not expose removed-history status controls to non-admins", async () => 
     ["view", "history"],
     ["q", "arrays"],
     ["type", "correction"],
+    ["from", ""],
+    ["to", ""],
   ]);
 });
 

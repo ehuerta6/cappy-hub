@@ -186,12 +186,14 @@ it("includes only this Officer's incomplete assignments", async () => {
     task(1),
     task(2, [assignment(8, "2026-10-03")]),
     task(3, [assignment(9)]),
-    task(4, [assignment(8), assignment(9, "2026-10-03")]),
+    task(4, [assignment(8), assignment(9, "2026-10-03")], {
+      due_date: "2026-12-05",
+    }),
     task(5, [], { removed_at: "2026-10-03" }),
   ];
   const result = await load();
   expect(result!.items.map((item) => [item.key, item.status])).toEqual([
-    ["task-1", "Not completed"],
+    ["task-1", "Overdue"],
     ["task-4", "Not completed"],
   ]);
   const taskUrl = urls.find((url) => url.pathname.endsWith("tasks"))!;
@@ -417,7 +419,7 @@ it("caps the Task preview at five with a bounded source query", async () => {
   const section = html
     .split('aria-labelledby="action-items-title"')[1]
     .split("</section>")[0];
-  expect(section.match(/<li>/g)).toHaveLength(5);
+  expect(section.match(/<li[\s>]/g)).toHaveLength(5);
   expect(section).toContain('href="/tasks/5"');
   expect(section).not.toContain('href="/tasks/6"');
   expect(section).toContain(
@@ -429,17 +431,17 @@ it("caps the Task preview at five with a bounded source query", async () => {
   }
 });
 
-it("renders personal completion status with canonical links", async () => {
-  tasks = [task(8)];
+it("renders personal completion status with canonical links and inline completion control", async () => {
+  tasks = [task(8, [assignment()], { due_date: "2026-12-05" })];
   const html = await render();
   const section = html
     .split('aria-labelledby="action-items-title"')[1]
     .split("</section>")[0];
   expect(section).toContain("Task 8");
   expect(section).toContain('href="/tasks/8"');
-  expect(section).toContain("Oct 5, 2026");
+  expect(section).toContain("Dec 5, 2026");
   expect(section).toContain("Not completed");
-  expect(section).not.toContain("<form");
+  expect(section).toContain("Mark complete");
 });
 
 it("keeps the empty state lightweight and preserves profile and summary content", async () => {

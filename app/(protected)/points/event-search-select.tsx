@@ -29,12 +29,14 @@ export function EventSearchSelect({
   error,
   disabled = false,
   portalContainer,
+  onValueChange,
 }: {
   events: PointEvent[];
   initialValue?: string;
   error?: string;
   disabled?: boolean;
   portalContainer?: React.RefObject<HTMLElement | null>;
+  onValueChange?: (value: string) => void;
 }) {
   const inputId = useId();
   const errorId = useId();
@@ -142,10 +144,12 @@ export function EventSearchSelect({
                 : null,
             );
             updateQuery("");
+            onValueChange?.(nextId);
           } else if (details.reason === "clear-press") {
             setSelectedId("");
             setSelectedEvent(null);
             updateQuery("");
+            onValueChange?.("");
           } else details.cancel();
         }}
         inputValue={query}

@@ -1,33 +1,32 @@
 import { getAuthorizationContext, canManagePoints } from "@/lib/authorization";
-import Link from "next/link";
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Route } from "next";
 import TransactionForm from "./transaction-form";
 import HistoryTable from "./history-table";
-import { ListPagination } from "@/components/list-pagination";
 import PointHistoryFilterControls from "./history-filters";
-import { listPageUrl } from "@/lib/list-url";
+import PointsRankingTableClient from "./ranking-table-client";
 import { literalSearchPattern } from "@/lib/list-search";
+import { withPeriodParam } from "@/lib/period-url";
 import {
   pointHistoryFiltersSchema,
   resolvePointsView,
   resolvePointHistoryStatus,
 } from "./validation";
 import {
-  NegativePointValue,
   PageHeader,
   PointValue,
   SectionHeading,
   TableFrame,
 } from "@/components/ui";
+import { ViewTabs } from "@/components/view-tabs";
 import {
   getAcademicPeriodData,
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
 
-const POINT_HISTORY_PAGE_SIZE = 8;
 type PointHistorySearchParams = Record<string, string | string[] | undefined>;
+
+const HISTORY_ROW_LIMIT = 500;
 
 export default async function PointsPage({
   searchParams,
@@ -40,6 +39,9 @@ export default async function PointsPage({
   const periodData = await getAcademicPeriodData();
   const periodSelection = resolveAcademicPeriod(params.period, periodData);
   const selectedPeriod = periodSelection.period;
+  const periodQuery = Array.isArray(params.period)
+    ? params.period[0]
+    : params.period;
   const view = resolvePointsView(params);
   const parsedFilters = pointHistoryFiltersSchema.safeParse(params);
   const filters = parsedFilters.success
@@ -52,7 +54,6 @@ export default async function PointsPage({
     event: eventId,
     from: fromDate,
     to: toDate,
-    page: requestedPage,
     dateRangeIsReversed,
   } = filters;
   const status = resolvePointHistoryStatus(filters.status, admin);
@@ -94,8 +95,7 @@ export default async function PointsPage({
 
   const currentFilterSearch = new URLSearchParams();
   currentFilterSearch.set("view", "history");
-  if (params.period !== undefined)
-    currentFilterSearch.set("period", String(params.period));
+  if (periodQuery) currentFilterSearch.set("period", periodQuery);
   if (search) currentFilterSearch.set("q", search);
   if (awardType) currentFilterSearch.set("type", awardType);
   if (officerId !== undefined)
@@ -105,8 +105,47 @@ export default async function PointsPage({
   if (fromDate) currentFilterSearch.set("from", fromDate);
   if (toDate) currentFilterSearch.set("to", toDate);
 
-  const overviewData = view === "overview" ? await loadOverviewData() : null;
-  const historyData = view === "history" ? await loadHistoryData() : null;
+  const canAddAdjustment =
+    admin &&
+    !periodSelection.isHistorical &&
+    (selectedPeriod === null ||
+      selectedPeriod.id === periodData.currentPeriodId);
+  const [overviewData, historyData, historyAdjustmentContext] =
+    await Promise.all([
+      view === "overview" ? loadOverviewData() : Promise.resolve(null),
+      view === "history" ? loadHistoryData() : Promise.resolve(null),
+      view === "history" && canAddAdjustment
+        ? loadAdjustmentContext()
+        : Promise.resolve(null),
+    ]);
+
+  async function loadAdjustmentContext() {
+    const [activeOfficers, recentEvents, recentTasks] = await Promise.all([
+      supabase
+        .from("officers")
+        .select("id,name")
+        .eq("status", "active")
+        .order("name"),
+      supabase
+        .from("events")
+        .select("id,name,event_date")
+        .is("deleted_at", null)
+        .order("event_date", { ascending: false })
+        .limit(5),
+      supabase
+        .from("tasks")
+        .select("id,title,due_date")
+        .is("removed_at", null)
+        .order("due_date", { ascending: false }),
+    ]);
+    if (activeOfficers.error || recentEvents.error || recentTasks.error)
+      throw new Error("Failed to load adjustment options");
+    return {
+      officers: activeOfficers.data ?? [],
+      events: recentEvents.data ?? [],
+      tasks: recentTasks.data ?? [],
+    };
+  }
 
   async function loadOverviewData() {
     const [activeOfficers, recentEvents, recentTasks, periodPoints] =
@@ -174,36 +213,23 @@ export default async function PointsPage({
       recentEvents,
       recentTasks,
       totals: { data: ranking, count: ranking.length },
-      rankingTotalPages: 1,
-      rankPage: 1,
     };
   }
 
   async function loadHistoryData() {
-    const [historyCount, visibleHistoryCount] = await Promise.all([
-      buildPointHistoryQuery(true, true),
-      buildPointHistoryQuery(false, true),
-    ]);
-    if (historyCount.error || visibleHistoryCount.error)
-      throw new Error("Failed to load points");
-
-    const totalPages = Math.max(
-      1,
-      Math.ceil((historyCount.count ?? 0) / POINT_HISTORY_PAGE_SIZE),
-    );
-    const page = Math.min(requestedPage, totalPages);
-    if (page !== requestedPage)
-      redirect(listPageUrl("/points", currentFilterSearch, page));
+    const visibleHistoryCount = await buildPointHistoryQuery(false, true);
+    if (visibleHistoryCount.error) throw new Error("Failed to load points");
 
     const transactions = await buildPointHistoryQuery(true)
       .order("activity_date", { ascending: false })
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
-      .range(
-        (page - 1) * POINT_HISTORY_PAGE_SIZE,
-        page * POINT_HISTORY_PAGE_SIZE - 1,
-      );
+      .limit(HISTORY_ROW_LIMIT + 1);
     if (transactions.error) throw new Error("Failed to load points");
+
+    const rawRows = transactions.data ?? [];
+    const truncated = rawRows.length > HISTORY_ROW_LIMIT;
+    const rows = truncated ? rawRows.slice(0, HISTORY_ROW_LIMIT) : rawRows;
 
     const emptyMessage =
       (visibleHistoryCount.count ?? 0) > 0
@@ -215,16 +241,22 @@ export default async function PointsPage({
             : "No point transactions yet.";
 
     return {
-      historyCount,
-      totalPages,
-      page,
-      transactions,
+      rows,
+      truncated,
       emptyMessage,
     };
   }
 
+  const myRankingIndex = overviewData
+    ? overviewData.totals.data.findIndex((row) => row.id === actor.id)
+    : -1;
+  const myRankingRow =
+    overviewData && myRankingIndex >= 0
+      ? overviewData.totals.data[myRankingIndex]
+      : null;
+
   const officerTotals = overviewData ? (
-    <section aria-label="Officer ranking">
+    <section aria-label="Officer ranking" className="space-y-3">
       <SectionHeading
         title="Officer ranking"
         description={
@@ -232,69 +264,30 @@ export default async function PointsPage({
             ? `${overviewData.totals.count ?? 0} active officer${overviewData.totals.count === 1 ? "" : "s"} · ${selectedPeriod.name}`
             : "Select an academic period to see ranked points."
         }
+        action={
+          myRankingRow ? (
+            <a
+              href="#my-rank"
+              className="inline-flex items-center gap-2 rounded-md border border-brand-border bg-brand-bg px-3 py-1.5 text-xs font-medium text-foreground hover:opacity-90"
+            >
+              <span className="text-muted">Your rank</span>
+              <strong className="tabular-nums text-brand">
+                #{myRankingIndex + 1}
+              </strong>
+              <span aria-hidden="true" className="text-muted">
+                ·
+              </span>
+              <PointValue value={myRankingRow.total_points ?? 0} />
+            </a>
+          ) : undefined
+        }
       />
       {selectedPeriod && overviewData.totals.data.length > 0 ? (
-        <div className="points-ranking-wrap">
-          <TableFrame label="Officer ranking" compact>
-            <table className="points-ranking-table">
-              <colgroup>
-                <col className="w-12" />
-                <col />
-                <col className="w-44" />
-                <col className="w-44" />
-                <col className="w-44" />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th scope="col">Rank</th>
-                  <th scope="col">Officer</th>
-                  <th scope="col" className="text-right">
-                    Normal Points
-                  </th>
-                  <th scope="col" className="text-right">
-                    Negative Points
-                  </th>
-                  <th scope="col" className="text-right">
-                    Overall Points
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {overviewData.totals.data.map((officer, index) => {
-                  const points = officer.total_points ?? 0;
-                  return (
-                    <tr key={officer.id}>
-                      <td>
-                        <span className="tabular-nums text-muted">
-                          {index + 1}
-                        </span>
-                      </td>
-                      <td>
-                        <Link
-                          className="points-officer-link"
-                          href={`/officers/${officer.id}${params.period ? `?period=${params.period}` : ""}`}
-                        >
-                          {officer.name}
-                        </Link>
-                      </td>
-                      <td className="points-total text-right">
-                        <PointValue value={officer.normal_points ?? 0} />
-                      </td>
-                      <td className="points-total text-right text-red-700">
-                        <NegativePointValue
-                          value={officer.negative_points ?? 0}
-                        />
-                      </td>
-                      <td className="points-total text-right">
-                        <PointValue value={points} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </TableFrame>
-        </div>
+        <PointsRankingTableClient
+          rows={overviewData.totals.data}
+          actorId={actor.id}
+          periodQuery={periodQuery}
+        />
       ) : (
         <p className="points-ranking-empty" role="status">
           {selectedPeriod
@@ -305,14 +298,7 @@ export default async function PointsPage({
     </section>
   ) : null;
 
-  function rankingPageUrl(targetPage: number): Route<"/points"> {
-    const search = new URLSearchParams();
-    if (params.period !== undefined)
-      search.set("period", String(params.period));
-    if (targetPage > 1) search.set("rankPage", String(targetPage));
-    const query = search.toString();
-    return (query ? `/points?${query}` : "/points") as Route<"/points">;
-  }
+  const historyReturnTo = `/points?${currentFilterSearch.toString()}` as Route;
 
   return (
     <div data-page-width="wide" data-nav-page="points" className="space-y-6">
@@ -320,69 +306,97 @@ export default async function PointsPage({
         title="Points"
         description="Event participation earns 2 Points per hour for Volunteers and 1 for Attendees."
         action={
-          view === "overview" &&
-          admin &&
-          !periodSelection.isHistorical &&
-          (selectedPeriod === null ||
-            selectedPeriod.id === periodData.currentPeriodId) ? (
+          canAddAdjustment && view === "overview" ? (
             <TransactionForm
               officers={overviewData!.activeOfficers.data}
               events={overviewData!.recentEvents!.data}
               tasks={overviewData!.recentTasks!.data}
             />
+          ) : canAddAdjustment && historyAdjustmentContext ? (
+            <TransactionForm
+              officers={historyAdjustmentContext.officers}
+              events={historyAdjustmentContext.events}
+              tasks={historyAdjustmentContext.tasks}
+            />
           ) : undefined
         }
       />
-      <nav
-        aria-label="Points views"
-        className="points-view-tabs flex gap-5 border-b border-border"
-      >
-        <Link
-          href={rankingPageUrl(1)}
-          aria-current={view === "overview" ? "page" : undefined}
-          className={`border-b-2 px-1 pb-2 text-sm font-medium ${view === "overview" ? "border-brand text-brand" : "border-transparent text-secondary hover:text-foreground"}`}
-        >
-          Overview
-        </Link>
-        <Link
-          href={
-            `/points?${new URLSearchParams({ ...(params.period === undefined ? {} : { period: String(params.period) }), view: "history" })}` as Route
-          }
-          aria-current={view === "history" ? "page" : undefined}
-          className={`border-b-2 px-1 pb-2 text-sm font-medium ${view === "history" ? "border-brand text-brand" : "border-transparent text-secondary hover:text-foreground"}`}
-        >
-          History
-        </Link>
-      </nav>
-      {view === "overview" && admin && periodSelection.isHistorical && (
-        <p className="points-readonly-note">
-          This academic period is read-only.
-        </p>
-      )}
+      <ViewTabs
+        label="Points views"
+        className="points-view-tabs border-b border-border"
+        items={[
+          {
+            key: "overview",
+            label: "Overview",
+            href: withPeriodParam("/points", periodQuery),
+            active: view === "overview",
+          },
+          {
+            key: "history",
+            label: "History",
+            href: withPeriodParam("/points?view=history", periodQuery),
+            active: view === "history",
+          },
+        ]}
+      />
       {view === "overview" ? (
         <div>{officerTotals}</div>
       ) : (
         <section className="min-w-0 space-y-4">
           <SectionHeading
             title="Point history"
-            description="Search by Officer, reason, Event, or Task. Filter by award type and, for Admins, history status."
+            description="Search by Officer, reason, Event, or Task. Filter by award type, date range, and history status."
           />
           <PointHistoryFilterControls
             isAdmin={admin}
             status={status}
             searchQuery={search}
             awardType={awardType}
+            fromDate={fromDate}
+            toDate={toDate}
+            dateRangeIsReversed={dateRangeIsReversed}
             hasActiveFilters={currentFilterSearch.size > 1}
             period={params.period}
           />
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-muted">
+            <span className="tabular-nums">
+              {historyData!.rows.length}
+              {historyData!.truncated ? "+" : ""}{" "}
+              {historyData!.rows.length === 1 ? "transaction" : "transactions"}
+            </span>
+            {historyData!.rows.length > 0 && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>
+                  Filtered net:{" "}
+                  <PointValue
+                    value={
+                      Math.round(
+                        historyData!.rows.reduce(
+                          (sum, row) => sum + Number(row.points ?? 0),
+                          0,
+                        ) * 100,
+                      ) / 100
+                    }
+                  />{" "}
+                  pts
+                </span>
+              </>
+            )}
+            {historyData!.truncated && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>
+                  Showing latest {HISTORY_ROW_LIMIT}. Narrow filters to view
+                  older entries.
+                </span>
+              </>
+            )}
+          </div>
           <TableFrame compact label="Point history">
             <HistoryTable
-              returnTo={listPageUrl(
-                "/points",
-                currentFilterSearch,
-                historyData!.page,
-              )}
-              transactions={historyData!.transactions.data}
+              returnTo={historyReturnTo}
+              transactions={historyData!.rows}
               isAdmin={admin}
               canMutate={
                 admin &&
@@ -393,15 +407,6 @@ export default async function PointsPage({
               emptyMessage={historyData!.emptyMessage}
             />
           </TableFrame>
-          <ListPagination
-            pathname="/points"
-            label="Point history"
-            filters={currentFilterSearch}
-            page={historyData!.page}
-            totalPages={historyData!.totalPages}
-            totalCount={historyData!.historyCount.count ?? 0}
-            countLabel="transactions"
-          />
         </section>
       )}
     </div>

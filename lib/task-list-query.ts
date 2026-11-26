@@ -2,9 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { searchOrFilter } from "@/lib/list-search";
 import type { Database } from "@/lib/database.types";
 
-export const TASKS_PER_PAGE = 8;
-
-export type TaskWorkflowStatus = "open" | "in_progress" | "complete";
+export type TaskWorkflowStatus =
+  "open" | "in_progress" | "needs_approval" | "complete";
 export type TaskListSort = "urgency" | "newest";
 export type TaskListView = "current" | "past" | "all" | "deleted";
 
@@ -18,7 +17,6 @@ type TaskListQueryOptions = {
   branchScope?: number[];
   assigneeId?: number;
   assignedToOfficerId?: number;
-  page: number;
   dateRange?: { from: string; through: string };
 };
 
@@ -48,7 +46,6 @@ export function buildTaskListQuery(
     branchScope,
     assigneeId,
     assignedToOfficerId,
-    page,
     dateRange,
   }: TaskListQueryOptions,
 ) {
@@ -64,6 +61,8 @@ export function buildTaskListQuery(
       status === "in_progress" ||
       status === "complete") &&
       "incomplete_assignments:task_officer_assignments(task_id,completed_at,completion_approval_pending,removed_at)",
+    status === "needs_approval" &&
+      "pending_approval:task_officer_assignments!inner(task_id,completion_approval_pending,removed_at)",
     assigneeId !== undefined &&
       "assignee_filter:task_officer_assignments!inner(officer_id,removed_at)",
     assignedToOfficerId !== undefined &&
@@ -121,8 +120,7 @@ export function buildTaskListQuery(
       })
       .is("incomplete_assignments.removed_at", null);
 
-  if (view === "deleted" && branchScope?.length)
-    tasksQuery = tasksQuery.in("branch_id", branchScope);
+  if (branchScope?.length) tasksQuery = tasksQuery.in("branch_id", branchScope);
   if (search)
     tasksQuery = tasksQuery.or(
       searchOrFilter(search, ["title", "description"]),
@@ -143,6 +141,10 @@ export function buildTaskListQuery(
       .is("active_assignments", null);
   if (status === "in_progress")
     tasksQuery = tasksQuery.not("incomplete_assignments", "is", null);
+  if (status === "needs_approval")
+    tasksQuery = tasksQuery
+      .eq("pending_approval.completion_approval_pending", true)
+      .is("pending_approval.removed_at", null);
   if (status === "complete")
     tasksQuery = tasksQuery
       .is("active_assignments.removed_at", null)
@@ -163,8 +165,5 @@ export function buildTaskListQuery(
         ascending: view !== "deleted",
       })
       .order("id", { ascending: view !== "deleted" });
-  return tasksQuery.range(
-    (page - 1) * TASKS_PER_PAGE,
-    page * TASKS_PER_PAGE - 1,
-  );
+  return tasksQuery;
 }
