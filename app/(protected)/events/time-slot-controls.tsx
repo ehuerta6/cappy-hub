@@ -1,8 +1,10 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { ActionFeedback, FieldError } from "@/components/ui";
 import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
+import { SearchableOfficerChecklist } from "@/components/officer-checklist-filter";
+import { emitToast } from "@/components/toast-region";
 import { initialFormActionState, submittedValues } from "@/lib/form-feedback";
 import { denverParts } from "@/lib/event-time";
 import type { Tables } from "@/lib/database.types";
@@ -24,6 +26,7 @@ function SingleSelectionAction({
   label,
   disabled = false,
   hint,
+  destructive = false,
 }: {
   eventId: number;
   slotId?: number;
@@ -32,10 +35,14 @@ function SingleSelectionAction({
   label: string;
   disabled?: boolean;
   hint?: string;
+  destructive?: boolean;
 }) {
   const [state, action, pending] = useActionState(changeTimeSlotSignup, {
     ...initialFormActionState,
   });
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
   return (
     <form action={action} className="inline-flex flex-wrap items-center gap-2">
       <AcademicPeriodWriteContextField />
@@ -50,7 +57,7 @@ function SingleSelectionAction({
       {hint && <p className="text-sm text-muted">{hint}</p>}
       <button
         disabled={pending || disabled}
-        className="button-secondary px-3 py-1.5"
+        className={`button-secondary px-3 py-1.5 ${destructive ? "button-danger" : ""}`}
       >
         {pending ? "Saving…" : label}
       </button>
@@ -76,6 +83,9 @@ export function JoinSelectedTimeSlotsForm({
   const [state, action, pending] = useActionState(changeTimeSlotSignup, {
     ...initialFormActionState,
   });
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
   const selected = submittedValues(state.values, "slot_ids");
   const [interactiveSelection, setInteractiveSelection] = useState<
     string[] | null
@@ -216,6 +226,7 @@ export function LeaveTimeSlotForm({
       slotId={slotId}
       mode="leave_selected"
       label={`Leave ${slotName}`}
+      destructive
     />
   );
 }
@@ -233,6 +244,7 @@ export function LeaveAllTimeSlotsForm({
       officerId={officerId}
       mode="leave_all"
       label="Leave all Time Slots"
+      destructive
     />
   );
 }
@@ -256,6 +268,9 @@ export function AssignOfficerToTimeSlotForm({
   const [state, action, pending] = useActionState(changeTimeSlotSignup, {
     ...initialFormActionState,
   });
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
   const selected = state.values?.officer_id?.[0] ?? "";
   return (
     <form action={action} className="flex flex-wrap items-end gap-2">
@@ -318,6 +333,9 @@ export function RemoveOfficerFromTimeSlotForm({
   const [state, action, pending] = useActionState(changeTimeSlotSignup, {
     ...initialFormActionState,
   });
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
   return (
     <form action={action} className="inline-flex items-center gap-2">
       <AcademicPeriodWriteContextField />
@@ -327,7 +345,7 @@ export function RemoveOfficerFromTimeSlotForm({
       <input type="hidden" name="slot_ids" value={slotId} />
       <button
         disabled={pending}
-        className="text-sm underline underline-offset-4"
+        className="button-secondary button-danger !min-h-8 px-2.5 py-1 text-xs"
       >
         {pending ? "Removing…" : `Remove ${officerName}`}
       </button>
@@ -342,7 +360,9 @@ export function BulkAssignOfficersToSlotsForm({
   slots,
 }: {
   eventId: number;
-  officers: Pick<Tables<"officers">, "id" | "name">[];
+  officers: (Pick<Tables<"officers">, "id" | "name"> & {
+    branches?: string[];
+  })[];
   slots: (Pick<
     Tables<"event_time_slots">,
     "id" | "starts_at" | "ends_at" | "capacity"
@@ -352,6 +372,9 @@ export function BulkAssignOfficersToSlotsForm({
     assignBulkOfficersToTimeSlots,
     { ...initialFormActionState },
   );
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
   const selectedOfficers = submittedValues(state.values, "officer_ids");
   const selectedSlots = submittedValues(state.values, "slot_ids");
   const [interactiveSelection, setInteractiveSelection] = useState<
@@ -375,18 +398,13 @@ export function BulkAssignOfficersToSlotsForm({
       <input type="hidden" name="event_id" value={eventId} />
       <fieldset>
         <legend>Select Officers</legend>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {officers.map((officer) => (
-            <label key={officer.id} className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                name="officer_ids"
-                value={officer.id}
-                defaultChecked={selectedOfficers.includes(String(officer.id))}
-              />
-              {officer.name}
-            </label>
-          ))}
+        <div className="mt-2 w-full">
+          <SearchableOfficerChecklist
+            key={state.success || "idle"}
+            officers={officers}
+            initialSelectedIds={selectedOfficers.map(Number)}
+            disabled={pending}
+          />
         </div>
         <FieldError id="bulk-slot-officers-error">
           {state.fieldErrors?.officer_ids}
@@ -489,6 +507,9 @@ export function CorrectHistoricalTimeSlotAssignmentsForm({
     correctHistoricalTimeSlotAssignments,
     { ...initialFormActionState },
   );
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
   const selected = state.values?.slot_ids ?? selectedSlotIds.map(String);
   const fieldError = state.fieldErrors?.slot_ids;
 

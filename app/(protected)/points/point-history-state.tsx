@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
@@ -23,18 +24,43 @@ export function PointHistoryState({
   initialAmounts: { transactionId: number; points: number }[];
   children?: ReactNode;
 }) {
-  const [amounts, setAmounts] = useState(
-    () =>
-      new Map(
-        initialAmounts.map(({ transactionId, points }) => [
-          transactionId,
-          points,
-        ]),
-      ),
+  const serverSignature = initialAmounts
+    .map(({ transactionId, points }) => `${transactionId}:${points}`)
+    .join(",");
+  const [overrideState, setOverrideState] = useState<{
+    signature: string;
+    overrides: Map<number, number>;
+  }>({ signature: serverSignature, overrides: new Map() });
+
+  const amounts = useMemo(() => {
+    const merged = new Map(
+      initialAmounts.map(({ transactionId, points }) => [
+        transactionId,
+        points,
+      ]),
+    );
+    if (overrideState.signature === serverSignature) {
+      for (const [id, value] of overrideState.overrides) {
+        merged.set(id, value);
+      }
+    }
+    return merged;
+  }, [initialAmounts, overrideState, serverSignature]);
+
+  const setAmount = useCallback(
+    (transactionId: number, amount: number) => {
+      setOverrideState((current) => {
+        const base =
+          current.signature === serverSignature
+            ? new Map(current.overrides)
+            : new Map<number, number>();
+        base.set(transactionId, amount);
+        return { signature: serverSignature, overrides: base };
+      });
+    },
+    [serverSignature],
   );
-  const setAmount = useCallback((transactionId: number, amount: number) => {
-    setAmounts((current) => new Map(current).set(transactionId, amount));
-  }, []);
+
   return (
     <PointHistoryContext.Provider value={{ amounts, setAmount }}>
       {children}

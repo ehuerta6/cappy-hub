@@ -44,6 +44,7 @@ export async function createWarning(
     return formFailure(mutationError(error.message), formData, ["reason"]);
   revalidatePath(`/officers/${validatedWarningInput.officer_id}`);
   revalidatePath("/officers");
+  revalidatePath("/", "layout");
   return { error: "", success: "Warning created" };
 }
 
@@ -72,6 +73,7 @@ export async function updateWarning(
     return formFailure(mutationError(error.message), formData, ["reason"]);
   revalidatePath(`/officers/${officerId}`);
   revalidatePath("/officers");
+  revalidatePath("/", "layout");
   return { error: "", success: "Warning updated" };
 }
 
@@ -101,6 +103,7 @@ export async function deleteWarning(
   if (warning.officer_id !== undefined)
     revalidatePath(`/officers/${warning.officer_id}`);
   revalidatePath("/officers");
+  revalidatePath("/", "layout");
   return { error: "", success: "Warning deleted" };
 }
 
@@ -127,5 +130,6 @@ export async function restoreWarning(
   if (result.data.officer_id !== undefined)
     revalidatePath(`/officers/${result.data.officer_id}`);
   revalidatePath("/officers");
+  revalidatePath("/", "layout");
   return { error: "", success: "Warning restored" };
 }

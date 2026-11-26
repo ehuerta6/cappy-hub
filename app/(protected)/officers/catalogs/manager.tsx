@@ -9,6 +9,7 @@ import {
   SectionHeading,
 } from "@/components/ui";
 import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
+import { emitToast } from "@/components/toast-region";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { changeCatalog } from "./actions";
 
@@ -257,6 +258,9 @@ function CatalogForm({
     changeCatalog,
     initialFormActionState,
   );
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
   const fieldErrors = state.fieldErrors ?? {};
   const fieldId = `${catalog}-${operation}-${record?.id ?? "new"}`;
   const errorId = `${fieldId}-error`;
@@ -328,6 +332,7 @@ function CatalogForm({
           confirmLabel={`Delete ${catalogName}`}
           destructive
           pending={pending}
+          triggerClassName="button-secondary button-danger"
           context={{
             label: catalogName,
             fieldName: "name",
@@ -340,7 +345,7 @@ function CatalogForm({
           {pending ? "Restoring…" : "Restore"}
         </button>
       ) : (
-        <button type="submit" disabled={pending} className="button-secondary">
+        <button type="submit" disabled={pending}>
           {pending ? "Adding…" : "Add"}
         </button>
       )}
@@ -360,6 +365,9 @@ function CatalogColorForm({
     changeCatalog,
     initialFormActionState,
   );
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
   const fieldId = `${catalog}-color-${record.id}`;
   return (
     <form action={action} className="catalog-color-form">
@@ -424,6 +432,7 @@ function CatalogRename({
   useEffect(() => {
     if (editing && previousStateRef.current !== state) {
       if (state.success) {
+        emitToast(state.success, "success");
         focusRenameButtonRef.current = true;
         window.setTimeout(() => setEditing(false), 0);
       } else if (state.error) {
@@ -478,7 +487,7 @@ function CatalogRename({
         defaultValue={submittedValue(state.values, "name", record.name)}
         placeholder="Name"
       />
-      <button type="submit" disabled={pending} className="button-secondary">
+      <button type="submit" disabled={pending}>
         {pending ? "Saving…" : "Save"}
       </button>
       <button
@@ -511,12 +520,37 @@ export default function CatalogManager({
   showCreate?: boolean;
   readOnly?: boolean;
 }) {
+  const [filterQuery, setFilterQuery] = useState("");
+  const normalizedQuery = filterQuery.trim().toLowerCase();
+  const visibleRecords = normalizedQuery
+    ? records.filter((record) =>
+        record.name.toLowerCase().includes(normalizedQuery),
+      )
+    : records;
+
   return (
     <section className="catalog-manager space-y-3">
       <SectionHeading title={title} id="catalog-category-heading" />
       {showCreate && !readOnly && (
         <CatalogForm catalog={catalog} operation="create" />
       )}
+      {records.length > 6 && (
+        <div className="max-w-sm">
+          <input
+            type="search"
+            value={filterQuery}
+            onChange={(event) => setFilterQuery(event.currentTarget.value)}
+            placeholder={`Filter ${title.toLowerCase()}…`}
+            aria-label={`Filter ${title.toLowerCase()}`}
+            className="text-sm"
+          />
+        </div>
+      )}
+      {visibleRecords.length === 0 && normalizedQuery ? (
+        <p className="text-sm text-muted">
+          No {title.toLowerCase()} match “{filterQuery.trim()}”.
+        </p>
+      ) : null}
       <ul
         className={
           catalog === "position"
@@ -524,7 +558,7 @@ export default function CatalogManager({
             : "catalog-record-list"
         }
       >
-        {records.map((record) => {
+        {visibleRecords.map((record) => {
           const required = catalog === "position" && record.code != null;
           const deleted =
             record.is_active === false ||

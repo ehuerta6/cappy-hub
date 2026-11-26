@@ -2,27 +2,35 @@ import "server-only";
 import type { AuthorizationContext } from "@/lib/authorization";
 import type { Tables } from "@/lib/database.types";
 import type { createClient } from "@/lib/supabase/server";
+import { currentDenverWeek } from "@/lib/current-denver-week";
+import { enrichOfficerNotifications } from "@/lib/notification-enrichment";
 import { DASHBOARD_PREVIEW_LIMIT } from "./dashboard-limits";
 
 // One extra row per source detects overflow without loading the full list.
 const queryLimit = DASHBOARD_PREVIEW_LIMIT + 1;
 const taskSelection =
-  "id,title,due_date,due_time,task_officer_assignments!inner(officer_id,completed_at)";
+  "id,title,due_date,due_time,task_officer_assignments!inner(officer_id,completed_at,completion_approval_pending)";
 
 type ActionTask = Pick<
   Tables<"tasks">,
   "id" | "title" | "due_date" | "due_time"
 > & {
-  task_officer_assignments: Pick<
+  task_officer_assignments: (Pick<
     Tables<"task_officer_assignments">,
     "officer_id" | "completed_at"
-  >[];
+  > & {
+    completion_approval_pending?: boolean | null;
+  })[];
 };
 export type ActionItem = {
   key: string;
+  kind: "event" | "task" | "warning";
   title: string;
+  detail?: string;
   href: string;
   status: string;
+  taskId?: number;
+  pendingApproval?: boolean;
   dueDate?: string;
   dueTime?: string | null;
   reminder?: string;
@@ -43,7 +51,9 @@ type ActionEvent = Pick<
 type ActionNotification = Pick<
   Tables<"notifications">,
   "id" | "title" | "kind" | "entity_type" | "entity_id" | "href" | "created_at"
->;
+> & {
+  message?: string | null;
+};
 
 export function dashboardActionItems(
   actor: AuthorizationContext,
@@ -51,17 +61,31 @@ export function dashboardActionItems(
   upcomingEvents: ActionEvent[] = [],
   attentionNotifications: ActionNotification[] = [],
 ) {
+  const { today } = currentDenverWeek(new Date());
   const byDueDate = (a: ActionTask, b: ActionTask) =>
     a.due_date.localeCompare(b.due_date) || a.id - b.id;
-  const taskItem = (task: ActionTask): ActionItem => ({
-    key: `task-${task.id}`,
-    title: task.title,
-    href: `/tasks/${task.id}`,
-    status: "Not completed",
-    dueDate: task.due_date,
-    dueTime: task.due_time,
-    sortAt: `${task.due_date}T00:00:00Z`,
-  });
+  const taskItem = (task: ActionTask): ActionItem => {
+    const own = task.task_officer_assignments.find(
+      (assignment) => assignment.officer_id === actor.id,
+    );
+    const pendingApproval = Boolean(own?.completion_approval_pending);
+    return {
+      key: `task-${task.id}`,
+      kind: "task",
+      title: task.title,
+      href: `/tasks/${task.id}`,
+      status: pendingApproval
+        ? "Awaiting approval"
+        : task.due_date < today
+          ? "Overdue"
+          : "Not completed",
+      taskId: task.id,
+      pendingApproval,
+      dueDate: task.due_date,
+      dueTime: task.due_time,
+      sortAt: `${task.due_date}T00:00:00Z`,
+    };
+  };
   const pendingTasks = personalTasks
     .filter((task) =>
       task.task_officer_assignments.some(
@@ -97,6 +121,7 @@ export function dashboardActionItems(
     const eventReminders = reminders.get(key) ?? [];
     merged.set(key, {
       key,
+      kind: "event",
       title: notices[0]?.title ?? event.name,
       href: `/events/${event.id}`,
       status: notices.length
@@ -115,7 +140,12 @@ export function dashboardActionItems(
     const notices = importantByEntity.get(`task:${id}`) ?? [];
     const taskReminders = reminders.get(`task:${id}`) ?? [];
     if (notices.length) task.status = "Needs review";
-    else if (taskReminders.length) task.status = "Reminder due";
+    else if (
+      taskReminders.length &&
+      task.status !== "Overdue" &&
+      task.status !== "Awaiting approval"
+    )
+      task.status = "Reminder due";
     if (taskReminders.length) task.reminder = "Reminder due";
   }
   for (const [entityKey, notices] of importantByEntity) {
@@ -129,7 +159,9 @@ export function dashboardActionItems(
     )[0];
     merged.set(`notification:${entityKey}`, {
       key: `notification-${entityKey}`,
+      kind: entityKey.startsWith("event:") ? "event" : "task",
       title: notification.title,
+      detail: notification.message || undefined,
       href: notification.href,
       status: "Needs review",
       sortAt: notification.created_at,
@@ -139,7 +171,9 @@ export function dashboardActionItems(
     if (notification.kind !== "warning.threshold") continue;
     merged.set(`notification:${notification.id}`, {
       key: `notification-${notification.id}`,
+      kind: "warning",
       title: notification.title,
+      detail: notification.message || undefined,
       href: notification.href,
       status: "Needs review",
       sortAt: notification.created_at,
@@ -167,39 +201,44 @@ export async function loadDashboardActionItems(
       .order("due_date")
       .order("id")
       .limit(queryLimit);
-  const assigned = await taskQuery()
-    .eq("task_officer_assignments.officer_id", actor.id)
-    .is("task_officer_assignments.completed_at", null);
+  const [assigned, eventResult, notificationsResult] = await Promise.all([
+    taskQuery()
+      .eq("task_officer_assignments.officer_id", actor.id)
+      .is("task_officer_assignments.completed_at", null),
+    supabase
+      .from("events")
+      .select(
+        "id,name,event_date,starts_at,event_officers!inner(officer_id,removed_at)",
+      )
+      .eq("event_officers.officer_id", actor.id)
+      .is("event_officers.removed_at", null)
+      .gt("starts_at", new Date().toISOString())
+      .is("deleted_at", null)
+      .neq("status", "cancelled")
+      .order("starts_at")
+      .order("id"),
+    supabase
+      .from("notifications")
+      .select("id,title,message,kind,entity_type,entity_id,href,created_at")
+      .eq("priority", "important")
+      .is("reviewed_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1000),
+  ]);
   const tasksUnavailable = assigned.error !== null || assigned.data === null;
-  const eventResult = await supabase
-    .from("events")
-    .select(
-      "id,name,event_date,starts_at,event_officers!inner(officer_id,removed_at)",
-    )
-    .eq("event_officers.officer_id", actor.id)
-    .is("event_officers.removed_at", null)
-    .gt("starts_at", new Date().toISOString())
-    .is("deleted_at", null)
-    .neq("status", "cancelled")
-    .order("starts_at")
-    .order("id");
   const eventsUnavailable =
     eventResult.error !== null || eventResult.data === null;
-  const notificationsResult = await supabase
-    .from("notifications")
-    .select("id,title,kind,entity_type,entity_id,href,created_at")
-    .eq("priority", "important")
-    .is("reviewed_at", null)
-    .order("created_at", { ascending: false })
-    .limit(1000);
   const notificationsUnavailable =
     notificationsResult.error !== null || notificationsResult.data === null;
+  const enrichedNotifications = notificationsUnavailable
+    ? []
+    : await enrichOfficerNotifications(supabase, notificationsResult.data);
   return {
     ...dashboardActionItems(
       actor,
       tasksUnavailable ? [] : assigned.data,
       eventsUnavailable ? [] : eventResult.data,
-      notificationsUnavailable ? [] : notificationsResult.data,
+      enrichedNotifications,
     ),
     unavailableSources: {
       tasks: tasksUnavailable,

@@ -5,16 +5,22 @@ import {
   type NavigationSearchParams,
 } from "@/lib/return-context";
 import ContextualBackLink from "@/components/contextual-back-link";
-import { ListPagination } from "@/components/list-pagination";
+import { CopyCanonicalLinkButton } from "@/components/copy-button";
+import EventRosterTableClient from "../event-roster-client";
 import {
   getAuthorizationContext,
   canEditEvent,
   canManageEvent,
+  canSeeAllBranches,
+  isLead,
 } from "@/lib/authorization";
-import PointTransactionTable from "@/components/point-transaction-table";
+import {
+  EventLinkedTasksSection,
+  EventPointHistorySection,
+} from "./event-detail-sections";
 import Link from "next/link";
 import type { Route } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
   getAcademicPeriodData,
@@ -56,23 +62,7 @@ import {
   SectionHeading,
   StatusBadge,
   SuccessNotice,
-  TableFrame,
 } from "@/components/ui";
-
-const RELATED_PAGE_SIZE = 6;
-type EventSection = "overview" | "roster" | "tasks" | "points";
-
-function requestedSection(value: string | string[] | undefined): EventSection {
-  return value === "roster" || value === "tasks" || value === "points"
-    ? value
-    : "overview";
-}
-
-function requestedPage(value: string | string[] | undefined) {
-  if (typeof value !== "string" || !/^\d+$/.test(value)) return 1;
-  const page = Number(value);
-  return Number.isSafeInteger(page) && page > 0 ? page : 1;
-}
 
 function recurrenceSummary(rule: string) {
   const recurrence = recurrenceFromRule(rule);
@@ -101,98 +91,6 @@ function recurrenceSummary(rule: string) {
   return `${repeat}${end}`;
 }
 
-function sectionHref(
-  eventId: string,
-  section: EventSection,
-  page: number,
-  returnTo: unknown,
-) {
-  const params = new URLSearchParams();
-  if (section !== "overview") params.set("section", section);
-  if (page > 1) params.set("page", String(page));
-  const safeDestination = safeReturnTo(returnTo);
-  if (safeDestination) {
-    params.set("returnTo", safeDestination);
-    const period = new URL(
-      safeDestination,
-      "https://cappy.invalid",
-    ).searchParams.get("period");
-    if (period !== null) params.set("period", period);
-  }
-  const query = params.toString();
-  return `/events/${eventId}${query ? `?${query}` : ""}` as Route;
-}
-
-function EventSectionNavigation({
-  eventId,
-  section,
-  returnTo,
-  counts,
-}: {
-  eventId: string;
-  section: EventSection;
-  returnTo: unknown;
-  counts: { roster: number; tasks: number; points: number };
-}) {
-  const sections: { id: EventSection; label: string; count?: number }[] = [
-    { id: "overview", label: "Overview" },
-    { id: "roster", label: "Roster", count: counts.roster },
-    ...(counts.tasks > 0
-      ? [{ id: "tasks" as const, label: "Linked Tasks", count: counts.tasks }]
-      : []),
-    { id: "points", label: "Points", count: counts.points },
-  ];
-
-  return (
-    <nav
-      aria-label="Event sections"
-      className="flex flex-wrap gap-x-5 gap-y-1 border-b border-border text-sm"
-    >
-      {sections.map((item) => (
-        <Link
-          key={item.id}
-          href={sectionHref(eventId, item.id, 1, returnTo)}
-          aria-current={section === item.id ? "page" : undefined}
-          className={`min-h-10 border-b-2 py-2 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${section === item.id ? "border-brand font-semibold text-brand" : "border-transparent text-muted"}`}
-        >
-          {item.label}
-          {item.count === undefined ? "" : ` (${item.count})`}
-        </Link>
-      ))}
-    </nav>
-  );
-}
-
-function EventSectionPagination({
-  eventId,
-  section,
-  page,
-  totalPages,
-  returnTo,
-}: {
-  eventId: string;
-  section: Exclude<EventSection, "overview">;
-  page: number;
-  totalPages: number;
-  returnTo: unknown;
-}) {
-  if (totalPages <= 1) return null;
-  const filters = new URLSearchParams();
-  filters.set("section", section);
-  const safeDestination = safeReturnTo(returnTo);
-  if (safeDestination) filters.set("returnTo", safeDestination);
-  return (
-    <ListPagination
-      pathname={`/events/${eventId}` as Route}
-      label={`${section} list`}
-      filters={filters}
-      page={page}
-      totalPages={totalPages}
-      getPageHref={(target) => sectionHref(eventId, section, target, returnTo)}
-    />
-  );
-}
-
 export default async function EventDetailPage({
   params,
   searchParams,
@@ -202,16 +100,18 @@ export default async function EventDetailPage({
 }) {
   const query = (await searchParams) ?? {};
   const { returnTo, feedback } = query;
-  const periodData = await getAcademicPeriodData();
+  const [periodData, actor, supabase, { id: eventIdParam }] = await Promise.all(
+    [
+      getAcademicPeriodData(),
+      getAuthorizationContext(),
+      createClient(),
+      params,
+    ],
+  );
   const periodSelection = resolveAcademicPeriod(query.period, periodData);
   const selectedPeriod = periodSelection.period;
   const contextualReturnTo =
     safeReturnTo(returnTo) ?? listReturnUrl("/events", query);
-  const section = requestedSection(query.section);
-  const requested = requestedPage(query.page);
-  const actor = await getAuthorizationContext();
-  const supabase = await createClient();
-  const { id: eventIdParam } = await params;
   if (!/^-?[1-9]\d*$/.test(eventIdParam)) notFound();
   const eventId = Number(eventIdParam);
   const result = await supabase
@@ -239,41 +139,44 @@ export default async function EventDetailPage({
   const canEdit = !periodSelection.isHistorical && canEditEvent(actor);
   const canManageCurrentRoster = canManage || (canEdit && !past);
   if (event.deleted_at && !canManage) notFound();
-  const calendarSyncFailure = canManage
-    ? await supabase
-        .from("event_calendar_sync_failures")
-        .select("failed_at")
-        .eq("event_id", event.id)
-        .maybeSingle()
-    : null;
-  if (calendarSyncFailure?.error)
-    throw new Error("Failed to load Calendar sync status");
-  const hasCalendarSyncFailure = Boolean(calendarSyncFailure?.data);
-  const eventPointsCountQuery = supabase
+
+  const canAddOfficers =
+    canManageCurrentRoster && !event.deleted_at && (signupOpen || past);
+  const canCorrectTimeSlots =
+    (canManage || (canEdit && !past)) &&
+    !event.deleted_at &&
+    event.status !== "cancelled";
+  const showTimeSlots = !isSessionEventType(event.event_types.name);
+
+  const eventPointsQuery = supabase
     .from("point_transactions")
-    .select("id", { count: "exact", head: true })
+    .select(
+      "*,officers!point_transactions_officer_id_fkey(id,name),events(id,name),tasks(id,title)",
+    )
     .eq("event_id", event.id);
-  if (!event.delete_points_suspended)
-    eventPointsCountQuery.is("removed_at", null);
+  if (!event.delete_points_suspended) eventPointsQuery.is("removed_at", null);
+
   const [
-    rosterCountResult,
-    taskCountResult,
-    pointCountResult,
+    calendarSyncFailure,
     personalRosterResult,
     activeOfficerResult,
     series,
     resourceLinksResult,
+    candidateOfficersResult,
+    presenterSlotsResult,
+    timeSlotOfficerCandidatesResult,
+    timeSlotsResult,
+    rosterResult,
+    tasksResult,
+    transactionsResult,
   ] = await Promise.all([
-    supabase
-      .from("event_officers")
-      .select("officer_id", { count: "exact", head: true })
-      .eq("event_id", event.id)
-      .is("removed_at", null),
-    supabase
-      .from("task_events")
-      .select("task_id", { count: "exact", head: true })
-      .eq("event_id", event.id),
-    eventPointsCountQuery,
+    canManage
+      ? supabase
+          .from("event_calendar_sync_failures")
+          .select("failed_at")
+          .eq("event_id", event.id)
+          .maybeSingle()
+      : Promise.resolve(null),
     supabase
       .from("event_officers")
       .select("officer_id,participation_type", { count: "exact" })
@@ -298,72 +201,11 @@ export default async function EventDetailPage({
       .eq("event_id", event.id)
       .order("sort_order")
       .order("id"),
-  ]);
-  if (
-    rosterCountResult.error ||
-    taskCountResult.error ||
-    pointCountResult.error ||
-    personalRosterResult.error ||
-    activeOfficerResult.error
-  )
-    throw new Error("Failed to load event participation counts");
-  if (series?.error) throw new Error("Failed to load recurring series");
-  if (resourceLinksResult.error)
-    throw new Error("Failed to load Event resource links");
-
-  const confirmedCount = rosterCountResult.count ?? 0;
-  const taskCount = taskCountResult.count ?? 0;
-  const pointCount = pointCountResult.count ?? 0;
-  const confirmed = (personalRosterResult.count ?? 0) > 0;
-  const personalParticipationType =
-    personalRosterResult.data?.[0]?.participation_type ?? "volunteer";
-  const eligibleForSelfSignup = (activeOfficerResult.count ?? 0) > 0;
-  const full =
-    event.max_volunteers !== null && confirmedCount >= event.max_volunteers;
-  const personalSignup = personalSignupState({
-    open: signupOpen,
-    confirmed,
-    eligible: eligibleForSelfSignup,
-    full,
-  });
-  const sectionCount =
-    section === "roster"
-      ? confirmedCount
-      : section === "tasks"
-        ? taskCount
-        : pointCount;
-  const totalPages = Math.max(1, Math.ceil(sectionCount / RELATED_PAGE_SIZE));
-  const page = Math.min(requested, totalPages);
-  const canonicalPage = page > 1 ? String(page) : undefined;
-  if (query.page !== canonicalPage) {
-    redirect(sectionHref(eventIdParam, section, page, contextualReturnTo));
-  }
-  const start = (page - 1) * RELATED_PAGE_SIZE;
-
-  const canAddOfficers =
-    canManageCurrentRoster && !event.deleted_at && (signupOpen || past);
-  const canCorrectTimeSlots =
-    (canManage || (canEdit && !past)) &&
-    !event.deleted_at &&
-    event.status !== "cancelled";
-  const showPresenters = section === "overview";
-  const showTimeSlots =
-    (section === "overview" || section === "roster") &&
-    !isSessionEventType(event.event_types.name);
-  const [
-    candidateOfficersResult,
-    presenterSlotsResult,
-    timeSlotOfficerCandidatesResult,
-    timeSlotsResult,
-    rosterResult,
-    tasksResult,
-    transactionsResult,
-  ] = await Promise.all([
     canAddOfficers
       ? supabase
           .from("officers")
           .select(
-            "id,name,event_officers!event_officers_officer_id_fkey(event_id)",
+            "id,name,officer_branches(branches(name)),event_officers!event_officers_officer_id_fkey(event_id)",
           )
           .eq("status", "active")
           .eq("event_officers.event_id", event.id)
@@ -371,15 +213,13 @@ export default async function EventDetailPage({
           .is("event_officers", null)
           .order("name")
       : Promise.resolve(undefined),
-    showPresenters
-      ? supabase
-          .from("presentation_slots")
-          .select(
-            "id,position,officer_id,presentation_title,difficulty,resource_url,prep_notes,officers!presentation_slots_officer_id_fkey(id,name)",
-          )
-          .eq("event_id", event.id)
-          .order("position")
-      : Promise.resolve(undefined),
+    supabase
+      .from("presentation_slots")
+      .select(
+        "id,position,officer_id,presentation_title,difficulty,resource_url,prep_notes,officers!presentation_slots_officer_id_fkey(id,name)",
+      )
+      .eq("event_id", event.id)
+      .order("position"),
     canManageCurrentRoster && showTimeSlots
       ? supabase
           .from("officers")
@@ -396,65 +236,85 @@ export default async function EventDetailPage({
           .eq("event_id", event.id)
           .order("starts_at")
       : Promise.resolve(undefined),
-    section === "overview"
-      ? supabase
-          .from("event_officers")
-          .select(
-            "officer_id,participation_type,officers!event_officers_officer_id_fkey(id,name)",
-          )
-          .eq("event_id", event.id)
-          .is("removed_at", null)
-          .order("officers(name)")
-          .order("officer_id")
-          .range(0, 2)
-      : section === "roster"
-        ? supabase
-            .from("event_officers")
-            .select(
-              "officer_id,participation_type,officers!event_officers_officer_id_fkey(id,name)",
-            )
-            .eq("event_id", event.id)
-            .is("removed_at", null)
-            .order("officers(name)")
-            .order("officer_id")
-            .range(start, start + RELATED_PAGE_SIZE - 1)
-        : Promise.resolve(undefined),
-    section === "tasks"
-      ? supabase
-          .from("task_events")
-          .select("task_id,tasks!task_events_task_id_fkey(id,title,removed_at)")
-          .eq("event_id", event.id)
-          .order("tasks(title)")
-          .order("task_id")
-          .range(start, start + RELATED_PAGE_SIZE - 1)
-      : Promise.resolve(undefined),
-    section === "points"
-      ? (() => {
-          const query = supabase
-            .from("point_transactions")
-            .select(
-              "*,officers!point_transactions_officer_id_fkey(id,name),events(id,name),tasks(id,title)",
-            )
-            .eq("event_id", event.id);
-          if (!event.delete_points_suspended) query.is("removed_at", null);
-          return query
-            .order("created_at", { ascending: false })
-            .order("id", { ascending: false })
-            .range(start, start + RELATED_PAGE_SIZE - 1);
-        })()
-      : Promise.resolve(undefined),
+    supabase
+      .from("event_officers")
+      .select(
+        "officer_id,participation_type,officers!event_officers_officer_id_fkey(id,name,utep_email,personal_email)",
+      )
+      .eq("event_id", event.id)
+      .is("removed_at", null)
+      .order("officers(name)")
+      .order("officer_id"),
+    supabase
+      .from("task_events")
+      .select("task_id,tasks!task_events_task_id_fkey(id,title,removed_at)")
+      .eq("event_id", event.id)
+      .order("tasks(title)")
+      .order("task_id"),
+    eventPointsQuery
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false }),
   ]);
+
+  if (calendarSyncFailure?.error)
+    throw new Error("Failed to load Calendar sync status");
+  if (personalRosterResult.error || activeOfficerResult.error)
+    throw new Error("Failed to load event participation");
+  if (series?.error) throw new Error("Failed to load recurring series");
+  if (resourceLinksResult.error)
+    throw new Error("Failed to load Event resource links");
   if (
     candidateOfficersResult?.error ||
-    presenterSlotsResult?.error ||
+    presenterSlotsResult.error ||
     timeSlotOfficerCandidatesResult?.error ||
     timeSlotsResult?.error ||
-    rosterResult?.error ||
-    tasksResult?.error ||
-    transactionsResult?.error
+    rosterResult.error ||
+    tasksResult.error ||
+    transactionsResult.error
   )
     throw new Error("Failed to load Event related records");
-  const officersAvailableToAdd = candidateOfficersResult?.data ?? [];
+
+  const hasCalendarSyncFailure = Boolean(calendarSyncFailure?.data);
+  const rosterRows = rosterResult.data ?? [];
+  const confirmedCount = rosterRows.length;
+  const volunteerCount = rosterRows.filter(
+    ({ participation_type }) => participation_type !== "attendee",
+  ).length;
+  const attendeeCount = confirmedCount - volunteerCount;
+  const durationHours = Math.max(
+    0,
+    (new Date(event.ends_at).getTime() - new Date(event.starts_at).getTime()) /
+      3_600_000,
+  );
+  const volunteerRate = event.participation_points_per_hour_at_end ?? 2;
+  const estimatedVolunteerPoints =
+    Math.round(durationHours * volunteerRate * 100) / 100;
+  const estimatedAttendeePoints =
+    Math.round(durationHours * (volunteerRate / 2) * 100) / 100;
+  const durationLabel = `${Math.round(durationHours * 100) / 100}h`;
+  const linkedTasks = (tasksResult.data ?? []).map(({ tasks }) => tasks);
+  const transactions = transactionsResult.data ?? [];
+  const confirmed = (personalRosterResult.count ?? 0) > 0;
+  const personalParticipationType =
+    personalRosterResult.data?.[0]?.participation_type ?? "volunteer";
+  const eligibleForSelfSignup = (activeOfficerResult.count ?? 0) > 0;
+  const full =
+    event.max_volunteers !== null && confirmedCount >= event.max_volunteers;
+  const personalSignup = personalSignupState({
+    open: signupOpen,
+    confirmed,
+    eligible: eligibleForSelfSignup,
+    full,
+  });
+  const officersAvailableToAdd = (candidateOfficersResult?.data ?? []).map(
+    ({ id, name, officer_branches }) => ({
+      id,
+      name,
+      branches: (officer_branches ?? [])
+        .map((ob) => ob.branches?.name)
+        .filter((b): b is string => Boolean(b)),
+    }),
+  );
   const officersAvailableForSlots =
     timeSlotOfficerCandidatesResult?.data ?? officersAvailableToAdd;
   const timeSlots = (timeSlotsResult?.data ?? []).map((slot) => ({
@@ -466,581 +326,454 @@ export default async function EventDetailPage({
       }),
     ),
   }));
-  const rosterRows = rosterResult?.data ?? [];
-  const linkedTasks = (tasksResult?.data ?? []).map(({ tasks }) => tasks);
-  const transactions = transactionsResult?.data ?? [];
   const seriesData = series?.data;
 
   return (
-    <div data-record-page="event" className="space-y-4">
+    <div data-record-page="event" className="space-y-5">
       <ContextualBackLink href="/events" returnTo={contextualReturnTo}>
         Back to events
       </ContextualBackLink>
       <PageHeader
         title={event.name}
         action={
-          canEdit && !event.deleted_at && status !== "cancelled" ? (
-            <ActionLink
-              href={withReturnTo(
-                `/events/${eventIdParam}/edit`,
-                contextualReturnTo,
+          <div className="flex flex-wrap items-center gap-2">
+            <CopyCanonicalLinkButton path={`/events/${eventIdParam}`} />
+            {!periodSelection.isHistorical &&
+              !event.deleted_at &&
+              (canSeeAllBranches(actor) ||
+                (isLead(actor) && actor.branchIds.length > 0)) && (
+                <Link
+                  href={
+                    `/tasks/new?event=${event.id}${typeof query.period === "string" ? `&period=${encodeURIComponent(query.period)}` : ""}` as Route
+                  }
+                  className="button-secondary inline-flex min-h-11 items-center justify-center rounded-md border px-3 py-2 text-sm font-medium lg:min-h-0"
+                >
+                  + Linked task
+                </Link>
               )}
-            >
-              Edit event
-            </ActionLink>
-          ) : undefined
+            {canEdit && !event.deleted_at && (
+              <Link
+                href={
+                  `/events/new?from=${event.id}${typeof query.period === "string" ? `&period=${encodeURIComponent(query.period)}` : ""}` as Route
+                }
+                className="button-secondary inline-flex min-h-11 items-center justify-center rounded-md border px-3 py-2 text-sm font-medium lg:min-h-0"
+              >
+                Duplicate
+              </Link>
+            )}
+            {canEdit && !event.deleted_at && status !== "cancelled" && (
+              <ActionLink
+                href={withReturnTo(
+                  `/events/${eventIdParam}/edit`,
+                  contextualReturnTo,
+                )}
+              >
+                Edit event
+              </ActionLink>
+            )}
+          </div>
         }
       />
       <SuccessNotice status={feedback} />
-      <EventSectionNavigation
-        eventId={eventIdParam}
-        section={section}
-        returnTo={contextualReturnTo}
-        counts={{
-          roster: confirmedCount,
-          tasks: taskCount,
-          points: pointCount,
-        }}
-      />
 
-      {section === "overview" && (
-        <>
-          <div className="grid items-start gap-4 lg:grid-cols-2">
-            <section aria-label="Event details" className="min-w-0 space-y-3">
-              <SectionHeading title="Event details" />
-              <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-sm [&>dt]:mt-0 [&>dt]:font-medium [&>dd]:mt-0 [&>dd]:min-w-0 [&>dd]:break-words">
-                <dt>Date</dt>
-                <dd>{formatCalendarDate(event.event_date)}</dd>
-                <dt>Time</dt>
-                <dd>{formatEventSchedule(event.starts_at, event.ends_at)}</dd>
-                <dt>Location</dt>
-                <dd>{event.location || "Not set"}</dd>
-                <dt>Type</dt>
+      <div className="grid items-start gap-5 lg:grid-cols-2">
+        <section aria-label="Event details" className="min-w-0 space-y-3">
+          <SectionHeading title="Event details" />
+          <dl className="grid grid-cols-[7.5rem_minmax(0,1fr)] text-sm [&>dd]:min-w-0 [&>dd]:break-words">
+            <dt>Date</dt>
+            <dd>{formatCalendarDate(event.event_date)}</dd>
+            <dt>Time</dt>
+            <dd>{formatEventSchedule(event.starts_at, event.ends_at)}</dd>
+            <dt>Location</dt>
+            <dd>{event.location || "Not set"}</dd>
+            <dt>Type</dt>
+            <dd>
+              <CatalogValueBadge color={event.event_types.color}>
+                {event.event_types.name}
+              </CatalogValueBadge>
+            </dd>
+            <dt>Status</dt>
+            <dd>
+              <StatusBadge
+                status={
+                  event.deleted_at
+                    ? event.delete_points_suspended
+                      ? "Deleted"
+                      : "Archived"
+                    : status
+                }
+              />
+            </dd>
+            <dt>Branches</dt>
+            <dd>
+              <BranchBadges
+                branches={event.event_branches.map(({ branches }) => branches)}
+              />
+            </dd>
+            <dt>Processing rate</dt>
+            <dd>
+              {event.participation_points_per_hour_at_end === null
+                ? "Not processed"
+                : `${event.participation_points_per_hour_at_end} points/hour`}
+            </dd>
+            {event.max_volunteers !== null && (
+              <>
+                <dt>Capacity</dt>
                 <dd>
-                  <CatalogValueBadge color={event.event_types.color}>
-                    {event.event_types.name}
-                  </CatalogValueBadge>
+                  {confirmedCount} / {event.max_volunteers} confirmed
                 </dd>
-                <dt>Status</dt>
-                <dd>
-                  <StatusBadge
-                    status={
-                      event.deleted_at
-                        ? event.delete_points_suspended
-                          ? "Deleted"
-                          : "Archived"
-                        : status
-                    }
-                  />
-                </dd>
-                <dt>Branches</dt>
-                <dd>
-                  <BranchBadges
-                    branches={event.event_branches.map(
-                      ({ branches }) => branches,
-                    )}
-                  />
-                </dd>
-                <dt>Processing rate</dt>
-                <dd>
-                  {event.participation_points_per_hour_at_end === null
-                    ? "Not processed"
-                    : `${event.participation_points_per_hour_at_end} points/hour`}
-                </dd>
-                {event.max_volunteers !== null && (
-                  <>
-                    <dt>Capacity</dt>
-                    <dd>
-                      {confirmedCount} / {event.max_volunteers} confirmed
-                    </dd>
-                  </>
-                )}
-                {seriesData && (
-                  <>
-                    <dt>Recurrence</dt>
-                    <dd>{recurrenceSummary(seriesData.recurrence_rule)}</dd>
-                  </>
-                )}
-                {event.deleted_at && (
-                  <>
-                    <dt>
-                      {event.delete_points_suspended
-                        ? "Deleted at"
-                        : "Archived at"}
-                    </dt>
-                    <dd>{formatDateTime(event.deleted_at)}</dd>
-                  </>
-                )}
-              </dl>
-              {event.description ? (
-                <div>
-                  <h3 className="mb-1 text-sm font-medium">Description</h3>
-                  <p className="whitespace-pre-wrap break-words text-sm">
-                    {event.description}
-                  </p>
-                </div>
-              ) : (
-                <p className="text-sm text-muted">No description.</p>
-              )}
-              <ResourceLinksList resources={resourceLinksResult.data} />
-              {canManage && hasCalendarSyncFailure && (
-                <div
-                  role="alert"
-                  className="space-y-2 rounded-lg border border-danger-border bg-danger-bg p-3"
-                >
-                  <p className="text-sm">
-                    This Event is not synchronized with the shared Google
-                    Calendar. Retry uses its current details and deleted status.
-                  </p>
-                  <RetryGoogleCalendarSyncForm eventId={event.id} />
-                </div>
-              )}
-              {canManage && event.deleted_at && (
-                <RestoreDeletedEventForm
-                  eventId={event.id}
-                  seriesId={seriesData?.id}
-                  revision={seriesData?.revision}
-                  requestKey={crypto.randomUUID()}
-                />
-              )}
-              {canManage && !event.deleted_at && (
-                <div className="flex flex-wrap gap-3 [&>form]:w-auto">
-                  {status === "cancelled" && (
-                    <RestoreCancelledEventForm eventId={event.id} />
-                  )}
-                  <DeleteEventForm
-                    eventId={event.id}
-                    seriesId={seriesData?.id}
-                    revision={seriesData?.revision}
-                    requestKey={crypto.randomUUID()}
-                  />
-                </div>
-              )}
-            </section>
-
-            <section aria-label="Participation" className="min-w-0 space-y-3">
-              <SectionHeading title="Participation" />
+              </>
+            )}
+            {seriesData && (
+              <>
+                <dt>Recurrence</dt>
+                <dd>{recurrenceSummary(seriesData.recurrence_rule)}</dd>
+              </>
+            )}
+            {event.deleted_at && (
+              <>
+                <dt>
+                  {event.delete_points_suspended ? "Deleted at" : "Archived at"}
+                </dt>
+                <dd>{formatDateTime(event.deleted_at)}</dd>
+              </>
+            )}
+          </dl>
+          {event.description ? (
+            <div className="pt-1">
+              <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+                Description
+              </h3>
+              <p className="whitespace-pre-wrap break-words text-sm text-foreground">
+                {event.description}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted">No description.</p>
+          )}
+          <ResourceLinksList resources={resourceLinksResult.data} />
+          {canManage && hasCalendarSyncFailure && (
+            <div
+              role="alert"
+              className="space-y-2 rounded-lg border border-danger-border bg-danger-bg p-3"
+            >
               <p className="text-sm">
-                Your participation:{" "}
+                This Event is not synchronized with the shared Google Calendar.
+                Retry uses its current details and deleted status.
+              </p>
+              <RetryGoogleCalendarSyncForm eventId={event.id} />
+            </div>
+          )}
+          {canManage && event.deleted_at && (
+            <div className="border-t border-border pt-3">
+              <RestoreDeletedEventForm
+                eventId={event.id}
+                seriesId={seriesData?.id}
+                revision={seriesData?.revision}
+                requestKey={crypto.randomUUID()}
+              />
+            </div>
+          )}
+          {canManage && !event.deleted_at && (
+            <div className="flex flex-wrap items-center gap-3 border-t border-border pt-3 [&>form]:w-auto">
+              {status === "cancelled" && (
+                <RestoreCancelledEventForm eventId={event.id} />
+              )}
+              <DeleteEventForm
+                eventId={event.id}
+                seriesId={seriesData?.id}
+                revision={seriesData?.revision}
+                requestKey={crypto.randomUUID()}
+              />
+            </div>
+          )}
+        </section>
+
+        <section aria-label="Participation" className="min-w-0 space-y-3.5">
+          <SectionHeading title="Participation" />
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface-muted/40 px-3.5 py-2.5 text-sm">
+            <span className="text-foreground">
+              Your participation:{" "}
+              <strong className="font-semibold">
                 {confirmed
                   ? personalParticipationType === "volunteer"
                     ? "Volunteer"
                     : "Attend"
                   : "Not signed up"}
-              </p>
-              <p className="text-sm text-muted">
-                {event.max_volunteers === null
-                  ? `${confirmedCount} confirmed`
-                  : `${confirmedCount} / ${event.max_volunteers} confirmed`}
-              </p>
-              {full && !confirmed && signupOpen && (
-                <p className="text-sm text-muted">
-                  This Event is full. Signup is unavailable.
-                </p>
-              )}
-              {personalSignup === "confirmed" &&
-                signupOpen &&
-                timeSlots.length === 0 && (
-                  <div className="space-y-2">
-                    <SelfSignupForm
-                      eventId={event.id}
-                      eventName={event.name}
-                      currentType={
-                        personalParticipationType === "attendee"
-                          ? "attendee"
-                          : "volunteer"
-                      }
-                    />
-                    <SignupForm
-                      eventId={event.id}
-                      officerId={actor.id}
-                      remove
-                    />
-                  </div>
-                )}
-              {timeSlots.length === 0 &&
-                !canManage &&
-                (personalSignup === "available" ||
-                  personalSignup === "full") && (
-                  <SelfSignupForm
-                    eventId={event.id}
-                    eventName={event.name}
-                    full={personalSignup === "full"}
-                  />
-                )}
-              {timeSlots.length > 0 && (
-                <TimeSlotsSection
+              </strong>
+            </span>
+            <span className="text-xs font-medium tabular-nums text-muted">
+              {event.max_volunteers === null
+                ? `${confirmedCount} confirmed`
+                : `${confirmedCount} / ${event.max_volunteers} confirmed`}
+            </span>
+          </div>
+          {durationHours > 0 && timeSlots.length === 0 && (
+            <p className="text-xs text-muted">
+              Estimated points ({durationLabel}):{" "}
+              <strong className="font-medium text-foreground">
+                +{estimatedVolunteerPoints} pts Volunteer
+              </strong>{" "}
+              ·{" "}
+              <strong className="font-medium text-foreground">
+                +{estimatedAttendeePoints} pts Attend
+              </strong>
+            </p>
+          )}
+          {full && !confirmed && signupOpen && (
+            <p className="text-sm text-muted">
+              This Event is full. Signup is unavailable.
+            </p>
+          )}
+          {personalSignup === "confirmed" &&
+            signupOpen &&
+            timeSlots.length === 0 && (
+              <div className="flex flex-wrap items-center gap-2 [&>form]:w-auto">
+                <SelfSignupForm
                   eventId={event.id}
-                  slots={timeSlots}
-                  actorId={actor.id}
-                  canCorrectAssignments={canCorrectTimeSlots}
-                  signupOpen={signupOpen}
-                  confirmed={confirmed}
-                  activeOfficer={eligibleForSelfSignup}
-                  eventCapacityBlocked={full && !confirmed}
-                  officers={officersAvailableForSlots}
-                  past={past}
-                  period={
-                    typeof query.period === "string" ? query.period : undefined
+                  eventName={event.name}
+                  currentType={
+                    personalParticipationType === "attendee"
+                      ? "attendee"
+                      : "volunteer"
                   }
                 />
-              )}
-              {confirmedCount > 0 ? (
-                <div>
-                  <h3 className="mb-1 text-sm font-medium">
-                    Confirmed roster ({confirmedCount})
-                  </h3>
-                  <ul className="list-disc space-y-0.5 pl-5 text-sm">
-                    {rosterRows.map(({ officers: officer }) => (
-                      <li key={officer.id}>
-                        <Link
-                          href={withReturnTo(
-                            `/officers/${officer.id}`,
-                            contextualReturnTo,
-                          )}
-                          className="underline underline-offset-4"
-                        >
-                          {officer.name}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                  <Link
-                    href={sectionHref(
-                      eventIdParam,
-                      "roster",
-                      1,
-                      contextualReturnTo,
-                    )}
-                    className="mt-1 inline-block text-sm underline underline-offset-4"
-                  >
-                    View full roster
-                  </Link>
-                </div>
-              ) : (
-                <p className="text-sm text-muted">No officers signed up.</p>
-              )}
-              {canManageCurrentRoster &&
-                timeSlots.length === 0 &&
-                signupOpen &&
-                (officersAvailableToAdd.length > 0 ? (
-                  <details className="event-roster-disclosure">
-                    <summary>
-                      Add officers ({officersAvailableToAdd.length} available)
-                    </summary>
-                    <BulkAddOfficersForm
-                      eventId={event.id}
-                      officers={officersAvailableToAdd}
-                    />
-                  </details>
-                ) : (
-                  <p className="text-sm text-muted">
-                    No active officers are available to add.
-                  </p>
-                ))}
-              {canManage &&
-                timeSlots.length === 0 &&
-                past &&
-                !event.deleted_at &&
-                (officersAvailableToAdd.length > 0 ? (
-                  <details className="event-roster-disclosure">
-                    <summary>Add attendees and award points</summary>
-                    <BulkAddOfficersForm
-                      eventId={event.id}
-                      past
-                      pointsPerOfficer={
-                        event.participation_points_per_hour_at_end === null
-                          ? undefined
-                          : ((new Date(event.ends_at).getTime() -
-                              new Date(event.starts_at).getTime()) /
-                              3_600_000) *
-                            event.participation_points_per_hour_at_end
-                      }
-                      officers={officersAvailableToAdd}
-                    />
-                  </details>
-                ) : (
-                  <p className="text-sm text-muted">
-                    No active officers are available to add.
-                  </p>
-                ))}
-              {canManageCurrentRoster &&
-                timeSlots.length > 0 &&
-                (signupOpen || past) &&
-                officersAvailableToAdd.length > 0 && (
-                  <details className="event-roster-disclosure">
-                    <summary>
-                      {past
-                        ? "Add attendees and award slot Points"
-                        : "Add officers to Time Slots"}
-                    </summary>
-                    <BulkAddOfficersForm
-                      eventId={event.id}
-                      officers={officersAvailableToAdd}
-                      timeSlots={timeSlots.map(
-                        ({
-                          id,
-                          starts_at,
-                          ends_at,
-                          capacity,
-                          event_time_slot_officers,
-                        }) => ({
-                          id,
-                          starts_at,
-                          ends_at,
-                          capacity,
-                          registeredCount: event_time_slot_officers.filter(
-                            ({ event_officers }) =>
-                              event_officers?.removed_at == null,
-                          ).length,
-                        }),
-                      )}
-                      pointsPerHour={event.participation_points_per_hour_at_end}
-                      past={past}
-                    />
-                  </details>
-                )}
-            </section>
-          </div>
-          {showPresenters && (
-            <PresenterSlotsSection
-              slots={presenterSlotsResult?.data ?? []}
+                <SignupForm eventId={event.id} officerId={actor.id} remove />
+              </div>
+            )}
+          {timeSlots.length === 0 &&
+            (personalSignup === "available" || personalSignup === "full") && (
+              <SelfSignupForm
+                eventId={event.id}
+                eventName={event.name}
+                full={personalSignup === "full"}
+              />
+            )}
+          {timeSlots.length > 0 && (
+            <TimeSlotsSection
+              eventId={event.id}
+              slots={timeSlots}
+              actorId={actor.id}
+              canCorrectAssignments={canCorrectTimeSlots}
+              signupOpen={signupOpen}
+              confirmed={confirmed}
+              activeOfficer={eligibleForSelfSignup}
+              eventCapacityBlocked={full && !confirmed}
+              officers={officersAvailableForSlots}
+              past={past}
+              pointsPerHour={volunteerRate}
               period={
                 typeof query.period === "string" ? query.period : undefined
               }
             />
           )}
-          {taskCount > 0 && (
-            <p className="text-sm">
-              <Link
-                href={sectionHref(eventIdParam, "tasks", 1, contextualReturnTo)}
-                className="underline underline-offset-4"
-              >
-                Linked Tasks ({taskCount})
-              </Link>
-            </p>
-          )}
-          {pointCount > 0 && (
-            <p className="text-sm">
-              <Link
-                href={sectionHref(
-                  eventIdParam,
-                  "points",
-                  1,
-                  contextualReturnTo,
-                )}
-                className="underline underline-offset-4"
-              >
-                Event point history ({pointCount})
-              </Link>
-            </p>
-          )}
-        </>
-      )}
-
-      {section === "roster" && (
-        <section aria-label="Confirmed roster" className="space-y-3">
-          <SectionHeading
-            title={`Confirmed roster (${confirmedCount})`}
-            description="Officers are listed alphabetically."
-          />
-          <EventSectionPagination
-            eventId={eventIdParam}
-            section="roster"
-            page={page}
-            totalPages={totalPages}
-            returnTo={contextualReturnTo}
-          />
-          {rosterRows.length ? (
-            <TableFrame compact label="Event signups">
-              <table className="min-w-full">
-                <thead>
-                  <tr>
-                    <th scope="col">Officer</th>
-                    {timeSlots.length > 0 && <th scope="col">Time Slots</th>}
-                    <th scope="col">Signup</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rosterRows.map(
-                    ({ officers: officer, participation_type }) => (
-                      <tr key={officer.id}>
-                        <td>
-                          <Link
-                            href={withReturnTo(
-                              `/officers/${officer.id}`,
-                              contextualReturnTo,
-                            )}
-                            className="underline underline-offset-4"
-                          >
-                            {officer.name}
-                          </Link>
-                        </td>
-                        {timeSlots.length > 0 && (
-                          <td>
-                            {timeSlots
-                              .map((slot, index) => ({
-                                slot,
-                                index,
-                              }))
-                              .filter(({ slot }) =>
-                                slot.event_time_slot_officers.some(
-                                  ({ officer_id, event_officers: signup }) =>
-                                    officer_id === officer.id &&
-                                    signup?.removed_at == null,
-                                ),
-                              )
-                              .map(
-                                ({ slot, index }) =>
-                                  `Slot ${index + 1} (${formatEventSchedule(slot.starts_at, slot.ends_at)})`,
-                              )
-                              .join(", ") || "None"}
-                            {canManage && past && !event.deleted_at && (
-                              <CorrectHistoricalTimeSlotAssignmentsForm
-                                eventId={event.id}
-                                officerId={officer.id}
-                                officerName={officer.name}
-                                slots={timeSlots}
-                                selectedSlotIds={timeSlots
-                                  .filter((slot) =>
-                                    slot.event_time_slot_officers.some(
-                                      ({
-                                        officer_id,
-                                        event_officers: signup,
-                                      }) =>
-                                        officer_id === officer.id &&
-                                        signup?.removed_at == null,
-                                    ),
-                                  )
-                                  .map(({ id }) => id)}
-                              />
-                            )}
-                          </td>
-                        )}
-                        <td>
-                          {participation_type === "volunteer"
-                            ? "Volunteer"
-                            : "Attend"}{" "}
-                          {timeSlots.length > 0 &&
-                          (canManage ||
-                            (signupOpen && officer.id === actor.id)) ? (
-                            <LeaveAllTimeSlotsForm
-                              eventId={event.id}
-                              officerId={
-                                officer.id === actor.id ? undefined : officer.id
-                              }
-                            />
-                          ) : timeSlots.length === 0 &&
-                            (canManage ||
-                              (signupOpen && officer.id === actor.id)) ? (
-                            <SignupForm
-                              eventId={event.id}
-                              officerId={officer.id}
-                              remove
-                            />
-                          ) : (
-                            "Closed"
-                          )}
-                        </td>
-                      </tr>
-                    ),
+          {canManageCurrentRoster &&
+            timeSlots.length === 0 &&
+            signupOpen &&
+            (officersAvailableToAdd.length > 0 ? (
+              <details className="event-roster-disclosure">
+                <summary>
+                  Add officers ({officersAvailableToAdd.length} available)
+                </summary>
+                <BulkAddOfficersForm
+                  eventId={event.id}
+                  officers={officersAvailableToAdd}
+                />
+              </details>
+            ) : (
+              <p className="text-sm text-muted">
+                No active officers are available to add.
+              </p>
+            ))}
+          {canManage &&
+            timeSlots.length === 0 &&
+            past &&
+            !event.deleted_at &&
+            (officersAvailableToAdd.length > 0 ? (
+              <details className="event-roster-disclosure">
+                <summary>Add attendees and award points</summary>
+                <BulkAddOfficersForm
+                  eventId={event.id}
+                  past
+                  pointsPerOfficer={
+                    event.participation_points_per_hour_at_end === null
+                      ? undefined
+                      : ((new Date(event.ends_at).getTime() -
+                          new Date(event.starts_at).getTime()) /
+                          3_600_000) *
+                        event.participation_points_per_hour_at_end
+                  }
+                  officers={officersAvailableToAdd}
+                />
+              </details>
+            ) : (
+              <p className="text-sm text-muted">
+                No active officers are available to add.
+              </p>
+            ))}
+          {canManageCurrentRoster &&
+            timeSlots.length > 0 &&
+            (signupOpen || past) &&
+            officersAvailableToAdd.length > 0 && (
+              <details className="event-roster-disclosure">
+                <summary>
+                  {past
+                    ? "Add attendees and award slot Points"
+                    : "Add officers to Time Slots"}
+                </summary>
+                <BulkAddOfficersForm
+                  eventId={event.id}
+                  officers={officersAvailableToAdd}
+                  timeSlots={timeSlots.map(
+                    ({
+                      id,
+                      starts_at,
+                      ends_at,
+                      capacity,
+                      event_time_slot_officers,
+                    }) => ({
+                      id,
+                      starts_at,
+                      ends_at,
+                      capacity,
+                      registeredCount: event_time_slot_officers.filter(
+                        ({ event_officers }) =>
+                          event_officers?.removed_at == null,
+                      ).length,
+                    }),
                   )}
-                </tbody>
-              </table>
-            </TableFrame>
-          ) : (
-            <p>No officers signed up.</p>
-          )}
-          <EventSectionPagination
-            eventId={eventIdParam}
-            section="roster"
-            page={page}
-            totalPages={totalPages}
-            returnTo={contextualReturnTo}
-          />
+                  pointsPerHour={event.participation_points_per_hour_at_end}
+                  past={past}
+                />
+              </details>
+            )}
         </section>
-      )}
+      </div>
 
-      {section === "tasks" && (
-        <section aria-label="Linked Tasks" className="space-y-3">
-          <SectionHeading title={`Linked Tasks (${taskCount})`} />
-          {linkedTasks.length ? (
-            <ul className="list-disc space-y-2 pl-5">
-              {linkedTasks.map((linkedTask) => (
-                <li key={linkedTask.id}>
-                  {linkedTask.removed_at ? (
-                    <>
-                      {linkedTask.title}
-                      <span className="ml-2 text-sm text-muted">Deleted</span>
-                    </>
-                  ) : (
+      <section
+        aria-label="Confirmed roster"
+        className="space-y-3 rounded-lg border border-border bg-surface p-4 [&>.section-heading:first-child]:mt-0"
+      >
+        <SectionHeading
+          title={`Confirmed roster (${confirmedCount})`}
+          description={
+            confirmedCount > 0
+              ? `${volunteerCount} Volunteer${volunteerCount === 1 ? "" : "s"} · ${attendeeCount} Attendee${attendeeCount === 1 ? "" : "s"} · Listed alphabetically.`
+              : "Officers are listed alphabetically."
+          }
+        />
+        {rosterRows.length ? (
+          <EventRosterTableClient
+            showTimeSlots={timeSlots.length > 0}
+            canCopyEmails={canManageCurrentRoster}
+            rows={rosterRows.map(({ officers: officer, participation_type }) => ({
+              id: officer.id,
+              participationType:
+                participation_type === "attendee" ? "attendee" : "volunteer",
+              email: officer.utep_email ?? officer.personal_email ?? null,
+              row: (
+                <tr key={officer.id}>
+                  <td>
                     <Link
                       href={withReturnTo(
-                        `/tasks/${linkedTask.id}`,
+                        `/officers/${officer.id}`,
                         contextualReturnTo,
                       )}
-                      className="underline underline-offset-4"
                     >
-                      {linkedTask.title}
+                      {officer.name}
                     </Link>
+                  </td>
+                  {timeSlots.length > 0 && (
+                    <td>
+                      {timeSlots
+                        .map((slot, index) => ({
+                          slot,
+                          index,
+                        }))
+                        .filter(({ slot }) =>
+                          slot.event_time_slot_officers.some(
+                            ({ officer_id, event_officers: signup }) =>
+                              officer_id === officer.id &&
+                              signup?.removed_at == null,
+                          ),
+                        )
+                        .map(
+                          ({ slot, index }) =>
+                            `Slot ${index + 1} (${formatEventSchedule(slot.starts_at, slot.ends_at)})`,
+                        )
+                        .join(", ") || "None"}
+                      {canManage && past && !event.deleted_at && (
+                        <CorrectHistoricalTimeSlotAssignmentsForm
+                          eventId={event.id}
+                          officerId={officer.id}
+                          officerName={officer.name}
+                          slots={timeSlots}
+                          selectedSlotIds={timeSlots
+                            .filter((slot) =>
+                              slot.event_time_slot_officers.some(
+                                ({ officer_id, event_officers: signup }) =>
+                                  officer_id === officer.id &&
+                                  signup?.removed_at == null,
+                              ),
+                            )
+                            .map(({ id }) => id)}
+                        />
+                      )}
+                    </td>
                   )}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>No linked Tasks.</p>
-          )}
-          <EventSectionPagination
-            eventId={eventIdParam}
-            section="tasks"
-            page={page}
-            totalPages={totalPages}
-            returnTo={contextualReturnTo}
+                  <td>
+                    <div className="flex flex-wrap items-center gap-3 [&>form]:w-auto">
+                      <span>
+                        {participation_type === "volunteer"
+                          ? "Volunteer"
+                          : "Attend"}
+                      </span>
+                      {timeSlots.length > 0 &&
+                      (canManage ||
+                        (signupOpen && officer.id === actor.id)) ? (
+                        <LeaveAllTimeSlotsForm
+                          eventId={event.id}
+                          officerId={
+                            officer.id === actor.id ? undefined : officer.id
+                          }
+                        />
+                      ) : timeSlots.length === 0 &&
+                        (canManage ||
+                          (signupOpen && officer.id === actor.id)) ? (
+                        <SignupForm
+                          eventId={event.id}
+                          officerId={officer.id}
+                          remove
+                        />
+                      ) : (
+                        <span className="text-xs text-muted">Closed</span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ),
+            }))}
           />
-        </section>
-      )}
+        ) : (
+          <p className="text-sm text-muted">No officers signed up.</p>
+        )}
+      </section>
 
-      {section === "points" && (
-        <section aria-label="Event point history" className="space-y-3">
-          <SectionHeading title={`Event point history (${pointCount})`} />
-          <EventSectionPagination
-            eventId={eventIdParam}
-            section="points"
-            page={page}
-            totalPages={totalPages}
-            returnTo={contextualReturnTo}
-          />
-          {transactions.length ? (
-            <TableFrame compact label="Event point history">
-              <PointTransactionTable
-                transactions={transactions}
-                period={
-                  typeof query.period === "string" ? query.period : undefined
-                }
-              />
-            </TableFrame>
-          ) : (
-            <p>No Event point history.</p>
-          )}
-          {pointCount > 0 && (
-            <Link
-              href={
-                `/points?${new URLSearchParams({ event: String(event.id), ...(typeof query.period === "string" ? { period: query.period } : {}) })}` as Route
-              }
-              className="inline-block text-sm underline underline-offset-4"
-            >
-              View in Points history
-            </Link>
-          )}
-          <EventSectionPagination
-            eventId={eventIdParam}
-            section="points"
-            page={page}
-            totalPages={totalPages}
-            returnTo={contextualReturnTo}
-          />
-        </section>
-      )}
+      <PresenterSlotsSection
+        slots={presenterSlotsResult.data ?? []}
+        period={typeof query.period === "string" ? query.period : undefined}
+      />
+
+      <EventLinkedTasksSection
+        linkedTasks={linkedTasks}
+        contextualReturnTo={contextualReturnTo}
+      />
+
+      <EventPointHistorySection
+        eventId={event.id}
+        transactions={transactions}
+        period={typeof query.period === "string" ? query.period : undefined}
+      />
     </div>
   );
 }

@@ -11,34 +11,34 @@ import {
   CatalogValueBadge,
   ListFilterBar,
   PageHeader,
-  SectionHeading,
   StatusBadge,
   SuccessNotice,
   TableFrame,
+  type ActiveFilterChip,
 } from "@/components/ui";
-import { ListPagination } from "@/components/list-pagination";
-import { formatLabel, formatTaskDeadline } from "@/lib/presentation";
+import {
+  formatLabel,
+  formatRelativeDayCue,
+  formatTaskDeadline,
+} from "@/lib/presentation";
 import { currentDenverWeek } from "@/lib/current-denver-week";
 import { organizeTaskList } from "@/lib/task-list";
 import {
   buildTaskListQuery,
   taskListDateFilters,
-  TASKS_PER_PAGE,
   type TaskListSort,
 } from "@/lib/task-list-query";
 import { taskListFiltersSchema } from "./filter-validation";
 import { SearchableSelect } from "@/components/searchable-select";
-import { splitTasksByOfficer, taskStatus } from "@/lib/task-status";
+import { taskStatus } from "@/lib/task-status";
 import TaskSelfAssignForm, { TaskSelfCompletionForm } from "./task-action-form";
 import TaskAssignmentProgress from "./task-assignment-progress";
 import { listReturnUrl, withReturnTo } from "@/lib/return-context";
-import { listPageUrl } from "@/lib/list-url";
 import {
   getAcademicPeriodData,
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import type { Tables } from "@/lib/database.types";
 import type { Route } from "next";
 
@@ -69,10 +69,12 @@ export default async function TasksPage({
     status,
     branch: branchId,
     assignee: assigneeId,
-    page: requestedPage,
     scope,
     sort,
   } = filters;
+  const hasOwnBranches = actor.branchIds.length > 0;
+  const effectiveScope =
+    scope === "branch" && !hasOwnBranches ? "all" : scope;
   const mayBrowseDeleted =
     canSeeAllBranches(actor) || (isLead(actor) && actor.branchIds.length > 0);
   const view =
@@ -86,9 +88,8 @@ export default async function TasksPage({
     status,
     branch: branchId?.toString(),
     assignee: assigneeId?.toString(),
-    scope: scope === "mine" ? scope : undefined,
+    scope: effectiveScope !== "all" ? effectiveScope : undefined,
     sort: sort === "newest" ? sort : undefined,
-    page: requestedPage > 1 ? String(requestedPage) : undefined,
     period: params.period,
   });
   const supabase = await createClient();
@@ -109,24 +110,24 @@ export default async function TasksPage({
     status,
     branchId,
     assigneeId,
-    assignedToOfficerId: scope === "mine" ? actor.id : undefined,
+    assignedToOfficerId: effectiveScope === "mine" ? actor.id : undefined,
     branchScope:
-      view === "deleted" && isLead(actor) && !canSeeAllBranches(actor)
+      (view === "deleted" && isLead(actor) && !canSeeAllBranches(actor)) ||
+      effectiveScope === "branch"
         ? actor.branchIds
         : undefined,
-    page: requestedPage,
     dateRange,
   });
 
   let taskCountQuery = supabase
     .from("tasks")
     .select(
-      scope === "mine"
+      effectiveScope === "mine"
         ? "id,assigned_to_me:task_officer_assignments!inner(officer_id,removed_at)"
         : "id",
       { count: "exact", head: true },
     );
-  if (scope === "mine")
+  if (effectiveScope === "mine")
     taskCountQuery = taskCountQuery
       .eq("assigned_to_me.officer_id", actor.id)
       .is("assigned_to_me.removed_at", null);
@@ -160,18 +161,9 @@ export default async function TasksPage({
     throw new Error("Failed to load tasks");
 
   const totalCount = tasksResult.count ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalCount / TASKS_PER_PAGE));
-  const page = Math.min(requestedPage, totalPages);
-  if (page !== requestedPage)
-    redirect(
-      listPageUrl("/tasks", new URLSearchParams(returnTo.split("?")[1]), page),
-    );
-
   const tasks = tasksResult.data as unknown as TaskListRow[];
   const deletedTasks = view === "deleted" ? tasks : [];
   const organizedTasks = organizeTaskList(tasks, view, today, sunday, sort);
-  const splitTasks = (items: typeof tasks) =>
-    splitTasksByOfficer(items, actor.id);
   const filteredToNothing =
     totalCount === 0 &&
     (taskCountResult.count ?? 0) > 0 &&
@@ -180,14 +172,14 @@ export default async function TasksPage({
       status ||
       branchId !== undefined ||
       assigneeId !== undefined ||
-      scope === "mine",
+      effectiveScope !== "all",
     );
   const hasFilters = Boolean(
     search ||
     status ||
     branchId !== undefined ||
     assigneeId !== undefined ||
-    scope === "mine" ||
+    effectiveScope !== "all" ||
     sort !== "urgency" ||
     view !== "current",
   );
@@ -201,17 +193,22 @@ export default async function TasksPage({
   if (branchId !== undefined) filtersInUrl.set("branch", String(branchId));
   if (assigneeId !== undefined)
     filtersInUrl.set("assignee", String(assigneeId));
-  if (scope === "mine") filtersInUrl.set("scope", "mine");
+  if (effectiveScope !== "all") filtersInUrl.set("scope", effectiveScope);
   if (sort === "newest") filtersInUrl.set("sort", "newest");
-  const quickViewHref = (nextScope: "all" | "mine") => {
+  const clearFiltersQuery = new URLSearchParams();
+  if (params.period !== undefined)
+    clearFiltersQuery.set("period", String(params.period));
+  const clearFiltersHref = clearFiltersQuery.size
+    ? (`/tasks?${clearFiltersQuery.toString()}` as Route)
+    : "/tasks";
+  const quickViewHref = (nextScope: "all" | "mine" | "branch") => {
     const query = new URLSearchParams(filtersInUrl);
-    if (nextScope === "mine") query.set("scope", "mine");
+    if (nextScope !== "all") query.set("scope", nextScope);
     else query.delete("scope");
     query.delete("page");
     const serialized = query.toString();
     return (serialized ? `/tasks?${serialized}` : "/tasks") as Route;
   };
-
   const renderGroup = (
     sectionTitle: string,
     title: string,
@@ -219,127 +216,113 @@ export default async function TasksPage({
     allowSelfAssign: boolean,
     allowSelfCompletion: boolean,
   ) =>
-    groupTasks.length ? (
-      <section
-        key={title}
-        aria-label={`${sectionTitle}: ${title}`}
-        className="space-y-3"
-      >
-        <h3 className="font-semibold text-foreground">{title}</h3>
-        <TableFrame compact label={`Tasks table: ${sectionTitle}: ${title}`}>
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">Task</th>
-                <th scope="col">Due</th>
-                <th scope="col">Type</th>
-                <th scope="col">Branch</th>
-                <th scope="col">Officers</th>
-                <th scope="col">Status</th>
-                {(allowSelfAssign || allowSelfCompletion) && (
-                  <th scope="col">Action</th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {groupTasks.map((task) => {
-                const assignments = task.task_officer_assignments;
-                const ownAssignment = assignments.find(
-                  (assignment) => assignment.officer_id === actor.id,
-                );
-                const taskState = taskStatus(assignments);
-                const overdue =
-                  !task.no_longer_needed_at &&
-                  task.due_date < today &&
-                  taskState !== "Complete";
-                return (
-                  <tr key={task.id} id={`task-${task.id}`}>
-                    <td className="min-w-0">
-                      <Link
-                        href={withReturnTo(`/tasks/${task.id}`, returnTo)}
-                        className="block break-words"
-                      >
-                        {task.title}
-                      </Link>
-                    </td>
-                    <td className="whitespace-nowrap">
-                      <span className="inline-flex flex-wrap items-center gap-2">
-                        {overdue && <Badge tone="amber">Overdue</Badge>}
+    groupTasks.length > 0 ? (
+      <TableFrame compact label={`Tasks table: ${sectionTitle}: ${title}`}>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Task</th>
+              <th scope="col">Due</th>
+              <th scope="col">Type</th>
+              <th scope="col">Branch</th>
+              <th scope="col">Officers</th>
+              <th scope="col">Status</th>
+              {(allowSelfAssign || allowSelfCompletion) && (
+                <th scope="col">Action</th>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {groupTasks.map((task) => {
+              const assignments = task.task_officer_assignments;
+              const ownAssignment = assignments.find(
+                (assignment) => assignment.officer_id === actor.id,
+              );
+              const pendingApprovalCount = assignments.filter(
+                (assignment) =>
+                  assignment.removed_at == null &&
+                  assignment.completion_approval_pending,
+              ).length;
+              const taskState = taskStatus(assignments);
+              const overdue =
+                !task.no_longer_needed_at &&
+                task.due_date < today &&
+                taskState !== "Complete";
+              return (
+                <tr key={task.id} id={`task-${task.id}`}>
+                  <td className="min-w-0">
+                    <Link
+                      href={withReturnTo(`/tasks/${task.id}`, returnTo)}
+                      className="block break-words"
+                    >
+                      {task.title}
+                    </Link>
+                  </td>
+                  <td className="whitespace-nowrap">
+                    <span className="inline-flex flex-wrap items-center gap-1.5">
+                      {overdue && <Badge tone="amber">Overdue</Badge>}
+                      <span>
                         {formatTaskDeadline(task.due_date, task.due_time)}
                       </span>
+                      {!overdue &&
+                        (() => {
+                          const cue = formatRelativeDayCue(task.due_date);
+                          return cue ? (
+                            <span className="rounded bg-surface-muted px-1.5 py-0.5 text-[11px] font-medium text-muted">
+                              {cue}
+                            </span>
+                          ) : null;
+                        })()}
+                    </span>
+                  </td>
+                  <td>
+                    <CatalogValueBadge color={task.task_types?.color}>
+                      {formatLabel(task.task_type)}
+                    </CatalogValueBadge>
+                  </td>
+                  <td>
+                    <BranchBadges branches={[task.branches]} />
+                  </td>
+                  <td>
+                    <TaskAssignmentProgress assignments={assignments} />
+                  </td>
+                  <td>
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      {task.no_longer_needed_at && (
+                        <StatusBadge status="No longer needed" />
+                      )}
+                      {pendingApprovalCount > 0 && (
+                        <Badge tone="amber">
+                          {pendingApprovalCount} pending approval
+                        </Badge>
+                      )}
+                      <StatusBadge status={taskState} />
+                    </span>
+                  </td>
+                  {(allowSelfAssign || allowSelfCompletion) && (
+                    <td className="min-w-0">
+                      {allowSelfCompletion && ownAssignment ? (
+                        <TaskSelfCompletionForm
+                          taskId={task.id}
+                          pendingApproval={
+                            ownAssignment.completion_approval_pending ?? false
+                          }
+                          completed={Boolean(ownAssignment.completed_at)}
+                        />
+                      ) : allowSelfAssign ? (
+                        <TaskSelfAssignForm taskId={task.id} />
+                      ) : (
+                        <span className="text-sm text-muted">—</span>
+                      )}
                     </td>
-                    <td>
-                      <CatalogValueBadge color={task.task_types?.color}>
-                        {formatLabel(task.task_type)}
-                      </CatalogValueBadge>
-                    </td>
-                    <td>
-                      <BranchBadges branches={[task.branches]} />
-                    </td>
-                    <td>
-                      <TaskAssignmentProgress assignments={assignments} />
-                    </td>
-                    <td>
-                      <span className="flex flex-wrap items-center gap-1.5">
-                        {task.no_longer_needed_at && (
-                          <StatusBadge status="No longer needed" />
-                        )}
-                        <StatusBadge status={taskState} />
-                      </span>
-                    </td>
-                    {(allowSelfAssign || allowSelfCompletion) && (
-                      <td className="min-w-0">
-                        {allowSelfCompletion && ownAssignment ? (
-                          <TaskSelfCompletionForm
-                            taskId={task.id}
-                            pendingApproval={
-                              ownAssignment.completion_approval_pending ?? false
-                            }
-                            completed={Boolean(ownAssignment.completed_at)}
-                          />
-                        ) : allowSelfAssign ? (
-                          <TaskSelfAssignForm taskId={task.id} />
-                        ) : (
-                          <span className="text-sm text-muted">—</span>
-                        )}
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </TableFrame>
-      </section>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </TableFrame>
     ) : null;
-
-  const renderSection = (
-    title: string,
-    rows: typeof tasks,
-    allowSelfAssign: boolean,
-  ) => {
-    if (rows.length === 0) return null;
-    const groups = splitTasks(rows);
-    return (
-      <section aria-label={title} className="space-y-4">
-        <SectionHeading title={title} />
-        {renderGroup(
-          title,
-          "Your tasks",
-          groups.yourTasks,
-          false,
-          !periodSelection.isHistorical,
-        )}
-        {renderGroup(
-          title,
-          "Other tasks",
-          groups.otherTasks,
-          allowSelfAssign,
-          false,
-        )}
-      </section>
-    );
-  };
 
   return (
     <div data-page-width="wide" data-nav-page="tasks" className="space-y-5">
@@ -368,12 +351,21 @@ export default async function TasksPage({
         {[
           { scope: "all" as const, label: "All tasks" },
           { scope: "mine" as const, label: "Assigned to me" },
+          ...(hasOwnBranches
+            ? [
+                {
+                  scope: "branch" as const,
+                  label:
+                    actor.branchIds.length === 1 ? "My branch" : "My branches",
+                },
+              ]
+            : []),
         ].map(({ scope: itemScope, label }) => (
           <Link
             key={itemScope}
             href={quickViewHref(itemScope)}
-            aria-current={scope === itemScope ? "page" : undefined}
-            className={`min-h-10 border-b-2 px-1 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${scope === itemScope ? "border-brand text-brand" : "border-transparent text-secondary hover:text-foreground"}`}
+            aria-current={effectiveScope === itemScope ? "page" : undefined}
+            className={`min-h-10 border-b-2 px-1 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${effectiveScope === itemScope ? "border-brand text-brand" : "border-transparent text-secondary hover:text-foreground"}`}
           >
             {label}
           </Link>
@@ -384,16 +376,56 @@ export default async function TasksPage({
         action="/tasks"
         label="Task filters"
         active={hasFilters}
-        clearHref={
-          params.period !== undefined
-            ? (`/tasks?period=${encodeURIComponent(String(params.period))}` as Route)
-            : "/tasks"
-        }
+        clearHref={clearFiltersHref}
+        activeFilters={(() => {
+          const chips: ActiveFilterChip[] = [];
+          const without = (key: string): Route => {
+            const next = new URLSearchParams(filtersInUrl);
+            next.delete(key);
+            const qs = next.toString();
+            return (qs ? `/tasks?${qs}` : "/tasks") as Route;
+          };
+          if (search)
+            chips.push({ label: `Search: "${search}"`, removeHref: without("q") });
+          if (view !== "current")
+            chips.push({
+              label: `Timeframe: ${formatLabel(view)}`,
+              removeHref: without("view"),
+            });
+          if (sort === "newest")
+            chips.push({ label: "Sort: Newest", removeHref: without("sort") });
+          if (status)
+            chips.push({
+              label: `Status: ${formatLabel(status)}`,
+              removeHref: without("status"),
+            });
+          if (branchId !== undefined) {
+            const name =
+              branchesResult.data.find((b) => b.id === branchId)?.name ??
+              String(branchId);
+            chips.push({
+              label: `Branch: ${formatLabel(name)}`,
+              removeHref: without("branch"),
+            });
+          }
+          if (assigneeId !== undefined) {
+            const name =
+              officersResult.data.find((o) => o.id === assigneeId)?.name ??
+              `Officer #${assigneeId}`;
+            chips.push({
+              label: `Assignee: ${name}`,
+              removeHref: without("assignee"),
+            });
+          }
+          return chips;
+        })()}
       >
         {params.period !== undefined && (
           <input type="hidden" name="period" value={String(params.period)} />
         )}
-        {scope === "mine" && <input type="hidden" name="scope" value="mine" />}
+        {effectiveScope !== "all" && (
+          <input type="hidden" name="scope" value={effectiveScope} />
+        )}
         <label className="min-w-56 flex-1">
           Search tasks
           <input
@@ -426,6 +458,7 @@ export default async function TasksPage({
             <option value="">All statuses</option>
             <option value="open">Open</option>
             <option value="in_progress">In progress</option>
+            <option value="needs_approval">Needs approval</option>
             <option value="complete">Complete</option>
           </select>
         </label>
@@ -466,105 +499,62 @@ export default async function TasksPage({
         </div>
       </ListFilterBar>
 
+      {view !== "deleted" && tasks.length > 0 && (
+        <p className="text-sm font-medium text-muted">
+          {tasks.length} task{tasks.length === 1 ? "" : "s"}
+        </p>
+      )}
       {view === "deleted" ? (
         deletedTasks.length ? (
-          <section aria-label="Deleted tasks" className="space-y-4">
-            <SectionHeading title="Deleted tasks" />
-            {renderGroup(
-              "Deleted tasks",
-              "Deleted tasks",
-              deletedTasks,
-              false,
-              false,
-            )}
-          </section>
+          renderGroup(
+            "Deleted tasks",
+            "Deleted tasks",
+            deletedTasks,
+            false,
+            false,
+          )
         ) : (
-          <p>No deleted Tasks.</p>
+          <div className="rounded-lg border border-dashed border-border-strong bg-surface px-6 py-10 text-center">
+            <p className="text-sm text-muted">No deleted Tasks.</p>
+          </div>
         )
       ) : filteredToNothing ? (
-        <p>No tasks match these filters.</p>
+        <div className="rounded-lg border border-dashed border-border-strong bg-surface px-6 py-10 text-center">
+          <p className="text-sm text-muted">No tasks match these filters.</p>
+        </div>
       ) : tasks.length === 0 ? (
-        <p>
-          {selectedPeriod
-            ? `No Tasks in ${selectedPeriod.name} for this view.`
-            : view === "past"
-              ? "No past tasks."
-              : view === "all"
-                ? "No tasks in this view."
-                : "No current tasks."}
-        </p>
+        <div className="rounded-lg border border-dashed border-border-strong bg-surface px-6 py-10 text-center">
+          <p className="text-sm text-muted">
+            {selectedPeriod
+              ? `No Tasks in ${selectedPeriod.name} for this view.`
+              : view === "past"
+                ? "No past tasks."
+                : view === "all"
+                  ? "No tasks in this view."
+                  : "No current tasks."}
+          </p>
+        </div>
       ) : organizedTasks.view === "past" ? (
         organizedTasks.tasks.length > 0 ? (
-          <section
-            aria-label={selectedPeriod?.name ?? "Past tasks"}
-            className="space-y-4"
-          >
-            <SectionHeading title={selectedPeriod?.name ?? "Past tasks"} />
-            {renderGroup(
-              selectedPeriod?.name ?? "Past tasks",
-              "Your tasks",
-              splitTasks(organizedTasks.tasks).yourTasks,
-              false,
-              false,
-            )}
-            {renderGroup(
-              selectedPeriod?.name ?? "Past tasks",
-              "Other tasks",
-              splitTasks(organizedTasks.tasks).otherTasks,
-              false,
-              false,
-            )}
-          </section>
+          renderGroup("Tasks", "Tasks", organizedTasks.tasks, false, false)
         ) : null
       ) : organizedTasks.view === "all" ? (
-        <section
-          aria-label={selectedPeriod?.name ?? "All tasks"}
-          className="space-y-4"
-        >
-          <SectionHeading title={selectedPeriod?.name ?? "All tasks"} />
-          {renderGroup(
-            selectedPeriod?.name ?? "All tasks",
-            "Your tasks",
-            splitTasks(organizedTasks.tasks).yourTasks,
-            false,
-            !periodSelection.isHistorical,
-          )}
-          {renderGroup(
-            selectedPeriod?.name ?? "All tasks",
-            "Other tasks",
-            splitTasks(organizedTasks.tasks).otherTasks,
-            !periodSelection.isHistorical,
-            false,
-          )}
-        </section>
+        renderGroup(
+          "Tasks",
+          "Tasks",
+          organizedTasks.tasks,
+          !periodSelection.isHistorical,
+          !periodSelection.isHistorical,
+        )
       ) : (
-        <>
-          {renderSection(
-            "Overdue tasks",
-            organizedTasks.view === "current" ? organizedTasks.overdue : [],
-            true,
-          )}
-          {renderSection(
-            "This week's tasks",
-            organizedTasks.view === "current" ? organizedTasks.thisWeek : [],
-            true,
-          )}
-          {renderSection(
-            "Upcoming tasks",
-            organizedTasks.view === "current" ? organizedTasks.upcoming : [],
-            true,
-          )}
-        </>
+        renderGroup(
+          "Tasks",
+          "Tasks",
+          tasks,
+          true,
+          !periodSelection.isHistorical,
+        )
       )}
-      <ListPagination
-        pathname="/tasks"
-        label="Task"
-        filters={new URLSearchParams(returnTo.split("?")[1])}
-        page={page}
-        totalPages={totalPages}
-        totalCount={totalCount}
-        countLabel={totalCount === 1 ? "task" : "tasks"}
-      />
     </div>
   );
 }

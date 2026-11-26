@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SectionHeading } from "@/components/ui";
 import { denverParts } from "@/lib/event-time";
+import { formatTaskDueTime } from "@/lib/presentation";
 import type { Tables } from "@/lib/database.types";
 import { overlappingSlotPairs, slotIsFull } from "@/lib/time-slot-conflicts";
 import {
@@ -43,6 +44,7 @@ export default function TimeSlotsSection({
   officers,
   past,
   period,
+  pointsPerHour = 2,
 }: {
   eventId: number;
   slots: EventTimeSlotWithRoster[];
@@ -55,7 +57,15 @@ export default function TimeSlotsSection({
   officers: Pick<Tables<"officers">, "id" | "name">[];
   past: boolean;
   period?: string;
+  pointsPerHour?: number;
 }) {
+  const slotPoints = (startsAt: string, endsAt: string) => {
+    const hours = Math.max(
+      0,
+      (new Date(endsAt).getTime() - new Date(startsAt).getTime()) / 3_600_000,
+    );
+    return Math.round(hours * pointsPerHour * 100) / 100;
+  };
   const activeSlots = slots.map((slot) => ({
     ...slot,
     event_time_slot_officers: slot.event_time_slot_officers.filter(
@@ -125,22 +135,44 @@ export default function TimeSlotsSection({
             const full = slotIsFull(slot.capacity, registered.length);
             const start = denverParts(slot.starts_at).time;
             const end = denverParts(slot.ends_at).time;
+            const estPoints = slotPoints(slot.starts_at, slot.ends_at);
             return (
               <li
                 key={slot.id}
-                className="space-y-2 rounded-md border border-border p-3 text-sm"
+                className="space-y-2 rounded-lg border border-border p-3 text-sm"
               >
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                  <h3 className="font-medium">
-                    Slot {index + 1}: {start}–{end}
-                  </h3>
-                  <span className="text-muted">
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <h3 className="font-medium text-foreground">
+                      Slot {index + 1}: {start}–{end}
+                    </h3>
+                    <span className="text-xs tabular-nums text-muted">
+                      ({formatTaskDueTime(start)}–{formatTaskDueTime(end)}
+                      {estPoints > 0 ? ` · +${estPoints} pts` : ""})
+                    </span>
+                  </div>
+                  <span className="text-xs font-medium tabular-nums text-muted">
                     {registered.length}
                     {slot.capacity === null
                       ? " registered"
                       : ` / ${slot.capacity} registered`}
                   </span>
                 </div>
+                {slot.capacity !== null && slot.capacity > 0 && (
+                  <div
+                    aria-hidden="true"
+                    className="h-1.5 w-full overflow-hidden rounded-full bg-surface-muted"
+                  >
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        full ? "bg-warning" : "bg-brand"
+                      }`}
+                      style={{
+                        width: `${Math.min(100, Math.round((registered.length / slot.capacity) * 100))}%`,
+                      }}
+                    />
+                  </div>
+                )}
                 <p className="text-sm font-medium" aria-live="polite">
                   {ownSlot
                     ? ownRegistration.is_self_signup === true
@@ -245,6 +277,16 @@ export default function TimeSlotsSection({
                     `Slot ${activeSlots.findIndex(({ id }) => id === slot.id) + 1}`,
                 )
                 .join(", ")}
+              {(() => {
+                const totalEst =
+                  Math.round(
+                    selected.reduce(
+                      (sum, s) => sum + slotPoints(s.starts_at, s.ends_at),
+                      0,
+                    ) * 100,
+                  ) / 100;
+                return totalEst > 0 ? ` (Est. +${totalEst} pts)` : "";
+              })()}
               . Use “Leave” on a selected slot to change your choices.
             </p>
           )}

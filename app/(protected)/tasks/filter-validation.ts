@@ -5,7 +5,7 @@ import {
 } from "@/lib/search-params";
 
 const taskListStatusSchema = searchParamStringSchema.transform((value) =>
-  (["open", "in_progress", "complete"] as const).find(
+  (["open", "in_progress", "needs_approval", "complete"] as const).find(
     (status) => status === value,
   ),
 );
@@ -32,7 +32,7 @@ export const taskListFiltersSchema = zod.object({
           : undefined,
   ),
   scope: searchParamStringSchema.transform((value) =>
-    value === "mine" ? "mine" : "all",
+    value === "mine" ? "mine" : value === "branch" ? "branch" : "all",
   ),
   sort: searchParamStringSchema.transform((value) =>
     value === "newest" ? "newest" : "urgency",

@@ -1,6 +1,9 @@
 import ContextualBackLink from "@/components/contextual-back-link";
+import {
+  CopyCanonicalLinkButton,
+  CopyTextButton,
+} from "@/components/copy-button";
 import PointTransactionTable from "@/components/point-transaction-table";
-import { ListPagination } from "@/components/list-pagination";
 import {
   ActionLink,
   BranchBadges,
@@ -30,8 +33,7 @@ import {
   type NavigationSearchParams,
 } from "@/lib/return-context";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
-import type { Route } from "next";
+import { notFound } from "next/navigation";
 import RoleForm from "./role-form";
 import {
   CreateWarningForm,
@@ -39,15 +41,13 @@ import {
   EditWarningForm,
   RestoreWarningForm,
 } from "../warning-forms";
+import TransactionForm from "../../points/transaction-form";
 import type { Tables } from "@/lib/database.types";
 import {
   getAcademicPeriodData,
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
 
-const SECTION_PAGE_SIZE = 5;
-const SECTION_PREVIEW_LIMITS = { warnings: 2, events: 4, points: 3 } as const;
-type OfficerSection = "overview" | "warnings" | "events" | "tasks" | "points";
 type Warning = Tables<"officer_warnings">;
 type EventAssociation = { events: Tables<"events"> };
 type PointTransactionWithRelations = Tables<"point_transactions"> & {
@@ -56,86 +56,6 @@ type PointTransactionWithRelations = Tables<"point_transactions"> & {
   tasks: Pick<Tables<"tasks">, "id" | "title"> | null;
 };
 
-function parsePage(value: string | string[] | undefined) {
-  if (typeof value !== "string" || !/^[1-9]\d*$/.test(value)) return 1;
-  const page = Number(value);
-  return Number.isSafeInteger(page) ? page : 1;
-}
-
-function isValidPageParam(value: string | string[] | undefined) {
-  if (typeof value !== "string" || !/^[1-9]\d*$/.test(value)) return false;
-  const page = Number(value);
-  return Number.isSafeInteger(page) && String(page) === value;
-}
-
-function sectionHref(
-  officerId: string,
-  section: OfficerSection,
-  params: URLSearchParams,
-  page = 1,
-): Route {
-  const search = new URLSearchParams(params);
-  search.set("section", section);
-  if (page > 1) search.set("page", String(page));
-  else search.delete("page");
-  const query = search.toString();
-  return (
-    query ? `/officers/${officerId}?${query}` : `/officers/${officerId}`
-  ) as Route;
-}
-
-function SectionLink({
-  officerId,
-  section,
-  label,
-  params,
-  current,
-}: {
-  officerId: string;
-  section: OfficerSection;
-  label: string;
-  params: URLSearchParams;
-  current: boolean;
-}) {
-  return (
-    <Link
-      href={sectionHref(officerId, section, params)}
-      aria-current={current ? "page" : undefined}
-      className={`inline-flex min-h-9 items-center border-b-2 px-3 text-sm ${current ? "border-brand font-semibold text-brand" : "border-transparent text-secondary hover:text-foreground"}`}
-    >
-      {label}
-    </Link>
-  );
-}
-
-function SectionPager({
-  officerId,
-  section,
-  params,
-  page,
-  totalPages,
-}: {
-  officerId: string;
-  section: OfficerSection;
-  params: URLSearchParams;
-  page: number;
-  totalPages: number;
-}) {
-  if (totalPages <= 1) return null;
-  const filters = new URLSearchParams(params);
-  filters.set("section", section);
-  return (
-    <ListPagination
-      pathname={`/officers/${officerId}` as Route}
-      label={`${section} list`}
-      filters={filters}
-      page={page}
-      totalPages={totalPages}
-      getPageHref={(target) => sectionHref(officerId, section, params, target)}
-    />
-  );
-}
-
 export default async function OfficerDetailPage({
   params,
   searchParams,
@@ -143,11 +63,14 @@ export default async function OfficerDetailPage({
   params: Promise<{ id: string }>;
   searchParams?: Promise<NavigationSearchParams>;
 }) {
-  const actor = await getAuthorizationContext();
-  const supabase = await createClient();
-  const { id: officerIdParam } = await params;
-  const context = (await searchParams) ?? {};
-  const periodData = await getAcademicPeriodData();
+  const [actor, supabase, { id: officerIdParam }, context, periodData] =
+    await Promise.all([
+      getAuthorizationContext(),
+      createClient(),
+      params,
+      searchParams ?? Promise.resolve<NavigationSearchParams>({}),
+      getAcademicPeriodData(),
+    ]);
   const periodSelection = resolveAcademicPeriod(context.period, periodData);
   const selectedPeriod = periodSelection.period;
   const { returnTo } = context;
@@ -168,97 +91,65 @@ export default async function OfficerDetailPage({
   if (!officer) notFound();
 
   const showWarnings = isAdmin(actor) || actor.id === officer.id;
-  const requestedSection =
-    typeof context.section === "string"
-      ? context.section
-      : context.warningStatus
-        ? "warnings"
-        : "overview";
-  const section: OfficerSection = [
-    "overview",
-    "warnings",
-    "events",
-    "tasks",
-    "points",
-  ].includes(requestedSection)
-    ? (requestedSection as OfficerSection)
-    : "overview";
-  const visibleSection: OfficerSection =
-    section === "warnings" && !showWarnings ? "overview" : section;
-  if (section === "warnings" && !showWarnings)
-    redirect(
-      sectionHref(
-        officerIdParam,
-        "overview",
-        new URLSearchParams(
-          safeReturnDestination ? [["returnTo", safeReturnDestination]] : [],
-        ),
-      ),
-    );
-  const urlParams = new URLSearchParams();
-  if (safeReturnDestination) urlParams.set("returnTo", safeReturnDestination);
-  if (context.period !== undefined)
-    urlParams.set("period", String(context.period));
-  if (warningView !== "active") urlParams.set("warningStatus", warningView);
-  const requestedPage = parsePage(context.page);
-  if (context.page !== undefined && !isValidPageParam(context.page))
-    redirect(sectionHref(officerIdParam, visibleSection, urlParams));
-  if (visibleSection === "overview" && requestedPage > 1)
-    redirect(
-      sectionHref(
-        officerIdParam,
-        "overview",
-        new URLSearchParams(
-          safeReturnDestination ? [["returnTo", safeReturnDestination]] : [],
-        ),
-      ),
-    );
 
-  const makeWarningsQuery = (countOnly = false) =>
-    (() => {
-      let query = supabase
-        .from("officer_warnings")
-        .select(
-          countOnly ? "id" : "*",
-          countOnly ? { count: "exact", head: true } : undefined,
-        )
-        .eq("officer_id", officer.id);
-      if (!isAdmin(actor)) {
-        query = query
-          .eq("status", "approved")
-          .is("voided_at", null)
-          .is("deleted_at", null);
-      } else if (warningView === "deleted") {
-        query = query.not("deleted_at", "is", null);
-      } else if (warningView !== "all") {
-        query = query
-          .eq("status", "approved")
-          .is("voided_at", null)
-          .is("deleted_at", null);
-      }
-      return query;
-    })();
-  const makeEventsQuery = (countOnly = false) => {
+  const makeWarningsQuery = () => {
+    let query = supabase
+      .from("officer_warnings")
+      .select("*")
+      .eq("officer_id", officer.id);
+    if (!isAdmin(actor)) {
+      query = query
+        .eq("status", "approved")
+        .is("voided_at", null)
+        .is("deleted_at", null);
+    } else if (warningView === "deleted") {
+      query = query.not("deleted_at", "is", null);
+    } else if (warningView !== "all") {
+      query = query
+        .eq("status", "approved")
+        .is("voided_at", null)
+        .is("deleted_at", null);
+    }
+    return query
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false });
+  };
+
+  const makeEventsQuery = () => {
     let query = supabase
       .from("event_officers")
-      .select(
-        "events!inner(*)",
-        countOnly ? { count: "exact", head: true } : { count: "exact" },
-      )
+      .select("events!inner(*)")
       .eq("officer_id", officer.id)
       .is("removed_at", null)
       .is("events.deleted_at", null)
-      .neq("events.status", "cancelled");
-    if (!countOnly)
-      query = query
-        .order("events(event_date)", { ascending: false })
-        .order("events(id)", { ascending: false });
+      .neq("events.status", "cancelled")
+      .order("events(event_date)", { ascending: false })
+      .order("events(id)", { ascending: false });
     if (selectedPeriod)
       query = query
         .gte("events.event_date", selectedPeriod.starts_on)
         .lte("events.event_date", selectedPeriod.ends_on);
     return query;
   };
+
+  const makeTasksQuery = () => {
+    let query = supabase
+      .from("task_officer_assignments")
+      .select(
+        "completed_at,approved_at,tasks!inner(id,title,due_date,points,task_type,removed_at)",
+      )
+      .eq("officer_id", officer.id)
+      .is("removed_at", null)
+      .is("tasks.removed_at", null)
+      .order("tasks(due_date)", { ascending: false })
+      .order("tasks(id)", { ascending: false });
+    if (selectedPeriod)
+      query = query
+        .gte("tasks.due_date", selectedPeriod.starts_on)
+        .lte("tasks.due_date", selectedPeriod.ends_on);
+    return query;
+  };
+
   const periodTransactionIds = selectedPeriod
     ? await supabase
         .from("point_history")
@@ -273,86 +164,54 @@ export default async function OfficerDetailPage({
   const transactionIds = periodTransactionIds?.data
     .map((row) => row.id)
     .filter((id): id is number => id !== null);
-  const makeTransactionsQuery = (countOnly = false) => {
+
+  const makeTransactionsQuery = () => {
     let query = supabase
       .from("point_transactions")
       .select(
-        countOnly
-          ? "id"
-          : "*,officers!point_transactions_officer_id_fkey(id,name),events(id,name),tasks(id,title)",
-        countOnly ? { count: "exact", head: true } : { count: "exact" },
+        "*,officers!point_transactions_officer_id_fkey(id,name),events(id,name),tasks(id,title)",
       )
       .is("removed_at", null)
-      .eq("officer_id", officer.id);
+      .eq("officer_id", officer.id)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false });
     if (transactionIds)
       query = transactionIds.length
         ? query.in("id", transactionIds)
         : query.eq("id", -1);
-    if (!countOnly)
-      query = query
-        .order("created_at", { ascending: false })
-        .order("id", { ascending: false });
-    return query;
-  };
-  const makeTasksQuery = (countOnly = false) => {
-    let query = supabase
-      .from("task_officer_assignments")
-      .select(
-        "completed_at,approved_at,tasks!inner(id,title,due_date,points,task_type,removed_at)",
-        countOnly ? { count: "exact", head: true } : { count: "exact" },
-      )
-      .eq("officer_id", officer.id)
-      .is("removed_at", null)
-      .is("tasks.removed_at", null);
-    if (selectedPeriod)
-      query = query
-        .gte("tasks.due_date", selectedPeriod.starts_on)
-        .lte("tasks.due_date", selectedPeriod.ends_on);
-    if (!countOnly)
-      query = query
-        .order("tasks(due_date)", { ascending: false })
-        .order("tasks(id)", { ascending: false });
     return query;
   };
 
-  const overview = visibleSection === "overview";
-  const warningsNeeded =
-    showWarnings && (overview || visibleSection === "warnings");
-  const eventsNeeded = overview || visibleSection === "events";
-  const tasksNeeded = overview || visibleSection === "tasks";
-  const pointsNeeded = overview || visibleSection === "points";
+  const canAddPointAdjustment =
+    isAdmin(actor) &&
+    !periodSelection.isHistorical &&
+    (selectedPeriod === null ||
+      selectedPeriod.id === periodData.currentPeriodId);
+
   const [
     total,
-    warningCountResult,
+    periodSummaryResult,
     warningsResult,
     approvedCountResult,
-    eventCountResult,
     eventsResult,
-    taskCountResult,
     tasksResult,
-    transactionCountResult,
     transactionsResult,
+    adjustmentEventsResult,
+    adjustmentTasksResult,
   ] = await Promise.all([
     supabase
       .from("officer_point_totals")
       .select("total_points")
       .eq("id", officerId)
       .single(),
-    warningsNeeded
-      ? makeWarningsQuery(true)
-      : Promise.resolve({ count: 0, error: null }),
-    warningsNeeded
-      ? (() => {
-          const limit = overview
-            ? SECTION_PREVIEW_LIMITS.warnings
-            : SECTION_PAGE_SIZE;
-          const from = overview ? 0 : (requestedPage - 1) * SECTION_PAGE_SIZE;
-          return makeWarningsQuery()
-            .order("created_at", { ascending: false })
-            .order("id", { ascending: false })
-            .range(from, from + limit - 1);
-        })()
-      : Promise.resolve({ data: [], error: null }),
+    selectedPeriod
+      ? supabase
+          .rpc("academic_period_point_summary", {
+            p_period_id: selectedPeriod.id,
+          })
+          .single()
+      : Promise.resolve({ data: null, error: null }),
+    showWarnings ? makeWarningsQuery() : Promise.resolve({ data: [], error: null }),
     showWarnings
       ? supabase
           .from("officer_warnings")
@@ -362,41 +221,36 @@ export default async function OfficerDetailPage({
           .is("voided_at", null)
           .is("deleted_at", null)
       : Promise.resolve({ count: 0, error: null }),
-    eventsNeeded
-      ? makeEventsQuery(true)
-      : Promise.resolve({ count: 0, error: null }),
-    eventsNeeded
-      ? (() => {
-          const limit = overview
-            ? SECTION_PREVIEW_LIMITS.events
-            : SECTION_PAGE_SIZE;
-          const from = overview ? 0 : (requestedPage - 1) * SECTION_PAGE_SIZE;
-          return makeEventsQuery().range(from, from + limit - 1);
-        })()
+    makeEventsQuery(),
+    makeTasksQuery(),
+    makeTransactionsQuery(),
+    canAddPointAdjustment
+      ? supabase
+          .from("events")
+          .select("id,name,event_date")
+          .is("deleted_at", null)
+          .order("event_date", { ascending: false })
+          .limit(5)
       : Promise.resolve({ data: [], error: null }),
-    tasksNeeded
-      ? makeTasksQuery(true)
-      : Promise.resolve({ count: 0, error: null }),
-    tasksNeeded
-      ? (() => {
-          const limit = overview ? SECTION_PAGE_SIZE : SECTION_PAGE_SIZE;
-          const from = overview ? 0 : (requestedPage - 1) * SECTION_PAGE_SIZE;
-          return makeTasksQuery().range(from, from + limit - 1);
-        })()
-      : Promise.resolve({ data: [], error: null }),
-    pointsNeeded
-      ? makeTransactionsQuery(true)
-      : Promise.resolve({ count: 0, error: null }),
-    pointsNeeded
-      ? (() => {
-          const limit = overview
-            ? SECTION_PREVIEW_LIMITS.points
-            : SECTION_PAGE_SIZE;
-          const from = overview ? 0 : (requestedPage - 1) * SECTION_PAGE_SIZE;
-          return makeTransactionsQuery().range(from, from + limit - 1);
-        })()
+    canAddPointAdjustment
+      ? supabase
+          .from("tasks")
+          .select("id,title,due_date")
+          .is("removed_at", null)
+          .order("due_date", { ascending: false })
       : Promise.resolve({ data: [], error: null }),
   ]);
+  const periodRanking = (periodSummaryResult.data?.ranking ?? []) as Array<{
+    officer_id: number;
+    points: number;
+  }>;
+  const periodRankIndex = periodRanking.findIndex(
+    (row) => row.officer_id === officer.id,
+  );
+  const periodPoints =
+    periodRankIndex >= 0 ? periodRanking[periodRankIndex].points : 0;
+  const periodRank = periodRankIndex >= 0 ? periodRankIndex + 1 : null;
+
   const warnings = warningsResult as {
     data: Warning[] | null;
     error: { message: string } | null;
@@ -422,617 +276,467 @@ export default async function OfficerDetailPage({
     data: PointTransactionWithRelations[] | null;
     error: { message: string } | null;
   };
-  const warningCount = warningCountResult.count ?? 0;
-  const eventCount = eventCountResult.count ?? 0;
-  const taskCount = taskCountResult.count ?? 0;
-  const transactionCount = transactionCountResult.count ?? 0;
-  const warningPages = Math.max(1, Math.ceil(warningCount / SECTION_PAGE_SIZE));
-  const eventPages = Math.max(1, Math.ceil(eventCount / SECTION_PAGE_SIZE));
-  const taskPages = Math.max(1, Math.ceil(taskCount / SECTION_PAGE_SIZE));
-  const transactionPages = Math.max(
-    1,
-    Math.ceil(transactionCount / SECTION_PAGE_SIZE),
-  );
-  const selectedPages =
-    visibleSection === "warnings"
-      ? warningPages
-      : visibleSection === "events"
-        ? eventPages
-        : visibleSection === "tasks"
-          ? taskPages
-          : transactionPages;
-  if (!overview && requestedPage > selectedPages)
-    redirect(
-      sectionHref(officerIdParam, visibleSection, urlParams, selectedPages),
-    );
   const approvedCount = approvedCountResult.count ?? 0;
   const visibleWarnings = warnings.data ?? [];
   const associatedEvents = (events.data ?? []).filter(
     ({ events: event }) => !event.deleted_at && event.status !== "cancelled",
   );
+  const associatedTasks = tasks.data ?? [];
+  const officerTransactions = transactions.data ?? [];
 
-  const sectionNav = (
-    <nav
-      aria-label="Officer profile sections"
-      className="flex flex-wrap border-b border-border"
-    >
-      <SectionLink
-        officerId={officerIdParam}
-        section="overview"
-        label="Overview"
-        params={urlParams}
-        current={visibleSection === "overview"}
-      />
-      {showWarnings && (
-        <SectionLink
-          officerId={officerIdParam}
-          section="warnings"
-          label={
-            !warningsNeeded || warningCountResult.error
-              ? "Warnings"
-              : `Warnings (${warningCount})`
-          }
-          params={urlParams}
-          current={visibleSection === "warnings"}
-        />
-      )}
-      <SectionLink
-        officerId={officerIdParam}
-        section="events"
-        label={
-          !eventsNeeded || eventCountResult.error
-            ? "Events"
-            : `Events (${eventCount})`
-        }
-        params={urlParams}
-        current={visibleSection === "events"}
-      />
-      <SectionLink
-        officerId={officerIdParam}
-        section="tasks"
-        label={
-          !tasksNeeded || taskCountResult.error
-            ? "Tasks"
-            : `Tasks (${taskCount})`
-        }
-        params={urlParams}
-        current={visibleSection === "tasks"}
-      />
-      <SectionLink
-        officerId={officerIdParam}
-        section="points"
-        label={
-          !pointsNeeded || transactionCountResult.error
-            ? "Points"
-            : `Points (${transactionCount})`
-        }
-        params={urlParams}
-        current={visibleSection === "points"}
-      />
-    </nav>
-  );
-
-  const profile = (
-    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(18rem,1fr)]">
-      <div className="min-w-0 space-y-3">
-        <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-5 gap-y-2 text-sm [&>dt]:mt-0 [&>dd]:mt-0 [&>dd]:min-w-0 [&>dd]:break-words">
-          <dt>UTEP email</dt>
-          <dd>{officer.utep_email ?? "Not provided"}</dd>
-          <dt>Personal email</dt>
-          <dd>{officer.personal_email ?? "Not provided"}</dd>
-          <dt>Position</dt>
-          <dd>{officer.positions.name}</dd>
-          <dt>Application role</dt>
-          <dd>{formatLabel(officer.application_role)}</dd>
-          <dt>Classification</dt>
-          <dd>
-            {officer.classification
-              ? formatLabel(officer.classification)
-              : "Not specified"}
-          </dd>
-        </dl>
-        {total.error ? (
-          <p role="alert" className="text-sm">
-            Total points unavailable. Reload this page to retry.
-          </p>
-        ) : (
-          <p className="text-lg font-semibold">
-            Total points: <PointValue value={total.data.total_points ?? 0} />
-          </p>
-        )}
-      </div>
-      <div className="min-w-0 space-y-3">
-        <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm [&>dt]:mt-0 [&>dd]:mt-0 [&>dd]:min-w-0 [&>dd]:break-words">
-          <dt>Status</dt>
-          <dd>
-            <StatusBadge status={officer.status} />
-          </dd>
-          <dt>Branches</dt>
-          <dd>
-            <BranchBadges
-              branches={officer.officer_branches.map(
-                (membership) => membership.branches,
-              )}
-            />
-          </dd>
-        </dl>
-        {!periodSelection.isHistorical &&
-          canManageOfficers(actor) &&
-          actor.id !== officer.id && (
-            <section className="space-y-2">
-              <SectionHeading
-                title="Application access"
-                description="Admin access is assigned separately from club position."
-              />
-              <RoleForm
-                officerId={officer.id}
-                role={officer.application_role}
-              />
-            </section>
-          )}
-        {showWarnings && (
-          <p className="text-sm">Approved warnings: {approvedCount}</p>
-        )}
-      </div>
-    </div>
-  );
-
-  const warningStatusLinks = isAdmin(actor) ? (
-    <nav
-      aria-label="Warning status"
-      className="flex flex-wrap gap-1 border-b border-border text-sm"
-    >
-      {[
-        ["Active", "active"],
-        ["Deleted", "deleted"],
-        ["All history", "all"],
-      ].map(([label, status]) => {
-        const active = warningView === status;
-        return (
-          <Link
-            key={status}
-            href={withReturnTo(
-              status === "active"
-                ? `/officers/${officerIdParam}?section=warnings`
-                : `/officers/${officerIdParam}?warningStatus=${status}`,
-              safeReturnDestination,
-            )}
-            aria-current={active ? "page" : undefined}
-            className={`border-b-2 px-3 py-2 ${active ? "border-brand font-semibold text-brand" : "border-transparent text-secondary hover:text-foreground"}`}
-          >
-            {label}
-          </Link>
-        );
-      })}
-    </nav>
-  ) : null;
-
-  const warningContent = showWarnings ? (
-    <section aria-label="Warnings" className="min-w-0 space-y-3">
-      <SectionHeading
-        title="Warnings"
-        action={
-          isAdmin(actor) && !periodSelection.isHistorical && !warnings.error ? (
-            <CreateWarningForm officerId={officer.id} />
-          ) : undefined
-        }
-      />
-      {warningCountResult.error && (
-        <p role="alert" className="text-sm">
-          Warning count unavailable. Only the visible page may be shown.
-        </p>
-      )}
-      {warnings.error && (
-        <p role="alert" className="text-sm">
-          Warning history unavailable. Reload this page to retry.
-        </p>
-      )}
-      {isAdmin(actor) && approvedCountResult.error && (
-        <p role="alert" className="text-sm">
-          Approved warning count unavailable. Reload this page to retry.
-        </p>
-      )}
-      {isAdmin(actor) && !approvedCountResult.error && approvedCount >= 3 && (
-        <p role="status" className="font-semibold">
-          Admin Review — three or more approved warnings. Deactivation is a
-          separate manual decision.
-        </p>
-      )}
-      {warningStatusLinks}
-      {!warnings.error && visibleWarnings.length === 0 && (
-        <p>
-          {isAdmin(actor)
-            ? warningView === "deleted"
-              ? "No deleted warnings."
-              : warningView === "all"
-                ? "No warnings in history."
-                : "No active warnings."
-            : "No approved warnings."}
-        </p>
-      )}
-      {!warnings.error &&
-        visibleWarnings.map((warning) => (
-          <article
-            key={warning.id}
-            className="space-y-2 border-b border-border py-3"
-          >
-            <div className="flex flex-wrap items-center gap-3">
-              <StatusBadge status={warning.status} />
-              <span className="text-sm text-muted">
-                {warning.origin === "automatic" ? "Automatic" : "Manual"}
-              </span>
-              {warning.deleted_at !== null && (
-                <span className="text-sm font-medium text-muted">Deleted</span>
-              )}
-              {warning.voided_at !== null && (
-                <span className="text-sm font-medium text-muted">Voided</span>
-              )}
-              <time dateTime={warning.created_at}>
-                {formatDate(warning.created_at)}
-              </time>
-            </div>
-            <p className="whitespace-pre-wrap break-words">{warning.reason}</p>
-            {isAdmin(actor) && !periodSelection.isHistorical && (
-              <>
-                <EditWarningForm
-                  warningId={warning.id}
-                  officerId={officer.id}
-                  reason={warning.reason}
-                />
-                {warning.deleted_at === null ? (
-                  <DeleteWarningForm
-                    warningId={warning.id}
-                    officerId={officer.id}
-                    origin={
-                      warning.origin === "automatic" ? "automatic" : "manual"
-                    }
-                  />
-                ) : (
-                  <RestoreWarningForm
-                    warningId={warning.id}
-                    officerId={officer.id}
-                    origin={
-                      warning.origin === "automatic" ? "automatic" : "manual"
-                    }
-                  />
-                )}
-              </>
-            )}
-          </article>
-        ))}
-      {!warnings.error && (
-        <SectionPager
-          officerId={officerIdParam}
-          section="warnings"
-          params={urlParams}
-          page={requestedPage}
-          totalPages={warningPages}
-        />
-      )}
-    </section>
-  ) : null;
-
-  const eventContent = (
-    <section aria-label="Associated events" className="min-w-0 space-y-3">
-      <SectionHeading title="Associated events" />
-      {eventCountResult.error && (
-        <p role="alert" className="text-sm">
-          Associated event count unavailable. Only the visible page may be
-          shown.
-        </p>
-      )}
-      {events.error ? (
-        <p role="alert" className="text-sm">
-          Associated events unavailable. Reload this page to retry.
-        </p>
-      ) : !associatedEvents.length ? (
-        <p>No associated events yet.</p>
-      ) : (
-        <ul>
-          {associatedEvents.map(({ events: event }: EventAssociation) => (
-            <li
-              key={event.id}
-              className="flex flex-wrap items-center gap-2 border-b border-border py-2 text-sm"
-            >
-              <Link
-                href={withReturnTo(
-                  `/events/${event.id}`,
-                  listReturnUrl("/events", { period: context.period }),
-                )}
-                className="break-words font-medium text-secondary hover:underline"
-              >
-                {event.name}
-              </Link>
-              <span className="text-subtle">
-                {formatCalendarDate(event.event_date)}
-              </span>
-              <StatusBadge status={eventStatus(event)} />
-            </li>
-          ))}
-        </ul>
-      )}
-      {!events.error && (
-        <SectionPager
-          officerId={officerIdParam}
-          section="events"
-          params={urlParams}
-          page={requestedPage}
-          totalPages={eventPages}
-        />
-      )}
-    </section>
-  );
-
-  const taskContent = (
-    <section aria-label="Associated tasks" className="min-w-0 space-y-3">
-      <SectionHeading title="Associated tasks" />
-      {taskCountResult.error && (
-        <p role="alert" className="text-sm">
-          Task count unavailable. Only visible tasks may be shown.
-        </p>
-      )}
-      {tasks.error ? (
-        <p role="alert" className="text-sm">
-          Tasks unavailable. Reload this page to retry.
-        </p>
-      ) : (tasks.data ?? []).length === 0 ? (
-        <p>No associated Tasks yet.</p>
-      ) : (
-        <TableFrame compact label="Officer tasks">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">Task</th>
-                <th scope="col">Due</th>
-                <th scope="col">Points</th>
-                <th scope="col">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(tasks.data ?? []).map((assignment) => {
-                if (!assignment.tasks) return null;
-                return (
-                  <tr key={assignment.tasks.id}>
-                    <td>
-                      <Link
-                        href={withReturnTo(
-                          `/tasks/${assignment.tasks.id}`,
-                          listReturnUrl("/tasks", { period: context.period }),
-                        )}
-                      >
-                        {assignment.tasks.title}
-                      </Link>
-                    </td>
-                    <td>{formatCalendarDate(assignment.tasks.due_date)}</td>
-                    <td>
-                      <PointValue value={assignment.tasks.points} />
-                    </td>
-                    <td>
-                      {assignment.completed_at ? "Complete" : "Incomplete"}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </TableFrame>
-      )}
-      {!tasks.error && (
-        <SectionPager
-          officerId={officerIdParam}
-          section="tasks"
-          params={urlParams}
-          page={requestedPage}
-          totalPages={taskPages}
-        />
-      )}
-    </section>
-  );
-
-  const pointContent = (
-    <section aria-label="Point history" className="space-y-3">
-      <SectionHeading title="Point history" />
-      {transactionCountResult.error && (
-        <p role="alert" className="text-sm">
-          Point history count unavailable. Only the visible page may be shown.
-        </p>
-      )}
-      {transactions.error ? (
-        <p role="alert" className="text-sm">
-          Point history unavailable. Reload this page to retry.
-        </p>
-      ) : (
-        <TableFrame compact label="Officer point history">
-          <PointTransactionTable
-            transactions={transactions.data ?? []}
-            period={
-              typeof context.period === "string" ? context.period : undefined
-            }
-          />
-        </TableFrame>
-      )}
-      {!transactions.error && (
-        <SectionPager
-          officerId={officerIdParam}
-          section="points"
-          params={urlParams}
-          page={requestedPage}
-          totalPages={transactionPages}
-        />
-      )}
-      <Link
-        href={`/points?${new URLSearchParams({ officer: String(officer.id), ...(context.period === undefined ? {} : { period: String(context.period) }) })}`}
-        className="inline-block text-sm underline"
-      >
-        View all point history
-      </Link>
-    </section>
-  );
+  const warningStatusHref = (status: string) => {
+    const query = new URLSearchParams();
+    if (context.period !== undefined)
+      query.set("period", String(context.period));
+    if (status !== "active") query.set("warningStatus", status);
+    const search = query.toString();
+    return withReturnTo(
+      `/officers/${officerIdParam}${search ? `?${search}` : ""}`,
+      safeReturnDestination,
+    );
+  };
 
   return (
-    <div data-record-page="officer" className="space-y-4">
+    <div data-record-page="officer" className="space-y-5">
       <ContextualBackLink href="/officers" returnTo={safeReturnDestination}>
         Back to officers
       </ContextualBackLink>
       <PageHeader
         title={officer.name}
         action={
-          canManageOfficers(actor) && !periodSelection.isHistorical ? (
-            <ActionLink
-              href={withReturnTo(
-                `/officers/${officerIdParam}/edit`,
-                safeReturnDestination,
-              )}
-            >
-              Edit officer
-            </ActionLink>
-          ) : undefined
+          <div className="flex flex-wrap items-center gap-2">
+            <CopyCanonicalLinkButton path={`/officers/${officerIdParam}`} />
+            {canManageOfficers(actor) && !periodSelection.isHistorical && (
+              <ActionLink
+                href={withReturnTo(
+                  `/officers/${officerIdParam}/edit`,
+                  safeReturnDestination,
+                )}
+              >
+                Edit officer
+              </ActionLink>
+            )}
+          </div>
         }
       />
       <SuccessNotice status={context.feedback} />
-      {sectionNav}
-      {visibleSection === "overview" && (
-        <div className="space-y-5">
-          {profile}
-          <div
-            className={`grid items-start gap-x-6 gap-y-5 ${showWarnings ? "lg:grid-cols-2" : ""}`}
-          >
-            {showWarnings && (
-              <section aria-label="Warnings" className="space-y-2">
-                <SectionHeading
-                  title="Warnings"
-                  action={
-                    isAdmin(actor) &&
-                    !periodSelection.isHistorical &&
-                    !warnings.error ? (
-                      <CreateWarningForm officerId={officer.id} />
-                    ) : undefined
-                  }
-                />
-                {isAdmin(actor) &&
-                  !approvedCountResult.error &&
-                  approvedCount >= 3 && (
-                    <p role="status" className="text-sm font-semibold">
-                      Admin Review — three or more approved warnings.
-                      Deactivation is a separate manual decision.
-                    </p>
+
+      <div className="grid items-start gap-6 rounded-lg border border-border bg-surface p-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(18rem,1fr)]">
+        <div className="min-w-0 space-y-3">
+          <dl className="grid grid-cols-[8rem_minmax(0,1fr)] text-sm [&>dd]:min-w-0 [&>dd]:break-words">
+            <dt>UTEP email</dt>
+            <dd>
+              {officer.utep_email ? (
+                <span className="inline-flex flex-wrap items-center gap-1.5">
+                  <a
+                    href={`mailto:${officer.utep_email}`}
+                    className="text-foreground hover:text-brand hover:underline underline-offset-3"
+                  >
+                    {officer.utep_email}
+                  </a>
+                  <CopyTextButton
+                    value={officer.utep_email}
+                    label={`Copy ${officer.name}'s UTEP email`}
+                    toastMessage="Email copied"
+                  />
+                </span>
+              ) : (
+                "Not provided"
+              )}
+            </dd>
+            <dt>Personal email</dt>
+            <dd>
+              {officer.personal_email ? (
+                <span className="inline-flex flex-wrap items-center gap-1.5">
+                  <a
+                    href={`mailto:${officer.personal_email}`}
+                    className="text-foreground hover:text-brand hover:underline underline-offset-3"
+                  >
+                    {officer.personal_email}
+                  </a>
+                  <CopyTextButton
+                    value={officer.personal_email}
+                    label={`Copy ${officer.name}'s personal email`}
+                    toastMessage="Email copied"
+                  />
+                </span>
+              ) : (
+                "Not provided"
+              )}
+            </dd>
+            <dt>Position</dt>
+            <dd>{officer.positions.name}</dd>
+            <dt>Application role</dt>
+            <dd>{formatLabel(officer.application_role)}</dd>
+            <dt>Classification</dt>
+            <dd>
+              {officer.classification
+                ? formatLabel(officer.classification)
+                : "Not specified"}
+            </dd>
+          </dl>
+        </div>
+        <div className="min-w-0 space-y-4">
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface-muted/40 px-3.5 py-2.5">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-muted">
+                {selectedPeriod ? `Points (${selectedPeriod.name})` : "Total points (all periods)"}
+              </p>
+              {selectedPeriod && !periodSummaryResult.error ? (
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <p className="text-lg font-semibold leading-tight text-foreground">
+                    <PointValue value={periodPoints} />
+                  </p>
+                  {periodRank !== null && (
+                    <span className="text-xs font-medium tabular-nums text-muted">
+                      #{periodRank}
+                    </span>
                   )}
-                {warningCountResult.error && (
-                  <p role="alert" className="text-sm">
-                    Warning count unavailable. Only the visible preview is
-                    shown.
-                  </p>
+                  {!total.error && (
+                    <span className="text-xs text-muted">
+                      · All-time: <PointValue value={total.data.total_points ?? 0} />
+                    </span>
+                  )}
+                </div>
+              ) : total.error ? (
+                <p role="alert" className="text-xs">
+                  Total points unavailable.
+                </p>
+              ) : (
+                <p className="text-lg font-semibold leading-tight text-foreground">
+                  <PointValue value={total.data.total_points ?? 0} />
+                </p>
+              )}
+            </div>
+            <div className="border-l border-border pl-3.5">
+              <p className="text-xs font-medium text-muted">Events</p>
+              <p className="text-lg font-semibold leading-tight tabular-nums text-foreground">
+                {associatedEvents.length}
+              </p>
+            </div>
+            <div className="border-l border-border pl-3.5">
+              <p className="text-xs font-medium text-muted">Tasks done</p>
+              <p className="text-lg font-semibold leading-tight tabular-nums text-foreground">
+                {associatedTasks.filter((t) => Boolean(t.completed_at)).length}
+                <span className="text-xs font-normal text-muted">
+                  /{associatedTasks.length}
+                </span>
+              </p>
+            </div>
+            {showWarnings && (
+              <div className="border-l border-border pl-3.5">
+                <p className="text-xs font-medium text-muted">
+                  Approved warnings
+                </p>
+                <p className="text-lg font-semibold leading-tight tabular-nums text-foreground">
+                  {approvedCount}
+                </p>
+              </div>
+            )}
+          </div>
+          <dl className="grid grid-cols-[6rem_minmax(0,1fr)] text-sm [&>dd]:min-w-0 [&>dd]:break-words">
+            <dt>Status</dt>
+            <dd>
+              <StatusBadge status={officer.status} />
+            </dd>
+            <dt>Branches</dt>
+            <dd>
+              <BranchBadges
+                branches={officer.officer_branches.map(
+                  (membership) => membership.branches,
                 )}
-                {isAdmin(actor) && approvedCountResult.error && (
-                  <p role="alert" className="text-sm">
-                    Approved warning count unavailable. Reload this page to
-                    retry.
-                  </p>
-                )}
-                {warnings.error ? (
-                  <p role="alert" className="text-sm">
-                    Warning history unavailable. Reload this page to retry.
-                  </p>
-                ) : visibleWarnings.length ? (
-                  visibleWarnings.map((warning) => (
-                    <article
-                      key={warning.id}
-                      className="space-y-1 border-b border-border py-2"
-                    >
-                      <div className="flex flex-wrap gap-3">
-                        <StatusBadge status={warning.status} />
-                        <span className="text-sm text-muted">
-                          {warning.origin === "automatic"
-                            ? "Automatic"
-                            : "Manual"}
-                        </span>
-                        <time dateTime={warning.created_at}>
-                          {formatDate(warning.created_at)}
-                        </time>
-                      </div>
-                      <p className="whitespace-pre-wrap break-words text-sm">
-                        {warning.reason}
-                      </p>
-                      {isAdmin(actor) && !periodSelection.isHistorical && (
-                        <>
-                          <EditWarningForm
-                            warningId={warning.id}
-                            officerId={officer.id}
-                            reason={warning.reason}
-                          />
-                          {warning.deleted_at === null ? (
-                            <DeleteWarningForm
-                              warningId={warning.id}
-                              officerId={officer.id}
-                              origin={
-                                warning.origin === "automatic"
-                                  ? "automatic"
-                                  : "manual"
-                              }
-                            />
-                          ) : (
-                            <RestoreWarningForm
-                              warningId={warning.id}
-                              officerId={officer.id}
-                              origin={
-                                warning.origin === "automatic"
-                                  ? "automatic"
-                                  : "manual"
-                              }
-                            />
-                          )}
-                        </>
-                      )}
-                    </article>
-                  ))
-                ) : null}
-                <Link
-                  className="text-sm underline"
-                  href={sectionHref(officerIdParam, "warnings", urlParams)}
-                >
-                  {warningCountResult.error
-                    ? "View all warnings"
-                    : `View all warnings (${warningCount})`}
-                </Link>
+              />
+            </dd>
+          </dl>
+          {!periodSelection.isHistorical &&
+            canManageOfficers(actor) &&
+            actor.id !== officer.id && (
+              <section className="space-y-2 border-t border-border pt-3">
+                <h3 className="text-sm font-semibold text-foreground">
+                  Application access
+                </h3>
+                <p className="text-xs text-muted">
+                  Admin access is assigned separately from club position.
+                </p>
+                <RoleForm
+                  officerId={officer.id}
+                  role={officer.application_role}
+                />
               </section>
             )}
-            <div className="space-y-2">
-              {eventContent}
-              <Link
-                className="text-sm underline"
-                href={sectionHref(officerIdParam, "events", urlParams)}
+        </div>
+      </div>
+
+      <div
+        className={`grid items-start gap-5 ${showWarnings ? "lg:grid-cols-2" : ""}`}
+      >
+        {showWarnings && (
+          <section
+            aria-label="Warnings"
+            className="min-w-0 space-y-3 rounded-lg border border-border bg-surface p-4 [&>.section-heading:first-child]:mt-0"
+          >
+            <SectionHeading
+              title={`Warnings (${visibleWarnings.length})`}
+              action={
+                isAdmin(actor) &&
+                !periodSelection.isHistorical &&
+                !warnings.error ? (
+                  <CreateWarningForm
+                    officerId={officer.id}
+                    approvedWarningCount={approvedCount}
+                  />
+                ) : undefined
+              }
+            />
+            {isAdmin(actor) && (
+              <nav
+                aria-label="Warning status"
+                className="flex flex-wrap gap-1 border-b border-border text-xs"
               >
-                {eventCountResult.error
-                  ? "View all associated events"
-                  : `View all associated events (${eventCount})`}
+                {[
+                  ["Active", "active"],
+                  ["Deleted", "deleted"],
+                  ["All history", "all"],
+                ].map(([label, status]) => {
+                  const active = warningView === status;
+                  return (
+                    <Link
+                      key={status}
+                      href={warningStatusHref(status)}
+                      aria-current={active ? "page" : undefined}
+                      className={`border-b-2 px-2.5 py-1.5 ${active ? "border-brand font-semibold text-brand" : "border-transparent text-muted hover:text-foreground"}`}
+                    >
+                      {label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+            {warnings.error && (
+              <p role="alert" className="text-sm">
+                Warning history unavailable. Reload this page to retry.
+              </p>
+            )}
+            {isAdmin(actor) && approvedCountResult.error && (
+              <p role="alert" className="text-sm">
+                Approved warning count unavailable. Reload this page to retry.
+              </p>
+            )}
+            {isAdmin(actor) &&
+              !approvedCountResult.error &&
+              approvedCount >= 3 && (
+                <p role="status" className="text-sm font-semibold">
+                  Admin Review — three or more approved warnings. Deactivation
+                  is a separate manual decision.
+                </p>
+              )}
+            {!warnings.error && visibleWarnings.length === 0 && (
+              <p className="text-sm text-muted">
+                {isAdmin(actor)
+                  ? warningView === "deleted"
+                    ? "No deleted warnings."
+                    : warningView === "all"
+                      ? "No warnings in history."
+                      : "No active warnings."
+                  : "No approved warnings."}
+              </p>
+            )}
+            {!warnings.error &&
+              visibleWarnings.map((warning) => (
+                <article
+                  key={warning.id}
+                  className="space-y-1.5 border-b border-border py-2.5 last:border-b-0"
+                >
+                  <div className="flex flex-wrap items-center gap-2.5 text-xs">
+                    <StatusBadge status={warning.status} />
+                    <span className="text-muted">
+                      {warning.origin === "automatic" ? "Automatic" : "Manual"}
+                    </span>
+                    {warning.deleted_at !== null && (
+                      <span className="font-medium text-muted">Deleted</span>
+                    )}
+                    {warning.voided_at !== null && (
+                      <span className="font-medium text-muted">Voided</span>
+                    )}
+                    <time dateTime={warning.created_at} className="text-muted">
+                      {formatDate(warning.created_at)}
+                    </time>
+                  </div>
+                  <p className="whitespace-pre-wrap break-words text-sm text-foreground">
+                    {warning.reason}
+                  </p>
+                  {isAdmin(actor) && !periodSelection.isHistorical && (
+                    <div className="flex flex-wrap items-start gap-2 pt-1">
+                      <EditWarningForm
+                        warningId={warning.id}
+                        officerId={officer.id}
+                        reason={warning.reason}
+                      />
+                      {warning.deleted_at === null ? (
+                        <DeleteWarningForm
+                          warningId={warning.id}
+                          officerId={officer.id}
+                          origin={
+                            warning.origin === "automatic"
+                              ? "automatic"
+                              : "manual"
+                          }
+                        />
+                      ) : (
+                        <RestoreWarningForm
+                          warningId={warning.id}
+                          officerId={officer.id}
+                          origin={
+                            warning.origin === "automatic"
+                              ? "automatic"
+                              : "manual"
+                          }
+                        />
+                      )}
+                    </div>
+                  )}
+                </article>
+              ))}
+          </section>
+        )}
+
+        <section
+          aria-label="Associated events"
+          className="min-w-0 space-y-3 rounded-lg border border-border bg-surface p-4 [&>.section-heading:first-child]:mt-0"
+        >
+          <SectionHeading
+            title={`Associated events (${associatedEvents.length})`}
+          />
+          {events.error ? (
+            <p role="alert" className="text-sm">
+              Associated events unavailable. Reload this page to retry.
+            </p>
+          ) : !associatedEvents.length ? (
+            <p className="text-sm text-muted">No associated events yet.</p>
+          ) : (
+            <ul className="divide-y divide-border rounded-lg border border-border bg-surface-muted/30 px-3 text-sm">
+              {associatedEvents.map(({ events: event }: EventAssociation) => (
+                <li
+                  key={event.id}
+                  className="flex flex-wrap items-center justify-between gap-2 py-2"
+                >
+                  <Link
+                    href={withReturnTo(
+                      `/events/${event.id}`,
+                      listReturnUrl("/events", { period: context.period }),
+                    )}
+                    className="break-words font-medium text-foreground hover:text-brand hover:underline"
+                  >
+                    {event.name}
+                  </Link>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted">
+                      {formatCalendarDate(event.event_date)}
+                    </span>
+                    <StatusBadge status={eventStatus(event)} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+
+      <section
+        aria-label="Associated tasks"
+        className="min-w-0 space-y-3 rounded-lg border border-border bg-surface p-4 [&>.section-heading:first-child]:mt-0"
+      >
+        <SectionHeading title={`Associated tasks (${associatedTasks.length})`} />
+        {tasks.error ? (
+          <p role="alert" className="text-sm">
+            Tasks unavailable. Reload this page to retry.
+          </p>
+        ) : associatedTasks.length === 0 ? (
+          <p className="text-sm text-muted">No associated Tasks yet.</p>
+        ) : (
+          <TableFrame compact label="Officer tasks">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Task</th>
+                  <th scope="col">Due</th>
+                  <th scope="col">Points</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {associatedTasks.map((assignment) => {
+                  if (!assignment.tasks) return null;
+                  return (
+                    <tr key={assignment.tasks.id}>
+                      <td>
+                        <Link
+                          href={withReturnTo(
+                            `/tasks/${assignment.tasks.id}`,
+                            listReturnUrl("/tasks", { period: context.period }),
+                          )}
+                        >
+                          {assignment.tasks.title}
+                        </Link>
+                      </td>
+                      <td>{formatCalendarDate(assignment.tasks.due_date)}</td>
+                      <td>
+                        <PointValue value={assignment.tasks.points} />
+                      </td>
+                      <td>
+                        {assignment.completed_at ? "Complete" : "Incomplete"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </TableFrame>
+        )}
+      </section>
+
+      <section
+        aria-label="Point history"
+        className="space-y-3 rounded-lg border border-border bg-surface p-4 [&>.section-heading:first-child]:mt-0"
+      >
+        <SectionHeading
+          title={`Point history (${officerTransactions.length})`}
+          action={
+            <div className="flex flex-wrap items-center gap-3">
+              {canAddPointAdjustment && (
+                <TransactionForm
+                  officers={[{ id: officer.id, name: officer.name }]}
+                  events={adjustmentEventsResult.data ?? []}
+                  tasks={adjustmentTasksResult.data ?? []}
+                  defaultOfficerId={officer.id}
+                  compact
+                />
+              )}
+              <Link
+                href={`/points?${new URLSearchParams({ view: "history", officer: String(officer.id), ...(context.period === undefined ? {} : { period: String(context.period) }) })}`}
+                className="text-xs font-medium text-brand hover:underline"
+              >
+                View in Points history
               </Link>
             </div>
-          </div>
-          {pointContent}
-          <div className="pt-2">
-            <Link
-              className="text-sm underline"
-              href={sectionHref(officerIdParam, "tasks", urlParams)}
-            >
-              {taskCountResult.error
-                ? "View associated Tasks"
-                : `View associated Tasks (${taskCount})`}
-            </Link>
-          </div>
-        </div>
-      )}
-      {visibleSection === "warnings" && (
-        <div className="max-w-4xl">{warningContent}</div>
-      )}
-      {visibleSection === "events" && (
-        <div className="max-w-4xl">{eventContent}</div>
-      )}
-      {visibleSection === "tasks" && (
-        <div className="max-w-5xl">{taskContent}</div>
-      )}
-      {visibleSection === "points" && (
-        <div className="max-w-5xl">{pointContent}</div>
-      )}
+          }
+        />
+        {transactions.error ? (
+          <p role="alert" className="text-sm">
+            Point history unavailable. Reload this page to retry.
+          </p>
+        ) : (
+          <TableFrame compact label="Officer point history">
+            <PointTransactionTable
+              transactions={officerTransactions}
+              hideOfficer
+              period={
+                typeof context.period === "string" ? context.period : undefined
+              }
+            />
+          </TableFrame>
+        )}
+      </section>
     </div>
   );
 }

@@ -1,9 +1,10 @@
 "use client";
 
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { ActionFeedback } from "@/components/ui";
 import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
+import { emitToast } from "@/components/toast-region";
 import { initialFormActionState } from "@/lib/form-feedback";
 import { removeTask, restoreTask, setTaskNeedStatus } from "./actions";
 
@@ -69,6 +70,9 @@ export function TaskDeleteForm({
     removeTask,
     initialFormActionState,
   );
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
   return (
     <form action={action}>
       <AcademicPeriodWriteContextField />
@@ -83,7 +87,7 @@ export function TaskDeleteForm({
         destructive
         context={series ? lifecycleScopeContext : undefined}
         pending={pending}
-        triggerClassName="button-secondary"
+        triggerClassName="button-secondary button-danger"
       >
         {series && <RecurrenceLifecycleScope />}
       </ConfirmationDialog>
@@ -102,6 +106,9 @@ export function TaskNeedStatusForm({
     setTaskNeedStatus,
     initialFormActionState,
   );
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
   const nextValue = !noLongerNeeded;
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
@@ -133,6 +140,9 @@ export function TaskRestoreForm({
     restoreTask,
     initialFormActionState,
   );
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
   return (
     <form action={action}>
       <AcademicPeriodWriteContextField />

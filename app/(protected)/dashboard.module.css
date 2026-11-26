@@ -62,18 +62,37 @@
 .metricGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
 }
 
 .metricCard {
   display: grid;
   min-width: 0;
   gap: 0.3rem;
-  padding: 0.15rem 1.25rem 1.1rem;
+  padding: 1rem 1.25rem;
 }
 
-.metricCard:first-child {
-  padding-left: 0;
+.metricCard:has(.metricCardLink) {
+  padding: 0;
+}
+
+.metricCardLink {
+  display: grid;
+  min-width: 0;
+  gap: 0.3rem;
+  padding: 1rem 1.25rem;
+  transition: background-color 120ms ease;
+}
+
+.metricCardLink:hover {
+  background: var(--hover);
+}
+
+.metricCardLink:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
 }
 
 .metricCard + .metricCard {
@@ -174,7 +193,8 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 1.25rem;
-  padding: 0.85rem 0.2rem;
+  border-radius: 0.375rem;
+  padding: 0.8rem 0.65rem;
   transition: background-color 120ms ease;
 }
 
@@ -226,13 +246,15 @@
   text-align: right;
 }
 
-.actionStatusLabel[data-status="needs-review"] {
+.actionStatusLabel[data-status="needs-review"],
+.actionStatusLabel[data-status="overdue"] {
   border-color: var(--warning-border);
   background: var(--warning-bg);
   color: var(--warning);
 }
 
-.actionStatusLabel[data-status="reminder-due"] {
+.actionStatusLabel[data-status="reminder-due"],
+.actionStatusLabel[data-status="awaiting-approval"] {
   border-color: var(--info-border);
   background: var(--info-bg);
   color: var(--info);
@@ -269,23 +291,9 @@
   gap: 0.25rem;
 }
 
-.eventCapacity {
-  color: var(--muted);
-  font-size: 0.72rem;
-  text-align: right;
-}
-
-.statusBlue,
 .statusNeutral {
   font-size: 0.72rem;
   font-weight: 550;
-}
-
-.statusBlue {
-  color: var(--info);
-}
-
-.statusNeutral {
   color: var(--muted);
 }
 
@@ -338,7 +346,7 @@
 }
 
 .negativeText {
-  color: var(--warning);
+  color: var(--danger);
 }
 
 .pointRight time {
@@ -350,7 +358,13 @@
   display: flex;
   min-height: 5rem;
   align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--border-strong);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  padding: 1.25rem;
   color: var(--muted);
+  text-align: center;
 }
 
 .emptyState p {
@@ -360,11 +374,11 @@
 
 .periodState {
   display: inline-flex;
-  min-height: 1.9rem;
+  min-height: 1.75rem;
   flex: 0 0 auto;
   align-items: center;
   border: 1px solid var(--border);
-  border-radius: 0.3rem;
+  border-radius: 999px;
   background: var(--surface-muted);
   padding: 0.25rem 0.55rem;
   color: var(--secondary);

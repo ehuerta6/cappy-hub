@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ListPagination } from "@/components/list-pagination";
+import ContextualBackLink from "@/components/contextual-back-link";
 import { PageHeader } from "@/components/ui";
 import { getAuthorizationContext, isAdmin } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
@@ -13,11 +13,8 @@ import {
   CATALOG_CATEGORIES,
   catalogUrl,
   selectedCatalogCategory,
-  selectedCatalogPage,
   type CatalogSearchParams,
 } from "./navigation";
-
-const CATALOGS_PER_PAGE = 8;
 
 export default async function OfficerCatalogsPage({
   searchParams,
@@ -40,106 +37,101 @@ export default async function OfficerCatalogsPage({
   };
   const category = selectedCatalogCategory(params.category);
   const status = params.status === "deleted" ? "deleted" : "active";
-  const requestedPage = selectedCatalogPage(params.page);
   const categoryDefinition = CATALOG_CATEGORIES.find(
     (item) => item.value === category,
   )!;
   const supabase = await createClient();
-  const table = categoryDefinition.table;
-  const countResult =
-    table === "event_types"
-      ? await supabase
-          .from("event_types")
-          .select("id", { count: "exact", head: true })
-          .eq("available_for_new_events", status === "active")
-      : table === "task_types"
-        ? await supabase
-            .from("task_types")
-            .select("id", { count: "exact", head: true })
-            .eq("available_for_new_tasks", status === "active")
-        : await supabase
-            .from(table)
-            .select("id", { count: "exact", head: true })
-            .eq("is_active", status === "active");
-  if (countResult.error) throw new Error("Could not load catalog count");
-  const totalCount = countResult.count ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalCount / CATALOGS_PER_PAGE));
-  const page = Math.min(requestedPage, totalPages);
-
   if (
     params.category !== category ||
     (params.status !== undefined && params.status !== "deleted") ||
-    (params.page !== undefined &&
-      (typeof params.page !== "string" ||
-        String(page) !== params.page ||
-        page === 1))
+    params.page !== undefined
   ) {
-    redirect(contextHref(catalogUrl(category, page, status)));
+    redirect(contextHref(catalogUrl(category, 1, status)));
   }
 
-  const start = (page - 1) * CATALOGS_PER_PAGE;
-  const end = page * CATALOGS_PER_PAGE - 1;
-  let records: CatalogRecord[] | null;
-  let hasRecordsError: boolean;
-  if (categoryDefinition.catalog === "position") {
-    const result = await supabase
+  const isActiveStatus = status === "active";
+  const [
+    positionsCount,
+    branchesCount,
+    eventTypesCount,
+    taskTypesCount,
+    locationsCount,
+    recordsResult,
+  ] = await Promise.all([
+    supabase
       .from("positions")
-      .select("id,name,code,is_active")
-      .eq("is_active", status === "active")
-      .order("name")
-      .order("id")
-      .range(start, end);
-    records = result.data;
-    hasRecordsError = result.error !== null;
-  } else if (categoryDefinition.catalog === "branch") {
-    const result = await supabase
+      .select("id", { count: "exact", head: true })
+      .eq("is_active", isActiveStatus),
+    supabase
       .from("branches")
-      .select("id,name,color,is_active")
-      .eq("is_active", status === "active")
-      .order("name")
-      .order("id")
-      .range(start, end);
-    records = result.data;
-    hasRecordsError = result.error !== null;
-  } else if (categoryDefinition.catalog === "event_type") {
-    const result = await supabase
+      .select("id", { count: "exact", head: true })
+      .eq("is_active", isActiveStatus),
+    supabase
       .from("event_types")
-      .select("id,name,color,available_for_new_events")
-      .eq("available_for_new_events", status === "active")
-      .order("name")
-      .order("id")
-      .range(start, end);
-    records = result.data;
-    hasRecordsError = result.error !== null;
-  } else if (categoryDefinition.catalog === "task_type") {
-    const result = await supabase
+      .select("id", { count: "exact", head: true })
+      .eq("available_for_new_events", isActiveStatus),
+    supabase
       .from("task_types")
-      .select("id,name,color,available_for_new_tasks")
-      .eq("available_for_new_tasks", status === "active")
-      .order("name")
-      .order("id")
-      .range(start, end);
-    records = result.data;
-    hasRecordsError = result.error !== null;
-  } else {
-    const result = await supabase
+      .select("id", { count: "exact", head: true })
+      .eq("available_for_new_tasks", isActiveStatus),
+    supabase
       .from("event_locations")
-      .select("id,name,is_active")
-      .eq("is_active", status === "active")
-      .order("name")
-      .order("id")
-      .range(start, end);
-    records = result.data;
-    hasRecordsError = result.error !== null;
-  }
+      .select("id", { count: "exact", head: true })
+      .eq("is_active", isActiveStatus),
+    categoryDefinition.catalog === "position"
+      ? supabase
+          .from("positions")
+          .select("id,name,code,is_active")
+          .eq("is_active", isActiveStatus)
+          .order("name")
+          .order("id")
+      : categoryDefinition.catalog === "branch"
+        ? supabase
+            .from("branches")
+            .select("id,name,color,is_active")
+            .eq("is_active", isActiveStatus)
+            .order("name")
+            .order("id")
+        : categoryDefinition.catalog === "event_type"
+          ? supabase
+              .from("event_types")
+              .select("id,name,color,available_for_new_events")
+              .eq("available_for_new_events", isActiveStatus)
+              .order("name")
+              .order("id")
+          : categoryDefinition.catalog === "task_type"
+            ? supabase
+                .from("task_types")
+                .select("id,name,color,available_for_new_tasks")
+                .eq("available_for_new_tasks", isActiveStatus)
+                .order("name")
+                .order("id")
+            : supabase
+                .from("event_locations")
+                .select("id,name,is_active")
+                .eq("is_active", isActiveStatus)
+                .order("name")
+                .order("id"),
+  ]);
+
+  const records = recordsResult.data as CatalogRecord[] | null;
+  const hasRecordsError = recordsResult.error !== null;
   if (hasRecordsError || !records)
     throw new Error("Could not load catalog records");
 
-  const filters = new URLSearchParams({ category });
-  if (params.period !== undefined) filters.set("period", String(params.period));
-  if (status === "deleted") filters.set("status", status);
+  const countsByCatalog: Record<string, number | null> = {
+    position: positionsCount.count,
+    branch: branchesCount.count,
+    event_type: eventTypesCount.count,
+    task_type: taskTypesCount.count,
+    event_location: locationsCount.count,
+  };
+
   return (
     <div data-page-width="wide" data-nav-page="admin" className="space-y-5">
+      <ContextualBackLink href={contextHref("/admin")}>
+        Back to Admin
+      </ContextualBackLink>
       <PageHeader
         title="Officer catalogs"
         description="Manage Positions, Branches, Event Types, Task Types and reusable Event locations."
@@ -150,20 +142,24 @@ export default async function OfficerCatalogsPage({
         values appear in Deleted without changing their history.
       </p>
       <nav aria-label="Catalog categories" className="catalog-category-nav">
-        {CATALOG_CATEGORIES.map((item) => (
-          <Link
-            key={item.value}
-            href={contextHref(catalogUrl(item.value))}
-            aria-current={item.value === category ? "page" : undefined}
-            className={
-              item.value === category
-                ? "catalog-category-link catalog-category-link-active"
-                : "catalog-category-link"
-            }
-          >
-            {item.label}
-          </Link>
-        ))}
+        {CATALOG_CATEGORIES.map((item) => {
+          const count = countsByCatalog[item.catalog];
+          return (
+            <Link
+              key={item.value}
+              href={contextHref(catalogUrl(item.value, 1, status))}
+              aria-current={item.value === category ? "page" : undefined}
+              className={
+                item.value === category
+                  ? "catalog-category-link catalog-category-link-active"
+                  : "catalog-category-link"
+              }
+            >
+              {item.label}
+              {count !== null && count !== undefined ? ` (${count})` : ""}
+            </Link>
+          );
+        })}
       </nav>
       <nav aria-label="Catalog status" className="flex gap-4 text-sm">
         <Link
@@ -188,24 +184,11 @@ export default async function OfficerCatalogsPage({
           readOnly={periodSelection.isHistorical}
         />
         {records.length === 0 ? (
-          <p className="text-sm text-muted">
+          <p className="rounded-lg border border-dashed border-border-strong bg-surface px-6 py-8 text-center text-sm text-muted">
             No {status === "deleted" ? "deleted " : ""}
             {categoryDefinition.label.toLowerCase()} yet.
           </p>
-        ) : (
-          <ListPagination
-            pathname="/officers/catalogs"
-            label={categoryDefinition.label}
-            filters={filters}
-            page={page}
-            totalPages={totalPages}
-            totalCount={totalCount}
-            countLabel={totalCount === 1 ? "record" : "records"}
-            getPageHref={(targetPage) =>
-              contextHref(catalogUrl(category, targetPage, status))
-            }
-          />
-        )}
+        ) : null}
       </section>
     </div>
   );

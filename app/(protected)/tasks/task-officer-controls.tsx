@@ -20,8 +20,11 @@ import {
   FormMessage,
 } from "@/components/ui";
 import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
+import { SearchableOfficerChecklist } from "@/components/officer-checklist-filter";
+import { emitToast } from "@/components/toast-region";
 import { initialFormActionState, submittedValues } from "@/lib/form-feedback";
 import {
+  approveAllPendingTaskCompletions,
   bulkAssignTaskOfficers,
   removeTaskAssignment,
   setTaskAssignmentCompletion,
@@ -32,7 +35,7 @@ export function BulkTaskOfficersForm({
   officers,
 }: {
   taskId: number;
-  officers: { id: number; name: string }[];
+  officers: { id: number; name: string; branches?: string[] }[];
 }) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -65,6 +68,7 @@ export function BulkTaskOfficersForm({
 
   useEffect(() => {
     if (!state.success) return;
+    emitToast(state.success, "success");
     dialogRef.current?.close();
   }, [state]);
 
@@ -111,7 +115,11 @@ export function BulkTaskOfficersForm({
         }}
         className={dialogSurfaceClassName}
       >
-        <form action={action} className={dialogContentClassName}>
+        <form
+          action={action}
+          onReset={(event) => event.preventDefault()}
+          className={dialogContentClassName}
+        >
           <AcademicPeriodWriteContextField />
           <input type="hidden" name="task_id" value={taskId} />
           <header className={dialogHeaderClassName}>
@@ -134,23 +142,13 @@ export function BulkTaskOfficersForm({
             disabled={pending}
           >
             <legend>Select active officers</legend>
-            <div className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
-              {officers.map((officer) => (
-                <label
-                  key={officer.id}
-                  className="flex min-h-11 items-center gap-2 rounded px-2 hover:bg-surface-muted"
-                >
-                  <input
-                    type="checkbox"
-                    name="officer_ids"
-                    value={officer.id}
-                    defaultChecked={selectedOfficers.includes(
-                      String(officer.id),
-                    )}
-                  />
-                  {officer.name}
-                </label>
-              ))}
+            <div className="mt-2">
+              <SearchableOfficerChecklist
+                key={state.success || "idle"}
+                officers={officers}
+                initialSelectedIds={selectedOfficers.map(Number)}
+                disabled={pending}
+              />
             </div>
             <FieldError id="task-officers-error">
               {fieldErrors.officer_ids}
@@ -201,35 +199,46 @@ export function TaskCompletionControl({
   const checked = pending ? requestedCompletion : completed;
 
   return (
-    <form className="space-y-1">
+    <form className="w-auto max-w-none space-y-1">
       <AcademicPeriodWriteContextField />
       <input type="hidden" name="task_id" value={taskId} />
       <input type="hidden" name="officer_id" value={officerId} />
       <fieldset
         disabled={pending}
         aria-label={`Completion for ${officerName}`}
-        className="flex flex-wrap gap-1"
+        className="inline-flex flex-nowrap gap-1.5 border-0 p-0"
       >
-        {([false, true] as const).map((value) => (
-          <label
-            key={String(value)}
-            className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-border px-2 text-sm hover:bg-surface-muted has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand"
-          >
-            <input
-              type="radio"
-              name="completed"
-              value={String(value)}
-              checked={!pendingApproval && checked === value}
-              onChange={(event) => {
-                if (pending || !event.currentTarget.form) return;
-                setRequestedCompletion(value);
-                const formData = new FormData(event.currentTarget.form);
-                startTransition(() => action(formData));
-              }}
-            />
-            {value ? "Completed" : "Not completed"}
-          </label>
-        ))}
+        {([false, true] as const).map((value) => {
+          const isSelected = !pendingApproval && checked === value;
+          return (
+            <label
+              key={String(value)}
+              className={`inline-flex min-h-9 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-md border px-2.5 py-1 text-xs font-medium transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand ${
+                isSelected
+                  ? value
+                    ? "border-success-border bg-success-bg text-success"
+                    : "border-border-strong bg-surface-muted text-foreground"
+                  : pendingApproval && value
+                    ? "border-success-border/70 bg-success-bg/40 text-success hover:bg-success-bg"
+                    : "border-border bg-surface text-muted hover:bg-hover hover:text-foreground"
+              }`}
+            >
+              <input
+                type="radio"
+                name="completed"
+                value={String(value)}
+                checked={isSelected}
+                onChange={(event) => {
+                  if (pending || !event.currentTarget.form) return;
+                  setRequestedCompletion(value);
+                  const formData = new FormData(event.currentTarget.form);
+                  startTransition(() => action(formData));
+                }}
+              />
+              {value ? "Completed" : "Not completed"}
+            </label>
+          );
+        })}
       </fieldset>
       {pendingApproval && (
         <p className="text-sm text-muted">
@@ -260,23 +269,57 @@ export function RemoveTaskAssignmentForm({
     initialFormActionState,
   );
   return (
-    <form action={action} className="space-y-2">
+    <form action={action} className="w-auto max-w-none space-y-1">
       <AcademicPeriodWriteContextField />
       <input type="hidden" name="task_id" value={taskId} />
       <input type="hidden" name="officer_id" value={officerId} />
       <ActionFeedback state={state} />
-      <p className="text-sm text-muted">
-        Removing this assignment excludes its Task points. Completion history is
-        retained if the Officer is added again.
-      </p>
       <button
         type="submit"
         disabled={pending}
-        className="button-secondary whitespace-nowrap"
+        className="button-secondary button-danger whitespace-nowrap"
         aria-label={`Remove ${officerName} from task`}
       >
-        {pending ? "Removing…" : "Remove assignment"}
+        {pending ? "Removing…" : "Remove"}
       </button>
+    </form>
+  );
+}
+
+export function ApproveAllPendingButton({
+  taskId,
+  officerIds,
+}: {
+  taskId: number;
+  officerIds: number[];
+}) {
+  const [state, action, pending] = useActionState(
+    approveAllPendingTaskCompletions,
+    initialFormActionState,
+  );
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
+  if (officerIds.length === 0) return null;
+  return (
+    <form action={action} className="w-auto max-w-none">
+      <AcademicPeriodWriteContextField />
+      <input type="hidden" name="task_id" value={taskId} />
+      {officerIds.map((id) => (
+        <input key={id} type="hidden" name="officer_ids" value={id} />
+      ))}
+      <button
+        type="submit"
+        disabled={pending}
+        className="button-primary !min-h-8 whitespace-nowrap px-3 py-1 text-xs"
+      >
+        {pending
+          ? "Approving…"
+          : officerIds.length === 1
+            ? "Approve pending (1)"
+            : `Approve all pending (${officerIds.length})`}
+      </button>
+      {state.error && <ActionFeedback state={state} />}
     </form>
   );
 }

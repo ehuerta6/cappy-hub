@@ -23,20 +23,27 @@ import {
   FormMessage,
 } from "@/components/ui";
 import { SearchableSelect } from "@/components/searchable-select";
+import { emitToast } from "@/components/toast-region";
 import { addTransaction } from "./actions";
 import { EventSearchSelect } from "./event-search-select";
 
 type PointEvent = Pick<Tables<"events">, "id" | "name" | "event_date">;
 type PointTask = Pick<Tables<"tasks">, "id" | "title" | "due_date">;
 
+const POINT_PRESETS = ["1", "2", "-1"] as const;
+
 export default function TransactionForm({
   officers,
   events,
   tasks = [],
+  defaultOfficerId,
+  compact = false,
 }: {
   officers: Pick<Tables<"officers">, "id" | "name">[];
   events: PointEvent[];
   tasks?: PointTask[];
+  defaultOfficerId?: number;
+  compact?: boolean;
 }) {
   const router = useRouter();
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -64,6 +71,7 @@ export default function TransactionForm({
   const handleSuccess = useCallback(
     (message: string) => {
       setSuccess(message);
+      emitToast(message, "success");
       setFormKey((key) => key + 1);
       setOpen(false);
       router.refresh();
@@ -76,7 +84,7 @@ export default function TransactionForm({
       <button
         ref={triggerRef}
         type="button"
-        className="min-h-11"
+        className={compact ? "button-secondary min-h-9 px-3 py-1.5 text-xs" : "min-h-11"}
         onClick={() => {
           setSuccess("");
           setOpen(true);
@@ -116,6 +124,7 @@ export default function TransactionForm({
             officers={officers}
             events={events}
             tasks={tasks}
+            defaultOfficerId={defaultOfficerId}
             dialogRef={dialogRef}
             onSuccess={handleSuccess}
           />
@@ -129,12 +138,14 @@ function TransactionFields({
   officers,
   events,
   tasks,
+  defaultOfficerId,
   dialogRef,
   onSuccess,
 }: {
   officers: Pick<Tables<"officers">, "id" | "name">[];
   events: PointEvent[];
   tasks: PointTask[];
+  defaultOfficerId?: number;
   dialogRef: React.RefObject<HTMLDialogElement | null>;
   onSuccess: (message: string) => void;
 }) {
@@ -144,18 +155,32 @@ function TransactionFields({
   );
   const fieldErrors = state.fieldErrors ?? {};
   const pointsInput = useRef<HTMLInputElement>(null);
-  const awardType = submittedValue(state.values, "award_type", "manual");
+  const initialAwardType = submittedValue(state.values, "award_type", "manual");
+  const [awardType, setAwardType] = useState(initialAwardType);
+  const [selectedEventId, setSelectedEventId] = useState(() =>
+    submittedValue(state.values, "event_id"),
+  );
+  const [selectedTaskId, setSelectedTaskId] = useState(() =>
+    submittedValue(state.values, "task_id"),
+  );
+  const isNegative = awardType === "negative";
 
   useEffect(() => {
     if (!pointsInput.current) return;
-    const isNegative = awardType === "negative";
     if (isNegative) pointsInput.current.value = "-1";
     pointsInput.current.readOnly = isNegative;
-  }, [awardType]);
+  }, [isNegative]);
 
   useEffect(() => {
     if (state.success) onSuccess(state.success);
   }, [onSuccess, state.success]);
+
+  const applyPreset = (value: string) => {
+    if (!pointsInput.current || isNegative) return;
+    pointsInput.current.value = value;
+    pointsInput.current.dispatchEvent(new Event("input", { bubbles: true }));
+    pointsInput.current.focus();
+  };
 
   return (
     <form
@@ -173,16 +198,35 @@ function TransactionFields({
           id: String(officer.id),
           label: officer.name,
         }))}
-        initialValue={submittedValue(state.values, "officer_id")}
+        initialValue={submittedValue(
+          state.values,
+          "officer_id",
+          defaultOfficerId ? String(defaultOfficerId) : "",
+        )}
         required
         error={fieldErrors.officer_id}
         disabled={pending}
         placeholder="Search Officers"
         portalContainer={dialogRef}
-        initialFocus
+        initialFocus={!defaultOfficerId}
       />
       <label>
-        Signed Points
+        <span className="flex items-center justify-between gap-2">
+          <span>Signed Points</span>
+          <span className="inline-flex items-center gap-1">
+            {POINT_PRESETS.map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                disabled={pending || isNegative}
+                onClick={() => applyPreset(preset)}
+                className="min-h-6 rounded border border-border bg-surface-muted px-2 py-0.5 text-xs font-medium tabular-nums text-secondary hover:border-border-strong hover:bg-hover hover:text-foreground disabled:opacity-40"
+              >
+                {Number(preset) > 0 ? `+${preset}` : preset}
+              </button>
+            ))}
+          </span>
+        </span>
         <input
           name="points"
           ref={pointsInput}
@@ -190,6 +234,7 @@ function TransactionFields({
           step="any"
           inputMode="decimal"
           required
+          data-initial-focus={defaultOfficerId ? "" : undefined}
           aria-invalid={Boolean(fieldErrors.points)}
           aria-describedby={
             fieldErrors.points
@@ -233,10 +278,12 @@ function TransactionFields({
           defaultValue={awardType}
           disabled={pending}
           onChange={(event) => {
+            const nextType = event.target.value;
+            setAwardType(nextType);
             if (pointsInput.current) {
-              const isNegative = event.target.value === "negative";
-              if (isNegative) pointsInput.current.value = "-1";
-              pointsInput.current.readOnly = isNegative;
+              const nextNegative = nextType === "negative";
+              if (nextNegative) pointsInput.current.value = "-1";
+              pointsInput.current.readOnly = nextNegative;
             }
           }}
         >
@@ -252,22 +299,33 @@ function TransactionFields({
         events={events}
         initialValue={submittedValue(state.values, "event_id")}
         error={fieldErrors.event_id}
-        disabled={pending}
+        disabled={pending || Boolean(selectedTaskId)}
         portalContainer={dialogRef}
+        onValueChange={setSelectedEventId}
       />
-      <SearchableSelect
-        name="task_id"
-        label="Task (optional)"
-        options={tasks.map((task) => ({
-          id: String(task.id),
-          label: `${task.title} — ${task.due_date}`,
-        }))}
-        initialValue={submittedValue(state.values, "task_id")}
-        error={fieldErrors.task_id}
-        disabled={pending}
-        placeholder="Search Tasks"
-        portalContainer={dialogRef}
-      />
+      <div className="min-w-0 space-y-1 sm:col-span-2">
+        <SearchableSelect
+          name="task_id"
+          label="Task (optional)"
+          options={tasks.map((task) => ({
+            id: String(task.id),
+            label: `${task.title} — ${task.due_date}`,
+          }))}
+          initialValue={submittedValue(state.values, "task_id")}
+          error={fieldErrors.task_id}
+          disabled={pending || Boolean(selectedEventId)}
+          placeholder="Search Tasks"
+          portalContainer={dialogRef}
+          onValueChange={setSelectedTaskId}
+        />
+        {(selectedEventId || selectedTaskId) && (
+          <p className="text-xs text-muted">
+            {selectedEventId
+              ? "Clear Event above to link a Task instead."
+              : "Clear Task to link an Event instead."}
+          </p>
+        )}
+      </div>
       {(state.error || state.success) && (
         <div className="sm:col-span-2">
           <ActionFeedback state={state} />

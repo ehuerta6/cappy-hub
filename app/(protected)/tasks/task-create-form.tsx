@@ -2,6 +2,7 @@
 
 import { useActionState, useRef, useState } from "react";
 import type { Tables } from "@/lib/database.types";
+import { formatLabel } from "@/lib/presentation";
 import {
   initialFormActionState,
   submittedValue,
@@ -28,6 +29,7 @@ import { createTask, editRecurringTask, editStandaloneTask } from "./actions";
 import { RecurrenceFields } from "@/components/recurrence-fields";
 import { TaskEventCombobox } from "@/components/task-event-combobox";
 import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
+import { SearchableOfficerChecklist } from "@/components/officer-checklist-filter";
 import NotificationSettingsFields from "@/components/notification-settings-fields";
 import ResourceLinksEditor from "@/components/resource-links-editor";
 import {
@@ -50,12 +52,13 @@ export default function TaskCreateForm({
   resourceLinks = [],
   pointsImpact,
   pointsImpactOccurrences = [],
+  defaultBranchId,
 }: {
   returnTo?: string;
   branches: { id: number; name: string }[];
   positions?: { id: number; name: string }[];
   taskTypes?: { name: string }[];
-  officers?: { id: number; name: string }[];
+  officers?: { id: number; name: string; branches?: string[] }[];
   events?: {
     id: number;
     name: string;
@@ -76,6 +79,7 @@ export default function TaskCreateForm({
   resourceLinks?: ResourceLinkView[];
   pointsImpact?: TaskPointsImpact;
   pointsImpactOccurrences?: RecurrencePointsImpactOccurrence[];
+  defaultBranchId?: number;
 }) {
   const [state, action, pending] = useActionState(
     task ? (series ? editRecurringTask : editStandaloneTask) : createTask,
@@ -316,7 +320,7 @@ export default function TaskCreateForm({
               defaultValue={submittedValue(
                 state.values,
                 "branch_id",
-                String(task?.branch_id ?? ""),
+                String(task?.branch_id ?? defaultBranchId ?? ""),
               )}
             >
               <option value="" disabled>
@@ -324,7 +328,7 @@ export default function TaskCreateForm({
               </option>
               {branches.map((branch) => (
                 <option key={branch.id} value={branch.id}>
-                  {branch.name}
+                  {formatLabel(branch.name)}
                 </option>
               ))}
             </select>
@@ -412,53 +416,59 @@ export default function TaskCreateForm({
         </div>
       )}
       {!task && (
-        <fieldset className="event-form-section">
+        <fieldset className="event-form-section lg:col-span-2">
           <legend>Assign Officers (optional)</legend>
-          <p className="text-sm text-muted">
-            Selected Officers will be assigned when this Task is created. For a
-            recurring Task, choose whether to assign them to this occurrence or
-            every occurrence in the series.
-          </p>
-          {officers.length ? (
-            <div className="event-form-fields">
-              {officers.map((officer) => (
-                <label
-                  key={officer.id}
-                  className="flex items-center gap-2 text-sm font-normal"
+          <details
+            className="group"
+            open={
+              initialOfficerIds.size > 0 ||
+              Boolean(fieldErrors.officer_ids || fieldErrors.assignment_scope)
+            }
+          >
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-1 text-sm text-muted hover:text-foreground [&::-webkit-details-marker]:hidden">
+              <span>
+                Pre-assign Officers when this Task is created
+                {initialOfficerIds.size > 0
+                  ? ` (${initialOfficerIds.size} selected)`
+                  : ""}
+              </span>
+              <span className="rounded border border-border-strong bg-surface-muted px-2.5 py-1 text-xs font-medium text-secondary">
+                Configure
+              </span>
+            </summary>
+            <div className="mt-3 space-y-3 border-t border-border pt-3">
+              <p className="event-form-section-description">
+                Selected Officers will be assigned when this Task is created.
+                For a recurring Task, choose whether to assign them to this
+                occurrence or every occurrence in the series.
+              </p>
+              <SearchableOfficerChecklist
+                officers={officers}
+                initialSelectedIds={[...initialOfficerIds]}
+                disabled={pending}
+              />
+              <FieldError id="task-officers-error">
+                {fieldErrors.officer_ids}
+              </FieldError>
+              <label className={`max-w-xs ${fieldLabelClassName}`}>
+                Apply assignments to
+                <select
+                  name="assignment_scope"
+                  defaultValue={submittedValue(
+                    state.values,
+                    "assignment_scope",
+                    "occurrence",
+                  )}
                 >
-                  <input
-                    type="checkbox"
-                    name="officer_ids"
-                    value={officer.id}
-                    defaultChecked={initialOfficerIds.has(officer.id)}
-                  />
-                  {officer.name}
-                </label>
-              ))}
+                  <option value="occurrence">This occurrence only</option>
+                  <option value="series">All occurrences in the series</option>
+                </select>
+                <FieldError id="task-assignment-scope-error">
+                  {fieldErrors.assignment_scope}
+                </FieldError>
+              </label>
             </div>
-          ) : (
-            <p className="text-sm text-muted">No active Officers available.</p>
-          )}
-          <FieldError id="task-officers-error">
-            {fieldErrors.officer_ids}
-          </FieldError>
-          <label className={fieldLabelClassName}>
-            Apply assignments to
-            <select
-              name="assignment_scope"
-              defaultValue={submittedValue(
-                state.values,
-                "assignment_scope",
-                "occurrence",
-              )}
-            >
-              <option value="occurrence">This occurrence only</option>
-              <option value="series">All occurrences in the series</option>
-            </select>
-            <FieldError id="task-assignment-scope-error">
-              {fieldErrors.assignment_scope}
-            </FieldError>
-          </label>
+          </details>
         </fieldset>
       )}
       <NotificationSettingsFields
@@ -471,8 +481,10 @@ export default function TaskCreateForm({
         selectedPositionIds={notificationSettings?.positionIds}
         reminderOffsets={notificationSettings?.reminderOffsets}
       />
-      <div className="lg:col-span-2 flex flex-wrap items-start gap-4">
-        {(state.error || state.success) && <ActionFeedback state={state} />}
+      <div className="lg:col-span-2 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-4">
+        <div className="min-w-0 flex-1">
+          {(state.error || state.success) && <ActionFeedback state={state} />}
+        </div>
         {pointsImpactMessage ? (
           <ConfirmationDialog
             title="Change awarded Task Points?"

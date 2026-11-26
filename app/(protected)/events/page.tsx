@@ -1,4 +1,8 @@
-import { formatEventSchedule, formatLabel } from "@/lib/presentation";
+import {
+  formatEventSchedule,
+  formatLabel,
+  formatRelativeDayCue,
+} from "@/lib/presentation";
 import {
   getAuthorizationContext,
   isLead,
@@ -7,11 +11,8 @@ import {
   canManageEvent,
 } from "@/lib/authorization";
 import { listReturnUrl, withReturnTo } from "@/lib/return-context";
-import { listPageUrl } from "@/lib/list-url";
-import { ListPagination } from "@/components/list-pagination";
 import Link from "next/link";
 import type { Route } from "next";
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { eventStatus, eventSignupOpen } from "@/lib/event-status";
 import {
@@ -23,6 +24,7 @@ import {
   SectionHeading,
   StatusBadge,
   TableFrame,
+  type ActiveFilterChip,
 } from "@/components/ui";
 import { searchOrFilter } from "@/lib/list-search";
 import { eventListFiltersSchema } from "./filter-validation";
@@ -38,8 +40,6 @@ import {
 } from "./event-controls";
 import { eventSignupCountLabel, type EventListItem } from "@/lib/event-list";
 
-const EVENT_PAGE_SIZE = 8;
-const CALENDAR_FAILURES_PAGE_SIZE = 200;
 type EventListSearchParams = Record<string, string | string[] | undefined>;
 
 export default async function EventsPage({
@@ -53,43 +53,28 @@ export default async function EventsPage({
   const periodSelection = resolveAcademicPeriod(params.period, periodData);
   const selectedPeriod = periodSelection.period;
   const filters = eventListFiltersSchema.parse(params);
-  const requestedCalendarPage = Number(params.syncPage ?? "1");
-  const calendarPage =
-    Number.isSafeInteger(requestedCalendarPage) && requestedCalendarPage > 0
-      ? requestedCalendarPage
-      : 1;
   const mayBrowseDeleted =
     canSeeAllBranches(actor) || (isLead(actor) && actor.branchIds.length > 0);
   const status =
     filters.status === "deleted" && !mayBrowseDeleted
       ? undefined
       : filters.status;
-  const {
-    q: search,
-    type: typeId,
-    branch: branchId,
-    page: requestedPage,
-    scope,
-  } = filters;
+  const { q: search, type: typeId, branch: branchId, scope } = filters;
+  const hasOwnBranches = actor.branchIds.length > 0;
+  const effectiveScope =
+    scope === "branch" && !hasOwnBranches ? "all" : scope;
   const now = new Date();
   const nowIso = now.toISOString();
-  const { today, sunday } = currentDenverWeek(now);
+  const { today } = currentDenverWeek(now);
   const supabase = await createClient();
   const filtersInUrl = new URLSearchParams();
   if (params.period !== undefined)
     filtersInUrl.set("period", String(params.period));
   if (search) filtersInUrl.set("q", search);
-  if (scope === "mine") filtersInUrl.set("scope", "mine");
+  if (effectiveScope !== "all") filtersInUrl.set("scope", effectiveScope);
   if (status) filtersInUrl.set("status", status);
   if (typeId !== undefined) filtersInUrl.set("type", String(typeId));
   if (branchId !== undefined) filtersInUrl.set("branch", String(branchId));
-  const calendarSyncPageUrl = (page: number) => {
-    const query = new URLSearchParams(filtersInUrl);
-    if (page > 1) query.set("syncPage", String(page));
-    const serialized = query.toString();
-    return (serialized ? `/events?${serialized}` : "/events") as Route;
-  };
-
   const deletedLead =
     status === "deleted" && isLead(actor) && !canSeeAllBranches(actor);
   const eventSelection =
@@ -131,12 +116,16 @@ export default async function EventsPage({
     if (status === "cancelled") query = query.eq("status", "cancelled");
 
     if (includeFilters) {
-      if (scope === "mine")
+      if (effectiveScope === "mine")
         query = query
           .eq("my_signup.officer_id", actor.id)
           .is("my_signup.removed_at", null)
           .not("my_signup", "is", null)
           .in("my_signup.participation_type", ["attendee", "volunteer"]);
+      if (effectiveScope === "branch")
+        query = query
+          .in("scope_branch.branch_id", actor.branchIds)
+          .not("scope_branch", "is", null);
       if (search)
         query = query.or(
           searchOrFilter(search, ["name", "description", "location"]),
@@ -164,32 +153,39 @@ export default async function EventsPage({
     return query;
   };
 
-  const [filteredCount, baseCount, eventTypesResult, branchesResult] =
-    await Promise.all([
-      buildEventQuery(true, true),
-      buildEventQuery(false, true),
-      supabase.from("event_types").select("id,name").order("name"),
-      supabase.from("branches").select("id,name").order("name"),
-    ]);
+  const [
+    pageEventsResult,
+    baseCount,
+    eventTypesResult,
+    branchesResult,
+    calendarFailuresResult,
+  ] = await Promise.all([
+    buildEventQuery(true),
+    buildEventQuery(false, true),
+    supabase.from("event_types").select("id,name").order("name"),
+    supabase.from("branches").select("id,name").order("name"),
+    supabase
+      .from("event_calendar_sync_failures")
+      .select(
+        "event_id,failed_at,event:events(id,name,starts_at,deleted_at,event_branches(branch_id))",
+        { count: "exact" },
+      )
+      .order("failed_at", { ascending: true })
+      .order("event_id", { ascending: true }),
+  ]);
   if (
-    filteredCount.error ||
+    pageEventsResult.error ||
     baseCount.error ||
     eventTypesResult.error ||
     branchesResult.error
   )
     throw new Error("Failed to load events");
+  if (calendarFailuresResult.error)
+    throw new Error("Failed to load Calendar recovery items");
 
-  const totalCount = filteredCount.count ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalCount / EVENT_PAGE_SIZE));
-  const page = Math.min(requestedPage, totalPages);
-  if (page !== requestedPage)
-    redirect(listPageUrl("/events", filtersInUrl, page));
-
-  const { data: pageEvents, error: pageError } = await buildEventQuery(
-    true,
-  ).range((page - 1) * EVENT_PAGE_SIZE, page * EVENT_PAGE_SIZE - 1);
-  if (pageError) throw new Error("Failed to load events");
-  const eventIds = (pageEvents ?? []).map((event) => event.id);
+  const pageEvents = pageEventsResult.data ?? [];
+  const totalCount = pageEvents.length;
+  const eventIds = pageEvents.map((event) => event.id);
   const signupCounts = eventIds.length
     ? await supabase.rpc("event_signup_counts").in("event_id", eventIds)
     : { data: [], error: null };
@@ -205,20 +201,6 @@ export default async function EventsPage({
           .length,
     ),
   }));
-  const calendarFailuresResult = await supabase
-    .from("event_calendar_sync_failures")
-    .select(
-      "event_id,failed_at,event:events(id,name,starts_at,deleted_at,event_branches(branch_id))",
-      { count: "exact" },
-    )
-    .order("failed_at", { ascending: true })
-    .order("event_id", { ascending: true })
-    .range(
-      (calendarPage - 1) * CALENDAR_FAILURES_PAGE_SIZE,
-      calendarPage * CALENDAR_FAILURES_PAGE_SIZE - 1,
-    );
-  if (calendarFailuresResult.error)
-    throw new Error("Failed to load Calendar recovery items");
   const calendarFailures = (calendarFailuresResult.data ?? []).filter(
     (failure) =>
       failure.event &&
@@ -227,54 +209,23 @@ export default async function EventsPage({
         failure.event.event_branches.map((branch) => branch.branch_id),
       ),
   );
-  const calendarFailurePageCount = Math.ceil(
-    (calendarFailuresResult.count ?? 0) / CALENDAR_FAILURES_PAGE_SIZE,
-  );
-  const participates = (event: EventListItem) =>
-    event.event_officers.some(
-      ({ officer_id, removed_at }) =>
-        officer_id === actor.id && removed_at == null,
-    );
-  // Pagination selects and orders the page first; presentation groups only
-  // those eight Events and keeps their order within each group.
-  const sections =
-    status === undefined && !selectedPeriod
-      ? [
-          {
-            title: "This week's events",
-            events: events.filter((event) => event.event_date <= sunday),
-          },
-          {
-            title: "Upcoming events",
-            events: events.filter((event) => event.event_date > sunday),
-          },
-        ]
-      : [
-          {
-            title:
-              status === "past"
-                ? "Past events"
-                : status === "cancelled"
-                  ? "Cancelled events"
-                  : status === "deleted"
-                    ? "Deleted events"
-                    : status === "happening"
-                      ? "Happening events"
-                      : (selectedPeriod?.name ?? "Upcoming events"),
-            events,
-          },
-        ];
+  const sections = [{ title: selectedPeriod?.name ?? "Events", events }];
   const returnTo = listReturnUrl("/events", {
     q: search,
     status,
     type: typeId?.toString(),
     branch: branchId?.toString(),
-    page: page > 1 ? String(page) : undefined,
     period: params.period,
-    scope: scope === "mine" ? scope : undefined,
+    scope: effectiveScope !== "all" ? effectiveScope : undefined,
   });
+  const clearFiltersQuery = new URLSearchParams();
+  if (params.period !== undefined)
+    clearFiltersQuery.set("period", String(params.period));
+  const clearFiltersHref = clearFiltersQuery.size
+    ? (`/events?${clearFiltersQuery.toString()}` as Route)
+    : "/events";
   const hasFilters = Boolean(
-    search || status || typeId || branchId || scope === "mine",
+    search || status || typeId || branchId || effectiveScope !== "all",
   );
   const filteredToNothing =
     totalCount === 0 &&
@@ -283,7 +234,7 @@ export default async function EventsPage({
       search ||
       typeId !== undefined ||
       branchId !== undefined ||
-      scope === "mine",
+      effectiveScope !== "all",
     );
   const emptyMessage = filteredToNothing
     ? "No events match these filters."
@@ -303,6 +254,38 @@ export default async function EventsPage({
   const signupActionsOpen =
     !periodSelection.isHistorical &&
     (status === undefined || status === "upcoming" || status === "happening");
+  const renderSignupControls = (event: EventListItem) => {
+    const personalSignup = event.event_officers.find(
+      ({ officer_id, removed_at }) =>
+        officer_id === actor.id && removed_at == null,
+    );
+    const signedUp = personalSignup !== undefined;
+    const canAct = signupActionsOpen && eventSignupOpen(event, now.getTime());
+    return canAct ? (
+      <div className="flex flex-nowrap items-center gap-1.5 whitespace-nowrap">
+        <SelfSignupForm
+          eventId={event.id}
+          eventName={event.name}
+          compact
+          full={
+            !signedUp &&
+            event.max_volunteers != null &&
+            (event.confirmed_count ?? 0) >= event.max_volunteers
+          }
+          currentType={
+            personalSignup?.participation_type === "attendee"
+              ? "attendee"
+              : signedUp
+                ? "volunteer"
+                : undefined
+          }
+        />
+        {signedUp && (
+          <SignupForm eventId={event.id} officerId={actor.id} remove compact />
+        )}
+      </div>
+    ) : null;
+  };
 
   return (
     <div data-page-width="wide" data-nav-page="events" className="space-y-5">
@@ -353,29 +336,6 @@ export default async function EventsPage({
               </li>
             ))}
           </ul>
-          {(calendarPage > 1 || calendarPage < calendarFailurePageCount) && (
-            <nav
-              aria-label="Google Calendar recovery pages"
-              className="mt-4 flex gap-3 text-sm"
-            >
-              {calendarPage > 1 && (
-                <Link
-                  href={calendarSyncPageUrl(calendarPage - 1)}
-                  className="underline"
-                >
-                  Previous recovery page
-                </Link>
-              )}
-              {calendarPage < calendarFailurePageCount && (
-                <Link
-                  href={calendarSyncPageUrl(calendarPage + 1)}
-                  className="underline"
-                >
-                  More recovery items
-                </Link>
-              )}
-            </nav>
-          )}
         </section>
       )}
       <nav
@@ -385,9 +345,18 @@ export default async function EventsPage({
         {[
           { scope: "all" as const, label: "All events" },
           { scope: "mine" as const, label: "My events" },
+          ...(hasOwnBranches
+            ? [
+                {
+                  scope: "branch" as const,
+                  label:
+                    actor.branchIds.length === 1 ? "My branch" : "My branches",
+                },
+              ]
+            : []),
         ].map(({ scope: itemScope, label }) => {
           const query = new URLSearchParams(filtersInUrl);
-          if (itemScope === "mine") query.set("scope", "mine");
+          if (itemScope !== "all") query.set("scope", itemScope);
           else query.delete("scope");
           query.delete("page");
           const serialized = query.toString();
@@ -395,8 +364,8 @@ export default async function EventsPage({
             <Link
               key={itemScope}
               href={(serialized ? `/events?${serialized}` : "/events") as Route}
-              aria-current={scope === itemScope ? "page" : undefined}
-              className={`min-h-10 border-b-2 px-1 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${scope === itemScope ? "border-brand text-brand" : "border-transparent text-secondary hover:text-foreground"}`}
+              aria-current={effectiveScope === itemScope ? "page" : undefined}
+              className={`min-h-10 border-b-2 px-1 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${effectiveScope === itemScope ? "border-brand text-brand" : "border-transparent text-secondary hover:text-foreground"}`}
             >
               {label}
             </Link>
@@ -404,20 +373,53 @@ export default async function EventsPage({
         })}
       </nav>
       <ListFilterBar
-        key={JSON.stringify([search, status, typeId, branchId, scope])}
+        key={JSON.stringify([search, status, typeId, branchId, effectiveScope])}
         action="/events"
         label="Event filters"
         active={hasFilters}
-        clearHref={
-          params.period !== undefined
-            ? (`/events?period=${encodeURIComponent(String(params.period))}` as Route)
-            : "/events"
-        }
+        clearHref={clearFiltersHref}
+        activeFilters={(() => {
+          const chips: ActiveFilterChip[] = [];
+          const without = (key: string): Route => {
+            const next = new URLSearchParams(filtersInUrl);
+            next.delete(key);
+            const qs = next.toString();
+            return (qs ? `/events?${qs}` : "/events") as Route;
+          };
+          if (search)
+            chips.push({ label: `Search: "${search}"`, removeHref: without("q") });
+          if (status)
+            chips.push({
+              label: `Status: ${formatLabel(status)}`,
+              removeHref: without("status"),
+            });
+          if (typeId !== undefined) {
+            const name =
+              eventTypesResult.data.find((t) => t.id === typeId)?.name ??
+              String(typeId);
+            chips.push({
+              label: `Type: ${name}`,
+              removeHref: without("type"),
+            });
+          }
+          if (branchId !== undefined) {
+            const name =
+              branchesResult.data.find((b) => b.id === branchId)?.name ??
+              String(branchId);
+            chips.push({
+              label: `Branch: ${formatLabel(name)}`,
+              removeHref: without("branch"),
+            });
+          }
+          return chips;
+        })()}
       >
         {params.period !== undefined && (
           <input type="hidden" name="period" value={String(params.period)} />
         )}
-        {scope === "mine" && <input type="hidden" name="scope" value="mine" />}
+        {effectiveScope !== "all" && (
+          <input type="hidden" name="scope" value={effectiveScope} />
+        )}
         <label className="min-w-56 flex-1">
           Search events
           <input
@@ -468,165 +470,119 @@ export default async function EventsPage({
       </ListFilterBar>
 
       {events.length === 0 ? (
-        <p>{emptyMessage}</p>
+        <div className="rounded-lg border border-dashed border-border-strong bg-surface px-6 py-10 text-center">
+          <p className="text-sm text-muted">{emptyMessage}</p>
+        </div>
       ) : (
         <div className="space-y-5">
-          {sections
-            .filter((section) => section.events.length > 0)
-            .map((section) => {
-              const groups = [
-                {
-                  title: "Your events",
-                  events: section.events.filter(participates),
-                },
-                {
-                  title: "Other events",
-                  events: section.events.filter(
-                    (event) => !participates(event),
-                  ),
-                },
-              ].filter((group) => group.events.length > 0);
-
-              return (
-                <section
-                  key={section.title}
-                  aria-label={section.title}
-                  className="space-y-4"
-                >
-                  <SectionHeading title={section.title} />
-                  {groups.map((group) => (
-                    <section
-                      key={group.title}
-                      aria-label={`${section.title}: ${group.title}`}
-                      className="space-y-3"
-                    >
-                      <h3 className="font-semibold text-foreground">
-                        {group.title}
-                      </h3>
-                      <TableFrame
-                        compact
-                        label={`Events table: ${section.title}: ${group.title}`}
-                      >
-                        <table>
-                          <thead>
-                            <tr>
-                              <th scope="col">Event</th>
-                              <th scope="col">Schedule (El Paso)</th>
-                              <th scope="col">Type</th>
-                              <th scope="col">Branches</th>
-                              <th scope="col">Officers</th>
-                              <th scope="col">Status</th>
-                              {signupActionsOpen && <th scope="col">Action</th>}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {group.events.map((event) => {
-                              const personalSignup = event.event_officers.find(
-                                ({ officer_id, removed_at }) =>
-                                  officer_id === actor.id && removed_at == null,
+          {sections.map((section) => {
+            return (
+              <section
+                key={section.title}
+                aria-label={section.title}
+                className="space-y-4"
+              >
+                <SectionHeading
+                  title={section.title}
+                  description={`${section.events.length} event${section.events.length === 1 ? "" : "s"}`}
+                />
+                <TableFrame compact label="Events table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th scope="col">Event</th>
+                        <th scope="col">Schedule (El Paso)</th>
+                        <th scope="col">Type</th>
+                        <th scope="col">Branches</th>
+                        <th scope="col">Officers</th>
+                        <th scope="col">Status</th>
+                        {signupActionsOpen && <th scope="col">Action</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {section.events.map((event) => (
+                        <tr key={event.id}>
+                          <td className="min-w-0">
+                            <Link
+                              href={withReturnTo(
+                                `/events/${event.id}`,
+                                returnTo,
+                              )}
+                              className="break-words"
+                            >
+                              {event.name}
+                            </Link>
+                          </td>
+                          <td className="whitespace-nowrap">
+                            <span className="inline-flex flex-wrap items-center gap-1.5">
+                              <span>
+                                {formatEventSchedule(
+                                  event.starts_at,
+                                  event.ends_at,
+                                )}
+                              </span>
+                              {(() => {
+                                const cue = formatRelativeDayCue(
+                                  event.event_date,
+                                  now,
+                                );
+                                return cue ? (
+                                  <span className="rounded bg-surface-muted px-1.5 py-0.5 text-[11px] font-medium text-muted">
+                                    {cue}
+                                  </span>
+                                ) : null;
+                              })()}
+                            </span>
+                          </td>
+                          <td>
+                            <CatalogValueBadge color={event.event_types.color}>
+                              {event.event_types.name}
+                            </CatalogValueBadge>
+                          </td>
+                          <td>
+                            <BranchBadges
+                              branches={event.event_branches.map(
+                                (eventBranch) => eventBranch.branches,
+                              )}
+                            />
+                          </td>
+                          <td className="tabular-nums">
+                            {eventSignupCountLabel(event)}
+                          </td>
+                          <td className="whitespace-nowrap">
+                            {(() => {
+                              const currentEventStatus = eventStatus(
+                                event,
+                                now.getTime(),
                               );
-                              const signedUp = personalSignup !== undefined;
-                              const canAct =
-                                signupActionsOpen &&
-                                eventSignupOpen(event, now.getTime());
                               return (
-                                <tr key={event.id}>
-                                  <td className="min-w-0">
-                                    <Link
-                                      href={withReturnTo(
-                                        `/events/${event.id}`,
-                                        returnTo,
-                                      )}
-                                      className="break-words"
-                                    >
-                                      {event.name}
-                                    </Link>
-                                  </td>
-                                  <td className="whitespace-nowrap">
-                                    {formatEventSchedule(
-                                      event.starts_at,
-                                      event.ends_at,
-                                    )}
-                                  </td>
-                                  <td>
-                                    <CatalogValueBadge
-                                      color={event.event_types.color}
-                                    >
-                                      {event.event_types.name}
-                                    </CatalogValueBadge>
-                                  </td>
-                                  <td>
-                                    <BranchBadges
-                                      branches={event.event_branches.map(
-                                        (eventBranch) => eventBranch.branches,
-                                      )}
+                                <span className="inline-flex items-center gap-1.5">
+                                  {currentEventStatus === "happening" && (
+                                    <span
+                                      aria-hidden="true"
+                                      className="inline-block size-2 rounded-full bg-success"
                                     />
-                                  </td>
-                                  <td className="tabular-nums">
-                                    {eventSignupCountLabel(event)}
-                                  </td>
-                                  <td className="whitespace-nowrap">
-                                    <StatusBadge
-                                      status={eventStatus(event, now.getTime())}
-                                    />
-                                  </td>
-                                  {signupActionsOpen && (
-                                    <td className="min-w-0">
-                                      {canAct && (
-                                        <div className="flex flex-nowrap items-center gap-1.5">
-                                          <SelfSignupForm
-                                            eventId={event.id}
-                                            eventName={event.name}
-                                            compact
-                                            full={
-                                              !signedUp &&
-                                              event.max_volunteers != null &&
-                                              (event.confirmed_count ?? 0) >=
-                                                event.max_volunteers
-                                            }
-                                            currentType={
-                                              personalSignup?.participation_type ===
-                                              "attendee"
-                                                ? "attendee"
-                                                : signedUp
-                                                  ? "volunteer"
-                                                  : undefined
-                                            }
-                                          />
-                                          {signedUp && (
-                                            <SignupForm
-                                              eventId={event.id}
-                                              officerId={actor.id}
-                                              remove
-                                              compact
-                                            />
-                                          )}
-                                        </div>
-                                      )}
-                                    </td>
                                   )}
-                                </tr>
+                                  <StatusBadge status={currentEventStatus} />
+                                </span>
                               );
-                            })}
-                          </tbody>
-                        </table>
-                      </TableFrame>
-                    </section>
-                  ))}
-                </section>
-              );
-            })}
+                            })()}
+                          </td>
+                          {signupActionsOpen && (
+                            <td className="min-w-0">
+                              {renderSignupControls(event)}
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </TableFrame>
+              </section>
+            );
+          })}
         </div>
       )}
-      <ListPagination
-        pathname="/events"
-        label="Event"
-        filters={filtersInUrl}
-        page={page}
-        totalPages={totalPages}
-        totalCount={totalCount}
-        countLabel={totalCount === 1 ? "event" : "events"}
-      />
     </div>
   );
 }

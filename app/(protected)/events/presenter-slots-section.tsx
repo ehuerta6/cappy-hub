@@ -32,7 +32,7 @@ export default function PresenterSlotsSection({
         {slots.map((slot) => (
           <li
             key={slot.id}
-            className="space-y-2 rounded-md border border-border p-3 text-sm"
+            className="space-y-2 rounded-lg border border-border p-3 text-sm"
           >
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <span className="font-medium">Presentation {slot.position}</span>

@@ -1,13 +1,15 @@
 "use client";
 import { ActionFeedback, FieldError } from "@/components/ui";
 import { AcademicPeriodWriteContextField } from "@/components/academic-period-selector";
+import { SearchableOfficerChecklist } from "@/components/officer-checklist-filter";
+import { emitToast } from "@/components/toast-region";
 import {
   initialFormActionState,
   submittedValue,
   submittedValues,
 } from "@/lib/form-feedback";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import type { Tables } from "@/lib/database.types";
 import {
   bulkAddEventOfficers,
@@ -30,6 +32,9 @@ export function RetryGoogleCalendarSyncForm({
   const [state, action, pending] = useActionState(retryGoogleCalendarSync, {
     ...initialFormActionState,
   });
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
       <AcademicPeriodWriteContextField />
@@ -64,9 +69,25 @@ export function SelfSignupForm({
   const [state, action, pending] = useActionState(selfSignup, {
     ...initialFormActionState,
   });
+  const [requestedType, setRequestedType] = useState<
+    "volunteer" | "attendee" | undefined
+  >(undefined);
+  const effectiveType = pending ? (requestedType ?? currentType) : currentType;
+
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
+
   return (
     <form
       action={action}
+      onSubmit={(event) => {
+        const submitter = (event.nativeEvent as SubmitEvent)
+          .submitter as HTMLButtonElement | null;
+        const next = submitter?.value;
+        if (next === "volunteer" || next === "attendee")
+          setRequestedType(next);
+      }}
       className={compact ? "compact-signup-form" : "space-y-2"}
     >
       <AcademicPeriodWriteContextField />
@@ -82,7 +103,7 @@ export function SelfSignupForm({
       >
         <SignupTypeButtons
           eventName={eventName}
-          currentType={currentType}
+          currentType={effectiveType}
           pending={pending}
           full={full}
           compact={compact}
@@ -166,6 +187,9 @@ export function SignupForm({
     ...initialFormActionState,
   });
   const fieldErrors = state.fieldErrors ?? {};
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
   return (
     <form
       action={action}
@@ -244,7 +268,9 @@ export function BulkAddOfficersForm({
   pointsPerHour,
 }: {
   eventId: number;
-  officers: Pick<Tables<"officers">, "id" | "name">[];
+  officers: (Pick<Tables<"officers">, "id" | "name"> & {
+    branches?: string[];
+  })[];
   past?: boolean;
   pointsPerOfficer?: number;
   timeSlots?: (Pick<
@@ -256,6 +282,9 @@ export function BulkAddOfficersForm({
   const [state, action, pending] = useActionState(bulkAddEventOfficers, {
     ...initialFormActionState,
   });
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
   if (timeSlots) {
     return (
       <div className="mt-4 space-y-3">
@@ -278,7 +307,11 @@ export function BulkAddOfficersForm({
   const selectedOfficers = submittedValues(state.values, "officer_ids");
   const fieldErrors = state.fieldErrors ?? {};
   return (
-    <form action={action} className="mt-4 space-y-3">
+    <form
+      action={action}
+      onReset={(event) => event.preventDefault()}
+      className="mt-4 space-y-3"
+    >
       <AcademicPeriodWriteContextField />
       <input type="hidden" name="event_id" value={eventId} />
       <label>
@@ -300,18 +333,13 @@ export function BulkAddOfficersForm({
       >
         <legend>{past ? "Select attendees" : "Select officers to add"}</legend>
         {officers.length ? (
-          <div className="event-bulk-officer-list mt-2 grid grid-cols-2 gap-2">
-            {officers.map((officer) => (
-              <label key={officer.id} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  name="officer_ids"
-                  value={officer.id}
-                  defaultChecked={selectedOfficers.includes(String(officer.id))}
-                />
-                {officer.name}
-              </label>
-            ))}
+          <div className="mt-2">
+            <SearchableOfficerChecklist
+              key={state.success || "idle"}
+              officers={officers}
+              initialSelectedIds={selectedOfficers.map(Number)}
+              disabled={pending}
+            />
           </div>
         ) : (
           <p>No active officers are available to add.</p>
@@ -410,6 +438,9 @@ export function RestoreDeletedEventForm({
   const [state, action, pending] = useActionState(restoreDeletedEvent, {
     ...initialFormActionState,
   });
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
   return (
     <form action={action}>
       <AcademicPeriodWriteContextField />
@@ -440,6 +471,9 @@ export function RestoreCancelledEventForm({ eventId }: { eventId: number }) {
   const [state, action, pending] = useActionState(restoreEvent, {
     ...initialFormActionState,
   });
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
   return (
     <form action={action}>
       <AcademicPeriodWriteContextField />
@@ -466,6 +500,9 @@ export function DeleteEventForm({
   const [state, action, pending] = useActionState(deleteEvent, {
     ...initialFormActionState,
   });
+  useEffect(() => {
+    if (state.success) emitToast(state.success, "success");
+  }, [state.success]);
   return (
     <form action={action}>
       <AcademicPeriodWriteContextField />
@@ -482,7 +519,7 @@ export function DeleteEventForm({
         destructive
         context={seriesId !== undefined ? lifecycleScopeContext : undefined}
         pending={pending}
-        triggerClassName="button-secondary"
+        triggerClassName="button-secondary button-danger"
       >
         {seriesId !== undefined && <RecurrenceLifecycleScope />}
       </ConfirmationDialog>

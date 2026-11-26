@@ -14,7 +14,7 @@ const eventListStatusSchema = searchParamStringSchema.transform((value) => {
 export const eventListFiltersSchema = zod.object({
   q: searchParamStringSchema.transform((value) => value.trim().slice(0, 100)),
   scope: searchParamStringSchema.transform((value) =>
-    value === "mine" ? "mine" : "all",
+    value === "mine" ? "mine" : value === "branch" ? "branch" : "all",
   ),
   status: eventListStatusSchema,
   type: optionalListIdSchema,

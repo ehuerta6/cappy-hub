@@ -224,7 +224,9 @@ export async function createTask(
       );
     }
     revalidatePath("/tasks");
+    revalidatePath("/calendar");
     revalidatePath("/events/[id]", "page");
+    revalidatePath("/", "layout");
     redirect(withSuccessNotice(`/tasks#task-${data}`, "task-created"));
   }
   const { data, error } = await supabase.rpc(
@@ -274,7 +276,9 @@ export async function createTask(
     );
   }
   revalidatePath("/tasks");
+  revalidatePath("/calendar");
   revalidatePath("/events/[id]", "page");
+  revalidatePath("/", "layout");
   redirect(withSuccessNotice(`/tasks#task-${data}`, "task-created"));
 }
 
@@ -512,6 +516,54 @@ export async function setTaskAssignmentCompletion(
     success: validation.data.completed
       ? "Marked completed"
       : "Marked not completed",
+  };
+}
+
+export async function approveAllPendingTaskCompletions(
+  _previous: FormActionState,
+  form: FormData,
+) {
+  await getAuthorizationContext({
+    enforceWritablePeriod: true,
+    periodContext: form.get("writable_period"),
+  });
+  const validation = bulkTaskAssignmentInputSchema.safeParse({
+    task_id: form.get("task_id") ?? "",
+    officer_ids: form.getAll("officer_ids"),
+  });
+  if (!validation.success)
+    return validationFailure(
+      validation.error,
+      form,
+      ["task_id", "officer_ids"],
+      ["officer_ids"],
+    );
+  const periodContext = String(form.get("writable_period") ?? "");
+  const supabase = await createClient();
+  let approvedCount = 0;
+  for (const officerId of validation.data.officer_ids) {
+    const { error } = await supabase.rpc("set_task_assignment_completion", {
+      p_task_id: validation.data.task_id,
+      p_officer_id: officerId,
+      p_completed: true,
+      p_period_context: periodContext,
+    });
+    if (error) {
+      revalidatePath("/tasks");
+      revalidatePath(`/tasks/${validation.data.task_id}`);
+      revalidatePath("/points");
+      revalidatePath("/", "layout");
+      return formFailure(mutationError(error.message), form, ["task_id"]);
+    }
+    approvedCount += 1;
+  }
+  revalidatePath("/tasks");
+  revalidatePath(`/tasks/${validation.data.task_id}`);
+  revalidatePath("/points");
+  revalidatePath("/", "layout");
+  return {
+    error: "",
+    success: `${approvedCount} completion${approvedCount === 1 ? "" : "s"} approved`,
   };
 }
 
