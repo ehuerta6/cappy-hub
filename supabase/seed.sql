@@ -192,7 +192,12 @@ select
   base.today + s.day_off,
   ((base.today + s.day_off + s.start_t) at time zone 'America/Denver'),
   ((base.today + s.day_off + s.end_t)   at time zone 'America/Denver'),
-  s.status, s.rate_at_end, s.rate_ver, s.max_vol,
+  s.status, s.rate_at_end,
+  coalesce(
+    s.rate_ver,
+    case when s.rate_at_end is null then 'volunteer_attendee' else 'legacy' end
+  ),
+  s.max_vol,
   s.series_id,
   case when s.series_id is not null then base.today + s.day_off else null end,
   s.del_at, s.del_by
