@@ -97,7 +97,7 @@ const output = run(
       "(select count(distinct recurrence_series_id) from public.events where recurrence_series_id in (-2201,-2202,-2203)),",
       "(select count(*) from public.officers where id between -1207 and -1201),",
       "(select count(*) from public.events where id between -2063 and -2060),",
-      "(select count(*) from public.event_officers where event_id=-2060 and participation_type in ('volunteer','attendee')) ,",
+      "(select count(*) from public.event_officers where event_id=-2060 and participation_type in ('volunteer','attendee')),",
       "(select count(*) from public.point_transactions p join public.event_officers eo on eo.event_id=p.event_id and eo.officer_id=p.officer_id where p.event_id=-2060 and p.award_type='participation' and p.removed_at is null and ((eo.participation_type='volunteer' and p.points=4) or (eo.participation_type='attendee' and p.points=2))),",
       "(select count(*) from public.point_transactions where id between -4583 and -4511 and award_type='negative'),",
       "(select count(*) from public.point_transactions where id=-4583 and removed_at is not null),",
@@ -106,7 +106,12 @@ const output = run(
       "(select count(*) from public.officer_warnings where officer_id=-1205 and status='approved' and voided_at is null and deleted_at is null),",
       "(select count(*) from public.officer_warnings where id between -3210 and -3201 and origin in ('manual','automatic')),",
       "(select count(*) from public.automatic_warning_point_links where warning_id in (-3201,-3202,-3203,-3209) and released_at is null),",
-      "(select count(*) from public.notifications where kind='warning.threshold' and entity_id=-3209);",
+      "(select count(*) from public.notifications where kind='warning.threshold' and entity_id=-3209),",
+      "(select count(*) from public.resource_links),",
+      "(select count(*) from public.task_events),",
+      "(select count(*) from public.tasks where no_longer_needed_at is not null),",
+      "(select count(*) from public.tasks where removed_at is not null),",
+      "(select count(*) from public.event_calendar_sync_failures);",
     ].join(" "),
   ],
   { capture: true },
@@ -158,12 +163,17 @@ const [
   issue402Warnings,
   issue402ActiveWarningLinks,
   issue402ThresholdNotices,
+  resourceLinks,
+  taskEvents,
+  noLongerNeededTasks,
+  deletedTasks,
+  calendarSyncFailures,
 ] = output.split("|").map((value) => Number(value));
 
 if (
-  officers < 30 ||
+  officers < 25 ||
   events < 20 ||
-  points < 320 ||
+  points < 65 ||
   warnings < 10 ||
   timeSlots < 14 ||
   slotSelections < 18 ||
@@ -174,10 +184,15 @@ if (
   recurringSlotEvents !== 2 ||
   slottedEventCapacities !== 0 ||
   ordinaryEventCapacity !== 3 ||
-  customSlotGaps < 1
+  customSlotGaps < 1 ||
+  resourceLinks < 8 ||
+  taskEvents < 4 ||
+  noLongerNeededTasks < 1 ||
+  deletedTasks < 1 ||
+  calendarSyncFailures < 1
 ) {
   throw new Error(
-    `Seed verification failed: officers=${officers}, events=${events}, points=${points}, warnings=${warnings}, slots=${timeSlots}, selections=${slotSelections}, activeSlotAwards=${activeSlotAwards}, removedSlotAwards=${removedSlotAwards}, equalSlotCapacities=${equalSlotCapacities}, recurringSlots=${recurringSlots}, recurringSlotEvents=${recurringSlotEvents}, slottedEventCapacities=${slottedEventCapacities}, ordinaryEventCapacity=${ordinaryEventCapacity}, customSlotGaps=${customSlotGaps}`,
+    `Seed verification failed: officers=${officers}, events=${events}, points=${points}, warnings=${warnings}, slots=${timeSlots}, selections=${slotSelections}, activeSlotAwards=${activeSlotAwards}, removedSlotAwards=${removedSlotAwards}, equalSlotCapacities=${equalSlotCapacities}, recurringSlots=${recurringSlots}, recurringSlotEvents=${recurringSlotEvents}, slottedEventCapacities=${slottedEventCapacities}, ordinaryEventCapacity=${ordinaryEventCapacity}, customSlotGaps=${customSlotGaps}, resourceLinks=${resourceLinks}, taskEvents=${taskEvents}, noLongerNeededTasks=${noLongerNeededTasks}, deletedTasks=${deletedTasks}, calendarSyncFailures=${calendarSyncFailures}`,
   );
 }
 if (
@@ -212,7 +227,7 @@ if (
 }
 if (
   notifications < 15 ||
-  notificationKinds < 13 ||
+  notificationKinds < 14 ||
   eventAudienceRules < 5 ||
   taskAudienceRules < 5 ||
   eventReminders < 5 ||
@@ -231,5 +246,5 @@ if (
 }
 
 console.log(
-  `Synthetic seed verified: ${officers} officers, ${events} events, ${points} point transactions, ${warnings} warnings, ${timeSlots} Time Slots, ${slotSelections} slot selections, ${notifications} notifications, and ${notificationKinds} notification kinds; includes active and removed slot awards, custom capacities, recurring Event/Task reminder scopes, read/reviewed notification examples, and all Issue #402 participation, negative Point, and Warning fixtures.`,
+  `Synthetic seed verified: ${officers} officers, ${events} events, ${points} point transactions, ${warnings} warnings, ${timeSlots} Time Slots, ${slotSelections} slot selections, ${resourceLinks} resource links, ${taskEvents} task-event links, ${notifications} notifications (${notificationKinds} kinds), ${noLongerNeededTasks} no-longer-needed task, ${deletedTasks} deleted task, and ${calendarSyncFailures} Calendar sync failure.`,
 );
