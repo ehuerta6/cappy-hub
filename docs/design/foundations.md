@@ -78,20 +78,21 @@ Keep surfaces monochrome. Pair color with text or an icon so state is never comm
 
 ## Typography, spacing, and density
 
-- Use Geist Sans for interface text and Geist Mono only where fixed-width alignment helps.
+- Use Geist Sans for interface text and Geist Mono (via `var(--font-geist-mono)`) only where fixed-width alignment helps, such as HEX color inputs and tabular identifiers.
 - Page titles use the shared `PageHeader`; section titles use `SectionHeading` or the same established treatment.
 - Keep body, control, label, and metadata sizes on the app's established scale. Use tabular numerals for comparable points, counts, and dates.
+- Follow the unified border-radius scale: `0.5rem` (`rounded-lg`) for cards, panels, dialogs, and popup surfaces, and `0.375rem` (`rounded-md`) for inputs, buttons, chips, and popup options.
 - Follow the existing spacing scale. Align labels, fields, buttons, tabs, tables, and page edges.
 - Keep rows compact but readable. Avoid arbitrary height or padding differences between related pages.
-- Use natural document scrolling for long pages. Do not hide important actions in nested scrolling regions.
+- Use natural document scrolling for long pages instead of in-page detail pagination or nested scrolling regions, paired with the shared `ScrollToTop` floating helper when scrolling down long lists or detail views.
 
 ## Application frame and navigation
 
-The protected application uses one full-width horizontal header with the existing CIC mark and Cappy Hub name, main navigation, academic-period selector, theme control, current account, and Sign out. Keep all established destinations visible in the supported desktop layout, with Admin shown only when authorized. The selected destination uses the Calendar blue underline.
+The protected application uses a fixed desktop left sidebar (`SiteNavigation`) with the existing CIC mark and Cappy Hub name, icon-paired navigation links (Dashboard, Events, Tasks, Calendar, Officers, Points, and Admin when authorized), the notification bell popover, theme toggle, academic-period selector, clickable self-profile account link, and Sign out. On narrow viewports, the shell collapses into a compact top bar with a Menu toggle for account and period controls. The selected destination uses the Calendar blue accent and `aria-current="page"`.
 
-Header controls share height, padding, border, radius, text weight, hover, disabled, and keyboard-focus treatments. The period selector, theme toggle, account label, and Sign out action align on the same row. Do not add a second header treatment to an individual page.
+Navigation and utility controls share height, padding, border, radius, text weight, hover, disabled, and keyboard-focus treatments. Do not add a second header or navigation treatment to an individual page.
 
-Every protected page starts directly below the shared header. Use the shared content edge and `PageHeader` for a title, a short description when helpful, and an action where one exists. `PageHeader` uses the slim blue left rule and bottom divider. Do not add route-specific top spacing that detaches the title from navigation.
+Every protected page renders inside the shared content area with `PageHeader` for a title, a short description when helpful, and an action where one exists. `PageHeader` uses the slim blue left rule and bottom divider. Historical academic periods surface the shared read-only banner (`HistoricalPeriodBanner`).
 
 Use the shared width rules: main work areas up to `108rem` with consistent horizontal padding; forms up to `76rem`; record details up to `92rem` when their information benefits from extra columns. Keep the page aligned to the same left and right edge.
 

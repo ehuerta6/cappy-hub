@@ -6,7 +6,7 @@ The in-app notification and shared-reminder behavior below was approved by [Issu
 
 Notifications are personal history. The signed-in Officer can see only their own inbox, including read and unread entries. The header bell shows recent entries and links to the full inbox. Opening an entry marks it read and opens the related Event, Task, Points transaction, or Warning when that record is available. Important updates stay on the Dashboard action list until the Officer opens the related record; the notification remains in inbox history. Low-priority signup and departure confirmations stay in the inbox and do not become action items.
 
-Each inbox entry can be marked read or unread without opening its destination. This changes only inbox read status; it does not change whether an important update has been reviewed for the Dashboard action list.
+Each inbox entry can be marked read or unread without opening its destination. This changes only inbox read status; it does not change whether an important update has been reviewed for the Dashboard action list. The full inbox also offers a **Needs attention only** filter toggle to focus on actionable entries without modifying read or review state.
 
 When any unread notices exist, the full inbox and header preview offer **Mark all as read**. This applies to all unread notices for the signed-in Officer, including notices outside the header's recent preview, and changes only `read_at`; it preserves `reviewed_at` and notification history. Opening the full inbox alone does not mark notices read. If the update fails, the prior visible read state remains and an error is shown.
 
