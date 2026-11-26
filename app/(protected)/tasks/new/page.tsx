@@ -103,9 +103,7 @@ export default async function NewTaskPage({
       <PageHeader
         title="New task"
         description={
-          matchedEvent
-            ? `Linked to "${matchedEvent.name}".`
-            : undefined
+          matchedEvent ? `Linked to "${matchedEvent.name}".` : undefined
         }
       />
       <TaskCreateForm

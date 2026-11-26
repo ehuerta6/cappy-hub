@@ -3,10 +3,7 @@ import { searchOrFilter } from "@/lib/list-search";
 import type { Database } from "@/lib/database.types";
 
 export type TaskWorkflowStatus =
-  | "open"
-  | "in_progress"
-  | "needs_approval"
-  | "complete";
+  "open" | "in_progress" | "needs_approval" | "complete";
 export type TaskListSort = "urgency" | "newest";
 export type TaskListView = "current" | "past" | "all" | "deleted";
 
@@ -125,8 +122,7 @@ export function buildTaskListQuery(
       })
       .is("incomplete_assignments.removed_at", null);
 
-  if (branchScope?.length)
-    tasksQuery = tasksQuery.in("branch_id", branchScope);
+  if (branchScope?.length) tasksQuery = tasksQuery.in("branch_id", branchScope);
   if (search)
     tasksQuery = tasksQuery.or(
       searchOrFilter(search, ["title", "description"]),

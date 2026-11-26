@@ -10,11 +10,7 @@ import {
   formatTaskDueTime,
 } from "@/lib/presentation";
 import { requireCurrentOfficer } from "@/lib/current-officer";
-import {
-  canManageEvent,
-  canSeeAllBranches,
-  isLead,
-} from "@/lib/authorization";
+import { canManageEvent, canSeeAllBranches, isLead } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import { displayPoints } from "@/lib/participation";
 import { eventSignupCountLabel } from "@/lib/event-list";
@@ -274,11 +270,9 @@ export default async function DashboardPage({
   const currentPeriodPoints: number | null = periodPoints
     ? periodPoints.data.net_points
     : null;
-  const periodRanking = (
+  const periodRanking =
     (periodPoints?.data?.ranking as
-      | Array<{ officer_id: number; points: number }>
-      | undefined) ?? []
-  );
+      Array<{ officer_id: number; points: number }> | undefined) ?? [];
   const myRankingIndex = periodRanking.findIndex(
     (row) => row.officer_id === officer.id,
   );
@@ -326,9 +320,7 @@ export default async function DashboardPage({
                 <>
                   <span className={styles.personalValue}>
                     <PointValue
-                      value={
-                        myPeriodPoints ?? total.data.total_points ?? 0
-                      }
+                      value={myPeriodPoints ?? total.data.total_points ?? 0}
                     />
                     <span>pts</span>
                   </span>
@@ -384,7 +376,8 @@ export default async function DashboardPage({
       </p>
 
       {canReviewBranch &&
-        (pendingApprovalTasks.length > 0 || calendarSyncFailures.length > 0) && (
+        (pendingApprovalTasks.length > 0 ||
+          calendarSyncFailures.length > 0) && (
           <section
             className="rounded-lg border border-warning-border bg-surface p-4"
             aria-labelledby="manager-review-title"
@@ -553,7 +546,9 @@ export default async function DashboardPage({
                       )}
                     <span
                       className={styles.actionStatusLabel}
-                      data-status={item.status.toLowerCase().replaceAll(" ", "-")}
+                      data-status={item.status
+                        .toLowerCase()
+                        .replaceAll(" ", "-")}
                     >
                       {item.status}
                     </span>
@@ -592,8 +587,9 @@ export default async function DashboardPage({
           ) : (
             <ul className={styles.eventList}>
               {discoveryEvents.map((event) => {
-                const confirmedCount =
-                  signupCounts.get(event.id)?.confirmed_count;
+                const confirmedCount = signupCounts.get(
+                  event.id,
+                )?.confirmed_count;
                 const isFull =
                   event.max_volunteers != null &&
                   confirmedCount != null &&

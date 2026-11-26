@@ -85,8 +85,7 @@ export function SelfSignupForm({
         const submitter = (event.nativeEvent as SubmitEvent)
           .submitter as HTMLButtonElement | null;
         const next = submitter?.value;
-        if (next === "volunteer" || next === "attendee")
-          setRequestedType(next);
+        if (next === "volunteer" || next === "attendee") setRequestedType(next);
       }}
       className={compact ? "compact-signup-form" : "space-y-2"}
     >

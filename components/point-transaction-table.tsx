@@ -47,7 +47,8 @@ export default function PointTransactionTable({
   period,
   hideOfficer = false,
 }: PointTransactionTableProps) {
-  if (!transactions.length) return <p className="text-sm text-muted">No point transactions yet.</p>;
+  if (!transactions.length)
+    return <p className="text-sm text-muted">No point transactions yet.</p>;
   const showsRemoval = transactions.some(
     (transaction) => transaction.removed_at !== null,
   );

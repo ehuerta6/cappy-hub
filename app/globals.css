@@ -447,7 +447,6 @@
     outline-offset: 2px;
   }
 
-
   .event-form-section-description {
     margin: 0 0 0.875rem;
     font-size: 0.8125rem;
@@ -1486,7 +1485,6 @@ select.header-control {
   font-size: 0.875rem;
   text-align: center;
 }
-
 
 [data-nav-page] .list-filter-bar form[role="search"] {
   display: grid;

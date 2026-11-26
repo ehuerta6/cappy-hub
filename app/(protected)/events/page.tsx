@@ -61,8 +61,7 @@ export default async function EventsPage({
       : filters.status;
   const { q: search, type: typeId, branch: branchId, scope } = filters;
   const hasOwnBranches = actor.branchIds.length > 0;
-  const effectiveScope =
-    scope === "branch" && !hasOwnBranches ? "all" : scope;
+  const effectiveScope = scope === "branch" && !hasOwnBranches ? "all" : scope;
   const now = new Date();
   const nowIso = now.toISOString();
   const { today } = currentDenverWeek(now);
@@ -387,7 +386,10 @@ export default async function EventsPage({
             return (qs ? `/events?${qs}` : "/events") as Route;
           };
           if (search)
-            chips.push({ label: `Search: "${search}"`, removeHref: without("q") });
+            chips.push({
+              label: `Search: "${search}"`,
+              removeHref: without("q"),
+            });
           if (status)
             chips.push({
               label: `Status: ${formatLabel(status)}`,

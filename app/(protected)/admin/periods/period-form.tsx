@@ -7,7 +7,10 @@ import { emitToast } from "@/components/toast-region";
 import { initialFormActionState, submittedValue } from "@/lib/form-feedback";
 import { saveAcademicPeriodAction } from "./actions";
 
-function formatDurationPreview(startsOn: string, endsOn: string): string | null {
+function formatDurationPreview(
+  startsOn: string,
+  endsOn: string,
+): string | null {
   if (!startsOn || !endsOn) return null;
   const startMs = Date.parse(`${startsOn}T00:00:00Z`);
   const endMs = Date.parse(`${endsOn}T00:00:00Z`);

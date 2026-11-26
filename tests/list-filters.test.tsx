@@ -570,17 +570,20 @@ it("renders all manager-visible Calendar recovery items without pagination", asy
   admin = false;
   lead = true;
   actorBranches = [2];
-  rows.event_calendar_sync_failures = Array.from({ length: 12 }, (_, index) => ({
-    event_id: -9200 - index,
-    failed_at: `2026-10-30T10:${String(index).padStart(2, "0")}:00Z`,
-    event: {
-      id: -9200 - index,
-      name: `Failed Event ${index + 1}`,
-      starts_at: "2099-10-30T16:00:00Z",
-      deleted_at: null,
-      event_branches: [{ branch_id: 2 }],
-    },
-  }));
+  rows.event_calendar_sync_failures = Array.from(
+    { length: 12 },
+    (_, index) => ({
+      event_id: -9200 - index,
+      failed_at: `2026-10-30T10:${String(index).padStart(2, "0")}:00Z`,
+      event: {
+        id: -9200 - index,
+        name: `Failed Event ${index + 1}`,
+        starts_at: "2099-10-30T16:00:00Z",
+        deleted_at: null,
+        event_branches: [{ branch_id: 2 }],
+      },
+    }),
+  );
 
   const html = await render(EventsPage);
 

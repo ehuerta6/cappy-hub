@@ -140,24 +140,27 @@ it.each([
   ["locations", "event_locations"],
   ["types", "event_types"],
   ["task-types", "task_types"],
-] as const)("renders the selected %s category with tab counts", async (category, table) => {
-  mocks.counts[table] = 1;
-  mocks.data[table] = [{ id: 1, name: "Selected record" }];
-  const html = await renderPage({ category });
+] as const)(
+  "renders the selected %s category with tab counts",
+  async (category, table) => {
+    mocks.counts[table] = 1;
+    mocks.data[table] = [{ id: 1, name: "Selected record" }];
+    const html = await renderPage({ category });
 
-  expect(mocks.tables).toContain(table);
-  expect(html).toContain("Catalog categories");
-  expect(html).toContain('aria-current="page"');
-  for (const tab of [
-    "positions",
-    "branches",
-    "locations",
-    "types",
-    "task-types",
-  ])
-    expect(html).toContain(`href="/officers/catalogs?category=${tab}"`);
-  expect(html).toContain("Selected record");
-});
+    expect(mocks.tables).toContain(table);
+    expect(html).toContain("Catalog categories");
+    expect(html).toContain('aria-current="page"');
+    for (const tab of [
+      "positions",
+      "branches",
+      "locations",
+      "types",
+      "task-types",
+    ])
+      expect(html).toContain(`href="/officers/catalogs?category=${tab}"`);
+    expect(html).toContain("Selected record");
+  },
+);
 
 it("loads all ordered records for a category without pagination", async () => {
   mocks.counts.branches = 18;
@@ -178,9 +181,9 @@ it("loads all ordered records for a category without pagination", async () => {
 });
 
 it("redirects legacy page query params to the canonical unpaginated category URL", async () => {
-  await expect(
-    renderPage({ category: "branches", page: "2" }),
-  ).rejects.toThrow("REDIRECT:/officers/catalogs?category=branches");
+  await expect(renderPage({ category: "branches", page: "2" })).rejects.toThrow(
+    "REDIRECT:/officers/catalogs?category=branches",
+  );
 });
 
 it("redirects the default or invalid category to Positions", async () => {

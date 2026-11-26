@@ -121,201 +121,210 @@ export default function NotificationSettingsFields({
           </span>
         </summary>
         <div className="notification-settings-content mt-3 border-t border-border pt-3">
-        <div className="notification-audience">
-          <p className="event-form-section-description">
-            Choose who receives an in-app notice. This does not sign anyone up,
-            assign work, or change Points or Warnings. If you leave the audience
-            empty, notices go to the default{" "}
-            {isEvent
-              ? "Event Branches (or all active Officers for a global Event)"
-              : "Task assignees"}
-            .
-          </p>
-          <label className="notification-audience-all">
-            <input
-              type="checkbox"
-              name="notification_all_active"
-              checked={all}
-              onChange={(event) => setAll(event.currentTarget.checked)}
-            />
-            All active Officers
-          </label>
-          {all && (
-            <p className="mt-1 text-xs text-muted">
-              All active Officers are already included; specific branch and
-              position filters are disabled.
+          <div className="notification-audience">
+            <p className="event-form-section-description">
+              Choose who receives an in-app notice. This does not sign anyone
+              up, assign work, or change Points or Warnings. If you leave the
+              audience empty, notices go to the default{" "}
+              {isEvent
+                ? "Event Branches (or all active Officers for a global Event)"
+                : "Task assignees"}
+              .
             </p>
-          )}
-          <div
-            className={`notification-audience-targets ${all ? "opacity-45" : ""}`}
-          >
-            <fieldset className="notification-audience-options" disabled={all}>
-              <legend className={fieldLabelClassName}>Branches</legend>
-              {branches.map((branch) => (
-                <label key={branch.id}>
-                  <input
-                    type="checkbox"
-                    name="notification_branches"
-                    value={branch.id}
-                    defaultChecked={submittedBranches.includes(branch.id)}
-                  />
-                  {branch.name}
-                </label>
-              ))}
-            </fieldset>
-            <fieldset className="notification-audience-options" disabled={all}>
-              <legend className={fieldLabelClassName}>Positions</legend>
-              {positions.map((position) => (
-                <label key={position.id}>
-                  <input
-                    type="checkbox"
-                    name="notification_positions"
-                    value={position.id}
-                    defaultChecked={submittedPositions.includes(position.id)}
-                  />
-                  {position.name}
-                </label>
-              ))}
-            </fieldset>
-          </div>
-        </div>
-        <div className="notification-reminders">
-          <div className="notification-reminders-heading">
-            <div>
-              <h3>{isEvent ? "Event reminders" : "Task reminders"}</h3>
-              <p>
-                Choose when to notify people before the{" "}
-                {isEvent ? "Event starts" : "Task is due"}.
+            <label className="notification-audience-all">
+              <input
+                type="checkbox"
+                name="notification_all_active"
+                checked={all}
+                onChange={(event) => setAll(event.currentTarget.checked)}
+              />
+              All active Officers
+            </label>
+            {all && (
+              <p className="mt-1 text-xs text-muted">
+                All active Officers are already included; specific branch and
+                position filters are disabled.
               </p>
-            </div>
-            <button
-              type="button"
-              className="button-secondary notification-add-reminder"
-              onClick={() =>
-                setReminders((current) => [...current, reminderDraft(30)])
-              }
-              disabled={reminders.length >= 6}
+            )}
+            <div
+              className={`notification-audience-targets ${all ? "opacity-45" : ""}`}
             >
-              Add reminder
-            </button>
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] text-muted">Quick add:</span>
-            {([
-              { label: "+ 15m", minutes: 15 },
-              { label: "+ 1h", minutes: 60 },
-              { label: "+ 1d", minutes: 1440 },
-            ] as const).map(({ label, minutes }) => {
-              const alreadyAdded = reminders.some(
-                (item) => reminderMinutes(item) === minutes,
-              );
-              return (
-                <button
-                  key={minutes}
-                  type="button"
-                  disabled={reminders.length >= 6 || alreadyAdded}
-                  onClick={() =>
-                    setReminders((current) => [
-                      ...current,
-                      reminderDraft(minutes),
-                    ])
-                  }
-                  className="!min-h-6 rounded border border-border bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-secondary hover:border-border-strong hover:bg-hover hover:text-foreground disabled:opacity-40"
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-          {reminders.length === 0 ? (
-            <>
-              <p className="notification-no-reminders">
-                No reminders scheduled.
-              </p>
-              <input type="hidden" name="reminder_offsets" value="" />
-            </>
-          ) : (
-            <ul className="notification-reminder-list">
-              {reminders.map((reminder, index) => (
-                <li key={index} className="notification-reminder-row">
-                  <span className="notification-reminder-prefix">
-                    Remind me
-                  </span>
-                  <label>
-                    <span className="sr-only">Reminder {index + 1}</span>
+              <fieldset
+                className="notification-audience-options"
+                disabled={all}
+              >
+                <legend className={fieldLabelClassName}>Branches</legend>
+                {branches.map((branch) => (
+                  <label key={branch.id}>
                     <input
-                      type="number"
-                      inputMode="numeric"
-                      min="1"
-                      max={Math.floor(
-                        43200 /
-                          (reminderUnits.find(
-                            (unit) => unit.value === reminder.unit,
-                          )?.minutes ?? 1),
-                      )}
-                      required
-                      value={reminder.amount}
-                      onChange={(event) => {
-                        const amount = event.currentTarget.value;
-                        setReminders((current) =>
-                          current.map((item, itemIndex) =>
-                            itemIndex === index ? { ...item, amount } : item,
-                          ),
-                        );
-                      }}
+                      type="checkbox"
+                      name="notification_branches"
+                      value={branch.id}
+                      defaultChecked={submittedBranches.includes(branch.id)}
                     />
+                    {branch.name}
                   </label>
-                  <label>
-                    <span className="sr-only">Reminder {index + 1} unit</span>
-                    <select
-                      value={reminder.unit}
-                      onChange={(event) => {
-                        const unit = event.currentTarget.value as ReminderUnit;
-                        setReminders((current) =>
-                          current.map((item, itemIndex) =>
-                            itemIndex === index ? { ...item, unit } : item,
-                          ),
-                        );
-                      }}
-                    >
-                      {reminderUnits.map((unit) => (
-                        <option key={unit.value} value={unit.value}>
-                          {reminder.amount === "1"
-                            ? unit.singularLabel
-                            : unit.label}
-                        </option>
-                      ))}
-                    </select>
+                ))}
+              </fieldset>
+              <fieldset
+                className="notification-audience-options"
+                disabled={all}
+              >
+                <legend className={fieldLabelClassName}>Positions</legend>
+                {positions.map((position) => (
+                  <label key={position.id}>
+                    <input
+                      type="checkbox"
+                      name="notification_positions"
+                      value={position.id}
+                      defaultChecked={submittedPositions.includes(position.id)}
+                    />
+                    {position.name}
                   </label>
-                  <input
-                    type="hidden"
-                    name="reminder_offsets"
-                    value={reminderMinutes(reminder)}
-                  />
+                ))}
+              </fieldset>
+            </div>
+          </div>
+          <div className="notification-reminders">
+            <div className="notification-reminders-heading">
+              <div>
+                <h3>{isEvent ? "Event reminders" : "Task reminders"}</h3>
+                <p>
+                  Choose when to notify people before the{" "}
+                  {isEvent ? "Event starts" : "Task is due"}.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="button-secondary notification-add-reminder"
+                onClick={() =>
+                  setReminders((current) => [...current, reminderDraft(30)])
+                }
+                disabled={reminders.length >= 6}
+              >
+                Add reminder
+              </button>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] text-muted">Quick add:</span>
+              {(
+                [
+                  { label: "+ 15m", minutes: 15 },
+                  { label: "+ 1h", minutes: 60 },
+                  { label: "+ 1d", minutes: 1440 },
+                ] as const
+              ).map(({ label, minutes }) => {
+                const alreadyAdded = reminders.some(
+                  (item) => reminderMinutes(item) === minutes,
+                );
+                return (
                   <button
+                    key={minutes}
                     type="button"
-                    className="button-link notification-remove-reminder"
-                    aria-label={`Remove reminder ${index + 1}`}
+                    disabled={reminders.length >= 6 || alreadyAdded}
                     onClick={() =>
-                      setReminders((current) =>
-                        current.filter((_, itemIndex) => itemIndex !== index),
-                      )
+                      setReminders((current) => [
+                        ...current,
+                        reminderDraft(minutes),
+                      ])
                     }
+                    className="!min-h-6 rounded border border-border bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-secondary hover:border-border-strong hover:bg-hover hover:text-foreground disabled:opacity-40"
                   >
-                    Remove
+                    {label}
                   </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {!isEvent && (
-            <p className="notification-reminder-note">
-              Without a due time, reminders are based on noon local time on the
-              due date. The default one-day reminder arrives at noon the day
-              before.
-            </p>
-          )}
-        </div>
+                );
+              })}
+            </div>
+            {reminders.length === 0 ? (
+              <>
+                <p className="notification-no-reminders">
+                  No reminders scheduled.
+                </p>
+                <input type="hidden" name="reminder_offsets" value="" />
+              </>
+            ) : (
+              <ul className="notification-reminder-list">
+                {reminders.map((reminder, index) => (
+                  <li key={index} className="notification-reminder-row">
+                    <span className="notification-reminder-prefix">
+                      Remind me
+                    </span>
+                    <label>
+                      <span className="sr-only">Reminder {index + 1}</span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min="1"
+                        max={Math.floor(
+                          43200 /
+                            (reminderUnits.find(
+                              (unit) => unit.value === reminder.unit,
+                            )?.minutes ?? 1),
+                        )}
+                        required
+                        value={reminder.amount}
+                        onChange={(event) => {
+                          const amount = event.currentTarget.value;
+                          setReminders((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, amount } : item,
+                            ),
+                          );
+                        }}
+                      />
+                    </label>
+                    <label>
+                      <span className="sr-only">Reminder {index + 1} unit</span>
+                      <select
+                        value={reminder.unit}
+                        onChange={(event) => {
+                          const unit = event.currentTarget
+                            .value as ReminderUnit;
+                          setReminders((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, unit } : item,
+                            ),
+                          );
+                        }}
+                      >
+                        {reminderUnits.map((unit) => (
+                          <option key={unit.value} value={unit.value}>
+                            {reminder.amount === "1"
+                              ? unit.singularLabel
+                              : unit.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <input
+                      type="hidden"
+                      name="reminder_offsets"
+                      value={reminderMinutes(reminder)}
+                    />
+                    <button
+                      type="button"
+                      className="button-link notification-remove-reminder"
+                      aria-label={`Remove reminder ${index + 1}`}
+                      onClick={() =>
+                        setReminders((current) =>
+                          current.filter((_, itemIndex) => itemIndex !== index),
+                        )
+                      }
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {!isEvent && (
+              <p className="notification-reminder-note">
+                Without a due time, reminders are based on noon local time on
+                the due date. The default one-day reminder arrives at noon the
+                day before.
+              </p>
+            )}
+          </div>
         </div>
       </details>
     </fieldset>

@@ -20,7 +20,10 @@ export default function HistoricalPeriodBanner({
   const selectedPeriod = Number.isSafeInteger(periodId)
     ? (academicPeriods.periods.find((item) => item.id === periodId) ?? null)
     : null;
-  if (!selectedPeriod || !(selectedPeriod.ends_on < academicPeriods.currentDate))
+  if (
+    !selectedPeriod ||
+    !(selectedPeriod.ends_on < academicPeriods.currentDate)
+  )
     return null;
 
   const currentPeriod = academicPeriods.periods.find(

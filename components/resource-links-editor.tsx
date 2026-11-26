@@ -175,7 +175,10 @@ export default function ResourceLinksEditor({
         </div>
       ) : (
         <>
-          <p id="resource-links-help" className="event-form-section-description">
+          <p
+            id="resource-links-help"
+            className="event-form-section-description"
+          >
             Add optional links for this Event or Task. Each link needs a label
             and an HTTP or HTTPS URL.
           </p>

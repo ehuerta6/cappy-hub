@@ -75,7 +75,8 @@ export default async function CalendarPage({
   const rawAnchor = Array.isArray(params.anchor)
     ? params.anchor[0]
     : params.anchor;
-  const layout: "month" | "agenda" = rawLayout === "agenda" ? "agenda" : "month";
+  const layout: "month" | "agenda" =
+    rawLayout === "agenda" ? "agenda" : "month";
   const agendaKind: "all" | "event" | "task" =
     rawKind === "event" || rawKind === "task" ? rawKind : "all";
   const agendaAnchor =
@@ -139,8 +140,8 @@ export default async function CalendarPage({
   );
   const canCreateTask = Boolean(
     actor &&
-      !periodSelection.isHistorical &&
-      (canSeeAllBranches(actor) || (isLead(actor) && actor.branchIds.length > 0)),
+    !periodSelection.isHistorical &&
+    (canSeeAllBranches(actor) || (isLead(actor) && actor.branchIds.length > 0)),
   );
   const calendarHref = (
     nextScope: "all" | "mine" | "branch",
@@ -155,7 +156,7 @@ export default async function CalendarPage({
       const nextKind = opts?.kind ?? agendaKind;
       if (nextKind !== "all") query.set("kind", nextKind);
       const nextAnchor =
-        opts && "anchor" in opts ? opts.anchor : rawAnchor ?? null;
+        opts && "anchor" in opts ? opts.anchor : (rawAnchor ?? null);
       if (nextAnchor && nextAnchor !== initialDate) {
         query.set("anchor", nextAnchor);
       }
@@ -167,9 +168,7 @@ export default async function CalendarPage({
   const filteredAgendaEntries =
     layout === "agenda"
       ? (initialEntries ?? []).filter((entry) =>
-          agendaKind === "all"
-            ? true
-            : entry.extendedProps.kind === agendaKind,
+          agendaKind === "all" ? true : entry.extendedProps.kind === agendaKind,
         )
       : [];
 

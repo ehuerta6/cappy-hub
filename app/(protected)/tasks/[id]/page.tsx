@@ -159,11 +159,13 @@ export default async function TaskDetailPage({
     throw new Error("Failed to load task details");
   if (series?.error) throw new Error("Failed to load recurring series");
 
-  const assignments = [...(assignmentsResult.data ?? [])].sort((left, right) => {
-    const leftPending = left.completion_approval_pending ? 1 : 0;
-    const rightPending = right.completion_approval_pending ? 1 : 0;
-    return rightPending - leftPending;
-  });
+  const assignments = [...(assignmentsResult.data ?? [])].sort(
+    (left, right) => {
+      const leftPending = left.completion_approval_pending ? 1 : 0;
+      const rightPending = right.completion_approval_pending ? 1 : 0;
+      return rightPending - leftPending;
+    },
+  );
   const linkedEvents = eventsResult.data ?? [];
   const assignmentCount = assignments.length;
   const incompleteAssignmentCount = assignments.filter(
@@ -411,7 +413,9 @@ export default async function TaskDetailPage({
                   return (
                     <tr
                       key={assignment.officer_id}
-                      className={completionPending ? "bg-warning-bg/25" : undefined}
+                      className={
+                        completionPending ? "bg-warning-bg/25" : undefined
+                      }
                     >
                       <td>
                         <Link
@@ -465,10 +469,7 @@ export default async function TaskDetailPage({
           </TableFrame>
         )}
         {canManageTask && !task.removed_at && (
-          <BulkTaskOfficersForm
-            taskId={task.id}
-            officers={availableOfficers}
-          />
+          <BulkTaskOfficersForm taskId={task.id} officers={availableOfficers} />
         )}
       </section>
     </div>

@@ -454,64 +454,69 @@ export default function TimeSlotsEditor({
                   </button>
                 </div>
               )}
-              {slots.length > 0 && totalMinutes !== null && eventFrom !== null && (
-                <div className="space-y-1.5 rounded-md border border-border bg-surface-muted/30 p-3">
-                  <div className="flex items-center justify-between text-[11px] font-medium tabular-nums text-muted">
-                    <span>{eventStart}</span>
-                    <span>Timeline preview</span>
-                    <span>{eventEnd}</span>
+              {slots.length > 0 &&
+                totalMinutes !== null &&
+                eventFrom !== null && (
+                  <div className="space-y-1.5 rounded-md border border-border bg-surface-muted/30 p-3">
+                    <div className="flex items-center justify-between text-[11px] font-medium tabular-nums text-muted">
+                      <span>{eventStart}</span>
+                      <span>Timeline preview</span>
+                      <span>{eventEnd}</span>
+                    </div>
+                    <div
+                      aria-hidden="true"
+                      className="relative h-2.5 w-full overflow-hidden rounded-full bg-surface-muted"
+                    >
+                      {slots.map((slot, index) => {
+                        const start = minuteValue(slot.start_time);
+                        const end = minuteValue(slot.end_time);
+                        if (start === null || end === null || end <= start)
+                          return null;
+                        const leftPct = Math.max(
+                          0,
+                          Math.min(
+                            100,
+                            ((start - eventFrom) / totalMinutes) * 100,
+                          ),
+                        );
+                        const widthPct = Math.max(
+                          2,
+                          Math.min(
+                            100 - leftPct,
+                            ((end - start) / totalMinutes) * 100,
+                          ),
+                        );
+                        return (
+                          <div
+                            key={slot.id ?? index}
+                            className="absolute inset-y-0 rounded-full border border-surface bg-brand/80"
+                            style={{
+                              left: `${leftPct}%`,
+                              width: `${widthPct}%`,
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                    <ol className="space-y-1 pt-1 text-xs text-muted">
+                      {slots.map((slot, index) => {
+                        const estimate = formatSlotEstimate(
+                          slot.start_time,
+                          slot.end_time,
+                        );
+                        return (
+                          <li key={slot.id ?? index} className="tabular-nums">
+                            Slot {index + 1}: {slot.start_time}–{slot.end_time}
+                            {estimate ? ` (${estimate})` : ""}
+                            {slot.capacity === null
+                              ? " · Unlimited capacity"
+                              : ` · Capacity ${slot.capacity}`}
+                          </li>
+                        );
+                      })}
+                    </ol>
                   </div>
-                  <div
-                    aria-hidden="true"
-                    className="relative h-2.5 w-full overflow-hidden rounded-full bg-surface-muted"
-                  >
-                    {slots.map((slot, index) => {
-                      const start = minuteValue(slot.start_time);
-                      const end = minuteValue(slot.end_time);
-                      if (start === null || end === null || end <= start)
-                        return null;
-                      const leftPct = Math.max(
-                        0,
-                        Math.min(100, ((start - eventFrom) / totalMinutes) * 100),
-                      );
-                      const widthPct = Math.max(
-                        2,
-                        Math.min(
-                          100 - leftPct,
-                          ((end - start) / totalMinutes) * 100,
-                        ),
-                      );
-                      return (
-                        <div
-                          key={slot.id ?? index}
-                          className="absolute inset-y-0 rounded-full border border-surface bg-brand/80"
-                          style={{
-                            left: `${leftPct}%`,
-                            width: `${widthPct}%`,
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-                  <ol className="space-y-1 pt-1 text-xs text-muted">
-                    {slots.map((slot, index) => {
-                      const estimate = formatSlotEstimate(
-                        slot.start_time,
-                        slot.end_time,
-                      );
-                      return (
-                        <li key={slot.id ?? index} className="tabular-nums">
-                          Slot {index + 1}: {slot.start_time}–{slot.end_time}
-                          {estimate ? ` (${estimate})` : ""}
-                          {slot.capacity === null
-                            ? " · Unlimited capacity"
-                            : ` · Capacity ${slot.capacity}`}
-                        </li>
-                      );
-                    })}
-                  </ol>
-                </div>
-              )}
+                )}
               {overlappingSlots.length > 0 && (
                 <p
                   className="feedback-message feedback-warning text-sm"

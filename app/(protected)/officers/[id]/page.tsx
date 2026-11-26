@@ -211,7 +211,9 @@ export default async function OfficerDetailPage({
           })
           .single()
       : Promise.resolve({ data: null, error: null }),
-    showWarnings ? makeWarningsQuery() : Promise.resolve({ data: [], error: null }),
+    showWarnings
+      ? makeWarningsQuery()
+      : Promise.resolve({ data: [], error: null }),
     showWarnings
       ? supabase
           .from("officer_warnings")
@@ -380,7 +382,9 @@ export default async function OfficerDetailPage({
           <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface-muted/40 px-3.5 py-2.5">
             <div className="min-w-0 flex-1">
               <p className="text-xs font-medium text-muted">
-                {selectedPeriod ? `Points (${selectedPeriod.name})` : "Total points (all periods)"}
+                {selectedPeriod
+                  ? `Points (${selectedPeriod.name})`
+                  : "Total points (all periods)"}
               </p>
               {selectedPeriod && !periodSummaryResult.error ? (
                 <div className="flex flex-wrap items-baseline gap-2">
@@ -394,7 +398,8 @@ export default async function OfficerDetailPage({
                   )}
                   {!total.error && (
                     <span className="text-xs text-muted">
-                      · All-time: <PointValue value={total.data.total_points ?? 0} />
+                      · All-time:{" "}
+                      <PointValue value={total.data.total_points ?? 0} />
                     </span>
                   )}
                 </div>
@@ -646,7 +651,9 @@ export default async function OfficerDetailPage({
         aria-label="Associated tasks"
         className="min-w-0 space-y-3 rounded-lg border border-border bg-surface p-4 [&>.section-heading:first-child]:mt-0"
       >
-        <SectionHeading title={`Associated tasks (${associatedTasks.length})`} />
+        <SectionHeading
+          title={`Associated tasks (${associatedTasks.length})`}
+        />
         {tasks.error ? (
           <p role="alert" className="text-sm">
             Tasks unavailable. Reload this page to retry.

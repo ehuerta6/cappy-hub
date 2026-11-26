@@ -73,8 +73,7 @@ export default async function TasksPage({
     sort,
   } = filters;
   const hasOwnBranches = actor.branchIds.length > 0;
-  const effectiveScope =
-    scope === "branch" && !hasOwnBranches ? "all" : scope;
+  const effectiveScope = scope === "branch" && !hasOwnBranches ? "all" : scope;
   const mayBrowseDeleted =
     canSeeAllBranches(actor) || (isLead(actor) && actor.branchIds.length > 0);
   const view =
@@ -386,7 +385,10 @@ export default async function TasksPage({
             return (qs ? `/tasks?${qs}` : "/tasks") as Route;
           };
           if (search)
-            chips.push({ label: `Search: "${search}"`, removeHref: without("q") });
+            chips.push({
+              label: `Search: "${search}"`,
+              removeHref: without("q"),
+            });
           if (view !== "current")
             chips.push({
               label: `Timeframe: ${formatLabel(view)}`,

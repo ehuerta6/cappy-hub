@@ -49,7 +49,9 @@ describe("enrichOfficerNotifications", () => {
       },
     ]);
 
-    expect(result[0]?.message).toBe("Ada Lovelace — Review this Officer record.");
+    expect(result[0]?.message).toBe(
+      "Ada Lovelace — Review this Officer record.",
+    );
     expect(result[1]?.message).toBe("Review this Officer record.");
     expect(result[2]?.message).toBe("Schedule changed.");
   });

@@ -40,7 +40,10 @@ export function ListSectionSkeleton({
       </div>
       <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
         {Array.from({ length: rows }).map((_, index) => (
-          <div key={index} className="flex items-center justify-between gap-4 p-4">
+          <div
+            key={index}
+            className="flex items-center justify-between gap-4 p-4"
+          >
             <div className="space-y-2">
               <div className="h-4 w-48 animate-pulse rounded bg-surface-muted" />
               <div className="h-3 w-72 max-w-full animate-pulse rounded bg-surface-muted" />

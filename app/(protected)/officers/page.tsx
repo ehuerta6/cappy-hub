@@ -68,7 +68,8 @@ export default async function OfficersPage({
   if (positionId !== undefined)
     filterSearch.set("position", String(positionId));
   if (branchId !== undefined) filterSearch.set("branch", String(branchId));
-  if (effectiveWarningFilter) filterSearch.set("warnings", effectiveWarningFilter);
+  if (effectiveWarningFilter)
+    filterSearch.set("warnings", effectiveWarningFilter);
 
   let officersQuery = supabase
     .from("officers")
@@ -133,11 +134,11 @@ export default async function OfficersPage({
 
   const hasFilters = Boolean(
     search ||
-      status !== "active" ||
-      positionId ||
-      branchId ||
-      effectiveScope === "branch" ||
-      effectiveWarningFilter,
+    status !== "active" ||
+    positionId ||
+    branchId ||
+    effectiveScope === "branch" ||
+    effectiveWarningFilter,
   );
   const returnTo = directoryHref;
   const canManage = canManageOfficers(actor) && !periodSelection.isHistorical;
@@ -233,7 +234,8 @@ export default async function OfficersPage({
                   : "border-transparent text-secondary hover:text-foreground"
               }`}
             >
-              3+ warnings{reviewOfficerCount > 0 ? ` (${reviewOfficerCount})` : ""}
+              3+ warnings
+              {reviewOfficerCount > 0 ? ` (${reviewOfficerCount})` : ""}
             </Link>
           )}
         </nav>
@@ -262,7 +264,10 @@ export default async function OfficersPage({
             return (qs ? `/officers?${qs}` : "/officers") as Route;
           };
           if (search)
-            chips.push({ label: `Search: "${search}"`, removeHref: without("q") });
+            chips.push({
+              label: `Search: "${search}"`,
+              removeHref: without("q"),
+            });
           if (status !== "active")
             chips.push({
               label: `Status: ${formatLabel(status)}`,
@@ -296,11 +301,7 @@ export default async function OfficersPage({
           <input type="hidden" name="scope" value="branch" />
         )}
         {effectiveWarningFilter && (
-          <input
-            type="hidden"
-            name="warnings"
-            value={effectiveWarningFilter}
-          />
+          <input type="hidden" name="warnings" value={effectiveWarningFilter} />
         )}
         <label className="min-w-56 flex-1">
           Search officers

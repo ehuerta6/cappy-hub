@@ -545,73 +545,75 @@ export default function EventForm({
                             />
                             {officer.name}
                           </label>
-                      <label className="flex items-center gap-2 text-sm font-normal">
-                        Participation
-                        <select
-                          name={`participation_type_${officer.id}`}
-                          value={
-                            participationByOfficer[officer.id] ??
-                            submittedValue(
-                              state.values,
-                              `participation_type_${officer.id}`,
-                              "volunteer",
-                            )
-                          }
-                          onChange={(changeEvent) =>
-                            setParticipationByOfficer((previous) => ({
-                              ...previous,
-                              [officer.id]: changeEvent.currentTarget.value as
-                                | "volunteer"
-                                | "attendee",
-                            }))
-                          }
-                        >
-                          <option value="volunteer">Volunteer</option>
-                          <option value="attendee" disabled={timeSlotsEnabled}>
-                            Attend
-                            {timeSlotsEnabled
-                              ? " (unavailable with Time Slots)"
-                              : ""}
-                          </option>
-                        </select>
-                      </label>
-                      {timeSlotsEnabled &&
-                        (participationByOfficer[officer.id] ??
-                          submittedValue(
-                            state.values,
-                            `participation_type_${officer.id}`,
-                            "volunteer",
-                          )) === "volunteer" && (
-                          <fieldset className="w-full pl-7">
-                            <legend className="text-sm font-medium">
-                              Volunteer Time Slots (select one or more)
-                            </legend>
-                            <div className="flex flex-wrap gap-x-4 gap-y-1">
-                              {currentTimeSlots.map((slot, index) => (
-                                <label
-                                  key={`${slot.start_time}-${slot.end_time}-${index}`}
-                                  className="flex items-center gap-2 text-sm font-normal"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    name={`officer_slot_indexes_${officer.id}`}
-                                    value={index + 1}
-                                    defaultChecked={submittedValues(
-                                      state.values,
-                                      `officer_slot_indexes_${officer.id}`,
-                                    ).includes(String(index + 1))}
-                                  />
-                                  {slot.start_time}–{slot.end_time}
-                                </label>
-                              ))}
-                              {!currentTimeSlots.length && (
-                                <p className="text-sm text-muted">
-                                  Configure at least one Time Slot below.
-                                </p>
-                              )}
-                            </div>
-                          </fieldset>
-                        )}
+                          <label className="flex items-center gap-2 text-sm font-normal">
+                            Participation
+                            <select
+                              name={`participation_type_${officer.id}`}
+                              value={
+                                participationByOfficer[officer.id] ??
+                                submittedValue(
+                                  state.values,
+                                  `participation_type_${officer.id}`,
+                                  "volunteer",
+                                )
+                              }
+                              onChange={(changeEvent) =>
+                                setParticipationByOfficer((previous) => ({
+                                  ...previous,
+                                  [officer.id]: changeEvent.currentTarget
+                                    .value as "volunteer" | "attendee",
+                                }))
+                              }
+                            >
+                              <option value="volunteer">Volunteer</option>
+                              <option
+                                value="attendee"
+                                disabled={timeSlotsEnabled}
+                              >
+                                Attend
+                                {timeSlotsEnabled
+                                  ? " (unavailable with Time Slots)"
+                                  : ""}
+                              </option>
+                            </select>
+                          </label>
+                          {timeSlotsEnabled &&
+                            (participationByOfficer[officer.id] ??
+                              submittedValue(
+                                state.values,
+                                `participation_type_${officer.id}`,
+                                "volunteer",
+                              )) === "volunteer" && (
+                              <fieldset className="w-full pl-7">
+                                <legend className="text-sm font-medium">
+                                  Volunteer Time Slots (select one or more)
+                                </legend>
+                                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                                  {currentTimeSlots.map((slot, index) => (
+                                    <label
+                                      key={`${slot.start_time}-${slot.end_time}-${index}`}
+                                      className="flex items-center gap-2 text-sm font-normal"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        name={`officer_slot_indexes_${officer.id}`}
+                                        value={index + 1}
+                                        defaultChecked={submittedValues(
+                                          state.values,
+                                          `officer_slot_indexes_${officer.id}`,
+                                        ).includes(String(index + 1))}
+                                      />
+                                      {slot.start_time}–{slot.end_time}
+                                    </label>
+                                  ))}
+                                  {!currentTimeSlots.length && (
+                                    <p className="text-sm text-muted">
+                                      Configure at least one Time Slot below.
+                                    </p>
+                                  )}
+                                </div>
+                              </fieldset>
+                            )}
                         </div>
                       );
                     })}

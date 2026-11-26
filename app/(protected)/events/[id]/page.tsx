@@ -666,93 +666,95 @@ export default async function EventDetailPage({
           <EventRosterTableClient
             showTimeSlots={timeSlots.length > 0}
             canCopyEmails={canManageCurrentRoster}
-            rows={rosterRows.map(({ officers: officer, participation_type }) => ({
-              id: officer.id,
-              participationType:
-                participation_type === "attendee" ? "attendee" : "volunteer",
-              email: officer.utep_email ?? officer.personal_email ?? null,
-              row: (
-                <tr key={officer.id}>
-                  <td>
-                    <Link
-                      href={withReturnTo(
-                        `/officers/${officer.id}`,
-                        contextualReturnTo,
-                      )}
-                    >
-                      {officer.name}
-                    </Link>
-                  </td>
-                  {timeSlots.length > 0 && (
+            rows={rosterRows.map(
+              ({ officers: officer, participation_type }) => ({
+                id: officer.id,
+                participationType:
+                  participation_type === "attendee" ? "attendee" : "volunteer",
+                email: officer.utep_email ?? officer.personal_email ?? null,
+                row: (
+                  <tr key={officer.id}>
                     <td>
-                      {timeSlots
-                        .map((slot, index) => ({
-                          slot,
-                          index,
-                        }))
-                        .filter(({ slot }) =>
-                          slot.event_time_slot_officers.some(
-                            ({ officer_id, event_officers: signup }) =>
-                              officer_id === officer.id &&
-                              signup?.removed_at == null,
-                          ),
-                        )
-                        .map(
-                          ({ slot, index }) =>
-                            `Slot ${index + 1} (${formatEventSchedule(slot.starts_at, slot.ends_at)})`,
-                        )
-                        .join(", ") || "None"}
-                      {canManage && past && !event.deleted_at && (
-                        <CorrectHistoricalTimeSlotAssignmentsForm
-                          eventId={event.id}
-                          officerId={officer.id}
-                          officerName={officer.name}
-                          slots={timeSlots}
-                          selectedSlotIds={timeSlots
-                            .filter((slot) =>
-                              slot.event_time_slot_officers.some(
-                                ({ officer_id, event_officers: signup }) =>
-                                  officer_id === officer.id &&
-                                  signup?.removed_at == null,
-                              ),
-                            )
-                            .map(({ id }) => id)}
-                        />
-                      )}
+                      <Link
+                        href={withReturnTo(
+                          `/officers/${officer.id}`,
+                          contextualReturnTo,
+                        )}
+                      >
+                        {officer.name}
+                      </Link>
                     </td>
-                  )}
-                  <td>
-                    <div className="flex flex-wrap items-center gap-3 [&>form]:w-auto">
-                      <span>
-                        {participation_type === "volunteer"
-                          ? "Volunteer"
-                          : "Attend"}
-                      </span>
-                      {timeSlots.length > 0 &&
-                      (canManage ||
-                        (signupOpen && officer.id === actor.id)) ? (
-                        <LeaveAllTimeSlotsForm
-                          eventId={event.id}
-                          officerId={
-                            officer.id === actor.id ? undefined : officer.id
-                          }
-                        />
-                      ) : timeSlots.length === 0 &&
+                    {timeSlots.length > 0 && (
+                      <td>
+                        {timeSlots
+                          .map((slot, index) => ({
+                            slot,
+                            index,
+                          }))
+                          .filter(({ slot }) =>
+                            slot.event_time_slot_officers.some(
+                              ({ officer_id, event_officers: signup }) =>
+                                officer_id === officer.id &&
+                                signup?.removed_at == null,
+                            ),
+                          )
+                          .map(
+                            ({ slot, index }) =>
+                              `Slot ${index + 1} (${formatEventSchedule(slot.starts_at, slot.ends_at)})`,
+                          )
+                          .join(", ") || "None"}
+                        {canManage && past && !event.deleted_at && (
+                          <CorrectHistoricalTimeSlotAssignmentsForm
+                            eventId={event.id}
+                            officerId={officer.id}
+                            officerName={officer.name}
+                            slots={timeSlots}
+                            selectedSlotIds={timeSlots
+                              .filter((slot) =>
+                                slot.event_time_slot_officers.some(
+                                  ({ officer_id, event_officers: signup }) =>
+                                    officer_id === officer.id &&
+                                    signup?.removed_at == null,
+                                ),
+                              )
+                              .map(({ id }) => id)}
+                          />
+                        )}
+                      </td>
+                    )}
+                    <td>
+                      <div className="flex flex-wrap items-center gap-3 [&>form]:w-auto">
+                        <span>
+                          {participation_type === "volunteer"
+                            ? "Volunteer"
+                            : "Attend"}
+                        </span>
+                        {timeSlots.length > 0 &&
                         (canManage ||
                           (signupOpen && officer.id === actor.id)) ? (
-                        <SignupForm
-                          eventId={event.id}
-                          officerId={officer.id}
-                          remove
-                        />
-                      ) : (
-                        <span className="text-xs text-muted">Closed</span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ),
-            }))}
+                          <LeaveAllTimeSlotsForm
+                            eventId={event.id}
+                            officerId={
+                              officer.id === actor.id ? undefined : officer.id
+                            }
+                          />
+                        ) : timeSlots.length === 0 &&
+                          (canManage ||
+                            (signupOpen && officer.id === actor.id)) ? (
+                          <SignupForm
+                            eventId={event.id}
+                            officerId={officer.id}
+                            remove
+                          />
+                        ) : (
+                          <span className="text-xs text-muted">Closed</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ),
+              }),
+            )}
           />
         ) : (
           <p className="text-sm text-muted">No officers signed up.</p>

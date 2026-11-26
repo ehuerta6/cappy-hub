@@ -26,12 +26,48 @@ afterEach(async () => {
 });
 
 const rows = [
-  { id: 1, name: "Ada Lovelace", total_points: 20, normal_points: 20, negative_points: 0 },
-  { id: 2, name: "Grace Hopper", total_points: 18, normal_points: 18, negative_points: 0 },
-  { id: 3, name: "Alan Turing", total_points: 15, normal_points: 16, negative_points: -1 },
-  { id: 4, name: "Katherine Johnson", total_points: 12, normal_points: 12, negative_points: 0 },
-  { id: 5, name: "Margaret Hamilton", total_points: 10, normal_points: 10, negative_points: 0 },
-  { id: 6, name: "Donald Knuth", total_points: 8, normal_points: 8, negative_points: 0 },
+  {
+    id: 1,
+    name: "Ada Lovelace",
+    total_points: 20,
+    normal_points: 20,
+    negative_points: 0,
+  },
+  {
+    id: 2,
+    name: "Grace Hopper",
+    total_points: 18,
+    normal_points: 18,
+    negative_points: 0,
+  },
+  {
+    id: 3,
+    name: "Alan Turing",
+    total_points: 15,
+    normal_points: 16,
+    negative_points: -1,
+  },
+  {
+    id: 4,
+    name: "Katherine Johnson",
+    total_points: 12,
+    normal_points: 12,
+    negative_points: 0,
+  },
+  {
+    id: 5,
+    name: "Margaret Hamilton",
+    total_points: 10,
+    normal_points: 10,
+    negative_points: 0,
+  },
+  {
+    id: 6,
+    name: "Donald Knuth",
+    total_points: 8,
+    normal_points: 8,
+    negative_points: 0,
+  },
 ];
 
 it("highlights the current officer row, preserves rank numbers while filtering, and handles empty matches", async () => {

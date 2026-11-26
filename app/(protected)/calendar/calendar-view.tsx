@@ -46,9 +46,7 @@ export default function CalendarView({
   const router = useRouter();
   const { theme } = useTheme();
   const [visible, setVisible] = useState({ event: true, task: true });
-  const [entries, setEntries] = useState<CalendarEntry[]>(
-    initialEntries ?? [],
-  );
+  const [entries, setEntries] = useState<CalendarEntry[]>(initialEntries ?? []);
   const [loading, setLoading] = useState(initialEntries === undefined);
   const [loadError, setLoadError] = useState(false);
   const latestRequest = useRef(0);
@@ -72,9 +70,11 @@ export default function CalendarView({
         if (requestId !== latestRequest.current) return;
         if (!isInitialHydration) setLoading(true);
         setLoadError(false);
-        void (scope && scope !== "all"
-          ? fetchCalendarRange(start, end, periodId, scope)
-          : fetchCalendarRange(start, end, periodId))
+        void (
+          scope && scope !== "all"
+            ? fetchCalendarRange(start, end, periodId, scope)
+            : fetchCalendarRange(start, end, periodId)
+        )
           .then((nextEntries) => {
             if (requestId === latestRequest.current) setEntries(nextEntries);
           })

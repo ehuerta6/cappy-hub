@@ -109,7 +109,8 @@ export default async function AdminPage({
   if (!isAdmin(actor)) notFound();
 
   const [params, metrics] = await Promise.all([
-    searchParams ?? Promise.resolve<Record<string, string | string[] | undefined>>({}),
+    searchParams ??
+      Promise.resolve<Record<string, string | string[] | undefined>>({}),
     loadAdminMetrics(),
   ]);
   const periodSuffix =
@@ -154,7 +155,9 @@ export default async function AdminPage({
                       </h2>
                     </div>
                     {metrics && area.key === "periods" && (
-                      <Badge tone={metrics.activePeriodName ? "green" : "amber"}>
+                      <Badge
+                        tone={metrics.activePeriodName ? "green" : "amber"}
+                      >
                         {metrics.activePeriodName ?? "No active period"}
                       </Badge>
                     )}

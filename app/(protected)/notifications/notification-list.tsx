@@ -36,7 +36,9 @@ const ENTITY_FILTERS: { value: EntityFilter; label: string }[] = [
   { value: "warning", label: "Warnings" },
 ];
 
-function notificationBucket(createdAt: string): "Today" | "This week" | "Earlier" {
+function notificationBucket(
+  createdAt: string,
+): "Today" | "This week" | "Earlier" {
   const created = new Date(createdAt);
   if (Number.isNaN(created.getTime())) return "Earlier";
   const now = new Date();

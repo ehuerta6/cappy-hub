@@ -458,7 +458,9 @@ it("shows the manager's two-state completion control on flattened Task detail wh
   expect(officerHtml).not.toContain(
     'aria-label="Completed for Synthetic Officer"',
   );
-  expect(officerHtml).not.toContain('aria-label="Remove Other Officer from task"');
+  expect(officerHtml).not.toContain(
+    'aria-label="Remove Other Officer from task"',
+  );
 });
 
 it("shows the closed outcome to Officers and lets Leads restore it across Branches", async () => {

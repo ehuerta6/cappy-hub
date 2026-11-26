@@ -409,7 +409,10 @@
   align-items: center;
 }
 
-.controls :global(button):not(.notificationBell):not(.markAllNotificationsRead):not(.notificationPreviewButton),
+.controls
+  :global(button):not(.notificationBell):not(.markAllNotificationsRead):not(
+    .notificationPreviewButton
+  ),
 .controls :global(select) {
   min-height: 2.2rem;
   padding-block: 0.35rem;

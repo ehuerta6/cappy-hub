@@ -163,7 +163,11 @@ export default function SiteNavigation({
             className={styles.mobileControlsToggle}
             aria-expanded={mobileControlsOpen}
             aria-controls="shell-controls"
-            aria-label={mobileControlsOpen ? "Hide account and period controls" : "Show account and period controls"}
+            aria-label={
+              mobileControlsOpen
+                ? "Hide account and period controls"
+                : "Show account and period controls"
+            }
             onClick={() => setMobileControlsOpen((open) => !open)}
           >
             {mobileControlsOpen ? (
@@ -184,11 +188,7 @@ export default function SiteNavigation({
                 aria-current={isActive ? "page" : undefined}
                 className={isActive ? styles.navActive : styles.navLink}
               >
-                <Icon
-                  aria-hidden="true"
-                  size={16}
-                  className={styles.navIcon}
-                />
+                <Icon aria-hidden="true" size={16} className={styles.navIcon} />
                 {label}
               </Link>
             );
@@ -277,7 +277,9 @@ export default function SiteNavigation({
                                 {notification.title}
                               </span>
                               {!notification.read_at && !locallyReadAll && (
-                                <span className={styles.notificationUnreadLabel}>
+                                <span
+                                  className={styles.notificationUnreadLabel}
+                                >
                                   Unread
                                 </span>
                               )}
