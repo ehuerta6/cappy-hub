@@ -275,7 +275,7 @@ function WarningFields({
         >
           Cancel
         </button>
-        <button disabled={pending}>
+        <button type="submit" disabled={pending}>
           {pending ? "Saving…" : warning ? "Save changes" : "Create warning"}
         </button>
       </div>

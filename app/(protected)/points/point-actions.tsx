@@ -164,7 +164,9 @@ function EditPointForm({
           {fieldErrors.points}
         </FieldError>
       </label>
-      <button disabled={pending}>{pending ? "Saving…" : "Save points"}</button>
+      <button type="submit" disabled={pending}>
+        {pending ? "Saving…" : "Save points"}
+      </button>
       <button
         type="button"
         className="button-secondary"

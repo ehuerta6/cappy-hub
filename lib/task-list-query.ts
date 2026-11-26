@@ -17,8 +17,6 @@ type TaskListQueryOptions = {
   branchScope?: number[];
   assigneeId?: number;
   assignedToOfficerId?: number;
-  /** Accepted for stale callers during the pagination-free UI prototype. */
-  page?: number;
   dateRange?: { from: string; through: string };
 };
 

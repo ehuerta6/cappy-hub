@@ -152,7 +152,6 @@ export default async function OfficersPage({
     else query.delete("scope");
     if (nextWarnings) query.set("warnings", nextWarnings);
     else query.delete("warnings");
-    query.delete("page");
     const serialized = query.toString();
     return (serialized ? `/officers?${serialized}` : "/officers") as Route;
   };
@@ -360,143 +359,154 @@ export default async function OfficersPage({
           </p>
         </div>
       ) : (
-        <ul className="grid list-none grid-cols-1 gap-3.5 p-0 sm:grid-cols-2 xl:grid-cols-3">
-          {officers.map((officer) => {
-            const warningCount = activeWarningCounts.get(officer.id) ?? 0;
-            return (
-              <li
-                key={officer.id}
-                className="group flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-surface transition-colors hover:border-border-strong"
-              >
-                <div className="p-4 pb-3">
-                  <div className="flex min-w-0 items-start justify-between gap-2">
+        <>
+          {(officersResult.count ?? 0) > officersResult.data.length && (
+            <p role="status" className="text-xs text-muted">
+              Showing first {officersResult.data.length} of{" "}
+              {officersResult.count} matching officers. Narrow your filters to
+              see more.
+            </p>
+          )}
+          <ul className="grid list-none grid-cols-1 gap-3.5 p-0 sm:grid-cols-2 xl:grid-cols-3">
+            {officers.map((officer) => {
+              const warningCount = activeWarningCounts.get(officer.id) ?? 0;
+              return (
+                <li
+                  key={officer.id}
+                  className="group flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-surface transition-colors hover:border-border-strong"
+                >
+                  <div className="p-4 pb-3">
+                    <div className="flex min-w-0 items-start justify-between gap-2">
+                      <Link
+                        href={withReturnTo(`/officers/${officer.id}`, returnTo)}
+                        className="truncate text-[0.95rem] font-semibold text-foreground transition-colors hover:text-brand hover:underline hover:underline-offset-3"
+                        title={officer.name}
+                      >
+                        {officer.name}
+                      </Link>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {admin && officer.application_role === "admin" && (
+                          <Badge tone="blue">Admin</Badge>
+                        )}
+                        {admin && warningCount >= 3 && (
+                          <Badge tone="amber">{warningCount} warnings</Badge>
+                        )}
+                        <StatusBadge status={officer.status} />
+                      </div>
+                    </div>
+                    <p className="mt-1 truncate text-xs font-medium text-muted">
+                      {officer.positions.name}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-1 flex-col gap-2.5 border-t border-border px-4 py-3 text-xs">
+                    <div className="space-y-1.5">
+                      <div className="flex min-w-0 items-center gap-2 text-secondary">
+                        <Mail
+                          aria-hidden="true"
+                          size={13}
+                          className="shrink-0 text-subtle"
+                        />
+                        <span className="w-14 shrink-0 text-muted">UTEP</span>
+                        {officer.utep_email ? (
+                          <span className="flex min-w-0 flex-1 items-center gap-1">
+                            <a
+                              href={`mailto:${officer.utep_email}`}
+                              className="min-w-0 truncate text-secondary hover:text-foreground hover:underline"
+                              title={officer.utep_email}
+                            >
+                              {officer.utep_email}
+                            </a>
+                            <CopyTextButton
+                              value={officer.utep_email}
+                              label={`Copy ${officer.name}'s UTEP email`}
+                              toastMessage="Email copied"
+                            />
+                          </span>
+                        ) : (
+                          <span className="text-subtle">—</span>
+                        )}
+                      </div>
+                      <div className="flex min-w-0 items-center gap-2 text-secondary">
+                        <Mail
+                          aria-hidden="true"
+                          size={13}
+                          className="shrink-0 text-subtle opacity-0"
+                        />
+                        <span className="w-14 shrink-0 text-muted">
+                          Personal
+                        </span>
+                        {officer.personal_email ? (
+                          <span className="flex min-w-0 flex-1 items-center gap-1">
+                            <a
+                              href={`mailto:${officer.personal_email}`}
+                              className="min-w-0 truncate text-secondary hover:text-foreground hover:underline"
+                              title={officer.personal_email}
+                            >
+                              {officer.personal_email}
+                            </a>
+                            <CopyTextButton
+                              value={officer.personal_email}
+                              label={`Copy ${officer.name}'s personal email`}
+                              toastMessage="Email copied"
+                            />
+                          </span>
+                        ) : (
+                          <span className="text-subtle">—</span>
+                        )}
+                      </div>
+                      <div className="flex min-w-0 items-center gap-2 text-secondary">
+                        <GraduationCap
+                          aria-hidden="true"
+                          size={13}
+                          className="shrink-0 text-subtle"
+                        />
+                        <span className="w-14 shrink-0 text-muted">Class</span>
+                        <span className="min-w-0 truncate">
+                          {officer.classification
+                            ? formatLabel(officer.classification)
+                            : "Not specified"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="pt-1">
+                      <BranchBadges
+                        branches={officer.officer_branches.map(
+                          (membership) => membership.branches,
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-auto flex items-center justify-between gap-3 border-t border-border bg-surface-muted/50 px-4 py-2.5">
                     <Link
                       href={withReturnTo(`/officers/${officer.id}`, returnTo)}
-                      className="truncate text-[0.95rem] font-semibold text-foreground transition-colors hover:text-brand hover:underline hover:underline-offset-3"
-                      title={officer.name}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline hover:underline-offset-3"
+                      aria-label={`View ${officer.name}'s profile`}
                     >
-                      {officer.name}
+                      View profile
+                      <ArrowUpRight aria-hidden="true" size={13} />
                     </Link>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {admin && officer.application_role === "admin" && (
-                        <Badge tone="blue">Admin</Badge>
-                      )}
-                      {admin && warningCount >= 3 && (
-                        <Badge tone="amber">{warningCount} warnings</Badge>
-                      )}
-                      <StatusBadge status={officer.status} />
-                    </div>
+                    {canManage && (
+                      <Link
+                        href={withReturnTo(
+                          `/officers/${officer.id}/edit`,
+                          returnTo,
+                        )}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-secondary hover:text-foreground hover:underline hover:underline-offset-3"
+                        aria-label={`Edit ${officer.name}`}
+                      >
+                        <Pencil aria-hidden="true" size={12} />
+                        Edit
+                      </Link>
+                    )}
                   </div>
-                  <p className="mt-1 truncate text-xs font-medium text-muted">
-                    {officer.positions.name}
-                  </p>
-                </div>
-
-                <div className="flex flex-1 flex-col gap-2.5 border-t border-border px-4 py-3 text-xs">
-                  <div className="space-y-1.5">
-                    <div className="flex min-w-0 items-center gap-2 text-secondary">
-                      <Mail
-                        aria-hidden="true"
-                        size={13}
-                        className="shrink-0 text-subtle"
-                      />
-                      <span className="w-14 shrink-0 text-muted">UTEP</span>
-                      {officer.utep_email ? (
-                        <span className="flex min-w-0 flex-1 items-center gap-1">
-                          <a
-                            href={`mailto:${officer.utep_email}`}
-                            className="min-w-0 truncate text-secondary hover:text-foreground hover:underline"
-                            title={officer.utep_email}
-                          >
-                            {officer.utep_email}
-                          </a>
-                          <CopyTextButton
-                            value={officer.utep_email}
-                            label={`Copy ${officer.name}'s UTEP email`}
-                            toastMessage="Email copied"
-                          />
-                        </span>
-                      ) : (
-                        <span className="text-subtle">—</span>
-                      )}
-                    </div>
-                    <div className="flex min-w-0 items-center gap-2 text-secondary">
-                      <Mail
-                        aria-hidden="true"
-                        size={13}
-                        className="shrink-0 text-subtle opacity-0"
-                      />
-                      <span className="w-14 shrink-0 text-muted">Personal</span>
-                      {officer.personal_email ? (
-                        <span className="flex min-w-0 flex-1 items-center gap-1">
-                          <a
-                            href={`mailto:${officer.personal_email}`}
-                            className="min-w-0 truncate text-secondary hover:text-foreground hover:underline"
-                            title={officer.personal_email}
-                          >
-                            {officer.personal_email}
-                          </a>
-                          <CopyTextButton
-                            value={officer.personal_email}
-                            label={`Copy ${officer.name}'s personal email`}
-                            toastMessage="Email copied"
-                          />
-                        </span>
-                      ) : (
-                        <span className="text-subtle">—</span>
-                      )}
-                    </div>
-                    <div className="flex min-w-0 items-center gap-2 text-secondary">
-                      <GraduationCap
-                        aria-hidden="true"
-                        size={13}
-                        className="shrink-0 text-subtle"
-                      />
-                      <span className="w-14 shrink-0 text-muted">Class</span>
-                      <span className="min-w-0 truncate">
-                        {officer.classification
-                          ? formatLabel(officer.classification)
-                          : "Not specified"}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="pt-1">
-                    <BranchBadges
-                      branches={officer.officer_branches.map(
-                        (membership) => membership.branches,
-                      )}
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-auto flex items-center justify-between gap-3 border-t border-border bg-surface-muted/50 px-4 py-2.5">
-                  <Link
-                    href={withReturnTo(`/officers/${officer.id}`, returnTo)}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline hover:underline-offset-3"
-                    aria-label={`View ${officer.name}'s profile`}
-                  >
-                    View profile
-                    <ArrowUpRight aria-hidden="true" size={13} />
-                  </Link>
-                  {canManage && (
-                    <Link
-                      href={withReturnTo(
-                        `/officers/${officer.id}/edit`,
-                        returnTo,
-                      )}
-                      className="inline-flex items-center gap-1 text-xs font-medium text-secondary hover:text-foreground hover:underline hover:underline-offset-3"
-                      aria-label={`Edit ${officer.name}`}
-                    >
-                      <Pencil aria-hidden="true" size={12} />
-                      Edit
-                    </Link>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
     </div>
   );

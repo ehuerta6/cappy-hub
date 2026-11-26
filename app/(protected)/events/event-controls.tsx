@@ -40,6 +40,7 @@ export function RetryGoogleCalendarSyncForm({
       <AcademicPeriodWriteContextField />
       <input type="hidden" name="event_id" value={eventId} />
       <button
+        type="submit"
         disabled={pending}
         aria-label={
           compact ? `Retry Calendar sync for Event ${eventId}` : undefined
@@ -238,6 +239,7 @@ export function SignupForm({
       )}
       {(!compact || state.error) && <ActionFeedback state={state} />}
       <button
+        type="submit"
         disabled={pending}
         className={
           compact
@@ -359,7 +361,7 @@ export function BulkAddOfficersForm({
         </p>
       )}
       <ActionFeedback state={state} />
-      <button disabled={pending || officers.length === 0}>
+      <button type="submit" disabled={pending || officers.length === 0}>
         {pending
           ? "Adding…"
           : past
@@ -458,7 +460,7 @@ export function RestoreDeletedEventForm({
           <RecurrenceLifecycleScope />
         </ConfirmationDialog>
       ) : (
-        <button disabled={pending} className="button-secondary">
+        <button type="submit" disabled={pending} className="button-secondary">
           {pending ? "Restoring…" : "Restore Event"}
         </button>
       )}
@@ -478,7 +480,7 @@ export function RestoreCancelledEventForm({ eventId }: { eventId: number }) {
       <AcademicPeriodWriteContextField />
       <input type="hidden" name="event_id" value={eventId} />
       <ActionFeedback state={state} />
-      <button disabled={pending} className="button-secondary">
+      <button type="submit" disabled={pending} className="button-secondary">
         {pending ? "Restoring…" : "Restore cancellation"}
       </button>
     </form>

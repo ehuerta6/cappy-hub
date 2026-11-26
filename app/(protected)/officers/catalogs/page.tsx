@@ -46,7 +46,7 @@ export default async function OfficerCatalogsPage({
     (params.status !== undefined && params.status !== "deleted") ||
     params.page !== undefined
   ) {
-    redirect(contextHref(catalogUrl(category, 1, status)));
+    redirect(contextHref(catalogUrl(category, status)));
   }
 
   const isActiveStatus = status === "active";
@@ -147,7 +147,7 @@ export default async function OfficerCatalogsPage({
           return (
             <Link
               key={item.value}
-              href={contextHref(catalogUrl(item.value, 1, status))}
+              href={contextHref(catalogUrl(item.value, status))}
               aria-current={item.value === category ? "page" : undefined}
               className={
                 item.value === category
@@ -169,7 +169,7 @@ export default async function OfficerCatalogsPage({
           Active values
         </Link>
         <Link
-          href={contextHref(catalogUrl(category, 1, "deleted"))}
+          href={contextHref(catalogUrl(category, "deleted"))}
           aria-current={status === "deleted" ? "page" : undefined}
         >
           Deleted values

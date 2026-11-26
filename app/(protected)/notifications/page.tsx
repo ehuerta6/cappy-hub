@@ -42,10 +42,18 @@ export default async function NotificationsPage() {
           <p>New notifications will appear here.</p>
         </section>
       ) : (
-        <NotificationList
-          notifications={enrichedNotifications}
-          unreadCount={unreadCount.count ?? 0}
-        />
+        <>
+          {total > enrichedNotifications.length && (
+            <p role="status" className="text-xs text-muted">
+              Showing latest {enrichedNotifications.length} of {total}{" "}
+              notifications.
+            </p>
+          )}
+          <NotificationList
+            notifications={enrichedNotifications}
+            unreadCount={unreadCount.count ?? 0}
+          />
+        </>
       )}
     </div>
   );

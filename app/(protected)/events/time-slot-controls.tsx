@@ -56,6 +56,7 @@ function SingleSelectionAction({
       <input type="hidden" name="mode" value={mode} />
       {hint && <p className="text-sm text-muted">{hint}</p>}
       <button
+        type="submit"
         disabled={pending || disabled}
         className={`button-secondary px-3 py-1.5 ${destructive ? "button-danger" : ""}`}
       >
@@ -184,7 +185,10 @@ export function JoinSelectedTimeSlotsForm({
         </p>
       )}
       <ActionFeedback state={state} />
-      <button disabled={pending || slots.length === 0 || conflicts.length > 0}>
+      <button
+        type="submit"
+        disabled={pending || slots.length === 0 || conflicts.length > 0}
+      >
         {pending ? "Joining…" : "Join selected slots"}
       </button>
     </form>
@@ -311,7 +315,7 @@ export function AssignOfficerToTimeSlotForm({
           No eligible Officer is available for this slot.
         </p>
       )}
-      <button disabled={pending || officers.length === 0}>
+      <button type="submit" disabled={pending || officers.length === 0}>
         {pending ? "Adding…" : "Add to slot"}
       </button>
       <ActionFeedback state={state} />
@@ -344,6 +348,7 @@ export function RemoveOfficerFromTimeSlotForm({
       <input type="hidden" name="mode" value="leave_selected" />
       <input type="hidden" name="slot_ids" value={slotId} />
       <button
+        type="submit"
         disabled={pending}
         className="button-secondary button-danger !min-h-8 px-2.5 py-1 text-xs"
       >
@@ -476,6 +481,7 @@ export function BulkAssignOfficersToSlotsForm({
       )}
       <ActionFeedback state={state} />
       <button
+        type="submit"
         disabled={
           pending ||
           officers.length === 0 ||
@@ -550,7 +556,11 @@ export function CorrectHistoricalTimeSlotAssignmentsForm({
           </FieldError>
         </fieldset>
         <ActionFeedback state={state} />
-        <button disabled={pending} className="button-secondary px-3 py-1.5">
+        <button
+          type="submit"
+          disabled={pending}
+          className="button-secondary px-3 py-1.5"
+        >
           {pending ? "Saving…" : "Save Time Slots"}
         </button>
       </form>

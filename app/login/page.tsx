@@ -15,7 +15,7 @@ export default async function LoginPage({
     <RecoverySurface
       title="Cappy Hub"
       eyebrow="Officer Administration Portal"
-      description="Coding Interview Club administration for events, tasks, officers, and points."
+      description="Coding Interview Club administration"
       icon="brand"
       headerMedia={
         <div className="inline-flex size-12 items-center justify-center rounded-xl border border-brand-border bg-brand-bg shadow-sm">

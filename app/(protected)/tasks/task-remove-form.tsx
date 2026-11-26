@@ -161,7 +161,7 @@ export function TaskRestoreForm({
           <RecurrenceLifecycleScope />
         </ConfirmationDialog>
       ) : (
-        <button disabled={pending} className="button-secondary">
+        <button type="submit" disabled={pending} className="button-secondary">
           {pending ? "Restoring…" : "Restore Task"}
         </button>
       )}

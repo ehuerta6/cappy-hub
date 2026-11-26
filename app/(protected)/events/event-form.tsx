@@ -846,7 +846,7 @@ export default function EventForm({
             validateFormBeforeOpen
           />
         ) : (
-          <button className="w-fit" disabled={pending}>
+          <button type="submit" className="w-fit" disabled={pending}>
             {submitLabel}
           </button>
         )}

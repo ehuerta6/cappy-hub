@@ -244,7 +244,7 @@ export default function OfficerForm({
         <div className="min-w-0 flex-1">
           {(state.error || state.success) && <ActionFeedback state={state} />}
         </div>
-        <button disabled={pending}>
+        <button type="submit" disabled={pending}>
           {pending ? (officer ? "Saving…" : "Creating…") : "Save officer"}
         </button>
       </div>

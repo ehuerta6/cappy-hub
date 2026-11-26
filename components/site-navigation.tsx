@@ -92,6 +92,7 @@ export default function SiteNavigation({
   const displayUnreadCount = locallyReadAll ? 0 : unreadNotificationCount;
   const notificationMenuRef = useRef<HTMLDivElement>(null);
   const notificationBellRef = useRef<HTMLButtonElement>(null);
+  const mobileToggleRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!notificationsOpen) return;
     const closeOutside = (event: PointerEvent) => {
@@ -110,6 +111,16 @@ export default function SiteNavigation({
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, [notificationsOpen]);
+  useEffect(() => {
+    if (!mobileControlsOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setMobileControlsOpen(false);
+      mobileToggleRef.current?.focus();
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [mobileControlsOpen]);
   async function markAllRead() {
     const previousRevision = bulkReadRevision;
     setBulkReadError("");
@@ -159,6 +170,7 @@ export default function SiteNavigation({
             <span className={styles.brandName}>Cappy Hub</span>
           </Link>
           <button
+            ref={mobileToggleRef}
             type="button"
             className={styles.mobileControlsToggle}
             aria-expanded={mobileControlsOpen}

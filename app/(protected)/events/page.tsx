@@ -357,7 +357,6 @@ export default async function EventsPage({
           const query = new URLSearchParams(filtersInUrl);
           if (itemScope !== "all") query.set("scope", itemScope);
           else query.delete("scope");
-          query.delete("page");
           const serialized = query.toString();
           return (
             <Link
@@ -477,6 +476,12 @@ export default async function EventsPage({
         </div>
       ) : (
         <div className="space-y-5">
+          {pageEvents.length >= 1000 && (
+            <p role="status" className="text-xs text-muted">
+              Showing first {pageEvents.length} events. Narrow your filters to
+              see more.
+            </p>
+          )}
           {sections.map((section) => {
             return (
               <section

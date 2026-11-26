@@ -204,7 +204,6 @@ export default async function TasksPage({
     const query = new URLSearchParams(filtersInUrl);
     if (nextScope !== "all") query.set("scope", nextScope);
     else query.delete("scope");
-    query.delete("page");
     const serialized = query.toString();
     return (serialized ? `/tasks?${serialized}` : "/tasks") as Route;
   };
@@ -504,6 +503,12 @@ export default async function TasksPage({
       {view !== "deleted" && tasks.length > 0 && (
         <p className="text-sm font-medium text-muted">
           {tasks.length} task{tasks.length === 1 ? "" : "s"}
+        </p>
+      )}
+      {totalCount > tasks.length && (
+        <p role="status" className="text-xs text-muted">
+          Showing first {tasks.length} of {totalCount} matching tasks. Narrow
+          your filters to see more.
         </p>
       )}
       {view === "deleted" ? (

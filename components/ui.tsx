@@ -186,7 +186,7 @@ export function CatalogValueBadge({
   color?: string | null;
 }) {
   const safeColor =
-    color && /^#[0-9A-Fa-f]{6}$/.test(color) ? color : "#64748b";
+    color && /^#[0-9A-Fa-f]{6}$/.test(color) ? color : "var(--muted)";
   return (
     <span
       className="catalog-value-badge status-badge inline-flex items-center rounded-full border px-1.5 py-0.5 text-xs font-medium leading-4"

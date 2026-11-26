@@ -496,7 +496,9 @@ export default function TaskCreateForm({
             validateFormBeforeOpen
           />
         ) : (
-          <button disabled={pending}>{submitLabel}</button>
+          <button type="submit" disabled={pending}>
+            {submitLabel}
+          </button>
         )}
       </div>
     </form>
