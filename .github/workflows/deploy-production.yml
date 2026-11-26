@@ -21,6 +21,7 @@ jobs:
       github.event.workflow_run.head_branch == 'main' &&
       github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment: production
     env:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
@@ -115,3 +116,15 @@ jobs:
           PRODUCTION_APP_URL: ${{ vars.PRODUCTION_APP_URL }}
           EXPECTED_DEPLOYMENT_SHA: ${{ github.event.workflow_run.head_sha }}
         run: node scripts/verify-production-deployment.mjs
+
+      - name: Record deployment summary
+        if: >-
+          steps.current-main.outputs.is_current == 'true' &&
+          steps.latest-main.outputs.is_current == 'true'
+        run: |
+          {
+            echo "### Production Deployment Verified"
+            echo ""
+            echo "- **Commit:** \`${{ github.event.workflow_run.head_sha }}\`"
+            echo "- **URL:** ${{ vars.PRODUCTION_APP_URL }}"
+          } >> "$GITHUB_STEP_SUMMARY"
