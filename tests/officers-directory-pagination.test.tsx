@@ -104,8 +104,6 @@ beforeEach(() => {
           data = [{ id: 2, name: "Technical Officer" }];
         else if (table === "branches") data = [{ id: 3, name: "operations" }];
         const count = data.length;
-        const range = record.calls.find((call) => call[0] === "range");
-        if (range) data = data.slice(Number(range[1]), Number(range[2]) + 1);
         const selection = record.calls.find((call) => call[0] === "select");
         if ((selection?.[2] as { head?: boolean } | undefined)?.head) data = [];
         return Promise.resolve({ data, count, error: null }).then(resolve);
@@ -120,47 +118,28 @@ const render = async (params: Record<string, string> = {}) =>
     await OfficersPage({ searchParams: Promise.resolve(params) }),
   );
 
-it("paginates eight fully filtered officers with exact count and return context", async () => {
+it("renders all filtered officers in the cards directory with exact count and return context", async () => {
   const html = await render({
     q: "alex",
     status: "all",
     position: "2",
     branch: "3",
-    page: "2",
   });
-  expect(html).toContain("Showing 9–11 of 11 officers");
-  expect(html).toContain("Alex 09");
+  expect(html).toContain("11 officers");
+  expect(html).toContain("Alex 01");
   expect(html).toContain("Alex 11");
-  expect(html).not.toContain("Alex 08");
-  expect(html).toContain("very-long-personal-address-11@example.test");
-  expect(html).toContain('aria-label="Officer pages"');
-  expect(html).toContain('option value="2" selected=""');
-  expect(html).toContain("of 2");
+  expect(html).not.toContain('aria-label="Officer pages"');
   expect(html).toContain(
-    'href="/officers?q=alex&amp;status=all&amp;position=2&amp;branch=3"',
+    "returnTo=%2Fofficers%3Fq%3Dalex%26status%3Dall%26position%3D2%26branch%3D3",
   );
-  expect(html).toContain(
-    "returnTo=%2Fofficers%3Fq%3Dalex%26status%3Dall%26position%3D2%26branch%3D3%26page%3D2",
-  );
-  const query = queries.find(
-    ({ table, calls }) =>
-      table === "officers" && calls.some((call) => call[0] === "range"),
-  )!;
-  expect(query.calls).toContainEqual(["range", 8, 15]);
+  const query = queries.find(({ table }) => table === "officers")!;
   expect(query.calls).toContainEqual(["order", "name"]);
   expect(query.calls).toContainEqual(["order", "id"]);
   expect(query.calls).toContainEqual(["eq", "filter_branch.branch_id", 3]);
   expect(query.calls.find((call) => call[0] === "or")?.[1]).toContain(
     "personal_email.imatch",
   );
-  expect(html).toContain('action="/officers" method="get"');
-  expect(html).not.toContain('type="hidden" name="page"');
-});
-
-it("redirects an out-of-range directory page to the last filtered page", async () => {
-  await expect(render({ q: "alex", page: "99" })).rejects.toThrow(
-    "redirect:/officers?q=alex&page=2",
-  );
+  expect(html).toContain('action="/officers"');
 });
 
 it("shows a clear zero-result state for a filtered directory", async () => {
@@ -168,7 +147,6 @@ it("shows a clear zero-result state for a filtered directory", async () => {
   expect(html).toContain("0 officers");
   expect(html).toContain("No officers match these filters.");
   expect(html).toContain('href="/officers"');
-  expect(html).toContain("0 officers");
 });
 
 it.each(["admin", "lead", "officer"] as const)(
@@ -193,9 +171,8 @@ it.each(["admin", "lead", "officer"] as const)(
           (call) => call[0] === "eq" && call[1] === "filter_branch.branch_id",
         ),
     ).toBe(false);
-
     expect(queries.some(({ table }) => table === "officer_warnings")).toBe(
-      false,
+      actorRole === "admin",
     );
   },
 );
@@ -203,6 +180,6 @@ it.each(["admin", "lead", "officer"] as const)(
 it("routes the retired approval view URL back to the Officer directory", async () => {
   const html = await render({ view: "warnings", reviewPage: "2" });
   expect(html).toContain('aria-label="Officer filters"');
-  expect(html).toContain("Showing 1–8 of 11 officers");
+  expect(html).toContain("11 officers");
   expect(html).not.toContain("Historical warning approvals");
 });

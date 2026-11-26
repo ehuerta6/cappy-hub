@@ -124,7 +124,9 @@ it("restores a selected numeric ID and serializes the corresponding GET field", 
 it("clears only through the clear control and never accepts an unknown initial ID", async () => {
   const { form, input, hidden } = await renderSelect({ initialValue: "999" });
   expect(hidden.value).toBe("");
-  input.click();
+  act(() => {
+    input.click();
+  });
   press(input, "ArrowDown");
   press(input, "ArrowDown");
   press(input, "Enter");

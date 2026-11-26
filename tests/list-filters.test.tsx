@@ -326,7 +326,6 @@ beforeEach(() => {
           !record.calls.some(([method]) =>
             ["or", "filter", "eq", "gte", "lte", "gt", "lt"].includes(method),
           );
-        // Points baseline includes its authorization-sensitive removed predicate.
         const pointsBaseline =
           table === "point_history" && record.calls.length === 2;
         const tasksBaseline =
@@ -437,7 +436,7 @@ it.each(["upcoming", "happening", "past", "cancelled"])(
   },
 );
 
-it("keeps cancelled Events out of the default browsing groups", async () => {
+it("keeps cancelled Events out of the default browsing list", async () => {
   await render(EventsPage);
   const eventsQuery = forTable("events").find(({ calls }) =>
     calls.some(([method]) => method === "order"),
@@ -504,7 +503,7 @@ it("filters Assigned to me by the active assignment and preserves other Task fil
     status: "open",
   });
   const listQuery = forTable("tasks").find(({ calls }) =>
-    calls.some(([method]) => method === "range"),
+    calls.some(([method]) => method === "order"),
   )!;
   expect(listQuery.calls[0][1]).toContain(
     "my_assignment:task_officer_assignments!inner(officer_id,removed_at)",
@@ -567,33 +566,30 @@ it("shows Calendar recovery only for Events in the manager's branch scope", asyn
   expect(html).not.toContain("Other branch failed Event");
 });
 
-it("paginates every manager-visible Calendar recovery item", async () => {
+it("renders all manager-visible Calendar recovery items without pagination", async () => {
   admin = false;
   lead = true;
   actorBranches = [2];
-  rows.event_calendar_sync_failures = Array.from(
-    { length: 201 },
-    (_, index) => ({
-      event_id: -9200 - index,
-      failed_at: `2026-10-30T10:${String(index % 60).padStart(2, "0")}:00Z`,
-      event: {
-        id: -9200 - index,
-        name: `Failed Event ${index + 1}`,
-        starts_at: "2099-10-30T16:00:00Z",
-        deleted_at: null,
-        event_branches: [{ branch_id: 2 }],
-      },
-    }),
-  );
+  rows.event_calendar_sync_failures = Array.from({ length: 12 }, (_, index) => ({
+    event_id: -9200 - index,
+    failed_at: `2026-10-30T10:${String(index).padStart(2, "0")}:00Z`,
+    event: {
+      id: -9200 - index,
+      name: `Failed Event ${index + 1}`,
+      starts_at: "2099-10-30T16:00:00Z",
+      deleted_at: null,
+      event_branches: [{ branch_id: 2 }],
+    },
+  }));
 
-  const html = await render(EventsPage, { syncPage: "2" });
+  const html = await render(EventsPage);
 
-  expect(html).toContain("Failed Event 201");
-  expect(html).not.toContain("Failed Event 1</a>");
-  expect(html).toContain("Previous recovery page");
+  expect(html).toContain("Failed Event 1</a>");
+  expect(html).toContain("Failed Event 12</a>");
+  expect(html).not.toContain("Previous recovery page");
 });
 
-it("combines search, type, and Branch filters with current temporal sections", async () => {
+it("combines search, type, and Branch filters on the flat Events table", async () => {
   rows.events = [
     {
       id: 7,
@@ -622,59 +618,12 @@ it("combines search, type, and Branch filters with current temporal sections", a
   );
   has(query, "eq", "event_type_id", 2);
   has(query, "eq", "filter_branch.branch_id", 3);
-  expect(html).toContain("Upcoming events");
+  expect(html).toContain('aria-label="Events table"');
+  expect(html).toContain("Workshop");
+  expect(html).toContain("1 event");
 });
 
-it("omits empty Event and Task groups on bounded pages", async () => {
-  vi.useFakeTimers();
-  vi.setSystemTime(new Date("2026-10-05T06:00:00.000Z"));
-  try {
-    rows.events = [
-      {
-        id: 7,
-        name: "Upcoming workshop",
-        event_date: "2099-10-08",
-        status: "scheduled",
-        deleted_at: null,
-        participation_points_per_hour_at_end: null,
-        event_types: { name: "Workshop" },
-        event_branches: [],
-        event_officers: [],
-        starts_at: "2099-10-08T23:00:00Z",
-        ends_at: "2099-10-09T01:00:00Z",
-      },
-    ];
-    const eventsHtml = await render(EventsPage);
-    expect(eventsHtml).not.toContain(">Your events</h3>");
-    expect(eventsHtml).not.toContain("No events in this group.");
-    expect(eventsHtml).toContain(">Other events</h3>");
-    expect(eventsHtml).toContain("Upcoming workshop");
-
-    queries = [];
-    rows.tasks = [
-      {
-        id: 8,
-        title: "Upcoming task",
-        description: "Assigned to another Officer",
-        task_type: "one_time",
-        branch_id: 2,
-        due_date: "2099-10-08",
-        points: 3,
-        branches: { name: "intro" },
-        task_officer_assignments: [{ officer_id: 2, completed_at: null }],
-      },
-    ];
-    const tasksHtml = await render(TasksPage);
-    expect(tasksHtml).not.toContain('aria-label="Upcoming tasks: Your tasks"');
-    expect(tasksHtml).not.toContain("No tasks in this group.");
-    expect(tasksHtml).toContain("Other tasks");
-    expect(tasksHtml).toContain("Upcoming task");
-  } finally {
-    vi.useRealTimers();
-  }
-});
-
-it("shows chronological Events in accessible period tables without repeated row headings", async () => {
+it("shows chronological Events in a single accessible table without repeated row headings", async () => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-05T06:00:00.000Z"));
   try {
@@ -709,10 +658,7 @@ it("shows chronological Events in accessible period tables without repeated row 
 
     const html = await render(EventsPage);
     expect(html).toContain(
-      'role="region" aria-label="Events table: This week&#x27;s events: Your events" tabindex="0"',
-    );
-    expect(html).toContain(
-      'role="region" aria-label="Events table: Upcoming events: Other events" tabindex="0"',
+      'role="region" aria-label="Events table" tabindex="0"',
     );
     expect(html).not.toContain('scope="rowgroup"');
     expect(html.indexOf("This week event</a>")).toBeLessThan(
@@ -720,7 +666,7 @@ it("shows chronological Events in accessible period tables without repeated row 
     );
     expect(
       html.match(/role="region" aria-label="[^"]+" tabindex="0"/g),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
   } finally {
     vi.useRealTimers();
   }
@@ -777,7 +723,7 @@ it("does not offer Deleted Event browsing and keeps forged deleted URLs active-o
   expect(html).toContain('value="happening"');
   expect(html).toContain('value="past"');
   expect(html).toContain('value="cancelled"');
-  expect(html).toContain("Upcoming events");
+  expect(html).toContain("Active event");
   expect(html).toContain("returnTo=%2Fevents%3Fbranch%3D2");
 });
 
@@ -829,7 +775,6 @@ it("scopes Lead Deleted Tasks to assigned branches and keeps Admin access global
   for (const query of forTable("tasks")) has(query, "in", "branch_id", [2]);
   expect(leadHtml).toContain("Assigned branch archive");
   expect(leadHtml).not.toContain("Other branch archive");
-  expect(leadHtml).toContain("1 task");
 
   admin = true;
   lead = false;
@@ -844,12 +789,11 @@ it("scopes Lead Deleted Tasks to assigned branches and keeps Admin access global
   ).toBe(false);
   expect(adminHtml).toContain("Assigned branch archive");
   expect(adminHtml).toContain("Other branch archive");
-  expect(adminHtml).toContain("2 tasks");
 });
 
-it("limits every Events page to eight scheduled rows and keeps page context", async () => {
-  visibleCount = 19;
-  rows.events = Array.from({ length: 19 }, (_, index) => ({
+it("renders all scheduled Events in chronological order without pagination", async () => {
+  visibleCount = 12;
+  rows.events = Array.from({ length: 12 }, (_, index) => ({
     id: index + 1,
     name: `Event ${index + 1}`,
     event_date: "2099-10-08",
@@ -863,75 +807,20 @@ it("limits every Events page to eight scheduled rows and keeps page context", as
     event_branches: [],
     event_officers: [],
   }));
-  const html = await render(EventsPage, { page: "2" });
+  const html = await render(EventsPage);
   const rowQuery = forTable("events").find(({ calls }) =>
-    calls.some(([method]) => method === "range"),
+    calls.some(([method]) => method === "order"),
   )!;
-  has(rowQuery, "range", 8, 15);
   has(rowQuery, "order", "starts_at", { ascending: true });
   has(rowQuery, "order", "id", { ascending: true });
-  expect(html).toContain('option value="2" selected="">2</option>');
-  expect(html).toContain("of 3");
-  expect(html).toContain("19 events");
-  expect(html).toContain("Event 9");
-  expect(html).toContain("Event 16");
-  expect(html).not.toContain("Event 8</a>");
-  expect(html).not.toContain("Event 17</a>");
-  expect(html).toContain('href="/events?page=3"');
-  expect(html).toContain('href="/events/9?returnTo=%2Fevents%3Fpage%3D2"');
-});
-
-it("groups only the eight Events on this page by confirmed participation", async () => {
-  visibleCount = 10;
-  rows.events = Array.from({ length: 10 }, (_, index) => {
-    const id = index + 1;
-    return {
-      id,
-      name: `Grouped event ${id}`,
-      event_date: "2099-10-08",
-      starts_at: `2099-10-08T${String(id + 10).padStart(2, "0")}:00:00Z`,
-      ends_at: `2099-10-08T${String(id + 11).padStart(2, "0")}:00:00Z`,
-      status: "scheduled",
-      deleted_at: null,
-      max_volunteers: null,
-      participation_points_per_hour_at_end: null,
-      event_types: { name: "Workshop" },
-      event_branches: [],
-      event_officers: id === 1 || id === 5 ? [{ officer_id: 1 }] : [],
-    };
-  });
-
-  const html = await render(EventsPage);
-  const yourHeading = html.indexOf(
-    '<h3 class="font-semibold text-foreground">Your events</h3>',
-  );
-  const otherHeading = html.indexOf(
-    '<h3 class="font-semibold text-foreground">Other events</h3>',
-  );
-  expect(yourHeading).toBeGreaterThan(-1);
-  expect(otherHeading).toBeGreaterThan(yourHeading);
-  expect(html.indexOf("Grouped event 1")).toBeGreaterThan(yourHeading);
-  expect(html.indexOf("Grouped event 5")).toBeGreaterThan(
-    html.indexOf("Grouped event 1"),
-  );
-  expect(html.indexOf("Grouped event 5")).toBeLessThan(otherHeading);
-  expect(html.indexOf("Grouped event 2")).toBeGreaterThan(otherHeading);
-  expect(html).not.toContain("Your event</span>");
-  expect(html).not.toContain("Other event</span>");
-  expect(html.match(/href="\/events\/\d+\?/g)).toHaveLength(8);
-  expect(html).not.toContain("Grouped event 9");
-  has(
-    forTable("events").find(({ calls }) =>
-      calls.some(([method]) => method === "range"),
-    )!,
-    "range",
-    0,
-    7,
-  );
+  expect(html).toContain("12 events");
+  expect(html).toContain("Event 1</a>");
+  expect(html).toContain("Event 12</a>");
+  expect(html).not.toContain('aria-label="Event pages"');
 });
 
 it.each(["past", "cancelled", "deleted"])(
-  "groups %s Events with the same Your/Other hierarchy",
+  "renders %s Events in the flat Events table",
   async (status) => {
     rows.events = [
       {
@@ -965,126 +854,13 @@ it.each(["past", "cancelled", "deleted"])(
     ];
 
     const html = await render(EventsPage, { status });
-    expect(html).toContain(">Your events</h3>");
-    expect(html).toContain(">Other events</h3>");
+    expect(html).toContain('aria-label="Events table"');
     expect(html).toContain("Participating historical event");
     expect(html).toContain("Other historical event");
   },
 );
 
-it("counts after Event filters and retains them in the pager", async () => {
-  visibleCount = 25;
-  filteredCount = 9;
-  const html = await render(EventsPage, {
-    q: "Workshop",
-    type: "2",
-    branch: "3",
-  });
-  const countQuery = forTable("events")[0];
-  has(countQuery, "eq", "event_type_id", 2);
-  has(countQuery, "eq", "filter_branch.branch_id", 3);
-  expect(countQuery.calls.some(([method]) => method === "or")).toBe(true);
-  expect(html).toContain('option value="1" selected="">1</option>');
-  expect(html).toContain("of 2");
-  expect(html).toContain("9 events");
-  expect(html).toContain(
-    'href="/events?q=Workshop&amp;type=2&amp;branch=3&amp;page=2"',
-  );
-});
-
-it("offers direct Event page selection and preserves every active filter", async () => {
-  visibleCount = 97;
-  filteredCount = 97;
-  rows.events = Array.from({ length: 24 }, (_, index) => ({
-    id: index + 1,
-    name: `Filtered event ${index + 1}`,
-    event_date: "2020-10-08",
-    starts_at: "2020-10-08T18:00:00Z",
-    ends_at: "2020-10-08T20:00:00Z",
-    status: "scheduled",
-    deleted_at: null,
-    max_volunteers: null,
-    participation_points_per_hour_at_end: null,
-    event_types: { name: "Workshop" },
-    event_branches: [],
-    event_officers: [],
-  }));
-
-  const html = await render(EventsPage, {
-    page: "2",
-    q: "Design",
-    status: "past",
-    type: "2",
-    branch: "3",
-  });
-
-  expect(html).toContain('aria-label="Event pages"');
-  expect(html).toContain('aria-label="Select event page"');
-  expect(html).toContain('option value="2" selected=""');
-  expect(html).toContain('aria-label="First page"');
-  expect(html).toContain('aria-label="Last page"');
-  for (const [name, value] of [
-    ["q", "Design"],
-    ["status", "past"],
-    ["type", "2"],
-    ["branch", "3"],
-  ])
-    expect(html).toContain(`name="${name}" value="${value}"`);
-  expect(html).toContain(
-    'href="/events?q=Design&amp;status=past&amp;type=2&amp;branch=3&amp;page=13"',
-  );
-  expect(html).toContain(
-    'href="/events/9?returnTo=%2Fevents%3Fq%3DDesign%26status%3Dpast%26type%3D2%26branch%3D3%26page%3D2"',
-  );
-});
-
-it("offers direct Task page selection and preserves all filters", async () => {
-  rows.tasks = Array.from({ length: 19 }, (_, index) => ({
-    id: index + 1,
-    title: `Filtered task ${index + 1}`,
-    description: "Design work",
-    task_type: "Post",
-    due_date: "2020-10-08",
-    points: 1,
-    removed_at: null,
-    branch_id: 2,
-    branches: { name: "intro" },
-    task_officer_assignments: [
-      { officer_id: 4, completed_at: "2020-10-01T00:00:00Z" },
-    ],
-  }));
-
-  const html = await render(TasksPage, {
-    page: "2",
-    q: "Design",
-    view: "past",
-    status: "complete",
-    branch: "2",
-    assignee: "4",
-  });
-
-  expect(html).toContain('aria-label="Task pages"');
-  expect(html).toContain('aria-label="Select task page"');
-  expect(html).toContain('option value="2" selected=""');
-  expect(html).toContain('aria-label="First page"');
-  expect(html).toContain('aria-label="Last page"');
-  for (const [name, value] of [
-    ["q", "Design"],
-    ["view", "past"],
-    ["status", "complete"],
-    ["branch", "2"],
-    ["assignee", "4"],
-  ])
-    expect(html).toContain(`name="${name}" value="${value}"`);
-  expect(html).toContain(
-    'href="/tasks?q=Design&amp;view=past&amp;status=complete&amp;branch=2&amp;assignee=4&amp;page=3"',
-  );
-  expect(html).toContain(
-    "returnTo=%2Ftasks%3Fq%3DDesign%26view%3Dpast%26status%3Dcomplete%26branch%3D2%26assignee%3D4%26page%3D2",
-  );
-});
-
-it("scopes the Lead Deleted view to assigned branches before paging", async () => {
+it("scopes the Lead Deleted Events view to assigned branches", async () => {
   admin = false;
   lead = true;
   actorBranches = [2, 3];
@@ -1127,8 +903,6 @@ it("keeps signup and leave-signup actions on eligible Event rows", async () => {
   expect(html.split("Full</a>")[1].split("</tr>")[0]).toContain("disabled");
   expect(html.split("Other</a>")[1].split("</tr>")[0]).toContain("Sign up");
   expect(html).not.toContain("waitlist");
-  expect(html).toContain(">Your events</h3>");
-  expect(html).toContain(">Other events</h3>");
 });
 
 it.each(["open", "in_progress", "complete"])(
@@ -1248,10 +1022,10 @@ it.each(["open", "in_progress", "complete"])(
       );
       has(query, "is", "active_assignments.removed_at", null);
     }
-    if (status === "in_progress")
+    if (status === "in_progress") {
       expect(html).toContain("Other Officer&#x27;s task");
-    if (status === "in_progress")
       expect(html).toContain("Mixed assignments task");
+    }
     if (status === "complete") {
       expect(html).toContain("Completed team task");
       expect(html).not.toContain("Mixed assignments task");
@@ -1274,7 +1048,7 @@ it.each(["open", "in_progress", "complete"])(
   },
 );
 
-it("groups current Tasks by Denver week before splitting multi-Officer assignments", async () => {
+it("queries current Tasks with Denver overdue bounds and renders them in a single table", async () => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-05T06:00:00.000Z"));
   try {
@@ -1354,34 +1128,20 @@ it("groups current Tasks by Denver week before splitting multi-Officer assignmen
     has(query, "order", "due_date", { ascending: true });
     has(query, "order", "id", { ascending: true });
     expect(query.calls[0][1]).toContain("task_officer_assignments(");
-    expect(html).toContain("This week&#x27;s tasks");
-    expect(html).toContain("Upcoming tasks");
-    expect(html).toContain('aria-label="This week&#x27;s tasks: Your tasks"');
-    expect(html).toContain('aria-label="This week&#x27;s tasks: Other tasks"');
-    expect(html).not.toContain('aria-label="Upcoming tasks: Your tasks"');
-    expect(html).toContain('aria-label="Upcoming tasks: Other tasks"');
-    expect(html).toContain(
-      'role="region" aria-label="Tasks table: This week&#x27;s tasks: Your tasks" tabindex="0"',
-    );
-    expect(html).toContain(
-      'role="region" aria-label="Tasks table: This week&#x27;s tasks: Other tasks" tabindex="0"',
-    );
-    expect(html).toContain(
-      'role="region" aria-label="Tasks table: Upcoming tasks: Other tasks" tabindex="0"',
-    );
     expect(
       html.match(/role="region" aria-label="[^"]+" tabindex="0"/g),
-    ).toHaveLength(4);
+    ).toHaveLength(1);
+    expect(html.indexOf("Yesterday task")).toBeLessThan(
+      html.indexOf("Today&#x27;s work"),
+    );
     expect(html.indexOf("Today&#x27;s work")).toBeLessThan(
       html.indexOf("Sunday deadline"),
     );
     expect(html.indexOf("Sunday deadline")).toBeLessThan(
       html.indexOf("Next Monday task"),
     );
-    expect(html).toContain("Yesterday task");
     expect(html).toContain("Overdue");
     expect(html).not.toContain("Removed future task");
-    expect(html).toContain('aria-label="Overdue tasks"');
     expect(html).toContain("Assign to me");
   } finally {
     vi.useRealTimers();
@@ -1463,9 +1223,6 @@ it("keeps Past separate from workflow status and preserves all assignment rows",
     expect(query.calls[0][1]).toContain(
       "task_officer_assignments(officer_id,completed_at",
     );
-    expect(html).toContain("Past tasks");
-    expect(html).not.toContain("This week&#x27;s tasks");
-    expect(html).not.toContain("Upcoming tasks");
     expect(html).toContain("Past completed flyer");
     expect(html).toContain("Past flyer teammate task");
     expect(html).not.toContain("Due today");
@@ -1535,60 +1292,7 @@ it.each([
   },
 );
 
-it("paginates eight Tasks across groups with due-date and ID tie ordering", async () => {
-  rows.tasks = Array.from({ length: 19 }, (_, index) => ({
-    id: index + 1,
-    title: `Task ${index + 1}`,
-    description: "Pagination fixture",
-    task_type: "Post",
-    due_date: index < 12 ? "2099-10-08" : "2099-10-09",
-    points: 3,
-    branch_id: 2,
-    branches: { name: "intro" },
-    task_officer_assignments:
-      index % 2 === 0 ? [{ officer_id: 1, completed_at: null }] : [],
-  }));
-
-  const first = await render(TasksPage);
-  expect(first).toContain('option value="1" selected="">1</option>');
-  expect(first).toContain("of 3");
-  expect(first).toContain("19 tasks");
-  expect(first).toContain("page=2");
-  const firstIds = [...first.matchAll(/href="\/tasks\/(\d+)\?/g)].map((match) =>
-    Number(match[1]),
-  );
-  expect(firstIds).toHaveLength(8);
-  expect(new Set(firstIds)).toEqual(new Set([1, 2, 3, 4, 5, 6, 7, 8]));
-
-  queries = [];
-  const second = await render(TasksPage, { page: "2" });
-  expect(second).toContain('option value="2" selected="">2</option>');
-  expect(second).toContain("of 3");
-  expect(second).toContain("19 tasks");
-  expect(second).toContain('aria-label="Previous page"');
-  expect(second).toContain("page=3");
-  const secondIds = [...second.matchAll(/href="\/tasks\/(\d+)\?/g)].map(
-    (match) => Number(match[1]),
-  );
-  expect(secondIds).toHaveLength(8);
-  expect(new Set(secondIds)).toEqual(new Set([9, 10, 11, 12, 13, 14, 15, 16]));
-  has(forTable("tasks")[0], "range", 8, 15);
-
-  queries = [];
-  const third = await render(TasksPage, { page: "3" });
-  expect(third).toContain('option value="3" selected="">3</option>');
-  expect(third).toContain("of 3");
-  expect(third).toContain("19 tasks");
-  const thirdIds = [...third.matchAll(/href="\/tasks\/(\d+)\?/g)].map((match) =>
-    Number(match[1]),
-  );
-  expect(thirdIds).toHaveLength(3);
-  expect(new Set([...firstIds, ...secondIds, ...thirdIds])).toEqual(
-    new Set(Array.from({ length: 19 }, (_, index) => index + 1)),
-  );
-});
-
-it("filters assignee, status, branch, search and view before the eight-row page", async () => {
+it("filters assignee, status, branch, search and view on the server without pagination", async () => {
   rows.tasks = [
     ...Array.from({ length: 9 }, (_, index) => ({
       id: index + 1,
@@ -1604,7 +1308,7 @@ it("filters assignee, status, branch, search and view before the eight-row page"
         { officer_id: 3, completed_at: "2099-10-01" },
       ],
     })),
-    ...Array.from({ length: 9 }, (_, index) => ({
+    ...Array.from({ length: 4 }, (_, index) => ({
       id: index + 20,
       title: `Decoy task ${index + 1}`,
       description: "Not matching the query",
@@ -1623,7 +1327,9 @@ it("filters assignee, status, branch, search and view before the eight-row page"
     branch: "2",
     assignee: "2",
   });
-  const query = forTable("tasks")[0];
+  const query = forTable("tasks").find(({ calls }) =>
+    calls.some(([method]) => method === "order"),
+  )!;
   expect(query.calls[0][1]).toContain(
     "assignee_filter:task_officer_assignments!inner(officer_id,removed_at)",
   );
@@ -1639,18 +1345,13 @@ it("filters assignee, status, branch, search and view before the eight-row page"
     { referencedTable: "incomplete_assignments" },
   ]);
   has(query, "eq", "branch_id", 2);
-  has(query, "range", 0, 7);
-  expect(html).toContain('option value="1" selected="">1</option>');
-  expect(html).toContain("of 2");
   expect(html).toContain("9 tasks");
   expect(html).toContain("Design task 1");
-  expect(html).toContain("Design task 8");
-  expect(html).not.toContain("Design task 9");
+  expect(html).toContain("Design task 9");
   expect(html).not.toContain("Decoy task");
   expect(html).toContain(
     "returnTo=%2Ftasks%3Fq%3Ddesign%26status%3Din_progress%26branch%3D2%26assignee%3D2",
   );
-  expect(html).toContain("page=2");
 });
 
 it("combines Open and Assignee filters on the server with no false matches", async () => {
@@ -1668,11 +1369,12 @@ it("combines Open and Assignee filters on the server with no false matches", asy
     },
   ];
   const html = await render(TasksPage, { assignee: "2", status: "open" });
-  const query = forTable("tasks")[0];
+  const query = forTable("tasks").find(({ calls }) =>
+    calls.some(([method]) => method === "order"),
+  )!;
   has(query, "eq", "assignee_filter.officer_id", 2);
   has(query, "is", "active_assignments", null);
   expect(html).toContain("No tasks match these filters.");
-  expect(html).toContain("0 tasks");
 });
 
 it("restores the stable Assignee ID, inactive label, and empty GET value", async () => {
@@ -1687,34 +1389,32 @@ it("restores the stable Assignee ID, inactive label, and empty GET value", async
   expect(html).toContain('value=""');
 });
 
-it("keeps the filtered Task page in returnTo and resets it on filter submission", async () => {
-  rows.tasks = Array.from({ length: 9 }, (_, index) => ({
-    id: index + 7,
-    title: `Design task ${index + 1}`,
-    description: "Design notes",
-    task_type: "Post",
-    due_date: "2099-10-08",
-    points: 3,
-    branches: { name: "intro" },
-    branch_id: 2,
-    task_officer_assignments: [{ officer_id: 9, completed_at: null }],
-  }));
+it("keeps Task filters in returnTo and offers Clear filters", async () => {
+  rows.tasks = [
+    {
+      id: 15,
+      title: "Design task",
+      description: "Design notes",
+      task_type: "Post",
+      due_date: "2099-10-08",
+      points: 3,
+      branches: { name: "intro" },
+      branch_id: 2,
+      task_officer_assignments: [{ officer_id: 9, completed_at: null }],
+    },
+  ];
   const html = await render(TasksPage, {
     q: "design",
     branch: "2",
     assignee: "9",
-    page: "2",
   });
   expect(html).toContain(
-    'href="/tasks/15?returnTo=%2Ftasks%3Fq%3Ddesign%26branch%3D2%26assignee%3D9%26page%3D2"',
+    'href="/tasks/15?returnTo=%2Ftasks%3Fq%3Ddesign%26branch%3D2%26assignee%3D9"',
   );
-  expect(html).toContain('name="page"');
-  expect(html).toContain('option value="2" selected="">2</option>');
   expect(html).toContain('href="/tasks">Clear filters</a>');
 });
 
-it("keeps basic Points filters and preserves legacy pagination context", async () => {
-  filteredCount = 60;
+it("keeps basic Points filters and passes filter context into returnTo", async () => {
   rows.events = [
     {
       id: -2001,
@@ -1731,10 +1431,11 @@ it("keeps basic Points filters and preserves legacy pagination context", async (
     status: "removed",
     from: "2026-09-01",
     to: "2026-10-01",
-    page: "2",
   };
   const html = await render(PointsPage, params);
-  const history = forTable("point_history")[0];
+  const history = forTable("point_history").find(({ calls }) =>
+    calls.some(([method]) => method === "order"),
+  )!;
   has(history, "eq", "award_type", "manual");
   has(history, "eq", "officer_id", -1013);
   has(history, "eq", "event_id", -2001);
@@ -1747,19 +1448,11 @@ it("keeps basic Points filters and preserves legacy pagination context", async (
   expect(html).not.toContain('placeholder="Search Events"');
   expect(html).not.toContain('type="hidden" name="page"');
   expect(html).toContain(
-    'data-return-to="/points?view=history&amp;q=Avery&amp;type=manual&amp;officer=-1013&amp;event=-2001&amp;status=removed&amp;from=2026-09-01&amp;to=2026-10-01&amp;page=2"',
+    'data-return-to="/points?view=history&amp;q=Avery&amp;type=manual&amp;officer=-1013&amp;event=-2001&amp;status=removed&amp;from=2026-09-01&amp;to=2026-10-01"',
   );
-  expect(html).toContain("page=3");
   expect(html).toContain("officer=-1013");
   expect(html).toContain("status=removed");
-  expect(
-    forTable("point_history").find((query) =>
-      query.calls.some(([method]) => method === "range"),
-    )?.calls,
-  ).toContainEqual(["range", 8, 15]);
-  expect(html).toContain('aria-label="Point history pages"');
-  expect(html).toContain("of 8");
-  expect(html).toContain("60 transactions");
+  expect(html).not.toContain('aria-label="Point history pages"');
 });
 
 it("forces active Points for non-admins with forged removed/all status", async () => {
@@ -1825,7 +1518,7 @@ it.each([
   },
 );
 
-it("keeps officer identity, status and contact information in a semantic table", async () => {
+it("keeps officer identity, status and contact information in the cards directory", async () => {
   rows.officers = [
     {
       id: 7,
@@ -1839,16 +1532,7 @@ it("keeps officer identity, status and contact information in a semantic table",
     },
   ];
   const html = await render(OfficersPage);
-  expect(html).toContain("<table");
-  expect(html).toMatch(/<th[^>]*scope="col"[^>]*>Name<\/th>/);
-  for (const heading of [
-    "Contact",
-    "Position",
-    "Classification",
-    "Branches",
-    "Status",
-  ])
-    expect(html).toContain(`>${heading}</th>`);
+  expect(html).not.toContain("<table");
   expect(html).toContain("Emi Huerta");
   expect(html).toContain("Technical Officer");
   expect(html).toContain("Intro");
@@ -1859,7 +1543,7 @@ it("keeps officer identity, status and contact information in a semantic table",
   expect(html).toContain('href="mailto:emi@example.test"');
 });
 
-it("shows Task-specific details and self-assignment only in Other tasks", async () => {
+it("shows Task-specific details and inline self-assignment in the flat Tasks table", async () => {
   rows.tasks = [
     {
       id: 7,
@@ -1894,10 +1578,9 @@ it("shows Task-specific details and self-assignment only in Other tasks", async 
   expect(html).toContain("Oct 8, 2099");
   expect(html).not.toContain("2099-10-08");
   expect(html).not.toContain("Select officer");
-  expect(html).toContain('aria-label="Upcoming tasks: Other tasks"');
 });
 
-it("applies the same period and Current bounds to Task pagination and totals", async () => {
+it("applies the same period and Current bounds to Task list and total queries", async () => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-11-02T20:00:00.000Z"));
   vi.mocked(getAcademicPeriodData).mockResolvedValue({
@@ -1918,7 +1601,7 @@ it("applies the same period and Current bounds to Task pagination and totals", a
   try {
     await render(TasksPage, { period: "-1" });
     const taskListQuery = forTable("tasks").find(({ calls }) =>
-      calls.some(([method]) => method === "range"),
+      calls.some(([method]) => method === "order"),
     )!;
     const taskCountQuery = forTable("tasks").find(({ calls }) =>
       calls.some(
@@ -1939,17 +1622,6 @@ it("applies the same period and Current bounds to Task pagination and totals", a
     vi.useRealTimers();
   }
 });
-
-it.each([EventsPage, TasksPage, PointsPage])(
-  "clamps out-of-range pagination while preserving URL filters",
-  async (Page) => {
-    await expect(render(Page, { q: "search", page: "999" })).rejects.toThrow(
-      Page === PointsPage
-        ? /redirect:.*view=history.*q=search/
-        : /redirect:.*q=search/,
-    );
-  },
-);
 
 it("keeps removed Event records out of legacy removed URLs", async () => {
   await render(EventsPage, { removed: "1" });

@@ -5,6 +5,11 @@ import { createRoot, type Root } from "react-dom/client";
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+declare global {
+  var IS_REACT_ACT_ENVIRONMENT: boolean | undefined;
+}
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
 const { routerPush, routerRefresh } = vi.hoisted(() => ({
   routerPush: vi.fn(),
   routerRefresh: vi.fn(),

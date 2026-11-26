@@ -314,6 +314,7 @@ it("debounces remote lookup and enforces two non-whitespace characters", async (
 });
 
 it("reports request errors separately and preserves selected Event IDs while searching", async () => {
+  vi.useFakeTimers();
   vi.mocked(searchEvents).mockResolvedValue({ events: [], error: true });
   await act(async () => {
     root.render(
@@ -330,7 +331,7 @@ it("reports request errors separately and preserves selected Event IDs while sea
     )?.set?.call(input, "Lookup");
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
-  await act(async () => new Promise((resolve) => setTimeout(resolve, 350)));
+  await act(async () => vi.advanceTimersByTimeAsync(350));
 
   expect(
     host.querySelector<HTMLInputElement>('input[name="event_id"]')?.value,
