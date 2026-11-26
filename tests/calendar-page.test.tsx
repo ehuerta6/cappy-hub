@@ -1,6 +1,8 @@
 import { expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
+vi.mock("server-only", () => ({}));
+
 const harness = vi.hoisted(() => ({ renders: 0 }));
 
 vi.mock("@/lib/academic-periods", async (importOriginal) => ({
