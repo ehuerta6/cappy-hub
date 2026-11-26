@@ -99,10 +99,28 @@ export default function NotificationSettingsFields({
       value.split(",").map(Number).map(reminderDraft),
     );
   });
+  const hasCustomAudience =
+    all || submittedBranches.length > 0 || submittedPositions.length > 0;
   return (
     <fieldset className="event-form-section lg:col-span-2 notification-settings">
       <legend className="px-1 text-sm font-semibold">Notifications</legend>
-      <div className="notification-settings-content">
+      <details className="group" open={hasCustomAudience}>
+        <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 py-1 text-sm text-muted hover:text-foreground [&::-webkit-details-marker]:hidden">
+          <span>
+            {hasCustomAudience
+              ? "Custom notification audience"
+              : isEvent
+                ? "Default audience (Event Branches) · "
+                : "Default audience (Task assignees) · "}
+            {reminders.length === 0
+              ? "no reminders"
+              : `${reminders.length} ${reminders.length === 1 ? "reminder" : "reminders"}`}
+          </span>
+          <span className="rounded border border-border-strong bg-surface-muted px-2.5 py-1 text-xs font-medium text-secondary">
+            Customize
+          </span>
+        </summary>
+        <div className="notification-settings-content mt-3 border-t border-border pt-3">
         <div className="notification-audience">
           <p className="event-form-section-description">
             Choose who receives an in-app notice. This does not sign anyone up,
@@ -122,8 +140,16 @@ export default function NotificationSettingsFields({
             />
             All active Officers
           </label>
-          <div className="notification-audience-targets">
-            <fieldset className="notification-audience-options">
+          {all && (
+            <p className="mt-1 text-xs text-muted">
+              All active Officers are already included; specific branch and
+              position filters are disabled.
+            </p>
+          )}
+          <div
+            className={`notification-audience-targets ${all ? "opacity-45" : ""}`}
+          >
+            <fieldset className="notification-audience-options" disabled={all}>
               <legend className={fieldLabelClassName}>Branches</legend>
               {branches.map((branch) => (
                 <label key={branch.id}>
@@ -137,7 +163,7 @@ export default function NotificationSettingsFields({
                 </label>
               ))}
             </fieldset>
-            <fieldset className="notification-audience-options">
+            <fieldset className="notification-audience-options" disabled={all}>
               <legend className={fieldLabelClassName}>Positions</legend>
               {positions.map((position) => (
                 <label key={position.id}>
@@ -172,6 +198,34 @@ export default function NotificationSettingsFields({
             >
               Add reminder
             </button>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] text-muted">Quick add:</span>
+            {([
+              { label: "+ 15m", minutes: 15 },
+              { label: "+ 1h", minutes: 60 },
+              { label: "+ 1d", minutes: 1440 },
+            ] as const).map(({ label, minutes }) => {
+              const alreadyAdded = reminders.some(
+                (item) => reminderMinutes(item) === minutes,
+              );
+              return (
+                <button
+                  key={minutes}
+                  type="button"
+                  disabled={reminders.length >= 6 || alreadyAdded}
+                  onClick={() =>
+                    setReminders((current) => [
+                      ...current,
+                      reminderDraft(minutes),
+                    ])
+                  }
+                  className="!min-h-6 rounded border border-border bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-secondary hover:border-border-strong hover:bg-hover hover:text-foreground disabled:opacity-40"
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
           {reminders.length === 0 ? (
             <>
@@ -262,7 +316,8 @@ export default function NotificationSettingsFields({
             </p>
           )}
         </div>
-      </div>
+        </div>
+      </details>
     </fieldset>
   );
 }

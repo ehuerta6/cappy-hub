@@ -1,8 +1,9 @@
 import "server-only";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "./supabase/server";
 
-export async function getCurrentOfficer() {
+export const getCurrentOfficer = cache(async function getCurrentOfficer() {
   const authClient = await createClient();
   const { data: userData, error: userError } = await authClient.auth.getUser();
   if (userError || !userData.user) return null;
@@ -40,7 +41,7 @@ export async function getCurrentOfficer() {
     positionCode: officer.positions.code,
     branchIds: officer.officer_branches.map((branch) => branch.branch_id),
   };
-}
+});
 
 export async function requireCurrentOfficer() {
   const officer = await getCurrentOfficer();

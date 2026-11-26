@@ -8,6 +8,8 @@ export default function NotFound() {
   return (
     <RecoverySurface
       title="Record not found"
+      eyebrow="404 · Not Found"
+      icon="muted"
       description="The requested record or page could not be found."
     >
       <Link href="/" className={`${recoveryActionClassName} mt-6`}>

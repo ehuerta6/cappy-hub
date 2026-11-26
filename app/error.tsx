@@ -9,6 +9,8 @@ export default function ErrorPage({ reset }: { reset: () => void }) {
   return (
     <RecoverySurface
       title="Unable to load this page"
+      eyebrow="Unexpected Error"
+      icon="warning"
       description="This page could not be loaded. If the problem continues, contact a Cappy Hub maintainer."
     >
       <button

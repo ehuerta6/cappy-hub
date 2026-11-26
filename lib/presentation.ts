@@ -136,3 +136,31 @@ export function formatEventSchedule(startsAt: string, endsAt: string) {
     : scheduleTime.format(start);
   return `${scheduleDate.format(start)} · ${startTime}–${scheduleTime.format(end)}`;
 }
+
+/** Return a short relative day cue (Today, Tomorrow, In N days, Yesterday) in America/Denver. */
+export function formatRelativeDayCue(
+  isoDate: string,
+  now = new Date(),
+): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(isoDate);
+  if (!match) return null;
+  const targetMs = Date.UTC(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]),
+  );
+  const todayStr = denverParts(now).date;
+  const todayMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(todayStr);
+  if (!todayMatch) return null;
+  const todayMs = Date.UTC(
+    Number(todayMatch[1]),
+    Number(todayMatch[2]) - 1,
+    Number(todayMatch[3]),
+  );
+  const diffDays = Math.round((targetMs - todayMs) / 86_400_000);
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Tomorrow";
+  if (diffDays > 1 && diffDays <= 6) return `In ${diffDays} days`;
+  if (diffDays === -1) return "Yesterday";
+  return null;
+}

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { getCurrentOfficer } from "@/lib/current-officer";
 import { redirect } from "next/navigation";
 import GoogleSignIn from "./sign-in";
@@ -13,10 +14,27 @@ export default async function LoginPage({
   return (
     <RecoverySurface
       title="Cappy Hub"
-      description="Coding Interview Club administration"
+      eyebrow="Officer Administration Portal"
+      description="Coding Interview Club administration for events, tasks, officers, and points."
+      icon="brand"
+      headerMedia={
+        <div className="inline-flex size-12 items-center justify-center rounded-xl border border-brand-border bg-brand-bg shadow-sm">
+          <Image
+            src="/favicon.ico"
+            alt=""
+            aria-hidden="true"
+            width={28}
+            height={28}
+            className="size-7"
+          />
+        </div>
+      }
     >
       {error === "auth" && (
-        <p role="alert" className="mt-4 break-words text-sm text-danger">
+        <p
+          role="alert"
+          className="feedback-message feedback-error mt-4 break-words text-sm"
+        >
           Google sign-in could not be completed. Please try again.
         </p>
       )}

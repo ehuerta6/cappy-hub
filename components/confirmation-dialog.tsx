@@ -185,7 +185,7 @@ export function ConfirmationDialog({
           {context && (
             <dl
               id={contextId}
-              className="rounded-md bg-surface-muted px-3 py-2 text-sm"
+              className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm"
             >
               <dt className="text-xs font-medium text-muted">
                 {context.label}

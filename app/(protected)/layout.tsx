@@ -1,9 +1,14 @@
+import Link from "next/link";
 import SiteNavigation from "@/components/site-navigation";
 import { requireCurrentOfficer } from "@/lib/current-officer";
 import { signOut } from "@/app/auth/actions";
 import { getAcademicPeriodData } from "@/lib/academic-periods";
+import { enrichOfficerNotifications } from "@/lib/notification-enrichment";
 import { createClient } from "@/lib/supabase/server";
 import NotificationReviewTracker from "@/components/notification-review-tracker";
+import HistoricalPeriodBanner from "@/components/historical-period-banner";
+import ToastRegion from "@/components/toast-region";
+import ScrollToTop from "@/components/scroll-to-top";
 
 export default async function ProtectedLayout({ children }: LayoutProps<"/">) {
   const officer = await requireCurrentOfficer();
@@ -12,7 +17,9 @@ export default async function ProtectedLayout({ children }: LayoutProps<"/">) {
   const [recentNotifications, unreadNotifications] = await Promise.all([
     supabase
       .from("notifications")
-      .select("id,title,message,kind,entity_type,created_at,read_at")
+      .select(
+        "id,title,message,kind,entity_type,entity_id,href,created_at,read_at",
+      )
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
       .limit(5),
@@ -23,8 +30,12 @@ export default async function ProtectedLayout({ children }: LayoutProps<"/">) {
   ]);
   if (recentNotifications.error || unreadNotifications.error)
     throw new Error("Failed to load the notification preview");
+  const enrichedRecentNotifications = await enrichOfficerNotifications(
+    supabase,
+    recentNotifications.data ?? [],
+  );
   return (
-    <>
+    <div className="app-shell">
       <NotificationReviewTracker />
       <a
         href="#main-content"
@@ -35,13 +46,29 @@ export default async function ProtectedLayout({ children }: LayoutProps<"/">) {
       <SiteNavigation
         isAdmin={officer.applicationRole === "admin"}
         academicPeriods={academicPeriods}
-        recentNotifications={recentNotifications.data}
+        recentNotifications={enrichedRecentNotifications}
         unreadNotificationCount={unreadNotifications.count ?? 0}
         account={
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-            <span className="min-w-28 flex-1 break-words text-muted">
-              {officer.name}
-            </span>
+          <div className="flex min-w-0 flex-1 items-center justify-between gap-2 text-sm">
+            <Link
+              href={`/officers/${officer.id}`}
+              className="group -mx-1 min-w-0 flex-1 rounded-md px-1 py-0.5 transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              title="View your profile"
+            >
+              <div className="flex items-center gap-1.5">
+                <span className="truncate font-medium text-foreground group-hover:text-brand">
+                  {officer.name}
+                </span>
+                {officer.applicationRole !== "officer" && (
+                  <span className="shrink-0 rounded-full border border-brand-border bg-brand-bg px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand">
+                    {officer.applicationRole}
+                  </span>
+                )}
+              </div>
+              <span className="block truncate text-xs text-muted">
+                {officer.positionName}
+              </span>
+            </Link>
             <form action={signOut} className="w-auto max-w-full shrink-0">
               <button
                 type="submit"
@@ -53,9 +80,14 @@ export default async function ProtectedLayout({ children }: LayoutProps<"/">) {
           </div>
         }
       />
-      <main id="main-content" tabIndex={-1} className="protected-page-width">
-        {children}
-      </main>
-    </>
+      <div className="app-main-wrap">
+        <main id="main-content" tabIndex={-1} className="protected-page-width">
+          <HistoricalPeriodBanner academicPeriods={academicPeriods} />
+          {children}
+        </main>
+      </div>
+      <ScrollToTop />
+      <ToastRegion />
+    </div>
   );
 }

@@ -87,16 +87,16 @@ export function TaskEventCombobox({
                   <Combobox.Chip
                     key={id}
                     aria-label={label}
-                    className="inline-flex max-w-full items-center gap-1 rounded border border-border bg-background px-2 py-1 text-xs text-secondary"
+                    className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-surface px-2 py-1 text-xs font-medium text-secondary"
                   >
                     <span className="max-w-full whitespace-normal break-words">
                       {label}
                     </span>
                     <Combobox.ChipRemove
                       aria-label={`Remove ${label}`}
-                      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border-0 bg-transparent p-0 text-secondary hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                      className="inline-flex !min-h-5 h-5 w-5 shrink-0 items-center justify-center rounded-md !border-0 !bg-transparent !p-0 text-secondary hover:!bg-hover hover:!text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
                     >
-                      <X aria-hidden="true" size={16} />
+                      <X aria-hidden="true" size={14} />
                     </Combobox.ChipRemove>
                   </Combobox.Chip>
                 );
@@ -109,7 +109,7 @@ export function TaskEventCombobox({
             aria-invalid={Boolean(error)}
             aria-describedby={error ? `${helpId} ${errorId}` : helpId}
             placeholder="Search and select Events"
-            className="min-w-40 flex-1 border-0 bg-transparent px-1 py-2 text-sm text-foreground outline-none placeholder:text-subtle focus-visible:outline-none"
+            className="min-w-40 flex-1 border-0! bg-transparent! px-1! py-1.5! text-sm text-foreground outline-none! placeholder:text-subtle focus-visible:outline-none!"
           />
         </Combobox.Chips>
         <Combobox.Portal>

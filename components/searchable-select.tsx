@@ -24,6 +24,7 @@ export function SearchableSelect({
   placeholder = "Search and select",
   portalContainer,
   initialFocus = false,
+  onValueChange,
 }: {
   name: string;
   label: string;
@@ -35,6 +36,7 @@ export function SearchableSelect({
   placeholder?: string;
   portalContainer?: RefObject<HTMLElement | null>;
   initialFocus?: boolean;
+  onValueChange?: (value: string) => void;
 }) {
   const inputId = useId();
   const errorId = useId();
@@ -73,9 +75,11 @@ export function SearchableSelect({
           if (details.reason === "item-press") {
             setSelectedId(value);
             setQuery("");
+            onValueChange?.(value ?? "");
           } else if (details.reason === "clear-press") {
             setSelectedId(null);
             setQuery("");
+            onValueChange?.("");
           } else details.cancel();
         }}
         inputValue={query}
@@ -99,7 +103,7 @@ export function SearchableSelect({
           <Combobox.Clear
             aria-label={`Clear ${label.toLowerCase()} search or selection`}
             disabled={disabled}
-            className="mr-1 flex size-9 shrink-0 items-center justify-center rounded-md border-0 bg-transparent text-secondary hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="mr-1 flex !min-h-8 size-8 shrink-0 items-center justify-center rounded-md !border-0 !bg-transparent !p-0 text-secondary hover:!bg-hover hover:!text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             <X aria-hidden="true" size={16} />
           </Combobox.Clear>

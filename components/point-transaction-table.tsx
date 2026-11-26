@@ -11,6 +11,7 @@ type PointTransactionWithRelations = Tables<"point_transactions"> & {
 type PointTransactionTableProps = {
   transactions: PointTransactionWithRelations[];
   period?: string;
+  hideOfficer?: boolean;
 };
 
 function TransactionSource({
@@ -44,8 +45,9 @@ function TransactionSource({
 export default function PointTransactionTable({
   transactions,
   period,
+  hideOfficer = false,
 }: PointTransactionTableProps) {
-  if (!transactions.length) return <p>No point transactions yet.</p>;
+  if (!transactions.length) return <p className="text-sm text-muted">No point transactions yet.</p>;
   const showsRemoval = transactions.some(
     (transaction) => transaction.removed_at !== null,
   );
@@ -53,7 +55,7 @@ export default function PointTransactionTable({
     <table>
       <thead>
         <tr>
-          <th scope="col">Officer</th>
+          {!hideOfficer && <th scope="col">Officer</th>}
           <th scope="col">Event / task</th>
           <th scope="col">Reason</th>
           <th scope="col">Points</th>
@@ -65,13 +67,15 @@ export default function PointTransactionTable({
       <tbody>
         {transactions.map((transaction) => (
           <tr key={transaction.id}>
-            <td>
-              <Link
-                href={`/officers/${transaction.officers.id}${period ? `?period=${period}` : ""}`}
-              >
-                {transaction.officers.name}
-              </Link>
-            </td>
+            {!hideOfficer && (
+              <td>
+                <Link
+                  href={`/officers/${transaction.officers.id}${period ? `?period=${period}` : ""}`}
+                >
+                  {transaction.officers.name}
+                </Link>
+              </td>
+            )}
             <td>
               <TransactionSource transaction={transaction} period={period} />
             </td>
