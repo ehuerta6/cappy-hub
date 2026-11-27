@@ -15,7 +15,9 @@ insert into officers(id, name, utep_email, position_id, application_role, auth_u
     '00000000-0000-4000-8000-000000004841');
 
 -- Configure one ended historical period and one current open period, leaving a
--- gap date outside any period.
+-- gap date outside any period (clear seeded periods inside this rolled-back tx
+-- so current-date ranges never collide with academic_periods_no_overlap).
+delete from academic_periods;
 insert into academic_periods(id, name, starts_on, ends_on) values
   (-4841, 'Historical Guard Term', '2020-01-01', '2020-05-15'),
   (-4842, 'Current Guard Term',
@@ -57,7 +59,7 @@ insert into event_series(id, request_key, recurrence_rule, created_by, starts_on
   (-48430, '00000000-0000-4000-8000-000000004849', 'RRULE:FREQ=DAILY;INTERVAL=1;COUNT=2', -4840, '2098-06-18', '2098-06-19');
 with wt as (select id from event_types where name = 'Workshop' limit 1)
 insert into events(id, name, description, event_type_id, location, event_date, starts_at, ends_at, status, recurrence_series_id, recurrence_key)
-select id, name, 'Details', wt.id, 'Campus', event_date, starts_at, ends_at, status, -48430, recurrence_key
+select rows.id, rows.name, 'Details', wt.id, 'Campus', event_date, starts_at, ends_at, status, -48430, recurrence_key
 from wt, (values
   (-48431, 'Mixed Series Historical', '2020-03-10'::date, '2020-03-10 16:00Z'::timestamptz, '2020-03-10 17:00Z'::timestamptz, 'past', '2098-06-19'::date),
   (-48432, 'Mixed Series Future', '2098-06-18'::date, '2098-06-18 16:00Z'::timestamptz, '2098-06-18 17:00Z'::timestamptz, 'upcoming', '2098-06-18'::date)
