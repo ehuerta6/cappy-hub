@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { revalidateNotificationPaths } from "@/lib/revalidation";
 import type { Route } from "next";
 import { getAuthorizationContext } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
@@ -24,7 +24,7 @@ export async function openNotification(formData: FormData) {
     p_notification_id: id,
   });
   if (readError) throw new Error("Could not mark the notification as read");
-  revalidatePath("/", "layout");
+  revalidateNotificationPaths();
   redirect(notification.href as Route);
 }
 
@@ -41,8 +41,7 @@ export async function reviewNotificationsForCurrentPage(
     p_entity_id: entityId,
   });
   if (error) throw new Error("Could not update notification review state");
-  revalidatePath("/", "layout");
-  revalidatePath("/notifications");
+  revalidateNotificationPaths();
 }
 
 export async function setNotificationReadStatus(
@@ -59,8 +58,7 @@ export async function setNotificationReadStatus(
   });
   if (error)
     return { ok: false, error: "Could not update notification status" };
-  revalidatePath("/", "layout");
-  revalidatePath("/notifications");
+  revalidateNotificationPaths();
   return { ok: true };
 }
 
@@ -72,7 +70,6 @@ export async function markAllNotificationsRead(): Promise<
   const { error } = await supabase.rpc("mark_all_notifications_read");
   if (error)
     return { ok: false, error: "Could not mark notifications as read" };
-  revalidatePath("/", "layout");
-  revalidatePath("/notifications");
+  revalidateNotificationPaths();
   return { ok: true };
 }

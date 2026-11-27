@@ -12,7 +12,7 @@ import {
   type FormActionState,
 } from "@/lib/form-feedback";
 import { createClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
+import { revalidateEventPaths } from "@/lib/revalidation";
 import * as zod from "zod";
 
 const slotSelectionInputSchema = zod.object({
@@ -80,7 +80,7 @@ export async function changeTimeSlotSignup(
       undefined,
       ["slot_ids"],
     );
-  revalidatePath("/", "layout");
+  revalidateEventPaths();
   const success = {
     join_selected: "Time Slot signup saved",
     join_all: "You signed up for every Time Slot",
@@ -151,7 +151,7 @@ export async function assignBulkOfficersToTimeSlots(
       undefined,
       ["officer_ids", "slot_ids"],
     );
-  revalidatePath("/", "layout");
+  revalidateEventPaths();
   const result = data as {
     added_officer_ids?: number[];
     award_transaction_ids?: number[];
@@ -224,6 +224,6 @@ export async function correctHistoricalTimeSlotAssignments(
   });
   if (error)
     return formFailure(mutationError(error.message), formData, ["slot_ids"]);
-  revalidatePath("/", "layout");
+  revalidateEventPaths();
   return { error: "", success: "Historical Time Slot assignments saved" };
 }

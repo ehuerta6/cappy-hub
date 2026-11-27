@@ -221,7 +221,7 @@ it("validates the Event ID and restores through the trusted RPC", async () => {
   const result = await restoreEvent({ error: "", success: "" }, data);
   expect(result).toEqual({ error: "", success: "Event restored" });
   expect(rpc).toHaveBeenCalledWith("restore_event", { p_event_id: 12 });
-  expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+  expect(revalidatePath).toHaveBeenCalledWith("/events");
 });
 
 it("rejects malformed Event IDs before calling the restore RPC", async () => {
@@ -771,7 +771,7 @@ it.each(["current", "9001"])(
     });
     expect(result.error).toBe("");
     expect(syncGoogleCalendarEvents).not.toHaveBeenCalled();
-    expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+    expect(revalidatePath).toHaveBeenCalledWith("/events");
   },
 );
 

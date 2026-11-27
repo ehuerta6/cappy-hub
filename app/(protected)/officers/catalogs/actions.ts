@@ -8,7 +8,7 @@ import {
   type FormActionState,
 } from "@/lib/form-feedback";
 import { createClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
+import { revalidateCatalogPaths } from "@/lib/revalidation";
 import {
   catalogMutationInputSchema,
   eventLocationMutationInputSchema,
@@ -238,7 +238,7 @@ export async function changeCatalog(
       formData,
       ["name"],
     );
-  revalidatePath("/", "layout");
+  revalidateCatalogPaths();
   const subject = validatedLocationMutation
     ? "Event location"
     : validatedCatalogMutation?.catalog === "branch"

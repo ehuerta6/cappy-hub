@@ -47,6 +47,12 @@ export function readNotificationSettings(
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
+type ResolvedRecurrenceScope = {
+  seriesId: number | null;
+  scope: string;
+  revision: number | null;
+};
+
 export async function saveEventNotificationSettings(
   supabase: SupabaseClient,
   eventId: number,
@@ -92,12 +98,11 @@ export async function saveEventNotificationSettings(
   if (error) throw new Error(error.message);
 }
 
-export async function saveTaskNotificationSettings(
+async function resolveTaskRecurrenceScope(
   supabase: SupabaseClient,
   taskId: number,
   form: FormData,
-  settings: z.infer<typeof notificationSettingsInputSchema>,
-) {
+): Promise<ResolvedRecurrenceScope> {
   const taskResult = await supabase
     .from("tasks")
     .select("recurrence_series_id")
@@ -123,6 +128,18 @@ export async function saveTaskNotificationSettings(
         ? submittedScope
         : "occurrence";
   }
+  return { seriesId, scope, revision };
+}
+
+export async function saveTaskNotificationSettings(
+  supabase: SupabaseClient,
+  taskId: number,
+  form: FormData,
+  settings: z.infer<typeof notificationSettingsInputSchema>,
+  resolvedScope?: ResolvedRecurrenceScope,
+) {
+  const { seriesId, scope, revision } =
+    resolvedScope ?? (await resolveTaskRecurrenceScope(supabase, taskId, form));
   const { error } = await supabase.rpc("set_task_notification_settings", {
     p_task_id: taskId,
     p_all_active: settings.all_active,
@@ -140,6 +157,7 @@ export async function saveTaskDueTime(
   supabase: SupabaseClient,
   taskId: number,
   form: FormData,
+  resolvedScope?: ResolvedRecurrenceScope,
 ) {
   const raw = String(form.get("due_time") ?? "");
   const dueTime = raw === "" ? null : raw;
@@ -147,30 +165,8 @@ export async function saveTaskDueTime(
     throw new Error("Enter a valid due time");
   if (dueTime === null && !form.has("task_id")) return;
 
-  const task = await supabase
-    .from("tasks")
-    .select("recurrence_series_id")
-    .eq("id", taskId)
-    .single();
-  if (task.error) throw new Error("Could not load Task due time");
-  const seriesId = task.data.recurrence_series_id;
-  let scope = "occurrence";
-  let revision: number | null = null;
-  if (seriesId !== null) {
-    const series = await supabase
-      .from("task_series")
-      .select("revision")
-      .eq("id", seriesId)
-      .single();
-    if (series.error) throw new Error("Could not load recurring Task scope");
-    revision = series.data.revision;
-    const submittedScope = form.get("scope");
-    scope = !form.has("recurrence_series_id")
-      ? "series"
-      : submittedScope === "following" || submittedScope === "series"
-        ? submittedScope
-        : "occurrence";
-  }
+  const { seriesId, scope, revision } =
+    resolvedScope ?? (await resolveTaskRecurrenceScope(supabase, taskId, form));
   const { error } = await supabase.rpc("set_task_due_time", {
     p_task_id: taskId,
     // Supabase's generated Args type treats SQL parameters as non-nullable;
@@ -181,4 +177,36 @@ export async function saveTaskDueTime(
     p_series_revision: revision ?? undefined,
   });
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Resolves the Task recurrence scope once and persists notification settings
+ * and optional due time concurrently instead of repeating scope queries.
+ */
+export async function saveTaskPostSaveSettings(
+  supabase: SupabaseClient,
+  taskId: number,
+  form: FormData,
+  settings: z.infer<typeof notificationSettingsInputSchema>,
+) {
+  const rawDueTime = String(form.get("due_time") ?? "");
+  const shouldSaveDueTime = rawDueTime !== "" || form.has("task_id");
+  const resolvedScope = await resolveTaskRecurrenceScope(
+    supabase,
+    taskId,
+    form,
+  );
+  const writes: Promise<void>[] = [
+    saveTaskNotificationSettings(
+      supabase,
+      taskId,
+      form,
+      settings,
+      resolvedScope,
+    ),
+  ];
+  if (shouldSaveDueTime) {
+    writes.push(saveTaskDueTime(supabase, taskId, form, resolvedScope));
+  }
+  await Promise.all(writes);
 }

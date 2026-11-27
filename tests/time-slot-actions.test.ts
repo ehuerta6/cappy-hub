@@ -68,7 +68,7 @@ it("uses only the signed-in Officer for self slot selection", async () => {
     p_slot_ids: [4, 5],
     p_mode: "join_selected",
   });
-  expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+  expect(revalidatePath).toHaveBeenCalledWith("/events");
 });
 
 it("retains every selected slot when the server rejects a stale overlapping selection", async () => {
@@ -185,7 +185,7 @@ it("replaces one Officer's historical slot selections through the scoped RPC", a
     p_officer_id: 9,
     p_slot_ids: [4, 6],
   });
-  expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+  expect(revalidatePath).toHaveBeenCalledWith("/events");
 });
 
 it("keeps an empty historical selection so managers can remove all slots", async () => {

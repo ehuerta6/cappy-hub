@@ -8,7 +8,7 @@ import {
   validationFailure,
   type FormActionState,
 } from "@/lib/form-feedback";
-import { revalidatePath } from "next/cache";
+import { revalidatePointPaths } from "@/lib/revalidation";
 import {
   editPointTransactionInputSchema,
   eventSearchInputSchema,
@@ -83,7 +83,7 @@ export async function addTransaction(
       "task_id",
       "award_type",
     ]);
-  revalidatePath("/", "layout");
+  revalidatePointPaths();
   return { error: "", success: "Point transaction added" };
 }
 
@@ -108,7 +108,7 @@ export async function changeParticipationRate(
   });
   if (error)
     return formFailure(mutationError(error.message), formData, ["rate"]);
-  revalidatePath("/", "layout");
+  revalidatePointPaths();
   return { error: "", success: "Participation rate saved" };
 }
 
@@ -131,7 +131,7 @@ export async function removeParticipationAward(
     p_transaction_id: validationResult.data.transaction_id,
   });
   if (error) return { error: mutationError(error.message), success: "" };
-  revalidatePath("/", "layout");
+  revalidatePointPaths();
   return {
     error: "",
     success: data ? "Award removed" : "Award was already removed",
@@ -165,7 +165,7 @@ export async function editPointTransaction(
   });
   if (error)
     return formFailure(mutationError(error.message), formData, ["points"]);
-  revalidatePath("/", "layout");
+  revalidatePointPaths();
   return { error: "", success: "Point transaction updated" };
 }
 export async function removePointTransaction(
@@ -187,7 +187,7 @@ export async function removePointTransaction(
     p_transaction_id: validationResult.data.transaction_id,
   });
   if (error) return { error: mutationError(error.message), success: "" };
-  revalidatePath("/", "layout");
+  revalidatePointPaths();
   return {
     error: "",
     success: data
@@ -223,7 +223,7 @@ export async function confirmPrematureParticipation(
   );
   if (error)
     return formFailure(mutationError(error.message), formData, ["reason"]);
-  revalidatePath("/", "layout");
+  revalidatePointPaths();
   return {
     error: "",
     success: data

@@ -212,7 +212,7 @@ it("self-assigns the current Officer through the trusted Task RPC", async () => 
   });
   expect(rpc).toHaveBeenCalledWith("self_assign_task", { p_task_id: -9 });
   expect(revalidatePath).toHaveBeenCalledWith("/tasks");
-  expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+  expect(revalidatePath).toHaveBeenCalledWith("/");
 });
 
 it("submits only the current Officer's completion with the writable period context", async () => {
@@ -227,7 +227,7 @@ it("submits only the current Officer's completion with the writable period conte
     p_period_context: "12",
   });
   expect(revalidatePath).toHaveBeenCalledWith("/tasks/-9");
-  expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+  expect(revalidatePath).toHaveBeenCalledWith("/");
 });
 
 it.each([
@@ -388,7 +388,7 @@ it("submits recurring Task delete scope through the trusted RPC", async () => {
   });
   expect(revalidatePath).toHaveBeenCalledWith("/calendar");
   expect(revalidatePath).not.toHaveBeenCalledWith("/system-log");
-  expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+  expect(revalidatePath).toHaveBeenCalledWith("/");
 });
 
 it("restores a deleted Task through the trusted RPC", async () => {
@@ -420,7 +420,7 @@ it("sets the global Task need status through the trusted RPC", async () => {
     p_period_context: "current",
   });
   expect(revalidatePath).toHaveBeenCalledWith("/calendar");
-  expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+  expect(revalidatePath).toHaveBeenCalledWith("/");
 });
 
 it("restores only the selected recurring Task batch scope", async () => {

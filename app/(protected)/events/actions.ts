@@ -26,7 +26,7 @@ import {
   readNotificationSettings,
   saveEventNotificationSettings,
 } from "@/lib/notification-settings";
-import { revalidatePath } from "next/cache";
+import { revalidateEventPaths } from "@/lib/revalidation";
 import { withReturnTo } from "@/lib/return-context";
 import { withSuccessNotice } from "@/lib/mutation-feedback";
 import { redirect } from "next/navigation";
@@ -318,12 +318,14 @@ export async function saveEvent(
           notificationSettings.data,
         );
       } catch (settingsError) {
+        revalidateEventPaths(validatedEventInput.id);
+        const detail = mutationError(
+          settingsError instanceof Error
+            ? settingsError.message
+            : "Could not save Event notification settings",
+        );
         return formFailure(
-          mutationError(
-            settingsError instanceof Error
-              ? settingsError.message
-              : "Could not save Event notification settings",
-          ),
+          `Cappy Hub saved this Event, but notification settings could not be updated: ${detail}`,
           formData,
           eventFormFields,
           undefined,
@@ -339,7 +341,7 @@ export async function saveEvent(
         ["branches", "recurrence_weekdays"],
       );
     }
-    revalidatePath("/", "layout");
+    revalidateEventPaths();
     const afterIds = await recurringEventIdsForScope(
       supabase,
       formData,
@@ -460,19 +462,21 @@ export async function saveEvent(
         notificationSettings.data,
       );
     } catch (settingsError) {
+      revalidateEventPaths(data);
+      const detail = mutationError(
+        settingsError instanceof Error
+          ? settingsError.message
+          : "Could not save Event notification settings",
+      );
       return formFailure(
-        mutationError(
-          settingsError instanceof Error
-            ? settingsError.message
-            : "Could not save Event notification settings",
-        ),
+        `Cappy Hub saved this Event, but notification settings could not be updated: ${detail}`,
         formData,
         eventFormFields,
         undefined,
         eventMultipleFields,
       );
     }
-    revalidatePath("/", "layout");
+    revalidateEventPaths();
     const eventIds = await recurringEventIdsFromFirstOccurrence(supabase, data);
     const synced = await syncGoogleCalendarEvents(eventIds ?? [data], supabase);
     if (!synced || !eventIds)
@@ -541,19 +545,21 @@ export async function saveEvent(
       notificationSettings.data,
     );
   } catch (settingsError) {
+    revalidateEventPaths(data);
+    const detail = mutationError(
+      settingsError instanceof Error
+        ? settingsError.message
+        : "Could not save Event notification settings",
+    );
     return formFailure(
-      mutationError(
-        settingsError instanceof Error
-          ? settingsError.message
-          : "Could not save Event notification settings",
-      ),
+      `Cappy Hub saved this Event, but notification settings could not be updated: ${detail}`,
       formData,
       eventFormFields,
       undefined,
       eventMultipleFields,
     );
   }
-  revalidatePath("/", "layout");
+  revalidateEventPaths();
   const synced = await syncGoogleCalendarEvents([data], supabase);
   if (!synced)
     return formFailure(
@@ -607,7 +613,7 @@ export async function changeSignup(
       ["event_id", "officer_id", "remove", "participation_type"],
       undefined,
     );
-  revalidatePath("/", "layout");
+  revalidateEventPaths();
   return {
     error: "",
     success: validatedSignupInput.remove
@@ -675,7 +681,7 @@ export async function bulkAddEventOfficers(
       undefined,
       ["officer_ids"],
     );
-  revalidatePath("/", "layout");
+  revalidateEventPaths();
   const result = data as {
     added_officer_ids?: number[];
     awarded_officer_ids?: number[];
@@ -725,8 +731,7 @@ export async function restoreDeletedEvent(
       });
   const error = result.error;
   if (error) return { error: mutationError(error.message), success: "" };
-  revalidatePath("/", "layout");
-  revalidatePath("/events");
+  revalidateEventPaths();
   if (
     !(await syncGoogleCalendarEvents(
       Array.isArray(result.data)
@@ -768,8 +773,7 @@ export async function deleteEvent(
       });
   const { data, error } = result;
   if (error) return { error: mutationError(error.message), success: "" };
-  revalidatePath("/", "layout");
-  revalidatePath("/events");
+  revalidateEventPaths();
   if (
     !(await syncGoogleCalendarEvents(
       (data as number[] | boolean | null) instanceof Array
@@ -822,7 +826,7 @@ export async function restoreEvent(
     p_event_id: validation.data.event_id,
   });
   if (error) return { error: mutationError(error.message), success: "" };
-  revalidatePath("/", "layout");
+  revalidateEventPaths();
   if (!(await syncGoogleCalendarEvents([validation.data.event_id], supabase)))
     return { error: calendarSyncWarning, success: "" };
   return { error: "", success: "Event restored" };
@@ -863,9 +867,7 @@ export async function retryGoogleCalendarSync(
     return { error: "Event outside branch scope", success: "" };
 
   const synced = await syncGoogleCalendarEvents([event.id], supabase);
-  revalidatePath("/events");
-  revalidatePath(`/events/${event.id}`);
-  revalidatePath("/admin");
+  revalidateEventPaths(event.id);
   return synced
     ? { error: "", success: "Google Calendar is up to date" }
     : { error: calendarSyncWarning, success: "" };

@@ -8,7 +8,7 @@ import {
 import { withReturnTo } from "@/lib/return-context";
 import { withSuccessNotice } from "@/lib/mutation-feedback";
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { revalidateOfficerPaths } from "@/lib/revalidation";
 import { createClient } from "@/lib/supabase/server";
 import { mutationError } from "@/lib/mutation-error";
 import {
@@ -88,7 +88,7 @@ export async function saveOfficer(
       undefined,
       ["branches"],
     );
-  revalidatePath("/", "layout");
+  revalidateOfficerPaths();
   redirect(
     withSuccessNotice(
       withReturnTo(`/officers/${data}`, formData.get("returnTo")),
@@ -135,6 +135,6 @@ export async function changeApplicationRole(
   });
   if (error)
     return formFailure(mutationError(error.message), formData, ["role"]);
-  revalidatePath("/", "layout");
+  revalidateOfficerPaths();
   return { error: "", success: "Application role saved" };
 }
