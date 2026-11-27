@@ -298,6 +298,10 @@ export default async function OfficerDetailPage({
     );
   };
 
+  const completedTasksCount = associatedTasks.filter((t) =>
+    Boolean(t.completed_at),
+  ).length;
+
   return (
     <div data-record-page="officer" className="space-y-5">
       <ContextualBackLink href="/officers" returnTo={safeReturnDestination}>
@@ -305,6 +309,12 @@ export default async function OfficerDetailPage({
       </ContextualBackLink>
       <PageHeader
         title={officer.name}
+        description={
+          <>
+            {officer.positions.name} <span aria-hidden="true">·</span>{" "}
+            {formatLabel(officer.application_role)}
+          </>
+        }
         action={
           <div className="flex flex-wrap items-center gap-2">
             <CopyCanonicalLinkButton path={`/officers/${officerIdParam}`} />
@@ -323,427 +333,462 @@ export default async function OfficerDetailPage({
       />
       <SuccessNotice status={context.feedback} />
 
-      <div className="grid items-start gap-6 rounded-lg border border-border bg-surface p-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(18rem,1fr)]">
-        <div className="min-w-0 space-y-3">
-          <dl className="grid grid-cols-[8rem_minmax(0,1fr)] text-sm [&>dd]:min-w-0 [&>dd]:break-words">
-            <dt>UTEP email</dt>
-            <dd>
-              {officer.utep_email ? (
-                <span className="inline-flex flex-wrap items-center gap-1.5">
-                  <a
-                    href={`mailto:${officer.utep_email}`}
-                    className="text-foreground hover:text-brand hover:underline underline-offset-3"
-                  >
-                    {officer.utep_email}
-                  </a>
-                  <CopyTextButton
-                    value={officer.utep_email}
-                    label={`Copy ${officer.name}'s UTEP email`}
-                    toastMessage="Email copied"
-                  />
-                </span>
-              ) : (
-                "Not provided"
-              )}
-            </dd>
-            <dt>Personal email</dt>
-            <dd>
-              {officer.personal_email ? (
-                <span className="inline-flex flex-wrap items-center gap-1.5">
-                  <a
-                    href={`mailto:${officer.personal_email}`}
-                    className="text-foreground hover:text-brand hover:underline underline-offset-3"
-                  >
-                    {officer.personal_email}
-                  </a>
-                  <CopyTextButton
-                    value={officer.personal_email}
-                    label={`Copy ${officer.name}'s personal email`}
-                    toastMessage="Email copied"
-                  />
-                </span>
-              ) : (
-                "Not provided"
-              )}
-            </dd>
-            <dt>Position</dt>
-            <dd>{officer.positions.name}</dd>
-            <dt>Application role</dt>
-            <dd>{formatLabel(officer.application_role)}</dd>
-            <dt>Classification</dt>
-            <dd>
-              {officer.classification
-                ? formatLabel(officer.classification)
-                : "Not specified"}
-            </dd>
-          </dl>
-        </div>
-        <div className="min-w-0 space-y-4">
-          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface-muted/40 px-3.5 py-2.5">
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-muted">
-                {selectedPeriod
-                  ? `Points (${selectedPeriod.name})`
-                  : "Total points (all periods)"}
-              </p>
-              {selectedPeriod && !periodSummaryResult.error ? (
-                <div className="flex flex-wrap items-baseline gap-2">
-                  <p className="text-lg font-semibold leading-tight text-foreground">
-                    <PointValue value={periodPoints} />
-                  </p>
-                  {periodRank !== null && (
-                    <span className="text-xs font-medium tabular-nums text-muted">
-                      #{periodRank}
-                    </span>
-                  )}
-                  {!total.error && (
-                    <span className="text-xs text-muted">
-                      · All-time:{" "}
-                      <PointValue value={total.data.total_points ?? 0} />
-                    </span>
-                  )}
-                </div>
-              ) : total.error ? (
-                <p role="alert" className="text-xs">
-                  Total points unavailable.
-                </p>
-              ) : (
-                <p className="text-lg font-semibold leading-tight text-foreground">
-                  <PointValue value={total.data.total_points ?? 0} />
-                </p>
-              )}
-            </div>
-            <div className="border-l border-border pl-3.5">
-              <p className="text-xs font-medium text-muted">Events</p>
-              <p className="text-lg font-semibold leading-tight tabular-nums text-foreground">
-                {associatedEvents.length}
-              </p>
-            </div>
-            <div className="border-l border-border pl-3.5">
-              <p className="text-xs font-medium text-muted">Tasks done</p>
-              <p className="text-lg font-semibold leading-tight tabular-nums text-foreground">
-                {associatedTasks.filter((t) => Boolean(t.completed_at)).length}
-                <span className="text-xs font-normal text-muted">
-                  /{associatedTasks.length}
-                </span>
-              </p>
-            </div>
-            {showWarnings && (
-              <div className="border-l border-border pl-3.5">
-                <p className="text-xs font-medium text-muted">
-                  Approved warnings
-                </p>
-                <p className="text-lg font-semibold leading-tight tabular-nums text-foreground">
-                  {approvedCount}
-                </p>
-              </div>
-            )}
+      {showWarnings &&
+        isAdmin(actor) &&
+        !approvedCountResult.error &&
+        approvedCount >= 3 && (
+          <div
+            role="status"
+            className="rounded-lg border border-warning-border bg-warning-bg px-4 py-3 text-sm font-medium text-foreground"
+          >
+            Admin Review — three or more approved warnings. Deactivation is a
+            separate manual decision.
           </div>
-          <dl className="grid grid-cols-[6rem_minmax(0,1fr)] text-sm [&>dd]:min-w-0 [&>dd]:break-words">
-            <dt>Status</dt>
-            <dd>
-              <StatusBadge status={officer.status} />
-            </dd>
-            <dt>Branches</dt>
-            <dd>
-              <BranchBadges
-                branches={officer.officer_branches.map(
-                  (membership) => membership.branches,
-                )}
-              />
-            </dd>
-          </dl>
-          {!periodSelection.isHistorical &&
-            canManageOfficers(actor) &&
-            actor.id !== officer.id && (
-              <section className="space-y-2 border-t border-border pt-3">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Application access
-                </h3>
-                <p className="text-xs text-muted">
-                  Admin access is assigned separately from club position.
-                </p>
-                <RoleForm
-                  officerId={officer.id}
-                  role={officer.application_role}
-                />
-              </section>
-            )}
-        </div>
-      </div>
+        )}
 
       <div
-        className={`grid items-start gap-5 ${showWarnings ? "lg:grid-cols-2" : ""}`}
+        className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${showWarnings ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}
       >
-        {showWarnings && (
-          <section
-            aria-label="Warnings"
-            className="min-w-0 space-y-3 rounded-lg border border-border bg-surface p-4 [&>.section-heading:first-child]:mt-0"
-          >
-            <SectionHeading
-              title={`Warnings (${visibleWarnings.length})`}
-              action={
-                isAdmin(actor) &&
-                !periodSelection.isHistorical &&
-                !warnings.error ? (
-                  <CreateWarningForm
-                    officerId={officer.id}
-                    approvedWarningCount={approvedCount}
-                  />
-                ) : undefined
-              }
-            />
-            {isAdmin(actor) && (
-              <nav
-                aria-label="Warning status"
-                className="flex flex-wrap gap-1 border-b border-border text-xs"
-              >
-                {[
-                  ["Active", "active"],
-                  ["Deleted", "deleted"],
-                  ["All history", "all"],
-                ].map(([label, status]) => {
-                  const active = warningView === status;
-                  return (
-                    <Link
-                      key={status}
-                      href={warningStatusHref(status)}
-                      aria-current={active ? "page" : undefined}
-                      className={`border-b-2 px-2.5 py-1.5 ${active ? "border-brand font-semibold text-brand" : "border-transparent text-muted hover:text-foreground"}`}
-                    >
-                      {label}
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
-            {warnings.error && (
-              <p role="alert" className="text-sm">
-                Warning history unavailable. Reload this page to retry.
+        <div className="rounded-lg border border-border bg-surface px-4 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+            {selectedPeriod
+              ? `Points (${selectedPeriod.name})`
+              : "Total points"}
+          </p>
+          {selectedPeriod && !periodSummaryResult.error ? (
+            <div className="mt-1 flex flex-wrap items-baseline gap-2">
+              <p className="text-lg font-semibold leading-tight text-foreground">
+                <PointValue value={periodPoints} />
               </p>
-            )}
-            {isAdmin(actor) && approvedCountResult.error && (
-              <p role="alert" className="text-sm">
-                Approved warning count unavailable. Reload this page to retry.
-              </p>
-            )}
-            {isAdmin(actor) &&
-              !approvedCountResult.error &&
-              approvedCount >= 3 && (
-                <p role="status" className="text-sm font-semibold">
-                  Admin Review — three or more approved warnings. Deactivation
-                  is a separate manual decision.
-                </p>
+              {periodRank !== null && (
+                <span className="text-xs font-medium tabular-nums text-muted">
+                  #{periodRank}
+                </span>
               )}
-            {!warnings.error && visibleWarnings.length === 0 && (
-              <p className="text-sm text-muted">
-                {isAdmin(actor)
-                  ? warningView === "deleted"
-                    ? "No deleted warnings."
-                    : warningView === "all"
-                      ? "No warnings in history."
-                      : "No active warnings."
-                  : "No approved warnings."}
-              </p>
-            )}
-            {!warnings.error &&
-              visibleWarnings.map((warning) => (
-                <article
-                  key={warning.id}
-                  className="space-y-1.5 border-b border-border py-2.5 last:border-b-0"
-                >
-                  <div className="flex flex-wrap items-center gap-2.5 text-xs">
-                    <StatusBadge status={warning.status} />
-                    <span className="text-muted">
-                      {warning.origin === "automatic" ? "Automatic" : "Manual"}
-                    </span>
-                    {warning.deleted_at !== null && (
-                      <span className="font-medium text-muted">Deleted</span>
-                    )}
-                    {warning.voided_at !== null && (
-                      <span className="font-medium text-muted">Voided</span>
-                    )}
-                    <time dateTime={warning.created_at} className="text-muted">
-                      {formatDate(warning.created_at)}
-                    </time>
-                  </div>
-                  <p className="whitespace-pre-wrap break-words text-sm text-foreground">
-                    {warning.reason}
-                  </p>
-                  {isAdmin(actor) && !periodSelection.isHistorical && (
-                    <div className="flex flex-wrap items-start gap-2 pt-1">
-                      <EditWarningForm
-                        warningId={warning.id}
-                        officerId={officer.id}
-                        reason={warning.reason}
-                      />
-                      {warning.deleted_at === null ? (
-                        <DeleteWarningForm
-                          warningId={warning.id}
-                          officerId={officer.id}
-                          origin={
-                            warning.origin === "automatic"
-                              ? "automatic"
-                              : "manual"
-                          }
-                        />
-                      ) : (
-                        <RestoreWarningForm
-                          warningId={warning.id}
-                          officerId={officer.id}
-                          origin={
-                            warning.origin === "automatic"
-                              ? "automatic"
-                              : "manual"
-                          }
-                        />
-                      )}
-                    </div>
-                  )}
-                </article>
-              ))}
-          </section>
-        )}
-
-        <section
-          aria-label="Associated events"
-          className="min-w-0 space-y-3 rounded-lg border border-border bg-surface p-4 [&>.section-heading:first-child]:mt-0"
-        >
-          <SectionHeading
-            title={`Associated events (${associatedEvents.length})`}
-          />
-          {events.error ? (
-            <p role="alert" className="text-sm">
-              Associated events unavailable. Reload this page to retry.
+              {!total.error && (
+                <span className="text-xs text-muted">
+                  · All-time:{" "}
+                  <PointValue value={total.data.total_points ?? 0} />
+                </span>
+              )}
+            </div>
+          ) : total.error ? (
+            <p role="alert" className="mt-1 text-xs">
+              Total points unavailable.
             </p>
-          ) : !associatedEvents.length ? (
-            <p className="text-sm text-muted">No associated events yet.</p>
           ) : (
-            <ul className="divide-y divide-border rounded-lg border border-border bg-surface-muted/30 px-3 text-sm">
-              {associatedEvents.map(({ events: event }: EventAssociation) => (
-                <li
-                  key={event.id}
-                  className="flex flex-wrap items-center justify-between gap-2 py-2"
-                >
-                  <Link
-                    href={withReturnTo(
-                      `/events/${event.id}`,
-                      listReturnUrl("/events", { period: context.period }),
-                    )}
-                    className="break-words font-medium text-foreground hover:text-brand hover:underline"
-                  >
-                    {event.name}
-                  </Link>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted">
-                      {formatCalendarDate(event.event_date)}
-                    </span>
-                    <StatusBadge status={eventStatus(event)} />
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <p className="mt-1 text-lg font-semibold leading-tight text-foreground">
+              <PointValue value={total.data.total_points ?? 0} />
+            </p>
           )}
-        </section>
+        </div>
+
+        <div className="rounded-lg border border-border bg-surface px-4 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+            Events
+          </p>
+          <p className="mt-1 text-lg font-semibold leading-tight tabular-nums text-foreground">
+            {associatedEvents.length}
+          </p>
+        </div>
+
+        <div className="rounded-lg border border-border bg-surface px-4 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+            Tasks done
+          </p>
+          <p className="mt-1 text-lg font-semibold leading-tight tabular-nums text-foreground">
+            {completedTasksCount}
+            <span className="text-xs font-normal text-muted">
+              /{associatedTasks.length}
+            </span>
+          </p>
+        </div>
+
+        {showWarnings && (
+          <div
+            className={`rounded-lg border px-4 py-3 ${
+              approvedCount >= 3
+                ? "border-warning-border bg-warning-bg/30"
+                : "border-border bg-surface"
+            }`}
+          >
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+              Approved warnings
+            </p>
+            <p className="mt-1 text-lg font-semibold leading-tight tabular-nums text-foreground">
+              {approvedCount}
+            </p>
+          </div>
+        )}
       </div>
 
-      <section
-        aria-label="Associated tasks"
-        className="min-w-0 space-y-3 rounded-lg border border-border bg-surface p-4 [&>.section-heading:first-child]:mt-0"
-      >
-        <SectionHeading
-          title={`Associated tasks (${associatedTasks.length})`}
-        />
-        {tasks.error ? (
-          <p role="alert" className="text-sm">
-            Tasks unavailable. Reload this page to retry.
-          </p>
-        ) : associatedTasks.length === 0 ? (
-          <p className="text-sm text-muted">No associated Tasks yet.</p>
-        ) : (
-          <TableFrame compact label="Officer tasks">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Task</th>
-                  <th scope="col">Due</th>
-                  <th scope="col">Points</th>
-                  <th scope="col">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {associatedTasks.map((assignment) => {
-                  if (!assignment.tasks) return null;
-                  return (
-                    <tr key={assignment.tasks.id}>
-                      <td>
-                        <Link
-                          href={withReturnTo(
-                            `/tasks/${assignment.tasks.id}`,
-                            listReturnUrl("/tasks", { period: context.period }),
-                          )}
-                        >
-                          {assignment.tasks.title}
-                        </Link>
-                      </td>
-                      <td>{formatCalendarDate(assignment.tasks.due_date)}</td>
-                      <td>
-                        <PointValue value={assignment.tasks.points} />
-                      </td>
-                      <td>
-                        {assignment.completed_at ? "Complete" : "Incomplete"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </TableFrame>
-        )}
-      </section>
-
-      <section
-        aria-label="Point history"
-        className="space-y-3 rounded-lg border border-border bg-surface p-4 [&>.section-heading:first-child]:mt-0"
-      >
-        <SectionHeading
-          title={`Point history (${officerTransactions.length})`}
-          action={
-            <div className="flex flex-wrap items-center gap-3">
-              {canAddPointAdjustment && (
-                <TransactionForm
-                  officers={[{ id: officer.id, name: officer.name }]}
-                  events={adjustmentEventsResult.data ?? []}
-                  tasks={adjustmentTasksResult.data ?? []}
-                  defaultOfficerId={officer.id}
-                  compact
-                />
-              )}
-              <Link
-                href={`/points?${new URLSearchParams({ view: "history", officer: String(officer.id), ...(context.period === undefined ? {} : { period: String(context.period) }) })}`}
-                className="text-xs font-medium text-brand hover:underline"
-              >
-                View in Points history
-              </Link>
-            </div>
-          }
-        />
-        {transactions.error ? (
-          <p role="alert" className="text-sm">
-            Point history unavailable. Reload this page to retry.
-          </p>
-        ) : (
-          <TableFrame compact label="Officer point history">
-            <PointTransactionTable
-              transactions={officerTransactions}
-              hideOfficer
-              period={
-                typeof context.period === "string" ? context.period : undefined
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.65fr)_minmax(20rem,1fr)]">
+        <div className="min-w-0 space-y-5">
+          <section
+            aria-label="Point history"
+            className="space-y-3 rounded-lg border border-border bg-surface p-5 [&>.section-heading:first-child]:mt-0"
+          >
+            <SectionHeading
+              title={`Point history (${officerTransactions.length})`}
+              action={
+                <div className="flex flex-wrap items-center gap-3">
+                  {canAddPointAdjustment && (
+                    <TransactionForm
+                      officers={[{ id: officer.id, name: officer.name }]}
+                      events={adjustmentEventsResult.data ?? []}
+                      tasks={adjustmentTasksResult.data ?? []}
+                      defaultOfficerId={officer.id}
+                      compact
+                    />
+                  )}
+                  <Link
+                    href={`/points?${new URLSearchParams({ view: "history", officer: String(officer.id), ...(context.period === undefined ? {} : { period: String(context.period) }) })}`}
+                    className="text-xs font-medium text-brand hover:underline"
+                  >
+                    View in Points history
+                  </Link>
+                </div>
               }
             />
-          </TableFrame>
-        )}
-      </section>
+            {transactions.error ? (
+              <p role="alert" className="text-sm">
+                Point history unavailable. Reload this page to retry.
+              </p>
+            ) : (
+              <TableFrame compact label="Officer point history">
+                <PointTransactionTable
+                  transactions={officerTransactions}
+                  hideOfficer
+                  period={
+                    typeof context.period === "string"
+                      ? context.period
+                      : undefined
+                  }
+                />
+              </TableFrame>
+            )}
+          </section>
+
+          <section
+            aria-label="Associated tasks"
+            className="min-w-0 space-y-3 rounded-lg border border-border bg-surface p-5 [&>.section-heading:first-child]:mt-0"
+          >
+            <SectionHeading
+              title={`Associated tasks (${associatedTasks.length})`}
+            />
+            {tasks.error ? (
+              <p role="alert" className="text-sm">
+                Tasks unavailable. Reload this page to retry.
+              </p>
+            ) : associatedTasks.length === 0 ? (
+              <p className="text-sm text-muted">No associated Tasks yet.</p>
+            ) : (
+              <TableFrame compact label="Officer tasks">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Task</th>
+                      <th scope="col">Due</th>
+                      <th scope="col">Points</th>
+                      <th scope="col">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {associatedTasks.map((assignment) => {
+                      if (!assignment.tasks) return null;
+                      return (
+                        <tr key={assignment.tasks.id}>
+                          <td>
+                            <Link
+                              href={withReturnTo(
+                                `/tasks/${assignment.tasks.id}`,
+                                listReturnUrl("/tasks", {
+                                  period: context.period,
+                                }),
+                              )}
+                            >
+                              {assignment.tasks.title}
+                            </Link>
+                          </td>
+                          <td>
+                            {formatCalendarDate(assignment.tasks.due_date)}
+                          </td>
+                          <td>
+                            <PointValue value={assignment.tasks.points} />
+                          </td>
+                          <td>
+                            {assignment.completed_at
+                              ? "Complete"
+                              : "Incomplete"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </TableFrame>
+            )}
+          </section>
+
+          <section
+            aria-label="Associated events"
+            className="min-w-0 space-y-3 rounded-lg border border-border bg-surface p-5 [&>.section-heading:first-child]:mt-0"
+          >
+            <SectionHeading
+              title={`Associated events (${associatedEvents.length})`}
+            />
+            {events.error ? (
+              <p role="alert" className="text-sm">
+                Associated events unavailable. Reload this page to retry.
+              </p>
+            ) : !associatedEvents.length ? (
+              <p className="text-sm text-muted">No associated events yet.</p>
+            ) : (
+              <ul className="divide-y divide-border rounded-lg border border-border bg-surface-muted/30 px-3 text-sm">
+                {associatedEvents.map(({ events: event }: EventAssociation) => (
+                  <li
+                    key={event.id}
+                    className="flex flex-wrap items-center justify-between gap-2 py-2"
+                  >
+                    <Link
+                      href={withReturnTo(
+                        `/events/${event.id}`,
+                        listReturnUrl("/events", { period: context.period }),
+                      )}
+                      className="break-words font-medium text-foreground hover:text-brand hover:underline"
+                    >
+                      {event.name}
+                    </Link>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted">
+                        {formatCalendarDate(event.event_date)}
+                      </span>
+                      <StatusBadge status={eventStatus(event)} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        <div className="min-w-0 space-y-5 lg:sticky lg:top-6">
+          <section
+            aria-label="Profile details"
+            className="min-w-0 space-y-3 rounded-lg border border-border bg-surface p-5 [&>.section-heading:first-child]:mt-0"
+          >
+            <SectionHeading title="Profile & contact" />
+            <dl className="grid grid-cols-[7.5rem_minmax(0,1fr)] text-sm [&>dd]:min-w-0 [&>dd]:break-words">
+              <dt>Status</dt>
+              <dd>
+                <StatusBadge status={officer.status} />
+              </dd>
+              <dt>Position</dt>
+              <dd>{officer.positions.name}</dd>
+              <dt>Branches</dt>
+              <dd>
+                <BranchBadges
+                  branches={officer.officer_branches.map(
+                    (membership) => membership.branches,
+                  )}
+                />
+              </dd>
+              <dt>Classification</dt>
+              <dd>
+                {officer.classification
+                  ? formatLabel(officer.classification)
+                  : "Not specified"}
+              </dd>
+              <dt>Application role</dt>
+              <dd>{formatLabel(officer.application_role)}</dd>
+              <dt>UTEP email</dt>
+              <dd>
+                {officer.utep_email ? (
+                  <span className="inline-flex flex-wrap items-center gap-1.5">
+                    <a
+                      href={`mailto:${officer.utep_email}`}
+                      className="text-foreground hover:text-brand hover:underline underline-offset-3"
+                    >
+                      {officer.utep_email}
+                    </a>
+                    <CopyTextButton
+                      value={officer.utep_email}
+                      label={`Copy ${officer.name}'s UTEP email`}
+                      toastMessage="Email copied"
+                    />
+                  </span>
+                ) : (
+                  "Not provided"
+                )}
+              </dd>
+              <dt>Personal email</dt>
+              <dd>
+                {officer.personal_email ? (
+                  <span className="inline-flex flex-wrap items-center gap-1.5">
+                    <a
+                      href={`mailto:${officer.personal_email}`}
+                      className="text-foreground hover:text-brand hover:underline underline-offset-3"
+                    >
+                      {officer.personal_email}
+                    </a>
+                    <CopyTextButton
+                      value={officer.personal_email}
+                      label={`Copy ${officer.name}'s personal email`}
+                      toastMessage="Email copied"
+                    />
+                  </span>
+                ) : (
+                  "Not provided"
+                )}
+              </dd>
+            </dl>
+
+            {!periodSelection.isHistorical &&
+              canManageOfficers(actor) &&
+              actor.id !== officer.id && (
+                <div className="space-y-2 border-t border-border pt-3">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Application access
+                  </h3>
+                  <p className="text-xs text-muted">
+                    Admin access is assigned separately from club position.
+                  </p>
+                  <RoleForm
+                    officerId={officer.id}
+                    role={officer.application_role}
+                  />
+                </div>
+              )}
+          </section>
+
+          {showWarnings && (
+            <section
+              aria-label="Warnings"
+              className="min-w-0 space-y-3 rounded-lg border border-border bg-surface p-5 [&>.section-heading:first-child]:mt-0"
+            >
+              <SectionHeading
+                title={`Warnings (${visibleWarnings.length})`}
+                action={
+                  isAdmin(actor) &&
+                  !periodSelection.isHistorical &&
+                  !warnings.error ? (
+                    <CreateWarningForm
+                      officerId={officer.id}
+                      approvedWarningCount={approvedCount}
+                    />
+                  ) : undefined
+                }
+              />
+              {isAdmin(actor) && (
+                <nav
+                  aria-label="Warning status"
+                  className="flex flex-wrap gap-1 border-b border-border text-xs"
+                >
+                  {[
+                    ["Active", "active"],
+                    ["Deleted", "deleted"],
+                    ["All history", "all"],
+                  ].map(([label, status]) => {
+                    const active = warningView === status;
+                    return (
+                      <Link
+                        key={status}
+                        href={warningStatusHref(status)}
+                        aria-current={active ? "page" : undefined}
+                        className={`border-b-2 px-2.5 py-1.5 ${active ? "border-brand font-semibold text-brand" : "border-transparent text-muted hover:text-foreground"}`}
+                      >
+                        {label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              )}
+              {warnings.error && (
+                <p role="alert" className="text-sm">
+                  Warning history unavailable. Reload this page to retry.
+                </p>
+              )}
+              {isAdmin(actor) && approvedCountResult.error && (
+                <p role="alert" className="text-sm">
+                  Approved warning count unavailable. Reload this page to retry.
+                </p>
+              )}
+              {!warnings.error && visibleWarnings.length === 0 && (
+                <p className="text-sm text-muted">
+                  {isAdmin(actor)
+                    ? warningView === "deleted"
+                      ? "No deleted warnings."
+                      : warningView === "all"
+                        ? "No warnings in history."
+                        : "No active warnings."
+                    : "No approved warnings."}
+                </p>
+              )}
+              {!warnings.error &&
+                visibleWarnings.map((warning) => (
+                  <article
+                    key={warning.id}
+                    className="space-y-1.5 border-b border-border py-2.5 last:border-b-0"
+                  >
+                    <div className="flex flex-wrap items-center gap-2.5 text-xs">
+                      <StatusBadge status={warning.status} />
+                      <span className="text-muted">
+                        {warning.origin === "automatic"
+                          ? "Automatic"
+                          : "Manual"}
+                      </span>
+                      {warning.deleted_at !== null && (
+                        <span className="font-medium text-muted">Deleted</span>
+                      )}
+                      {warning.voided_at !== null && (
+                        <span className="font-medium text-muted">Voided</span>
+                      )}
+                      <time
+                        dateTime={warning.created_at}
+                        className="text-muted"
+                      >
+                        {formatDate(warning.created_at)}
+                      </time>
+                    </div>
+                    <p className="whitespace-pre-wrap break-words text-sm text-foreground">
+                      {warning.reason}
+                    </p>
+                    {isAdmin(actor) && !periodSelection.isHistorical && (
+                      <div className="flex flex-wrap items-start gap-2 pt-1">
+                        <EditWarningForm
+                          warningId={warning.id}
+                          officerId={officer.id}
+                          reason={warning.reason}
+                        />
+                        {warning.deleted_at === null ? (
+                          <DeleteWarningForm
+                            warningId={warning.id}
+                            officerId={officer.id}
+                            origin={
+                              warning.origin === "automatic"
+                                ? "automatic"
+                                : "manual"
+                            }
+                          />
+                        ) : (
+                          <RestoreWarningForm
+                            warningId={warning.id}
+                            officerId={officer.id}
+                            origin={
+                              warning.origin === "automatic"
+                                ? "automatic"
+                                : "manual"
+                            }
+                          />
+                        )}
+                      </div>
+                    )}
+                  </article>
+                ))}
+            </section>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

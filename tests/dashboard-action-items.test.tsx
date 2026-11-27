@@ -62,6 +62,22 @@ const warning = (id: number, changes = {}) => ({
 });
 let tasks: ReturnType<typeof task>[];
 let warnings: ReturnType<typeof warning>[];
+let notifications: {
+  id: number;
+  title: string;
+  message: string;
+  kind: string;
+  entity_type: string;
+  entity_id: number | null;
+  href: string;
+  created_at: string;
+}[];
+let referencedEvents: {
+  id: number;
+  event_date: string;
+  deleted_at: string | null;
+  event_branches: { branch_id: number }[];
+}[];
 let discoveryEventRows: {
   id: number;
   name: string;
@@ -74,6 +90,13 @@ let discoveryEventRows: {
 let urls: URL[];
 let queryError: boolean;
 let failingTables: Set<string>;
+let failEventVerification: boolean;
+let signedUpEventRows: {
+  id: number;
+  name: string;
+  event_date: string;
+  starts_at: string;
+}[];
 
 // Exercise the real Supabase query builder against synthetic responses. Filter
 // before limit, as PostgREST does; warning rows available here represent RLS reads.
@@ -89,7 +112,24 @@ const mockFetch = async (input: RequestInfo | URL) => {
     return Response.json({ active_officer_count: 12, half_year_points: 42 });
   if (table === "officer_point_totals")
     return Response.json({ total_points: 7 });
+  if (table === "notifications") return Response.json(notifications);
   if (table === "events") {
+    const idFilter = url.searchParams.get("id");
+    if (idFilter?.startsWith("in.(")) {
+      if (failEventVerification)
+        return new Response(JSON.stringify({ message: "Verify failed" }), {
+          status: 500,
+        });
+      const ids = idFilter
+        .slice(4, -1)
+        .split(",")
+        .map((id) => Number(id));
+      return Response.json(
+        referencedEvents.filter((event) => ids.includes(event.id)),
+      );
+    }
+    if (url.searchParams.has("event_officers.officer_id"))
+      return Response.json(signedUpEventRows);
     const rows = discoveryEventRows
       .filter(
         (event) =>
@@ -99,7 +139,10 @@ const mockFetch = async (input: RequestInfo | URL) => {
           ),
       )
       .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
-      .slice(0, Number(url.searchParams.get("limit")));
+      .slice(
+        0,
+        Number(url.searchParams.get("limit") || discoveryEventRows.length),
+      );
     return Response.json(
       rows.map(
         ({ id, name, event_date, starts_at, ends_at, max_volunteers }) => ({
@@ -173,10 +216,14 @@ beforeEach(() => {
   actor = { ...officer, branchIds: [...officer.branchIds] };
   tasks = [];
   warnings = [];
+  notifications = [];
+  referencedEvents = [];
+  signedUpEventRows = [];
   discoveryEventRows = [];
   urls = [];
   queryError = false;
   failingTables = new Set();
+  failEventVerification = false;
   vi.mocked(requireCurrentOfficer).mockImplementation(async () => actor);
   vi.mocked(createClient).mockImplementation(async () => client());
 });
@@ -525,4 +572,149 @@ it("reports Task source failures without a false empty-state success", async () 
   );
   expect(section).toContain("Showing available items only.");
   expect(section).not.toContain("Warning decisions");
+});
+
+it("filters signed-up upcoming Events and Event notifications by period and existence", async () => {
+  notifications = [
+    {
+      id: 101,
+      title: "New Event: Accessible",
+      message: "In current period",
+      kind: "event.created",
+      entity_type: "event",
+      entity_id: 501,
+      href: "/events/501",
+      created_at: "2026-11-01T12:00:00Z",
+    },
+    {
+      id: 102,
+      title: "New Event: Deleted",
+      message: "Soft-deleted",
+      kind: "event.created",
+      entity_type: "event",
+      entity_id: 502,
+      href: "/events/502",
+      created_at: "2026-11-01T11:00:00Z",
+    },
+    {
+      id: 103,
+      title: "New Event: Next period",
+      message: "Outside current period",
+      kind: "event.created",
+      entity_type: "event",
+      entity_id: 503,
+      href: "/events/503",
+      created_at: "2026-11-01T10:00:00Z",
+    },
+    {
+      id: 104,
+      title: "New Event: Missing",
+      message: "No longer in DB",
+      kind: "event.created",
+      entity_type: "event",
+      entity_id: 504,
+      href: "/events/504",
+      created_at: "2026-11-01T09:00:00Z",
+    },
+  ];
+  referencedEvents = [
+    {
+      id: 501,
+      event_date: "2026-11-15",
+      deleted_at: null,
+      event_branches: [{ branch_id: 1 }],
+    },
+    {
+      id: 502,
+      event_date: "2026-11-15",
+      deleted_at: "2026-11-02T00:00:00Z",
+      event_branches: [{ branch_id: 1 }],
+    },
+    {
+      id: 503,
+      event_date: "2027-02-01",
+      deleted_at: null,
+      event_branches: [{ branch_id: 1 }],
+    },
+  ];
+
+  const result = await loadDashboardActionItems(client(), actor, {
+    starts_on: "2026-08-16",
+    ends_on: "2026-12-20",
+  });
+
+  const signedUpQuery = urls.find(
+    (url) =>
+      url.pathname.endsWith("/events") &&
+      url.searchParams.get("event_officers.officer_id") === `eq.${actor.id}`,
+  );
+  expect(signedUpQuery?.searchParams.getAll("event_date")).toEqual([
+    "gte.2026-08-16",
+    "lte.2026-12-20",
+  ]);
+  expect(result.items.map((item) => item.href)).toEqual(["/events/501"]);
+});
+
+it("drops unverified Event notifications and flags notifications unavailable when Event verification fails", async () => {
+  notifications = [
+    {
+      id: 201,
+      title: "New Event: Unverified",
+      message: "Could be deleted or out of period",
+      kind: "event.created",
+      entity_type: "event",
+      entity_id: 601,
+      href: "/events/601",
+      created_at: "2026-11-01T12:00:00Z",
+    },
+  ];
+  failingTables.add("events");
+
+  const result = await loadDashboardActionItems(client(), actor, {
+    starts_on: "2026-08-16",
+    ends_on: "2026-12-20",
+  });
+
+  expect(result.items).toEqual([]);
+  expect(result.unavailableSources).toEqual({
+    tasks: false,
+    events: true,
+    notifications: true,
+  });
+});
+
+it("keeps signed-up Events visible while omitting unverified Event notifications when only verification fails", async () => {
+  signedUpEventRows = [
+    {
+      id: 700,
+      name: "Signed-up Workshop",
+      event_date: "2026-11-18",
+      starts_at: "2026-11-18T18:00:00Z",
+    },
+  ];
+  notifications = [
+    {
+      id: 202,
+      title: "New Event: Unverified",
+      message: "Could be deleted or out of period",
+      kind: "event.created",
+      entity_type: "event",
+      entity_id: 701,
+      href: "/events/701",
+      created_at: "2026-11-01T12:00:00Z",
+    },
+  ];
+  failEventVerification = true;
+
+  const result = await loadDashboardActionItems(client(), actor, {
+    starts_on: "2026-08-16",
+    ends_on: "2026-12-20",
+  });
+
+  expect(result.items.map((item) => item.href)).toEqual(["/events/700"]);
+  expect(result.unavailableSources).toEqual({
+    tasks: false,
+    events: false,
+    notifications: true,
+  });
 });

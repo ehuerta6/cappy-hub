@@ -80,7 +80,7 @@ export async function changeTimeSlotSignup(
       undefined,
       ["slot_ids"],
     );
-  revalidateEventPaths();
+  revalidateEventPaths(event_id);
   const success = {
     join_selected: "Time Slot signup saved",
     join_all: "You signed up for every Time Slot",
@@ -151,7 +151,7 @@ export async function assignBulkOfficersToTimeSlots(
       undefined,
       ["officer_ids", "slot_ids"],
     );
-  revalidateEventPaths();
+  revalidateEventPaths(event_id);
   const result = data as {
     added_officer_ids?: number[];
     award_transaction_ids?: number[];
@@ -224,6 +224,6 @@ export async function correctHistoricalTimeSlotAssignments(
   });
   if (error)
     return formFailure(mutationError(error.message), formData, ["slot_ids"]);
-  revalidateEventPaths();
+  revalidateEventPaths(event_id);
   return { error: "", success: "Historical Time Slot assignments saved" };
 }

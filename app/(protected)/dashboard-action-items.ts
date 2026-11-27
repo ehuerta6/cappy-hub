@@ -1,5 +1,6 @@
 import "server-only";
-import type { AuthorizationContext } from "@/lib/authorization";
+import type { AcademicPeriod } from "@/lib/academic-periods";
+import { canManageEvent, type AuthorizationContext } from "@/lib/authorization";
 import type { Tables } from "@/lib/database.types";
 import type { createClient } from "@/lib/supabase/server";
 import { currentDenverWeek } from "@/lib/current-denver-week";
@@ -191,6 +192,7 @@ export function dashboardActionItems(
 export async function loadDashboardActionItems(
   supabase: Awaited<ReturnType<typeof createClient>>,
   actor: AuthorizationContext,
+  selectedPeriod: Pick<AcademicPeriod, "starts_on" | "ends_on"> | null = null,
 ): Promise<DashboardActionItems> {
   const taskQuery = () =>
     supabase
@@ -201,22 +203,26 @@ export async function loadDashboardActionItems(
       .order("due_date")
       .order("id")
       .limit(queryLimit);
+  let signedUpEventsQuery = supabase
+    .from("events")
+    .select(
+      "id,name,event_date,starts_at,event_officers!inner(officer_id,removed_at)",
+    )
+    .eq("event_officers.officer_id", actor.id)
+    .is("event_officers.removed_at", null)
+    .gt("starts_at", new Date().toISOString())
+    .is("deleted_at", null)
+    .neq("status", "cancelled");
+  if (selectedPeriod) {
+    signedUpEventsQuery = signedUpEventsQuery
+      .gte("event_date", selectedPeriod.starts_on)
+      .lte("event_date", selectedPeriod.ends_on);
+  }
   const [assigned, eventResult, notificationsResult] = await Promise.all([
     taskQuery()
       .eq("task_officer_assignments.officer_id", actor.id)
       .is("task_officer_assignments.completed_at", null),
-    supabase
-      .from("events")
-      .select(
-        "id,name,event_date,starts_at,event_officers!inner(officer_id,removed_at)",
-      )
-      .eq("event_officers.officer_id", actor.id)
-      .is("event_officers.removed_at", null)
-      .gt("starts_at", new Date().toISOString())
-      .is("deleted_at", null)
-      .neq("status", "cancelled")
-      .order("starts_at")
-      .order("id"),
+    signedUpEventsQuery.order("starts_at").order("id"),
     supabase
       .from("notifications")
       .select("id,title,message,kind,entity_type,entity_id,href,created_at")
@@ -230,20 +236,85 @@ export async function loadDashboardActionItems(
     eventResult.error !== null || eventResult.data === null;
   const notificationsUnavailable =
     notificationsResult.error !== null || notificationsResult.data === null;
-  const enrichedNotifications = notificationsUnavailable
+  let visibleNotifications = notificationsUnavailable
     ? []
     : await enrichOfficerNotifications(supabase, notificationsResult.data);
+
+  const signedUpEventIds = new Set(
+    (eventsUnavailable ? [] : eventResult.data).map((event) => event.id),
+  );
+  const unverifiedEventIds = [
+    ...new Set(
+      visibleNotifications
+        .filter(
+          (notification) =>
+            notification.entity_type === "event" &&
+            notification.entity_id !== null &&
+            !signedUpEventIds.has(notification.entity_id),
+        )
+        .map((notification) => notification.entity_id as number),
+    ),
+  ];
+  let eventNotificationsUnavailable = false;
+  if (unverifiedEventIds.length > 0) {
+    const { data: referencedEvents, error: referencedEventsError } =
+      await supabase
+        .from("events")
+        .select("id,event_date,deleted_at,event_branches(branch_id)")
+        .in("id", unverifiedEventIds);
+    if (referencedEventsError || !referencedEvents) {
+      eventNotificationsUnavailable = true;
+      visibleNotifications = visibleNotifications.filter(
+        (notification) =>
+          notification.entity_type !== "event" ||
+          notification.entity_id === null ||
+          signedUpEventIds.has(notification.entity_id),
+      );
+    } else {
+      const accessibleEventIds = new Set(
+        referencedEvents
+          .filter((event) => {
+            if (
+              selectedPeriod &&
+              (event.event_date < selectedPeriod.starts_on ||
+                event.event_date > selectedPeriod.ends_on)
+            )
+              return false;
+            if (
+              event.deleted_at &&
+              !canManageEvent(
+                actor,
+                (event.event_branches ?? []).map((b) => b.branch_id),
+              )
+            )
+              return false;
+            return true;
+          })
+          .map((event) => event.id),
+      );
+      visibleNotifications = visibleNotifications.filter((notification) => {
+        if (
+          notification.entity_type !== "event" ||
+          notification.entity_id === null ||
+          signedUpEventIds.has(notification.entity_id)
+        )
+          return true;
+        return accessibleEventIds.has(notification.entity_id);
+      });
+    }
+  }
+
   return {
     ...dashboardActionItems(
       actor,
       tasksUnavailable ? [] : assigned.data,
       eventsUnavailable ? [] : eventResult.data,
-      enrichedNotifications,
+      visibleNotifications,
     ),
     unavailableSources: {
       tasks: tasksUnavailable,
       events: eventsUnavailable,
-      notifications: notificationsUnavailable,
+      notifications: notificationsUnavailable || eventNotificationsUnavailable,
     },
   };
 }

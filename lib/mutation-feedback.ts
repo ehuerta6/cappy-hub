@@ -2,6 +2,9 @@ import type { Route } from "next";
 
 export const mutationSuccessMessages = {
   "event-saved": "Event saved",
+  "event-calendar-synced": "Google Calendar is up to date",
+  "event-saved-calendar-warning":
+    "Cappy Hub saved this Event, but Google Calendar could not be updated. Retry Calendar sync if available, or ask an Event manager to retry.",
   "officer-saved": "Officer saved",
   "task-created": "Task created",
   "task-updated": "Task updated",

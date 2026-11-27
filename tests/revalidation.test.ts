@@ -15,50 +15,55 @@ import {
   revalidateTaskPaths,
 } from "@/lib/revalidation";
 
-describe("granular revalidation helpers", () => {
+describe("domain revalidation helpers", () => {
   beforeEach(() => {
     vi.mocked(revalidatePath).mockReset();
   });
 
-  it("revalidates event routes without purging the root layout", () => {
+  it("revalidates ProtectedLayout and event detail routes for event mutations", () => {
     revalidateEventPaths(42);
-    expect(revalidatePath).toHaveBeenCalledWith("/");
+    expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
     expect(revalidatePath).toHaveBeenCalledWith("/events");
     expect(revalidatePath).toHaveBeenCalledWith("/events/42");
     expect(revalidatePath).toHaveBeenCalledWith("/calendar");
-    expect(revalidatePath).not.toHaveBeenCalledWith("/", "layout");
   });
 
-  it("revalidates task routes without purging the root layout", () => {
+  it("revalidates ProtectedLayout and task detail routes for task mutations", () => {
     revalidateTaskPaths(15);
+    expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
     expect(revalidatePath).toHaveBeenCalledWith("/tasks");
     expect(revalidatePath).toHaveBeenCalledWith("/tasks/15");
     expect(revalidatePath).toHaveBeenCalledWith("/events/[id]", "page");
-    expect(revalidatePath).not.toHaveBeenCalledWith("/", "layout");
   });
 
-  it("revalidates point, officer, notification, and catalog routes granularly", () => {
+  it("revalidates ProtectedLayout for point, officer, notification, and period mutations", () => {
     revalidatePointPaths(7);
+    expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
     expect(revalidatePath).toHaveBeenCalledWith("/points");
     expect(revalidatePath).toHaveBeenCalledWith("/officers/7");
 
     vi.mocked(revalidatePath).mockReset();
     revalidateOfficerPaths(9);
+    expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
     expect(revalidatePath).toHaveBeenCalledWith("/officers");
     expect(revalidatePath).toHaveBeenCalledWith("/officers/9");
 
     vi.mocked(revalidatePath).mockReset();
     revalidateNotificationPaths();
+    expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
     expect(revalidatePath).toHaveBeenCalledWith("/notifications");
 
     vi.mocked(revalidatePath).mockReset();
-    revalidateCatalogPaths();
-    expect(revalidatePath).toHaveBeenCalledWith("/officers/catalogs");
-    expect(revalidatePath).not.toHaveBeenCalledWith("/", "layout");
-  });
-
-  it("revalidates the root layout only for academic period changes", () => {
     revalidatePeriodPaths();
     expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+  });
+
+  it("keeps catalog revalidation scoped without purging the root layout", () => {
+    revalidateCatalogPaths();
+    expect(revalidatePath).toHaveBeenCalledWith("/officers/catalogs");
+    expect(revalidatePath).toHaveBeenCalledWith("/officers");
+    expect(revalidatePath).toHaveBeenCalledWith("/events");
+    expect(revalidatePath).toHaveBeenCalledWith("/tasks");
+    expect(revalidatePath).not.toHaveBeenCalledWith("/", "layout");
   });
 });

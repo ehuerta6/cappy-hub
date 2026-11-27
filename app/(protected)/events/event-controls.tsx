@@ -25,9 +25,11 @@ import { BulkAssignOfficersToSlotsForm } from "./time-slot-controls";
 export function RetryGoogleCalendarSyncForm({
   eventId,
   compact = false,
+  detailReturnTo,
 }: {
   eventId: number;
   compact?: boolean;
+  detailReturnTo?: string;
 }) {
   const [state, action, pending] = useActionState(retryGoogleCalendarSync, {
     ...initialFormActionState,
@@ -39,6 +41,9 @@ export function RetryGoogleCalendarSyncForm({
     <form action={action} className="flex flex-wrap items-center gap-2">
       <AcademicPeriodWriteContextField />
       <input type="hidden" name="event_id" value={eventId} />
+      {detailReturnTo && (
+        <input type="hidden" name="detail_return_to" value={detailReturnTo} />
+      )}
       <button
         type="submit"
         disabled={pending}

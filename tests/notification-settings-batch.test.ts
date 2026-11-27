@@ -1,77 +1,43 @@
-import { describe, expect, it, vi } from "vitest";
+import { expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { saveTaskPostSaveSettings } from "@/lib/notification-settings";
+import {
+  readNotificationSettings,
+  taskSaveSettings,
+} from "@/lib/notification-settings";
 
-describe("saveTaskPostSaveSettings", () => {
-  it("resolves recurrence scope once and writes notification settings and due time concurrently", async () => {
-    const singleTask = vi.fn().mockResolvedValue({
-      data: { recurrence_series_id: null },
-      error: null,
-    });
-    const from = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({ single: singleTask }),
-      }),
-    });
-    const rpc = vi.fn().mockResolvedValue({ error: null });
-    const supabase = { from, rpc } as unknown as Parameters<
-      typeof saveTaskPostSaveSettings
-    >[0];
+const defaults = {
+  all_active: false,
+  branch_ids: [],
+  position_ids: [],
+  reminder_offsets: [1440],
+};
 
-    const form = new FormData();
-    form.set("due_time", "15:30");
+it("preserves all settings groups on a title-only edit", () => {
+  const form = new FormData();
+  form.append("edited_fields", "title");
+  expect(taskSaveSettings(form, defaults, false, "19:00")).toEqual({});
+});
 
-    await saveTaskPostSaveSettings(supabase, 42, form, {
-      all_active: true,
-      branch_ids: [],
-      position_ids: [],
-      reminder_offsets: [1440],
-    });
-
-    // Scope lookup runs once instead of once per secondary RPC
-    expect(from).toHaveBeenCalledTimes(1);
-    expect(from).toHaveBeenCalledWith("tasks");
-    expect(rpc).toHaveBeenCalledTimes(2);
-    expect(rpc).toHaveBeenCalledWith(
-      "set_task_notification_settings",
-      expect.objectContaining({ p_task_id: 42, p_all_active: true }),
-    );
-    expect(rpc).toHaveBeenCalledWith(
-      "set_task_due_time",
-      expect.objectContaining({ p_task_id: 42, p_due_time: "15:30" }),
-    );
+it("saves an explicit due-time and reminder clear without rewriting audiences", () => {
+  const form = new FormData();
+  form.append("edited_fields", "due_time");
+  form.append("edited_fields", "reminder_offsets");
+  form.set("reminder_offsets", "");
+  const parsed = readNotificationSettings(form, [1440]);
+  expect(parsed.success).toBe(true);
+  if (!parsed.success) throw parsed.error;
+  expect(taskSaveSettings(form, parsed.data, false, "")).toEqual({
+    reminder_offsets: [],
+    due_time: null,
   });
+});
 
-  it("skips due-time RPC on create when due_time is empty", async () => {
-    const singleTask = vi.fn().mockResolvedValue({
-      data: { recurrence_series_id: null },
-      error: null,
-    });
-    const from = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({ single: singleTask }),
-      }),
-    });
-    const rpc = vi.fn().mockResolvedValue({ error: null });
-    const supabase = { from, rpc } as unknown as Parameters<
-      typeof saveTaskPostSaveSettings
-    >[0];
-
-    const form = new FormData();
-    await saveTaskPostSaveSettings(supabase, 99, form, {
-      all_active: false,
-      branch_ids: [1],
-      position_ids: [],
-      reminder_offsets: [60],
-    });
-
-    expect(from).toHaveBeenCalledTimes(1);
-    expect(rpc).toHaveBeenCalledTimes(1);
-    expect(rpc).toHaveBeenCalledWith(
-      "set_task_notification_settings",
-      expect.objectContaining({ p_task_id: 99, p_branch_ids: [1] }),
-    );
+it("sends the initial audience, reminders and optional time on creation", () => {
+  expect(taskSaveSettings(new FormData(), defaults, true, "15:30")).toEqual({
+    audience: { all_active: false, branch_ids: [], position_ids: [] },
+    reminder_offsets: [1440],
+    due_time: "15:30",
   });
 });

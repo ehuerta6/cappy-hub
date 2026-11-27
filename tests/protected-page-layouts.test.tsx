@@ -12,6 +12,7 @@ vi.mock("@/lib/authorization", () => ({
   canManageOfficers: () => true,
   canEditEvent: vi.fn(() => true),
   canManageEvent: vi.fn(() => true),
+  canRecoverEventCalendarSync: vi.fn(() => true),
   canManageTask: vi.fn(() => true),
   canChangeOtherTaskCompletion: vi.fn(() => false),
   canSeeAllBranches: () => true,
@@ -22,7 +23,7 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/academic-periods", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/academic-periods")>()),
   getAcademicPeriodData: async () => ({
-    periods: [],
+    periods: academicTestPeriods,
     currentDate: "2026-11-01",
     currentPeriodId: null,
   }),
@@ -61,6 +62,7 @@ import TaskDetail from "@/app/(protected)/tasks/[id]/page";
 import TaskActionForm from "@/app/(protected)/tasks/task-action-form";
 import { formatEventSchedule } from "@/lib/presentation";
 
+let academicTestPeriods: Tables<"academic_periods">[] = [];
 const officer = {
   id: 7,
   name: "Synthetic Officer",
@@ -124,6 +126,7 @@ let eventRelatedOrderCalls: [string, string][];
 const queryLog: { table: string; method: string; args: unknown[] }[] = [];
 
 beforeEach(() => {
+  academicTestPeriods = [];
   task.due_date = "2099-10-08";
   task.no_longer_needed_at = null;
   task.task_officer_assignments = [
@@ -865,6 +868,35 @@ it.each([
     );
   },
 );
+
+it("keeps the Event period through Detail and Edit even when the back list uses another period", async () => {
+  academicTestPeriods = [
+    {
+      id: 2,
+      name: "Upcoming fixture period",
+      starts_on: "2099-10-01",
+      ends_on: "2099-10-31",
+      created_at: "2026-08-01T00:00:00Z",
+      updated_at: "2026-08-01T00:00:00Z",
+    },
+  ];
+  const props = {
+    params: Promise.resolve({ id: "7" }),
+    searchParams: Promise.resolve({
+      period: "2",
+      returnTo: "/events?period=1",
+    }),
+  };
+  const detail = renderToStaticMarkup(await EventDetail(props));
+  expect(detail).toContain('href="/events?period=1"');
+  expect(detail).toContain(
+    'href="/events/7/edit?returnTo=%2Fevents%3Fperiod%3D1&amp;period=2"',
+  );
+  const edit = renderToStaticMarkup(await EventEdit(props));
+  expect(edit).toContain(
+    'href="/events/7?returnTo=%2Fevents%3Fperiod%3D1&amp;period=2"',
+  );
+});
 
 it.each([OfficerDetail, EventDetail, TaskDetail])(
   "returns to the exact Point History page from linked detail",

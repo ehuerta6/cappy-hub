@@ -16,9 +16,6 @@ import {
   type CalendarMirrorEvent,
 } from "./google-calendar-event";
 
-const eventFields =
-  "id,name,description,location,starts_at,ends_at,status,deleted_at";
-
 export async function syncGoogleCalendarEvents(
   eventIds: number[],
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -27,7 +24,7 @@ export async function syncGoogleCalendarEvents(
   if (!ids.length || !googleCalendarSyncEnabled()) return true;
 
   let failedIds = ids;
-  const expectedStates = new Map<number, CalendarMirrorEvent | null>();
+  const expectedStates = new Map<number, CalendarMirrorEvent>();
   try {
     const calendarId = required("GOOGLE_CALENDAR_ID");
     const appUrl = canonicalAppUrl(required("CAPPYHUB_APP_URL"));
@@ -74,22 +71,26 @@ export async function syncGoogleCalendarEvents(
       console.error("Could not load Event state for Calendar recovery", {
         reason: googleCalendarSyncError(error),
       });
-      return false;
     }
   }
 
-  const { error } = await supabase.rpc("record_google_calendar_sync_results", {
-    p_event_ids: ids,
-    p_failed_event_ids: failedIds,
-    p_expected_states: Object.fromEntries(expectedStates),
-  });
+  const attemptedIds = ids.filter((id) => expectedStates.has(id));
+  if (!attemptedIds.length) return false;
+  const { data: appliedIds, error } = await supabase.rpc(
+    "apply_google_calendar_sync_results",
+    {
+      p_event_ids: attemptedIds,
+      p_failed_event_ids: failedIds.filter((id) => expectedStates.has(id)),
+      p_expected_states: Object.fromEntries(expectedStates),
+    },
+  );
   if (error) {
     console.error("Could not record Google Calendar sync results", {
       failedEvents: failedIds.length,
     });
     return false;
   }
-  return failedIds.length === 0;
+  return failedIds.length === 0 && ids.every((id) => appliedIds?.includes(id));
 }
 
 async function syncLatestCanonicalEvent(
@@ -97,8 +98,8 @@ async function syncLatestCanonicalEvent(
   supabase: Awaited<ReturnType<typeof createClient>>,
   calendar: GoogleCalendarApi,
   calendarAppUrl: string,
-  onAttempt: (state: CalendarMirrorEvent | null) => void,
-): Promise<CalendarMirrorEvent | null> {
+  onAttempt: (state: CalendarMirrorEvent) => void,
+): Promise<CalendarMirrorEvent> {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const event = await loadCanonicalEvent(eventId, supabase);
     const desired = calendarRepresentation(event, calendarAppUrl);
@@ -117,13 +118,11 @@ async function syncLatestCanonicalEvent(
 async function loadCanonicalEvent(
   eventId: number,
   supabase: Awaited<ReturnType<typeof createClient>>,
-): Promise<CalendarMirrorEvent | null> {
+): Promise<CalendarMirrorEvent> {
   const { data, error } = await supabase
-    .from("events")
-    .select(eventFields)
-    .eq("id", eventId)
+    .rpc("get_google_calendar_sync_event", { p_event_id: eventId })
     .maybeSingle();
-  if (error) throw new Error("Could not load canonical Event");
+  if (error || !data) throw new Error("Could not load canonical Event");
   return data;
 }
 

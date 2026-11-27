@@ -23,7 +23,7 @@ import {
 import { recurrenceInput } from "@/lib/recurrence-validation";
 import {
   readNotificationSettings,
-  saveTaskPostSaveSettings,
+  taskSaveSettings,
 } from "@/lib/notification-settings";
 import {
   bulkTaskAssignmentInputSchema,
@@ -170,10 +170,14 @@ export async function createTask(
       );
     }
     const { data, error } = await supabase.rpc(
-      assigneeIds.data.length
-        ? "create_recurring_task_with_resources_and_officers"
-        : "create_recurring_task_with_resources",
+      "create_recurring_task_with_resources_atomic",
       {
+        p_save_settings: taskSaveSettings(
+          formData,
+          notificationSettings.data,
+          true,
+          dueTime,
+        ),
         p_title: validatedTaskInput.title,
         p_description: validatedTaskInput.description,
         p_task_type: validatedTaskInput.task_type,
@@ -201,36 +205,19 @@ export async function createTask(
         undefined,
         taskMultipleFields,
       );
-    try {
-      await saveTaskPostSaveSettings(
-        supabase,
-        data,
-        formData,
-        notificationSettings.data,
-      );
-    } catch (settingsError) {
-      revalidateTaskPaths(data);
-      const detail = mutationError(
-        settingsError instanceof Error
-          ? settingsError.message
-          : "Could not save Task notification settings",
-      );
-      return formFailure(
-        `Cappy Hub saved this Task, but notification or due-time settings could not be updated: ${detail}`,
-        formData,
-        taskFormFields,
-        undefined,
-        taskMultipleFields,
-      );
-    }
     revalidateTaskPaths(data);
     redirect(withSuccessNotice(`/tasks#task-${data}`, "task-created"));
   }
   const { data, error } = await supabase.rpc(
-    assigneeIds.data.length
-      ? "save_task_with_resources_and_officers"
-      : "save_task_with_resources",
+    "save_task_with_resources_atomic",
     {
+      p_request_key: validatedTaskInput.recurrence_request_key,
+      p_save_settings: taskSaveSettings(
+        formData,
+        notificationSettings.data,
+        true,
+        dueTime,
+      ),
       p_title: validatedTaskInput.title,
       p_description: validatedTaskInput.description,
       p_task_type: validatedTaskInput.task_type,
@@ -251,28 +238,6 @@ export async function createTask(
       undefined,
       taskMultipleFields,
     );
-  try {
-    await saveTaskPostSaveSettings(
-      supabase,
-      data,
-      formData,
-      notificationSettings.data,
-    );
-  } catch (settingsError) {
-    revalidateTaskPaths(data);
-    const detail = mutationError(
-      settingsError instanceof Error
-        ? settingsError.message
-        : "Could not save Task notification settings",
-    );
-    return formFailure(
-      `Cappy Hub saved this Task, but notification or due-time settings could not be updated: ${detail}`,
-      formData,
-      taskFormFields,
-      undefined,
-      taskMultipleFields,
-    );
-  }
   revalidateTaskPaths(data);
   redirect(withSuccessNotice(`/tasks#task-${data}`, "task-created"));
 }
@@ -698,44 +663,31 @@ export async function editStandaloneTask(
   if (dueTime && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(dueTime))
     return formFailure("Enter a valid due time", form, taskFormFields);
   const supabase = await createClient();
-  const { error } = await supabase.rpc("update_task_details_with_resources", {
-    p_task_id: id.data.task_id,
-    p_title: validation.data.title,
-    p_description: validation.data.description,
-    p_task_type: validation.data.task_type,
-    p_branch_id: validation.data.branch_id,
-    p_due_date: validation.data.due_date,
-    p_points: validation.data.points,
-    p_event_ids: eventIds.data,
-    p_resource_links: validation.data.resource_links,
-  });
+  const { error } = await supabase.rpc(
+    "update_task_details_with_resources_atomic",
+    {
+      p_save_settings: taskSaveSettings(
+        form,
+        notificationSettings.data,
+        false,
+        dueTime,
+      ),
+      p_task_id: id.data.task_id,
+      p_title: validation.data.title,
+      p_description: validation.data.description,
+      p_task_type: validation.data.task_type,
+      p_branch_id: validation.data.branch_id,
+      p_due_date: validation.data.due_date,
+      p_points: validation.data.points,
+      p_event_ids: eventIds.data,
+      p_resource_links: validation.data.resource_links,
+    },
+  );
   if (error)
     return formFailure(mutationError(error.message), form, [
       "task_id",
       ...taskFormFields.slice(0, 6),
     ]);
-  try {
-    await saveTaskPostSaveSettings(
-      supabase,
-      id.data.task_id,
-      form,
-      notificationSettings.data,
-    );
-  } catch (settingsError) {
-    revalidateTaskPaths(id.data.task_id);
-    const detail = mutationError(
-      settingsError instanceof Error
-        ? settingsError.message
-        : "Could not save Task notification settings",
-    );
-    return formFailure(
-      `Cappy Hub saved this Task, but notification or due-time settings could not be updated: ${detail}`,
-      form,
-      taskFormFields,
-      undefined,
-      taskMultipleFields,
-    );
-  }
   revalidateTaskPaths(id.data.task_id);
   redirect(
     withSuccessNotice(
@@ -799,7 +751,15 @@ export async function editRecurringTask(
     const recurrenceForm = new FormData();
     for (const [name, value] of form.entries()) {
       if (name !== "edited_fields") recurrenceForm.append(name, value);
-      else if (value !== "event_ids" && value !== "resource_links")
+      else if (
+        ![
+          "event_ids",
+          "resource_links",
+          "notification_audience",
+          "reminder_offsets",
+          "due_time",
+        ].includes(String(value))
+      )
         recurrenceForm.append(name, value);
     }
     const args = await recurrenceMutation(
@@ -816,9 +776,15 @@ export async function editRecurringTask(
       .getAll("edited_fields")
       .includes("resource_links");
     const { error } = await supabase.rpc(
-      "mutate_recurring_task_with_resources",
+      "mutate_recurring_task_with_resources_atomic",
       {
         ...args,
+        p_save_settings: taskSaveSettings(
+          form,
+          notificationSettings.data,
+          false,
+          dueTime,
+        ),
         ...(eventLinksChanged ? { p_event_ids: eventIds.data } : {}),
         ...(resourceLinksChanged
           ? { p_resource_links: validation.data.resource_links }
@@ -838,28 +804,6 @@ export async function editRecurringTask(
       recurrenceMutationError(error),
       form,
       ["task_id", ...taskFormFields],
-      undefined,
-      taskMultipleFields,
-    );
-  }
-  try {
-    await saveTaskPostSaveSettings(
-      supabase,
-      id.data.task_id,
-      form,
-      notificationSettings.data,
-    );
-  } catch (settingsError) {
-    revalidateTaskPaths(id.data.task_id);
-    const detail = mutationError(
-      settingsError instanceof Error
-        ? settingsError.message
-        : "Could not save Task notification settings",
-    );
-    return formFailure(
-      `Cappy Hub saved this Task, but notification or due-time settings could not be updated: ${detail}`,
-      form,
-      taskFormFields,
       undefined,
       taskMultipleFields,
     );

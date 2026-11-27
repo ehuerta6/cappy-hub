@@ -49,18 +49,17 @@ const event: CalendarMirrorEvent = {
 function setEvents(data: Array<typeof event> | (() => Array<typeof event>)) {
   const currentEvents = () => (typeof data === "function" ? data() : data);
   return {
-    from: () => ({
-      select: () => ({
-        eq: (_column: string, id: number) => ({
-          maybeSingle: async () => ({
-            data: currentEvents().find((row) => row.id === id) ?? null,
-            error: null,
-          }),
-        }),
-        in: () => Promise.resolve({ data: currentEvents(), error: null }),
-      }),
-    }),
-    rpc: (...args: unknown[]) => mocks.recordResults(...args),
+    rpc: (name: string, args: { p_event_id: number }) =>
+      name === "get_google_calendar_sync_event"
+        ? {
+            maybeSingle: async () => ({
+              data:
+                currentEvents().find((row) => row.id === args.p_event_id) ??
+                null,
+              error: null,
+            }),
+          }
+        : mocks.recordResults(name, args),
   } as never;
 }
 
@@ -73,8 +72,10 @@ describe("direct Google Calendar Event synchronization", () => {
     mocks.accessToken.mockResolvedValue("synthetic-token");
     mocks.upsert.mockResolvedValue(undefined);
     mocks.remove.mockResolvedValue(undefined);
-    mocks.recordResults.mockResolvedValue({ error: null });
-    setEvents([event]);
+    mocks.recordResults.mockImplementation(async (_name, args) => ({
+      data: args.p_event_ids,
+      error: null,
+    }));
   });
 
   it("loads canonical state and updates the stable Google event ID", async () => {
@@ -94,13 +95,14 @@ describe("direct Google Calendar Event synchronization", () => {
     expect(mocks.upsert).toHaveBeenCalledTimes(1);
   });
 
-  it("deletes the stable Google event when the canonical Event is archived", async () => {
-    const supabase = setEvents([]);
+  it("does not touch Google Calendar for missing or out-of-scope Events", async () => {
+    await expect(syncGoogleCalendarEvents([42], setEvents([]))).resolves.toBe(
+      false,
+    );
 
-    await expect(syncGoogleCalendarEvents([42], supabase)).resolves.toBe(true);
-
-    expect(mocks.remove).toHaveBeenCalledWith(googleCalendarEventId(42));
+    expect(mocks.remove).not.toHaveBeenCalled();
     expect(mocks.upsert).not.toHaveBeenCalled();
+    expect(mocks.recordResults).not.toHaveBeenCalled();
   });
 
   it("does not call Google in Preview, ordinary local development, or CI", async () => {
@@ -125,7 +127,7 @@ describe("direct Google Calendar Event synchronization", () => {
     ).resolves.toBe(false);
 
     expect(mocks.recordResults).toHaveBeenCalledWith(
-      "record_google_calendar_sync_results",
+      "apply_google_calendar_sync_results",
       {
         p_event_ids: [42, 43],
         p_failed_event_ids: [43],
@@ -165,7 +167,7 @@ describe("direct Google Calendar Event synchronization", () => {
     expect(mocks.upsert).toHaveBeenCalledTimes(1);
     expect(mocks.remove).toHaveBeenCalledWith(googleCalendarEventId(42));
     expect(mocks.recordResults).toHaveBeenCalledWith(
-      "record_google_calendar_sync_results",
+      "apply_google_calendar_sync_results",
       {
         p_event_ids: [42],
         p_failed_event_ids: [],
@@ -174,6 +176,23 @@ describe("direct Google Calendar Event synchronization", () => {
         },
       },
     );
+  });
+
+  it("does not report success when the Event changes after the final read, before recording the result", async () => {
+    const canonical = [event];
+    mocks.recordResults.mockImplementationOnce(async (_name, args) => {
+      expect(args.p_expected_states).toEqual({ 42: event });
+      canonical[0] = { ...event, name: "Newer canonical name" };
+      return { data: [], error: null };
+    });
+
+    await expect(
+      syncGoogleCalendarEvents(
+        [42],
+        setEvents(() => canonical),
+      ),
+    ).resolves.toBe(false);
+    expect(mocks.upsert).toHaveBeenCalledOnce();
   });
 
   it("reports Google failures without throwing into the saved Cappy Hub change", async () => {
@@ -206,7 +225,7 @@ describe("direct Google Calendar Event synchronization", () => {
     ).resolves.toBe(false);
 
     expect(mocks.recordResults).toHaveBeenCalledWith(
-      "record_google_calendar_sync_results",
+      "apply_google_calendar_sync_results",
       {
         p_event_ids: [42],
         p_failed_event_ids: [42],

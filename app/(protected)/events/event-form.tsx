@@ -823,6 +823,7 @@ export default function EventForm({
         branches={branches}
         positions={positions}
         isEvent
+        editing={Boolean(event)}
         values={state.values}
         allActive={notificationSettings?.allActive}
         selectedBranchIds={notificationSettings?.branchIds}

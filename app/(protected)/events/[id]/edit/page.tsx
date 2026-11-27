@@ -180,7 +180,16 @@ export default async function EditEventPage({
   return (
     <div data-form-page="event" className="space-y-6">
       <ContextualBackLink
-        href={withReturnTo(`/events/${eventIdParam}`, returnTo)}
+        href={withReturnTo(
+          `/events/${eventIdParam}`,
+          returnTo,
+          periodSelection.explicitNoPeriod
+            ? "none"
+            : typeof context.period === "string" &&
+                context.period === String(periodSelection.period?.id)
+              ? context.period
+              : null,
+        )}
       >
         Back to event
       </ContextualBackLink>

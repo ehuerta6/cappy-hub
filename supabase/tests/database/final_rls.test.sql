@@ -201,6 +201,8 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       ,'public.mutate_recurring_event_lifecycle(bigint,text,text,uuid,bigint,integer)'::regprocedure
       ,'public.mutate_recurring_task_lifecycle(bigint,text,text,uuid,bigint,integer)'::regprocedure
       ,'public.record_google_calendar_sync_results(bigint[],bigint[],jsonb)'::regprocedure
+      ,'public.apply_google_calendar_sync_results(bigint[],bigint[],jsonb)'::regprocedure
+      ,'public.get_google_calendar_sync_event(bigint)'::regprocedure
       ,'public.save_academic_period(text,date,date,bigint)'::regprocedure
       ,'public.academic_period_context()'::regprocedure
       ,'public.assert_academic_period_writable(bigint)'::regprocedure
@@ -220,6 +222,13 @@ select ok(not exists(select 1 from pg_catalog.pg_proc p
       ,'public.create_recurring_task_with_resources_and_officers(text,text,text,bigint,numeric,boolean,uuid,text,date[],bigint[],jsonb,bigint[],text)'::regprocedure
       ,'public.update_task_details_with_resources(bigint,text,text,text,bigint,date,numeric,bigint[],jsonb)'::regprocedure
       ,'public.mutate_recurring_task_with_resources(bigint,text,text,uuid,bigint,integer,jsonb,text,date[],bigint[],jsonb)'::regprocedure
+      ,'public.save_event_with_resources_atomic(jsonb,text,text,bigint,text,date,timestamptz,timestamptz,bigint[],uuid,text,integer,bigint,text,text,jsonb,jsonb,jsonb,text)'::regprocedure
+      ,'public.create_recurring_event_with_resources_atomic(jsonb,text,text,bigint,text,bigint[],text,text,text,integer,uuid,text,date[],timestamptz[],timestamptz[],jsonb,jsonb,jsonb,text)'::regprocedure
+      ,'public.mutate_recurring_event_with_resources_atomic(jsonb,bigint,text,text,uuid,bigint,integer,jsonb,text,date[],boolean,integer,jsonb)'::regprocedure
+      ,'public.save_task_with_resources_atomic(jsonb,text,text,text,bigint,date,numeric,boolean,bigint[],jsonb,uuid,bigint[])'::regprocedure
+      ,'public.create_recurring_task_with_resources_atomic(jsonb,text,text,text,bigint,numeric,boolean,uuid,text,date[],bigint[],jsonb,bigint[],text)'::regprocedure
+      ,'public.update_task_details_with_resources_atomic(jsonb,bigint,text,text,text,bigint,date,numeric,bigint[],jsonb)'::regprocedure
+      ,'public.mutate_recurring_task_with_resources_atomic(jsonb,bigint,text,text,uuid,bigint,integer,jsonb,text,date[],bigint[],jsonb)'::regprocedure
     )), 'authenticated has no unreviewed public RPC entry point');
 
 -- Fixtures are inserted as database owner. Every probe below changes to the

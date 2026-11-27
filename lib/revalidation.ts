@@ -1,51 +1,52 @@
 import { revalidatePath } from "next/cache";
 
 /**
- * Granular revalidation helpers that invalidate only the affected routes
- * instead of purging the entire root layout on every mutation.
+ * Domain revalidation helpers.
+ *
+ * Mutations that can create or update notifications, active officer state, or
+ * academic periods invalidate `("/", "layout")` so ProtectedLayout's shared
+ * header (notification preview/count and period selector) stays current, while
+ * also invalidating the specific entity detail route when an ID is known.
  */
 
 export function revalidateEventPaths(eventId?: number) {
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   revalidatePath("/events");
   revalidatePath("/calendar");
   revalidatePath("/points");
-  revalidatePath("/notifications");
   if (eventId !== undefined) revalidatePath(`/events/${eventId}`);
 }
 
 export function revalidateTaskPaths(taskId?: number) {
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   revalidatePath("/tasks");
   revalidatePath("/calendar");
   revalidatePath("/points");
-  revalidatePath("/notifications");
   revalidatePath("/events/[id]", "page");
   if (taskId !== undefined) revalidatePath(`/tasks/${taskId}`);
 }
 
 export function revalidatePointPaths(officerId?: number) {
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   revalidatePath("/points");
   revalidatePath("/officers");
-  revalidatePath("/notifications");
   if (officerId !== undefined) revalidatePath(`/officers/${officerId}`);
 }
 
 export function revalidateOfficerPaths(officerId?: number) {
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   revalidatePath("/officers");
   revalidatePath("/points");
-  revalidatePath("/notifications");
   if (officerId !== undefined) revalidatePath(`/officers/${officerId}`);
 }
 
 export function revalidateNotificationPaths() {
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   revalidatePath("/notifications");
 }
 
 export function revalidateCatalogPaths() {
+  // Catalog updates do not mutate notifications or ProtectedLayout header data.
   revalidatePath("/officers/catalogs");
   revalidatePath("/officers");
   revalidatePath("/events");
@@ -53,6 +54,5 @@ export function revalidateCatalogPaths() {
 }
 
 export function revalidatePeriodPaths() {
-  // Academic period options live in ProtectedLayout's header selector and affect all routes.
   revalidatePath("/", "layout");
 }

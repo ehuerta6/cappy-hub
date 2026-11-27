@@ -11,6 +11,7 @@ import {
   getAuthorizationContext,
   canEditEvent,
   canManageEvent,
+  canRecoverEventCalendarSync,
   canSeeAllBranches,
   isLead,
 } from "@/lib/authorization";
@@ -137,6 +138,9 @@ export default async function EventDetailPage({
   const canManage =
     !periodSelection.isHistorical && canManageEvent(actor, eventBranches);
   const canEdit = !periodSelection.isHistorical && canEditEvent(actor);
+  const canRecoverCalendar =
+    !periodSelection.isHistorical &&
+    canRecoverEventCalendarSync(actor, eventBranches, event);
   const canManageCurrentRoster = canManage || (canEdit && !past);
   if (event.deleted_at && !canManage) notFound();
 
@@ -170,7 +174,7 @@ export default async function EventDetailPage({
     tasksResult,
     transactionsResult,
   ] = await Promise.all([
-    canManage
+    canRecoverCalendar
       ? supabase
           .from("event_calendar_sync_failures")
           .select("failed_at")
@@ -328,6 +332,12 @@ export default async function EventDetailPage({
   }));
   const seriesData = series?.data;
 
+  const statusDisplay = event.deleted_at
+    ? event.delete_points_suspended
+      ? "Deleted"
+      : "Archived"
+    : status;
+
   return (
     <div data-record-page="event" className="space-y-5">
       <ContextualBackLink href="/events" returnTo={contextualReturnTo}>
@@ -366,6 +376,12 @@ export default async function EventDetailPage({
                 href={withReturnTo(
                   `/events/${eventIdParam}/edit`,
                   contextualReturnTo,
+                  periodSelection.explicitNoPeriod
+                    ? "none"
+                    : typeof query.period === "string" &&
+                        query.period === String(selectedPeriod?.id)
+                      ? query.period
+                      : null,
                 )}
               >
                 Edit event
@@ -376,94 +392,163 @@ export default async function EventDetailPage({
       />
       <SuccessNotice status={feedback} />
 
-      <div className="grid items-start gap-5 lg:grid-cols-2">
-        <section aria-label="Event details" className="min-w-0 space-y-3">
+      {hasCalendarSyncFailure && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-danger-border bg-danger-bg px-4 py-3"
+        >
+          <p className="text-sm text-foreground">
+            This Event is not synchronized with the shared Google Calendar.
+            Retry uses its current details and deleted status.
+          </p>
+          <RetryGoogleCalendarSyncForm
+            eventId={event.id}
+            detailReturnTo={contextualReturnTo}
+          />
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-lg border border-border bg-surface px-4 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+            Schedule
+          </p>
+          <p className="mt-1 text-sm font-semibold text-foreground">
+            {formatCalendarDate(event.event_date)}
+          </p>
+          <p className="mt-0.5 text-xs text-muted">
+            {formatEventSchedule(event.starts_at, event.ends_at)}
+            {durationHours > 0 ? ` · ${durationLabel}` : ""}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-surface px-4 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+            Location
+          </p>
+          <p className="mt-1 break-words text-sm font-semibold text-foreground">
+            {event.location || "Not set"}
+          </p>
+          {seriesData && (
+            <p className="mt-0.5 text-xs text-muted">
+              {recurrenceSummary(seriesData.recurrence_rule)}
+            </p>
+          )}
+        </div>
+        <div className="rounded-lg border border-border bg-surface px-4 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+            Status &amp; type
+          </p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <StatusBadge status={statusDisplay} />
+            <CatalogValueBadge color={event.event_types.color}>
+              {event.event_types.name}
+            </CatalogValueBadge>
+          </div>
+        </div>
+        <div className="rounded-lg border border-border bg-surface px-4 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+            Attendance
+          </p>
+          <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">
+            {event.max_volunteers === null
+              ? `${confirmedCount} confirmed`
+              : `${confirmedCount} / ${event.max_volunteers} confirmed`}
+          </p>
+          <p className="mt-0.5 text-xs text-muted">
+            {volunteerCount} Volunteer{volunteerCount === 1 ? "" : "s"} ·{" "}
+            {attendeeCount} Attendee{attendeeCount === 1 ? "" : "s"}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(20rem,1fr)]">
+        <section
+          aria-label="Event details"
+          className="min-w-0 space-y-4 rounded-lg border border-border bg-surface p-5 [&>.section-heading:first-child]:mt-0"
+        >
           <SectionHeading title="Event details" />
-          <dl className="grid grid-cols-[7.5rem_minmax(0,1fr)] text-sm [&>dd]:min-w-0 [&>dd]:break-words">
-            <dt>Date</dt>
-            <dd>{formatCalendarDate(event.event_date)}</dd>
-            <dt>Time</dt>
-            <dd>{formatEventSchedule(event.starts_at, event.ends_at)}</dd>
-            <dt>Location</dt>
-            <dd>{event.location || "Not set"}</dd>
-            <dt>Type</dt>
-            <dd>
-              <CatalogValueBadge color={event.event_types.color}>
-                {event.event_types.name}
-              </CatalogValueBadge>
-            </dd>
-            <dt>Status</dt>
-            <dd>
-              <StatusBadge
-                status={
-                  event.deleted_at
-                    ? event.delete_points_suspended
-                      ? "Deleted"
-                      : "Archived"
-                    : status
-                }
-              />
-            </dd>
-            <dt>Branches</dt>
-            <dd>
-              <BranchBadges
-                branches={event.event_branches.map(({ branches }) => branches)}
-              />
-            </dd>
-            <dt>Processing rate</dt>
-            <dd>
-              {event.participation_points_per_hour_at_end === null
-                ? "Not processed"
-                : `${event.participation_points_per_hour_at_end} points/hour`}
-            </dd>
-            {event.max_volunteers !== null && (
-              <>
-                <dt>Capacity</dt>
-                <dd>
-                  {confirmedCount} / {event.max_volunteers} confirmed
-                </dd>
-              </>
-            )}
-            {seriesData && (
-              <>
-                <dt>Recurrence</dt>
-                <dd>{recurrenceSummary(seriesData.recurrence_rule)}</dd>
-              </>
-            )}
-            {event.deleted_at && (
-              <>
-                <dt>
-                  {event.delete_points_suspended ? "Deleted at" : "Archived at"}
-                </dt>
-                <dd>{formatDateTime(event.deleted_at)}</dd>
-              </>
-            )}
-          </dl>
-          {event.description ? (
-            <div className="pt-1">
-              <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
-                Description
-              </h3>
-              <p className="whitespace-pre-wrap break-words text-sm text-foreground">
+          <div>
+            <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
+              Description
+            </h3>
+            {event.description ? (
+              <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
                 {event.description}
               </p>
-            </div>
-          ) : (
-            <p className="text-sm text-muted">No description.</p>
-          )}
+            ) : (
+              <p className="text-sm text-muted">No description.</p>
+            )}
+          </div>
+
           <ResourceLinksList resources={resourceLinksResult.data} />
-          {canManage && hasCalendarSyncFailure && (
-            <div
-              role="alert"
-              className="space-y-2 rounded-lg border border-danger-border bg-danger-bg p-3"
-            >
-              <p className="text-sm">
-                This Event is not synchronized with the shared Google Calendar.
-                Retry uses its current details and deleted status.
-              </p>
-              <RetryGoogleCalendarSyncForm eventId={event.id} />
+
+          <dl className="grid grid-cols-1 gap-x-6 border-t border-border pt-3 text-sm sm:grid-cols-2 [&>div]:border-b [&>div]:border-border/60 [&>div]:py-2">
+            <div>
+              <dt className="text-xs font-medium text-muted">Date</dt>
+              <dd className="mt-0.5 text-foreground">
+                {formatCalendarDate(event.event_date)}
+              </dd>
             </div>
-          )}
+            <div>
+              <dt className="text-xs font-medium text-muted">Time</dt>
+              <dd className="mt-0.5 text-foreground">
+                {formatEventSchedule(event.starts_at, event.ends_at)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-muted">Location</dt>
+              <dd className="mt-0.5 break-words text-foreground">
+                {event.location || "Not set"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-muted">Branches</dt>
+              <dd className="mt-1">
+                <BranchBadges
+                  branches={event.event_branches.map(
+                    ({ branches }) => branches,
+                  )}
+                />
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-muted">
+                Processing rate
+              </dt>
+              <dd className="mt-0.5 text-foreground">
+                {event.participation_points_per_hour_at_end === null
+                  ? "Not processed"
+                  : `${event.participation_points_per_hour_at_end} points/hour`}
+              </dd>
+            </div>
+            {event.max_volunteers !== null && (
+              <div>
+                <dt className="text-xs font-medium text-muted">Capacity</dt>
+                <dd className="mt-0.5 tabular-nums text-foreground">
+                  {confirmedCount} / {event.max_volunteers} confirmed
+                </dd>
+              </div>
+            )}
+            {seriesData && (
+              <div className="sm:col-span-2">
+                <dt className="text-xs font-medium text-muted">Recurrence</dt>
+                <dd className="mt-0.5 text-foreground">
+                  {recurrenceSummary(seriesData.recurrence_rule)}
+                </dd>
+              </div>
+            )}
+            {event.deleted_at && (
+              <div className="sm:col-span-2">
+                <dt className="text-xs font-medium text-muted">
+                  {event.delete_points_suspended ? "Deleted at" : "Archived at"}
+                </dt>
+                <dd className="mt-0.5 text-foreground">
+                  {formatDateTime(event.deleted_at)}
+                </dd>
+              </div>
+            )}
+          </dl>
+
           {canManage && event.deleted_at && (
             <div className="border-t border-border pt-3">
               <RestoreDeletedEventForm
@@ -489,7 +574,10 @@ export default async function EventDetailPage({
           )}
         </section>
 
-        <section aria-label="Participation" className="min-w-0 space-y-3.5">
+        <section
+          aria-label="Participation"
+          className="min-w-0 space-y-3.5 rounded-lg border border-border bg-surface p-5 lg:sticky lg:top-6 [&>.section-heading:first-child]:mt-0"
+        >
           <SectionHeading title="Participation" />
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface-muted/40 px-3.5 py-2.5 text-sm">
             <span className="text-foreground">
@@ -652,7 +740,7 @@ export default async function EventDetailPage({
 
       <section
         aria-label="Confirmed roster"
-        className="space-y-3 rounded-lg border border-border bg-surface p-4 [&>.section-heading:first-child]:mt-0"
+        className="space-y-3 rounded-lg border border-border bg-surface p-5 [&>.section-heading:first-child]:mt-0"
       >
         <SectionHeading
           title={`Confirmed roster (${confirmedCount})`}
