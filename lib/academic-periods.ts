@@ -61,6 +61,14 @@ export function resolveAcademicPeriod(
   };
 }
 
+export function academicPeriodForDate<
+  T extends Pick<AcademicPeriod, "starts_on" | "ends_on">,
+>(date: string, periods: readonly T[]): T | undefined {
+  return periods.find(
+    (period) => date >= period.starts_on && date <= period.ends_on,
+  );
+}
+
 export function periodDateRange(
   period: AcademicPeriod | null,
 ): { from: string; through: string } | null {

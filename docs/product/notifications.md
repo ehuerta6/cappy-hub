@@ -28,7 +28,7 @@ Event reminders default to one day and one hour before the Event. Task reminders
 
 Tasks require a due date and may have a due time. A date-only Task uses noon in America/Denver on its due date as the reminder reference time, so the default one-day reminder is sent at noon on the preceding day. When a due time is set, reminder offsets are relative to that time. A reminder is not sent after its Event starts or Task is due. Due reminders create in-app notification history through the existing Supabase Cron path. Delivery must be idempotent and must not add Vercel Cron or a separate scheduler.
 
-Editing reminders on a recurring Event or Task follows the existing edit scopes: This occurrence, This and following occurrences, or All occurrences. Each occurrence retains its own reminder state and can be corrected independently.
+Event and Task forms save the local record, its links, notification audience, reminders, and optional Task due time in one transaction. On a recurring edit, only the settings groups the editor changed apply to the selected occurrence scope. Audience, reminders, and due time are independent. Clearing the configured reminders or Task due time is an explicit edit, and editing other fields preserves each occurrence's settings.
 
 ## Dashboard
 

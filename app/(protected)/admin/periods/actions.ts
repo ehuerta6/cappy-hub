@@ -3,7 +3,7 @@
 import { getAuthorizationContext, isAdmin } from "@/lib/authorization";
 import { formFailure, type FormActionState } from "@/lib/form-feedback";
 import { createClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePeriodPaths } from "@/lib/revalidation";
 import { redirect } from "next/navigation";
 
 export async function saveAcademicPeriodAction(
@@ -53,8 +53,7 @@ export async function saveAcademicPeriodAction(
         : "The period could not be saved.";
     return formFailure(message, formData, ["name", "starts_on", "ends_on"]);
   }
-  revalidatePath("/", "layout");
-  revalidatePath("/admin/periods");
+  revalidatePeriodPaths();
   return {
     error: "",
     success: periodId === null ? "Period created" : "Period updated",
@@ -92,6 +91,6 @@ export async function saveAcademicPeriod(formData: FormData) {
     if (error.code === "23P01") redirect("/admin/periods?error=overlap");
     redirect("/admin/periods?error=save");
   }
-  revalidatePath("/", "layout");
+  revalidatePeriodPaths();
   redirect("/admin/periods?saved=1");
 }

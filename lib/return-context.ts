@@ -76,6 +76,7 @@ export function listReturnUrl(
 export function withReturnTo<T extends string>(
   href: Route<T>,
   value: unknown,
+  recordPeriod?: string | null,
 ): Route<T> {
   const destination = safeReturnTo(value);
   const url = new URL(href, "https://cappy.invalid");
@@ -86,8 +87,12 @@ export function withReturnTo<T extends string>(
       destination,
       "https://cappy.invalid",
     ).searchParams.get("period");
-    if (period !== null) url.searchParams.set("period", period);
+    if (period !== null && recordPeriod === undefined)
+      url.searchParams.set("period", period);
   }
+  if (recordPeriod === null) url.searchParams.delete("period");
+  else if (recordPeriod !== undefined)
+    url.searchParams.set("period", recordPeriod);
   // Only the query changes; the input's checked route pathname is preserved.
   return `${url.pathname}${url.search}${url.hash}` as Route<T>;
 }

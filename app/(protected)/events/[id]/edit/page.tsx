@@ -17,6 +17,7 @@ import EventForm from "../../event-form";
 import { denverParts } from "@/lib/event-time";
 import { PageHeader } from "@/components/ui";
 import {
+  academicPeriodForDate,
   getAcademicPeriodData,
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
@@ -30,10 +31,8 @@ export default async function EditEventPage({
 }) {
   const context = (await searchParams) ?? {};
   const returnTo = safeReturnTo(context.returnTo);
-  const periodSelection = resolveAcademicPeriod(
-    context.period,
-    await getAcademicPeriodData(),
-  );
+  const periodData = await getAcademicPeriodData();
+  const periodSelection = resolveAcademicPeriod(context.period, periodData);
   if (periodSelection.isHistorical)
     redirect(`/events?period=${context.period}`);
   const actor = await getAuthorizationContext();
@@ -127,6 +126,28 @@ export default async function EditEventPage({
   )
     notFound();
   if (!canEditEvent(actor)) redirect("/access-denied");
+  if (periodSelection.explicitNoPeriod) {
+    const eventPeriod = academicPeriodForDate(
+      currentEvent.event_date,
+      periodData.periods,
+    );
+    if (eventPeriod) {
+      if (eventPeriod.ends_on < periodData.currentDate)
+        redirect(
+          withReturnTo(`/events/${eventId}`, returnTo, String(eventPeriod.id)),
+        );
+      redirect(
+        withReturnTo(
+          `/events/${eventId}/edit`,
+          returnTo,
+          eventPeriod.id === periodData.currentPeriodId
+            ? null
+            : String(eventPeriod.id),
+        ),
+      );
+    }
+  }
+
   const series =
     currentEvent.recurrence_series_id === null
       ? undefined
@@ -177,16 +198,32 @@ export default async function EditEventPage({
           .map((award) => String(award.officer_id)),
       }));
   }
+  // Keep navigation unfiltered for an unassigned date. The save RPC checks
+  // the Event's actual old and new dates independently of the form context.
+  const writablePeriod =
+    periodSelection.explicitNoPeriod && periodData.currentPeriodId !== null
+      ? "current"
+      : undefined;
   return (
     <div data-form-page="event" className="space-y-6">
       <ContextualBackLink
-        href={withReturnTo(`/events/${eventIdParam}`, returnTo)}
+        href={withReturnTo(
+          `/events/${eventIdParam}`,
+          returnTo,
+          periodSelection.explicitNoPeriod
+            ? "none"
+            : typeof context.period === "string" &&
+                context.period === String(periodSelection.period?.id)
+              ? context.period
+              : null,
+        )}
       >
         Back to event
       </ContextualBackLink>
       <PageHeader title="Edit event" />
       <EventForm
         returnTo={returnTo}
+        writablePeriod={writablePeriod}
         series={series?.data ?? undefined}
         mutationRequestKey={crypto.randomUUID()}
         pointsImpactOfficerCount={

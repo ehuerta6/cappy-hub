@@ -31,6 +31,9 @@ import {
 } from "@/app/(protected)/tasks/actions";
 
 const rpc = vi.fn();
+let taskDetailDueDate = "2026-10-15";
+let academicPeriodRows: { id: number; starts_on: string; ends_on: string }[] =
+  [];
 const from = vi.fn((table: string) => {
   const query = {
     select: () => query,
@@ -40,6 +43,15 @@ const from = vi.fn((table: string) => {
         table === "task_series" ? { revision: 2 } : { recurrence_series_id: 3 },
       error: null,
     }),
+    maybeSingle: async () => ({
+      data: table === "tasks" ? { due_date: taskDetailDueDate } : null,
+      error: null,
+    }),
+    then: (resolve: (value: unknown) => unknown) =>
+      Promise.resolve({
+        data: table === "academic_periods" ? academicPeriodRows : [],
+        error: null,
+      }).then(resolve),
   };
   return query;
 });
@@ -59,6 +71,8 @@ const taskForm = () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  taskDetailDueDate = "2026-10-15";
+  academicPeriodRows = [];
   vi.mocked(getAuthorizationContext).mockResolvedValue({ id: 8 } as never);
   vi.mocked(createClient).mockResolvedValue({ rpc, from } as never);
   rpc.mockResolvedValue({ data: 9, error: null });
@@ -78,7 +92,13 @@ it("rejects malformed task points before calling the RPC", async () => {
 
 it("submits task creation values and optional Event links to the trusted RPC", async () => {
   await createTask({ error: "", success: "" }, taskForm());
-  expect(rpc).toHaveBeenCalledWith("save_task_with_resources", {
+  expect(rpc).toHaveBeenCalledWith("save_task_with_resources_atomic", {
+    p_save_settings: {
+      audience: { all_active: false, branch_ids: [], position_ids: [] },
+      reminder_offsets: [1440],
+      due_time: null,
+    },
+    p_request_key: "00000000-0000-4000-8000-000000000002",
     p_title: " Flyer ",
     p_description: " Prepare the flyer ",
     p_task_type: "Flyer",
@@ -99,7 +119,7 @@ it("validates and submits multiple Event links through the atomic Task mutation"
   form.append("event_ids", "22");
   await createTask({ error: "", success: "" }, form);
   expect(rpc).toHaveBeenCalledWith(
-    "save_task_with_resources",
+    "save_task_with_resources_atomic",
     expect.objectContaining({ p_event_ids: [21, 22], p_resource_links: [] }),
   );
 });
@@ -112,7 +132,7 @@ it("saves selected Officers in the atomic Task creation mutation", async () => {
   await createTask({ error: "", success: "" }, form);
 
   expect(rpc).toHaveBeenCalledWith(
-    "save_task_with_resources_and_officers",
+    "save_task_with_resources_atomic",
     expect.objectContaining({
       p_officer_ids: [12, 13],
       p_event_ids: [],
@@ -133,7 +153,7 @@ it("saves recurring Task assignments to every occurrence when requested", async 
   await createTask({ error: "", success: "" }, recurring);
 
   expect(rpc).toHaveBeenCalledWith(
-    "create_recurring_task_with_resources_and_officers",
+    "create_recurring_task_with_resources_atomic",
     expect.objectContaining({
       p_officer_ids: [12],
       p_roster_scope: "series",
@@ -152,7 +172,7 @@ it("defaults recurring Task assignments to the first occurrence", async () => {
   await createTask({ error: "", success: "" }, recurring);
 
   expect(rpc).toHaveBeenCalledWith(
-    "create_recurring_task_with_resources_and_officers",
+    "create_recurring_task_with_resources_atomic",
     expect.objectContaining({
       p_officer_ids: [12],
       p_roster_scope: "occurrence",
@@ -188,19 +208,27 @@ it("creates separate recurring Task due-date rows", async () => {
   recurring.set("recurrence_end_mode", "count");
   recurring.set("recurrence_count", "3");
   await createTask({ error: "", success: "" }, recurring);
-  expect(rpc).toHaveBeenCalledWith("create_recurring_task_with_resources", {
-    p_title: " Flyer ",
-    p_description: " Prepare the flyer ",
-    p_task_type: "Flyer",
-    p_branch_id: -5,
-    p_points: 1.5,
-    p_approval_required: false,
-    p_recurrence_rule: "RRULE:FREQ=DAILY;INTERVAL=2;COUNT=3",
-    p_request_key: "00000000-0000-4000-8000-000000000002",
-    p_due_dates: ["2026-10-15", "2026-10-17", "2026-10-19"],
-    p_event_ids: [],
-    p_resource_links: [],
-  });
+  expect(rpc).toHaveBeenCalledWith(
+    "create_recurring_task_with_resources_atomic",
+    {
+      p_save_settings: {
+        audience: { all_active: false, branch_ids: [], position_ids: [] },
+        reminder_offsets: [1440],
+        due_time: null,
+      },
+      p_title: " Flyer ",
+      p_description: " Prepare the flyer ",
+      p_task_type: "Flyer",
+      p_branch_id: -5,
+      p_points: 1.5,
+      p_approval_required: false,
+      p_recurrence_rule: "RRULE:FREQ=DAILY;INTERVAL=2;COUNT=3",
+      p_request_key: "00000000-0000-4000-8000-000000000002",
+      p_due_dates: ["2026-10-15", "2026-10-17", "2026-10-19"],
+      p_event_ids: [],
+      p_resource_links: [],
+    },
+  );
 });
 
 it("self-assigns the current Officer through the trusted Task RPC", async () => {
@@ -351,17 +379,21 @@ it("edits standalone Task details and preserves the filtered-list return path", 
   form.set("task_id", "9");
   form.set("returnTo", "/tasks?q=flyer&branch=2");
   await editStandaloneTask({ error: "", success: "" }, form);
-  expect(rpc).toHaveBeenCalledWith("update_task_details_with_resources", {
-    p_task_id: 9,
-    p_title: " Flyer ",
-    p_description: " Prepare the flyer ",
-    p_task_type: "Flyer",
-    p_branch_id: -5,
-    p_due_date: "2026-10-15",
-    p_points: 1.5,
-    p_event_ids: [],
-    p_resource_links: [],
-  });
+  expect(rpc).toHaveBeenCalledWith(
+    "update_task_details_with_resources_atomic",
+    {
+      p_save_settings: {},
+      p_task_id: 9,
+      p_title: " Flyer ",
+      p_description: " Prepare the flyer ",
+      p_task_type: "Flyer",
+      p_branch_id: -5,
+      p_due_date: "2026-10-15",
+      p_points: 1.5,
+      p_event_ids: [],
+      p_resource_links: [],
+    },
+  );
   expect(redirect).toHaveBeenCalledWith(
     "/tasks/9?returnTo=%2Ftasks%3Fq%3Dflyer%26branch%3D2&feedback=task-updated",
   );
@@ -454,15 +486,19 @@ it("recurring Task editing submits only changed fields to its trusted RPC", asyn
   data.set("mutation_request_key", "00000000-0000-4000-8000-000000000068");
   data.append("edited_fields", "title");
   await editRecurringTask({ error: "", success: "" }, data);
-  expect(rpc).toHaveBeenCalledWith("mutate_recurring_task_with_resources", {
-    p_selected_id: 9,
-    p_scope: "series",
-    p_operation: "edit",
-    p_series_id: 3,
-    p_revision: 2,
-    p_request_key: "00000000-0000-4000-8000-000000000068",
-    p_patch: { title: " Flyer " },
-  });
+  expect(rpc).toHaveBeenCalledWith(
+    "mutate_recurring_task_with_resources_atomic",
+    {
+      p_save_settings: {},
+      p_selected_id: 9,
+      p_scope: "series",
+      p_operation: "edit",
+      p_series_id: 3,
+      p_revision: 2,
+      p_request_key: "00000000-0000-4000-8000-000000000068",
+      p_patch: { title: " Flyer " },
+    },
+  );
   expect(rpc).not.toHaveBeenCalledWith("save_task", expect.anything());
 });
 
@@ -479,7 +515,7 @@ it("applies changed Event links through the selected recurring edit scope", asyn
   data.append("edited_fields", "event_ids");
   await editRecurringTask({ error: "", success: "" }, data);
   expect(rpc).toHaveBeenCalledWith(
-    "mutate_recurring_task_with_resources",
+    "mutate_recurring_task_with_resources_atomic",
     expect.objectContaining({
       p_scope: "following",
       p_event_ids: [21, 22],
@@ -507,7 +543,7 @@ it.each(["occurrence", "following", "series"])(
         : "/tasks/9?returnTo=%2Ftasks%3Fq%3Dflyer%26branch%3D2%26assignee%3D7&feedback=task-updated",
     );
     expect(rpc).toHaveBeenCalledWith(
-      "mutate_recurring_task_with_resources",
+      "mutate_recurring_task_with_resources_atomic",
       expect.objectContaining({
         p_scope: scope,
         p_patch: { title: " Flyer " },
@@ -560,4 +596,42 @@ it("return context does not bypass trusted recurring Task authorization", async 
     (await editRecurringTask({ error: "", success: "" }, data)).error,
   ).toBeTruthy();
   expect(redirect).not.toHaveBeenCalled();
+});
+
+it("reports an atomic Task save failure on the form without redirecting", async () => {
+  rpc.mockResolvedValueOnce({
+    data: null,
+    error: { message: "Reminder write failed" },
+  });
+  const result = await createTask({ error: "", success: "" }, taskForm());
+  expect(result.error).toBe("Could not save changes");
+  expect(rpc).toHaveBeenCalledTimes(1);
+  expect(revalidatePath).not.toHaveBeenCalled();
+  expect(redirect).not.toHaveBeenCalled();
+});
+
+it("redirects standalone Task edits to the saved Task's future or gap period", async () => {
+  academicPeriodRows = [
+    { id: 1, starts_on: "2026-08-01", ends_on: "2026-12-31" },
+    { id: 2, starts_on: "2099-01-01", ends_on: "2099-05-31" },
+  ];
+  taskDetailDueDate = "2099-03-10";
+  const futureForm = taskForm();
+  futureForm.set("task_id", "9");
+  futureForm.set("due_date", "2099-03-10");
+  futureForm.set("returnTo", "/tasks?period=1");
+  await editStandaloneTask({ error: "", success: "" }, futureForm);
+  expect(redirect).toHaveBeenCalledWith(
+    "/tasks/9?returnTo=%2Ftasks%3Fperiod%3D1&period=2&feedback=task-updated",
+  );
+
+  vi.mocked(redirect).mockClear();
+  taskDetailDueDate = "2098-06-15";
+  const gapForm = taskForm();
+  gapForm.set("task_id", "9");
+  gapForm.set("due_date", "2098-06-15");
+  await editStandaloneTask({ error: "", success: "" }, gapForm);
+  expect(redirect).toHaveBeenCalledWith(
+    "/tasks/9?period=none&feedback=task-updated",
+  );
 });

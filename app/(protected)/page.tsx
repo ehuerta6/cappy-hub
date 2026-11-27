@@ -10,7 +10,7 @@ import {
   formatTaskDueTime,
 } from "@/lib/presentation";
 import { requireCurrentOfficer } from "@/lib/current-officer";
-import { canManageEvent, canSeeAllBranches, isLead } from "@/lib/authorization";
+import { canEditEvent, canSeeAllBranches, isLead } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import { displayPoints } from "@/lib/participation";
 import { eventSignupCountLabel } from "@/lib/event-list";
@@ -20,6 +20,7 @@ import { TaskSelfCompletionForm } from "./tasks/task-action-form";
 import { loadDashboardActionItems } from "./dashboard-action-items";
 import { DASHBOARD_PREVIEW_LIMIT } from "./dashboard-limits";
 import {
+  academicPeriodForDate,
   getAcademicPeriodData,
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
@@ -176,6 +177,7 @@ export default async function DashboardPage({
   const canReviewBranch =
     canSeeAllBranches(officer) ||
     (isLead(officer) && officer.branchIds.length > 0);
+  const canReviewCalendar = canEditEvent(officer);
   const pendingApprovalsQuery = () => {
     let query = supabase
       .from("tasks")
@@ -192,6 +194,22 @@ export default async function DashboardPage({
       query = query.in("branch_id", officer.branchIds);
     return query;
   };
+  let upcomingEventsQuery = supabase
+    .from("events")
+    .select(
+      "*,event_types(name,color),event_time_slots(id),active_signup:event_officers!left(officer_id,removed_at)",
+    )
+    .eq("active_signup.officer_id", officer.id)
+    .is("active_signup.removed_at", null)
+    .is("active_signup", null)
+    .neq("status", "cancelled")
+    .is("deleted_at", null)
+    .gt("starts_at", new Date().toISOString());
+  if (selectedPeriod) {
+    upcomingEventsQuery = upcomingEventsQuery
+      .gte("event_date", selectedPeriod.starts_on)
+      .lte("event_date", selectedPeriod.ends_on);
+  }
   const [
     periodPoints,
     summary,
@@ -210,24 +228,14 @@ export default async function DashboardPage({
           .single()
       : Promise.resolve(null),
     supabase.from("dashboard_summary").select("*").single(),
-    supabase
-      .from("events")
-      .select(
-        "*,event_types(name,color),event_time_slots(id),active_signup:event_officers!left(officer_id,removed_at)",
-      )
-      .eq("active_signup.officer_id", officer.id)
-      .is("active_signup.removed_at", null)
-      .is("active_signup", null)
-      .neq("status", "cancelled")
-      .is("deleted_at", null)
-      .gt("starts_at", new Date().toISOString())
+    upcomingEventsQuery
       .order("starts_at")
       .order("id")
       .limit(DASHBOARD_PREVIEW_LIMIT),
     supabase
       .from("point_transactions")
       .select(
-        "*,officers!point_transactions_officer_id_fkey(id,name),events(id,name),tasks(id,title)",
+        "*,officers!point_transactions_officer_id_fkey(id,name),events(id,name,event_date,deleted_at),tasks(id,title,due_date,removed_at)",
       )
       .is("removed_at", null)
       .order("created_at", { ascending: false })
@@ -238,16 +246,16 @@ export default async function DashboardPage({
       .select("total_points")
       .eq("id", officer.id)
       .single(),
-    Promise.resolve().then(() => loadDashboardActionItems(supabase, officer)),
+    Promise.resolve().then(() =>
+      loadDashboardActionItems(supabase, officer, periodData, selectedPeriod),
+    ),
     canReviewBranch
       ? pendingApprovalsQuery()
       : Promise.resolve({ data: [], error: null }),
-    canReviewBranch
+    canReviewCalendar
       ? supabase
           .from("event_calendar_sync_failures")
-          .select(
-            "event_id,event:events(id,name,deleted_at,event_branches(branch_id))",
-          )
+          .select("event_id,event:events(id,name,event_date,deleted_at)")
           .limit(5)
       : Promise.resolve({ data: [], error: null }),
   ]);
@@ -258,14 +266,7 @@ export default async function DashboardPage({
   const calendarSyncFailures =
     calendarFailuresResult.error || !calendarFailuresResult.data
       ? []
-      : calendarFailuresResult.data.filter(
-          (failure) =>
-            failure.event &&
-            canManageEvent(
-              officer,
-              failure.event.event_branches.map((b) => b.branch_id),
-            ),
-        );
+      : calendarFailuresResult.data.filter((failure) => failure.event);
   if (periodPoints?.error) throw new Error("Failed to load period Points");
   const currentPeriodPoints: number | null = periodPoints
     ? periodPoints.data.net_points
@@ -375,7 +376,7 @@ export default async function DashboardPage({
           : "No current period. Dashboard activity is unfiltered."}
       </p>
 
-      {canReviewBranch &&
+      {(canReviewBranch || canReviewCalendar) &&
         (pendingApprovalTasks.length > 0 ||
           calendarSyncFailures.length > 0) && (
           <section
@@ -408,12 +409,19 @@ export default async function DashboardPage({
                 const pendingCount = task.task_officer_assignments.filter(
                   (a) => a.completion_approval_pending && a.removed_at == null,
                 ).length;
+                const taskInSelectedPeriod =
+                  !selectedPeriod ||
+                  (task.due_date >= selectedPeriod.starts_on &&
+                    task.due_date <= selectedPeriod.ends_on);
+                const taskPeriod = taskInSelectedPeriod
+                  ? undefined
+                  : academicPeriodForDate(task.due_date, periodData.periods);
+                const taskHref = taskInSelectedPeriod
+                  ? `/tasks/${task.id}`
+                  : `/tasks/${task.id}?period=${taskPeriod?.id ?? "none"}`;
                 return (
                   <li key={`review-task-${task.id}`}>
-                    <Link
-                      href={`/tasks/${task.id}` as Route}
-                      className={styles.actionRow}
-                    >
+                    <Link href={taskHref as Route} className={styles.actionRow}>
                       <span className="flex min-w-0 items-center gap-2.5">
                         <Badge tone="amber">
                           {pendingCount} pending approval
@@ -427,24 +435,31 @@ export default async function DashboardPage({
                   </li>
                 );
               })}
-              {calendarSyncFailures.map((failure) => (
-                <li key={`review-cal-${failure.event_id}`}>
-                  <Link
-                    href={`/events/${failure.event!.id}` as Route}
-                    className={styles.actionRow}
-                  >
-                    <span className="flex min-w-0 items-center gap-2.5">
-                      <Badge tone="red">Calendar sync failed</Badge>
-                      <span className={styles.actionTitle}>
-                        {failure.event!.name}
+              {calendarSyncFailures.map((failure) => {
+                const eventPeriod = academicPeriodForDate(
+                  failure.event!.event_date,
+                  periodData.periods,
+                );
+                const failureHref = `/events/${failure.event!.id}?period=${eventPeriod?.id ?? "none"}`;
+                return (
+                  <li key={`review-cal-${failure.event_id}`}>
+                    <Link
+                      href={failureHref as Route}
+                      className={styles.actionRow}
+                    >
+                      <span className="flex min-w-0 items-center gap-2.5">
+                        <Badge tone="red">Calendar sync failed</Badge>
+                        <span className={styles.actionTitle}>
+                          {failure.event!.name}
+                        </span>
                       </span>
-                    </span>
-                    <span className="text-xs font-medium text-brand">
-                      Retry →
-                    </span>
-                  </Link>
-                </li>
-              ))}
+                      <span className="text-xs font-medium text-brand">
+                        Retry →
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </section>
         )}
@@ -494,7 +509,11 @@ export default async function DashboardPage({
               return (
                 <li key={item.key} className={styles.actionRow}>
                   <Link
-                    href={item.href as Route}
+                    href={
+                      (periodHref && !item.href.includes("?")
+                        ? `${item.href}${periodHref}`
+                        : item.href) as Route
+                    }
                     className="flex min-w-0 items-start gap-2.5 hover:underline underline-offset-3"
                   >
                     <span
@@ -571,7 +590,10 @@ export default async function DashboardPage({
           <SectionHeading
             title="Upcoming events"
             action={
-              <Link href="/events" className={styles.textLink}>
+              <Link
+                href={`/events${periodHref}` as Route}
+                className={styles.textLink}
+              >
                 View events
               </Link>
             }
@@ -598,7 +620,7 @@ export default async function DashboardPage({
                 return (
                   <li key={event.id} className={styles.eventRow}>
                     <Link
-                      href={`/events/${event.id}`}
+                      href={`/events/${event.id}${periodHref}` as Route}
                       className={`${styles.eventMain} hover:underline underline-offset-3`}
                     >
                       <span className={styles.eventTitle}>{event.name}</span>
@@ -623,7 +645,7 @@ export default async function DashboardPage({
                         />
                       ) : (
                         <Link
-                          href={`/events/${event.id}`}
+                          href={`/events/${event.id}${periodHref}` as Route}
                           className={styles.statusNeutral}
                         >
                           {hasTimeSlots ? "Choose slots" : "View"}
@@ -668,13 +690,41 @@ export default async function DashboardPage({
                       </Link>
                       <span className={styles.pointReason}>
                         {transaction.events ? (
-                          <Link href={`/events/${transaction.events.id}`}>
-                            {transaction.events.name}
-                          </Link>
+                          !transaction.events.deleted_at &&
+                          (!selectedPeriod ||
+                            !transaction.events.event_date ||
+                            (transaction.events.event_date >=
+                              selectedPeriod.starts_on &&
+                              transaction.events.event_date <=
+                                selectedPeriod.ends_on)) ? (
+                            <Link
+                              href={
+                                `/events/${transaction.events.id}${periodHref}` as Route
+                              }
+                            >
+                              {transaction.events.name}
+                            </Link>
+                          ) : (
+                            <span>{transaction.events.name}</span>
+                          )
                         ) : transaction.tasks ? (
-                          <Link href={`/tasks/${transaction.tasks.id}`}>
-                            {transaction.tasks.title}
-                          </Link>
+                          !transaction.tasks.removed_at &&
+                          (!selectedPeriod ||
+                            !transaction.tasks.due_date ||
+                            (transaction.tasks.due_date >=
+                              selectedPeriod.starts_on &&
+                              transaction.tasks.due_date <=
+                                selectedPeriod.ends_on)) ? (
+                            <Link
+                              href={
+                                `/tasks/${transaction.tasks.id}${periodHref}` as Route
+                              }
+                            >
+                              {transaction.tasks.title}
+                            </Link>
+                          ) : (
+                            <span>{transaction.tasks.title}</span>
+                          )
                         ) : (
                           transaction.reason
                         )}

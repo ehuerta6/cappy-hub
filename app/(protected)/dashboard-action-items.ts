@@ -1,5 +1,10 @@
 import "server-only";
-import type { AuthorizationContext } from "@/lib/authorization";
+import {
+  academicPeriodForDate,
+  type AcademicPeriod,
+  type AcademicPeriodData,
+} from "@/lib/academic-periods";
+import { canManageEvent, type AuthorizationContext } from "@/lib/authorization";
 import type { Tables } from "@/lib/database.types";
 import type { createClient } from "@/lib/supabase/server";
 import { currentDenverWeek } from "@/lib/current-denver-week";
@@ -191,6 +196,8 @@ export function dashboardActionItems(
 export async function loadDashboardActionItems(
   supabase: Awaited<ReturnType<typeof createClient>>,
   actor: AuthorizationContext,
+  periodData: AcademicPeriodData,
+  selectedPeriod: Pick<AcademicPeriod, "starts_on" | "ends_on"> | null = null,
 ): Promise<DashboardActionItems> {
   const taskQuery = () =>
     supabase
@@ -201,22 +208,26 @@ export async function loadDashboardActionItems(
       .order("due_date")
       .order("id")
       .limit(queryLimit);
+  let signedUpEventsQuery = supabase
+    .from("events")
+    .select(
+      "id,name,event_date,starts_at,event_officers!inner(officer_id,removed_at)",
+    )
+    .eq("event_officers.officer_id", actor.id)
+    .is("event_officers.removed_at", null)
+    .gt("starts_at", new Date().toISOString())
+    .is("deleted_at", null)
+    .neq("status", "cancelled");
+  if (selectedPeriod) {
+    signedUpEventsQuery = signedUpEventsQuery
+      .gte("event_date", selectedPeriod.starts_on)
+      .lte("event_date", selectedPeriod.ends_on);
+  }
   const [assigned, eventResult, notificationsResult] = await Promise.all([
     taskQuery()
       .eq("task_officer_assignments.officer_id", actor.id)
       .is("task_officer_assignments.completed_at", null),
-    supabase
-      .from("events")
-      .select(
-        "id,name,event_date,starts_at,event_officers!inner(officer_id,removed_at)",
-      )
-      .eq("event_officers.officer_id", actor.id)
-      .is("event_officers.removed_at", null)
-      .gt("starts_at", new Date().toISOString())
-      .is("deleted_at", null)
-      .neq("status", "cancelled")
-      .order("starts_at")
-      .order("id"),
+    signedUpEventsQuery.order("starts_at").order("id"),
     supabase
       .from("notifications")
       .select("id,title,message,kind,entity_type,entity_id,href,created_at")
@@ -230,20 +241,114 @@ export async function loadDashboardActionItems(
     eventResult.error !== null || eventResult.data === null;
   const notificationsUnavailable =
     notificationsResult.error !== null || notificationsResult.data === null;
-  const enrichedNotifications = notificationsUnavailable
+  let visibleNotifications = notificationsUnavailable
     ? []
     : await enrichOfficerNotifications(supabase, notificationsResult.data);
-  return {
-    ...dashboardActionItems(
-      actor,
-      tasksUnavailable ? [] : assigned.data,
-      eventsUnavailable ? [] : eventResult.data,
-      enrichedNotifications,
+
+  const signedUpEventIds = new Set(
+    (eventsUnavailable ? [] : eventResult.data).map((event) => event.id),
+  );
+  const unverifiedEventIds = [
+    ...new Set(
+      visibleNotifications
+        .filter(
+          (notification) =>
+            notification.entity_type === "event" &&
+            notification.entity_id !== null &&
+            !signedUpEventIds.has(notification.entity_id),
+        )
+        .map((notification) => notification.entity_id as number),
     ),
+  ];
+  let eventNotificationsUnavailable = false;
+  if (unverifiedEventIds.length > 0) {
+    const { data: referencedEvents, error: referencedEventsError } =
+      await supabase
+        .from("events")
+        .select("id,event_date,deleted_at,event_branches(branch_id)")
+        .in("id", unverifiedEventIds);
+    if (referencedEventsError || !referencedEvents) {
+      eventNotificationsUnavailable = true;
+      visibleNotifications = visibleNotifications.filter(
+        (notification) =>
+          notification.entity_type !== "event" ||
+          notification.entity_id === null ||
+          signedUpEventIds.has(notification.entity_id),
+      );
+    } else {
+      const accessibleEventLinks = new Map<number, string>();
+      for (const event of referencedEvents) {
+        const period = academicPeriodForDate(
+          event.event_date,
+          periodData.periods,
+        );
+        // The historical detail route does not expose deleted records.
+        if (
+          event.deleted_at &&
+          ((period && period.ends_on < periodData.currentDate) ||
+            !canManageEvent(
+              actor,
+              (event.event_branches ?? []).map((branch) => branch.branch_id),
+            ))
+        )
+          continue;
+        accessibleEventLinks.set(
+          event.id,
+          `/events/${event.id}?period=${period?.id ?? "none"}`,
+        );
+      }
+      visibleNotifications = visibleNotifications.flatMap((notification) => {
+        if (
+          notification.entity_type !== "event" ||
+          notification.entity_id === null ||
+          signedUpEventIds.has(notification.entity_id)
+        ) {
+          return [notification];
+        }
+        const href = accessibleEventLinks.get(notification.entity_id);
+        return href ? [{ ...notification, href }] : [];
+      });
+    }
+  }
+
+  const result = dashboardActionItems(
+    actor,
+    tasksUnavailable ? [] : assigned.data,
+    eventsUnavailable ? [] : eventResult.data,
+    visibleNotifications,
+  );
+  const items = !selectedPeriod
+    ? result.items
+    : result.items.map((item) => {
+        if (
+          item.kind !== "task" ||
+          item.taskId === undefined ||
+          !item.dueDate ||
+          item.href.includes("?")
+        )
+          return item;
+        if (
+          item.dueDate >= selectedPeriod.starts_on &&
+          item.dueDate <= selectedPeriod.ends_on
+        )
+          return item;
+        const taskPeriod = academicPeriodForDate(
+          item.dueDate,
+          periodData.periods,
+        );
+        return {
+          ...item,
+          href: `/tasks/${item.taskId}?period=${taskPeriod?.id ?? "none"}`,
+        };
+      });
+
+  return {
+    ...result,
+    items,
     unavailableSources: {
       tasks: tasksUnavailable,
       events: eventsUnavailable,
-      notifications: notificationsUnavailable,
+      notifications: notificationsUnavailable || eventNotificationsUnavailable,
     },
   };
 }

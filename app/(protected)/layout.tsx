@@ -12,22 +12,23 @@ import ScrollToTop from "@/components/scroll-to-top";
 
 export default async function ProtectedLayout({ children }: LayoutProps<"/">) {
   const officer = await requireCurrentOfficer();
-  const academicPeriods = await getAcademicPeriodData();
   const supabase = await createClient();
-  const [recentNotifications, unreadNotifications] = await Promise.all([
-    supabase
-      .from("notifications")
-      .select(
-        "id,title,message,kind,entity_type,entity_id,href,created_at,read_at",
-      )
-      .order("created_at", { ascending: false })
-      .order("id", { ascending: false })
-      .limit(5),
-    supabase
-      .from("notifications")
-      .select("id", { count: "exact", head: true })
-      .is("read_at", null),
-  ]);
+  const [academicPeriods, recentNotifications, unreadNotifications] =
+    await Promise.all([
+      getAcademicPeriodData(),
+      supabase
+        .from("notifications")
+        .select(
+          "id,title,message,kind,entity_type,entity_id,href,created_at,read_at",
+        )
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(5),
+      supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .is("read_at", null),
+    ]);
   if (recentNotifications.error || unreadNotifications.error)
     throw new Error("Failed to load the notification preview");
   const enrichedRecentNotifications = await enrichOfficerNotifications(

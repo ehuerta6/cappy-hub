@@ -529,19 +529,42 @@ it("shows an All-specific empty state when there are no Tasks in the timeframe",
   expect(html).not.toContain("No current tasks.");
 });
 
-it("shows Calendar recovery only for Events in the manager's branch scope", async () => {
+it("shows a Lead Calendar recovery for editable Events and managed deletions", async () => {
   admin = false;
   lead = true;
   actorBranches = [2];
+  vi.mocked(getAcademicPeriodData).mockResolvedValue({
+    periods: [
+      {
+        id: 1,
+        name: "Current period",
+        starts_on: "2026-08-16",
+        ends_on: "2026-12-20",
+        created_at: "2026-08-01T00:00:00Z",
+        updated_at: "2026-08-01T00:00:00Z",
+      },
+      {
+        id: 2,
+        name: "Future period",
+        starts_on: "2099-10-01",
+        ends_on: "2099-10-31",
+        created_at: "2026-08-01T00:00:00Z",
+        updated_at: "2026-08-01T00:00:00Z",
+      },
+    ],
+    currentDate: "2026-11-01",
+    currentPeriodId: 1,
+  });
   rows.event_calendar_sync_failures = [
     {
       event_id: -9101,
       failed_at: "2026-10-30T10:00:00Z",
       event: {
         id: -9101,
-        name: "Managed failed Event",
-        starts_at: "2099-10-30T16:00:00Z",
-        deleted_at: null,
+        name: "Managed deleted failed Event",
+        event_date: "2099-10-30",
+        status: "upcoming",
+        deleted_at: "2026-10-30T10:00:00Z",
         event_branches: [{ branch_id: 2 }],
       },
     },
@@ -551,19 +574,49 @@ it("shows Calendar recovery only for Events in the manager's branch scope", asyn
       event: {
         id: -9102,
         name: "Other branch failed Event",
-        starts_at: "2099-10-30T17:00:00Z",
+        event_date: "2099-10-30",
+        status: "upcoming",
         deleted_at: null,
         event_branches: [{ branch_id: 3 }],
       },
     },
+    {
+      event_id: -9103,
+      failed_at: "2026-10-30T12:00:00Z",
+      event: {
+        id: -9103,
+        name: "Other branch deleted Event",
+        event_date: "2099-10-30",
+        status: "upcoming",
+        deleted_at: "2026-10-30T11:00:00Z",
+        event_branches: [{ branch_id: 3 }],
+      },
+    },
+    {
+      event_id: -9104,
+      failed_at: "2026-10-30T13:00:00Z",
+      event: {
+        id: -9104,
+        name: "Global failed Event",
+        event_date: "2099-10-30",
+        status: "upcoming",
+        deleted_at: null,
+        event_branches: [],
+      },
+    },
   ];
 
-  const html = await render(EventsPage);
+  const html = await render(EventsPage, { period: "1" });
 
   expect(html).toContain("Google Calendar needs attention");
-  expect(html).toContain("Managed failed Event");
+  expect(html).toContain("Managed deleted failed Event");
   expect(html).toContain("Retry Calendar sync");
-  expect(html).not.toContain("Other branch failed Event");
+  expect(html).toContain("Other branch failed Event");
+  expect(html).toContain("Global failed Event");
+  expect(html).not.toContain("Other branch deleted Event");
+  expect(html).toContain(
+    'href="/events/-9104?returnTo=%2Fevents%3Fperiod%3D1&amp;period=2"',
+  );
 });
 
 it("renders all manager-visible Calendar recovery items without pagination", async () => {
@@ -578,7 +631,8 @@ it("renders all manager-visible Calendar recovery items without pagination", asy
       event: {
         id: -9200 - index,
         name: `Failed Event ${index + 1}`,
-        starts_at: "2099-10-30T16:00:00Z",
+        event_date: "2099-10-30",
+        status: "upcoming",
         deleted_at: null,
         event_branches: [{ branch_id: 2 }],
       },

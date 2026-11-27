@@ -105,6 +105,8 @@ export default function TaskCreateForm({
     "resource_links",
     JSON.stringify(initialResourceLinks),
   );
+  const currentResourceLinks = useRef(resourceLinksValue);
+  const originalDueTime = task?.due_time?.slice(0, 5) ?? "";
   const formRef = useRef<HTMLFormElement>(null);
   const original: Record<string, string | string[]> = task
     ? {
@@ -113,21 +115,19 @@ export default function TaskCreateForm({
         task_type: task.task_type,
         branch_id: String(task.branch_id),
         due_date: task.due_date,
+        due_time: originalDueTime,
         points: String(task.points),
         event_ids: taskEventIds.map(String),
         resource_links: JSON.stringify(initialResourceLinks),
       }
     : {};
 
-  function updateEditedFields(resourceValue?: string) {
+  function updateEditedFields() {
     if (!task || !formRef.current) return;
     const changed = changedFormFields(formRef.current, original).filter(
       (field) => field !== "event_ids" && field !== "resource_links",
     );
-    if (
-      resourceValue !== undefined &&
-      resourceValue !== original.resource_links
-    )
+    if (currentResourceLinks.current !== original.resource_links)
       changed.push("resource_links");
     const originalEventIds = [...(original.event_ids as string[])].sort();
     if (
@@ -364,7 +364,7 @@ export default function TaskCreateForm({
               defaultValue={submittedValue(
                 state.values,
                 "due_time",
-                task?.due_time?.slice(0, 5) ?? "",
+                originalDueTime,
               )}
             />
           </label>
@@ -403,7 +403,10 @@ export default function TaskCreateForm({
         key={resourceLinksValue}
         initialValue={resourceLinksValue}
         error={fieldErrors.resource_links}
-        onChange={(value) => updateEditedFields(value)}
+        onChange={(value) => {
+          currentResourceLinks.current = value;
+          updateEditedFields();
+        }}
       />
       {!task && (
         <div className="lg:col-span-2">
@@ -475,6 +478,7 @@ export default function TaskCreateForm({
         branches={branches}
         positions={positions}
         isEvent={false}
+        editing={Boolean(task)}
         values={state.values}
         allActive={notificationSettings?.allActive}
         selectedBranchIds={notificationSettings?.branchIds}

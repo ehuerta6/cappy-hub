@@ -47,6 +47,15 @@ export const canManageEvent = (
     branches.some((id) => actor.branchIds.includes(id)));
 export const canEditEvent = (actor: AuthorizationContext) =>
   canSeeAllBranches(actor) || isLead(actor);
+export const canRecoverEventCalendarSync = (
+  actor: AuthorizationContext,
+  branches: number[],
+  event: { deleted_at: string | null; status: string },
+) =>
+  canManageEvent(actor, branches) ||
+  (event.deleted_at === null &&
+    event.status !== "archived" &&
+    canEditEvent(actor));
 export const canManageTask = (actor: AuthorizationContext, branchId: number) =>
   canSeeAllBranches(actor) ||
   (isLead(actor) && actor.branchIds.includes(branchId));

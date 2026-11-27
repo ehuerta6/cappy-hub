@@ -50,10 +50,20 @@ function reminderMinutes(reminder: ReminderDraft) {
   return Number(reminder.amount) * (unit?.minutes ?? 1);
 }
 
+function sameSelections(current: number[], original: number[]) {
+  const currentSet = new Set(current);
+  const originalSet = new Set(original);
+  return (
+    currentSet.size === originalSet.size &&
+    [...currentSet].every((value) => originalSet.has(value))
+  );
+}
+
 export default function NotificationSettingsFields({
   branches,
   positions,
   isEvent,
+  editing = false,
   allActive = false,
   selectedBranchIds = [],
   selectedPositionIds = [],
@@ -63,6 +73,7 @@ export default function NotificationSettingsFields({
   branches: Option[];
   positions: Option[];
   isEvent: boolean;
+  editing?: boolean;
   allActive?: boolean;
   selectedBranchIds?: number[];
   selectedPositionIds?: number[];
@@ -84,6 +95,8 @@ export default function NotificationSettingsFields({
     "notification_positions",
     selectedPositionIds.map(String),
   ).map(Number);
+  const [branchIds, setBranchIds] = useState(submittedBranches);
+  const [positionIds, setPositionIds] = useState(submittedPositions);
   const submittedOffsets = submittedValues(
     values,
     "reminder_offsets",
@@ -101,9 +114,29 @@ export default function NotificationSettingsFields({
   });
   const hasCustomAudience =
     all || submittedBranches.length > 0 || submittedPositions.length > 0;
+  const audienceChanged =
+    all !== allActive ||
+    (!all &&
+      (!sameSelections(branchIds, selectedBranchIds) ||
+        !sameSelections(positionIds, selectedPositionIds)));
+  const remindersChanged = !sameSelections(
+    reminders.map(reminderMinutes),
+    defaults,
+  );
+
   return (
     <fieldset className="event-form-section lg:col-span-2 notification-settings">
       <legend className="px-1 text-sm font-semibold">Notifications</legend>
+      {editing && audienceChanged && (
+        <input
+          type="hidden"
+          name="edited_fields"
+          value="notification_audience"
+        />
+      )}
+      {editing && remindersChanged && (
+        <input type="hidden" name="edited_fields" value="reminder_offsets" />
+      )}
       <details className="group" open={hasCustomAudience}>
         <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 py-1 text-sm text-muted hover:text-foreground [&::-webkit-details-marker]:hidden">
           <span>
@@ -160,7 +193,15 @@ export default function NotificationSettingsFields({
                       type="checkbox"
                       name="notification_branches"
                       value={branch.id}
-                      defaultChecked={submittedBranches.includes(branch.id)}
+                      checked={branchIds.includes(branch.id)}
+                      onChange={(event) => {
+                        const checked = event.currentTarget.checked;
+                        setBranchIds((current) =>
+                          checked
+                            ? [...current, branch.id]
+                            : current.filter((id) => id !== branch.id),
+                        );
+                      }}
                     />
                     {branch.name}
                   </label>
@@ -177,7 +218,15 @@ export default function NotificationSettingsFields({
                       type="checkbox"
                       name="notification_positions"
                       value={position.id}
-                      defaultChecked={submittedPositions.includes(position.id)}
+                      checked={positionIds.includes(position.id)}
+                      onChange={(event) => {
+                        const checked = event.currentTarget.checked;
+                        setPositionIds((current) =>
+                          checked
+                            ? [...current, position.id]
+                            : current.filter((id) => id !== position.id),
+                        );
+                      }}
                     />
                     {position.name}
                   </label>

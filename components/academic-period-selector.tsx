@@ -107,13 +107,17 @@ export default function AcademicPeriodSelector({
   );
 }
 
-export function AcademicPeriodWriteContextField() {
+export function AcademicPeriodWriteContextField({
+  period,
+}: {
+  period?: string;
+}) {
   const searchParams = useSearchParams();
   return (
     <input
       type="hidden"
       name="writable_period"
-      value={searchParams?.get("period") ?? "current"}
+      value={period ?? searchParams?.get("period") ?? "current"}
     />
   );
 }

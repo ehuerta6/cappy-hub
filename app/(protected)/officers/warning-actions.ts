@@ -8,7 +8,7 @@ import {
   type FormActionState,
 } from "@/lib/form-feedback";
 import { createClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
+import { revalidateOfficerPaths } from "@/lib/revalidation";
 import {
   createWarningInputSchema,
   updateWarningInputSchema,
@@ -42,9 +42,7 @@ export async function createWarning(
   });
   if (error)
     return formFailure(mutationError(error.message), formData, ["reason"]);
-  revalidatePath(`/officers/${validatedWarningInput.officer_id}`);
-  revalidatePath("/officers");
-  revalidatePath("/", "layout");
+  revalidateOfficerPaths(validatedWarningInput.officer_id);
   return { error: "", success: "Warning created" };
 }
 
@@ -71,9 +69,7 @@ export async function updateWarning(
   });
   if (error)
     return formFailure(mutationError(error.message), formData, ["reason"]);
-  revalidatePath(`/officers/${officerId}`);
-  revalidatePath("/officers");
-  revalidatePath("/", "layout");
+  revalidateOfficerPaths(officerId);
   return { error: "", success: "Warning updated" };
 }
 
@@ -100,10 +96,7 @@ export async function deleteWarning(
     p_warning_id: warning.warning_id,
   });
   if (error) return { error: mutationError(error.message), success: "" };
-  if (warning.officer_id !== undefined)
-    revalidatePath(`/officers/${warning.officer_id}`);
-  revalidatePath("/officers");
-  revalidatePath("/", "layout");
+  revalidateOfficerPaths(warning.officer_id);
   return { error: "", success: "Warning deleted" };
 }
 
@@ -127,9 +120,6 @@ export async function restoreWarning(
     p_warning_id: result.data.warning_id,
   });
   if (error) return { error: mutationError(error.message), success: "" };
-  if (result.data.officer_id !== undefined)
-    revalidatePath(`/officers/${result.data.officer_id}`);
-  revalidatePath("/officers");
-  revalidatePath("/", "layout");
+  revalidateOfficerPaths(result.data.officer_id);
   return { error: "", success: "Warning restored" };
 }

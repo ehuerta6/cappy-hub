@@ -10,6 +10,7 @@ import ContextualBackLink from "@/components/contextual-back-link";
 import { PageHeader } from "@/components/ui";
 import TaskCreateForm from "../../task-create-form";
 import {
+  academicPeriodForDate,
   getAcademicPeriodData,
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
@@ -25,10 +26,8 @@ export default async function EditTaskPage({
 }) {
   const context = (await searchParams) ?? {};
   const returnTo = safeReturnTo(context.returnTo);
-  const periodSelection = resolveAcademicPeriod(
-    context.period,
-    await getAcademicPeriodData(),
-  );
+  const periodData = await getAcademicPeriodData();
+  const periodSelection = resolveAcademicPeriod(context.period, periodData);
   if (periodSelection.isHistorical) redirect(`/tasks?period=${context.period}`);
   const actor = await getAuthorizationContext();
   const { id } = await params;
@@ -47,6 +46,25 @@ export default async function EditTaskPage({
   )
     notFound();
   if (!canManageTask(actor, task.data.branch_id)) redirect("/access-denied");
+  if (periodSelection.explicitNoPeriod) {
+    const taskPeriod = academicPeriodForDate(
+      task.data.due_date,
+      periodData.periods,
+    );
+    if (taskPeriod) {
+      if (taskPeriod.ends_on < periodData.currentDate)
+        redirect(withReturnTo(`/tasks/${id}`, returnTo, String(taskPeriod.id)));
+      redirect(
+        withReturnTo(
+          `/tasks/${id}/edit`,
+          returnTo,
+          taskPeriod.id === periodData.currentPeriodId
+            ? null
+            : String(taskPeriod.id),
+        ),
+      );
+    }
+  }
   const [
     series,
     branches,
@@ -170,7 +188,18 @@ export default async function EditTaskPage({
   );
   return (
     <div data-form-page="task" className="space-y-6">
-      <ContextualBackLink href={withReturnTo(`/tasks/${id}`, returnTo)}>
+      <ContextualBackLink
+        href={withReturnTo(
+          `/tasks/${id}`,
+          returnTo,
+          periodSelection.explicitNoPeriod
+            ? "none"
+            : typeof context.period === "string" &&
+                context.period === String(periodSelection.period?.id)
+              ? context.period
+              : null,
+        )}
+      >
         Back to task
       </ContextualBackLink>
       <PageHeader title={series.data ? "Edit recurring task" : "Edit task"} />

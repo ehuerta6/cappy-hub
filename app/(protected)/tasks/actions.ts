@@ -1,8 +1,11 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateTaskPaths } from "@/lib/revalidation";
 import { safeReturnTo, withReturnTo } from "@/lib/return-context";
 import { withSuccessNotice } from "@/lib/mutation-feedback";
+import { academicPeriodForDate } from "@/lib/academic-periods";
+import { currentDenverWeek } from "@/lib/current-denver-week";
+import type { Route } from "next";
 import { redirect } from "next/navigation";
 import { getAuthorizationContext } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
@@ -23,8 +26,7 @@ import {
 import { recurrenceInput } from "@/lib/recurrence-validation";
 import {
   readNotificationSettings,
-  saveTaskDueTime,
-  saveTaskNotificationSettings,
+  taskSaveSettings,
 } from "@/lib/notification-settings";
 import {
   bulkTaskAssignmentInputSchema,
@@ -171,10 +173,14 @@ export async function createTask(
       );
     }
     const { data, error } = await supabase.rpc(
-      assigneeIds.data.length
-        ? "create_recurring_task_with_resources_and_officers"
-        : "create_recurring_task_with_resources",
+      "create_recurring_task_with_resources_atomic",
       {
+        p_save_settings: taskSaveSettings(
+          formData,
+          notificationSettings.data,
+          true,
+          dueTime,
+        ),
         p_title: validatedTaskInput.title,
         p_description: validatedTaskInput.description,
         p_task_type: validatedTaskInput.task_type,
@@ -202,38 +208,19 @@ export async function createTask(
         undefined,
         taskMultipleFields,
       );
-    try {
-      await saveTaskNotificationSettings(
-        supabase,
-        data,
-        formData,
-        notificationSettings.data,
-      );
-      await saveTaskDueTime(supabase, data, formData);
-    } catch (settingsError) {
-      return formFailure(
-        mutationError(
-          settingsError instanceof Error
-            ? settingsError.message
-            : "Could not save Task notification settings",
-        ),
-        formData,
-        taskFormFields,
-        undefined,
-        taskMultipleFields,
-      );
-    }
-    revalidatePath("/tasks");
-    revalidatePath("/calendar");
-    revalidatePath("/events/[id]", "page");
-    revalidatePath("/", "layout");
+    revalidateTaskPaths(data);
     redirect(withSuccessNotice(`/tasks#task-${data}`, "task-created"));
   }
   const { data, error } = await supabase.rpc(
-    assigneeIds.data.length
-      ? "save_task_with_resources_and_officers"
-      : "save_task_with_resources",
+    "save_task_with_resources_atomic",
     {
+      p_request_key: validatedTaskInput.recurrence_request_key,
+      p_save_settings: taskSaveSettings(
+        formData,
+        notificationSettings.data,
+        true,
+        dueTime,
+      ),
       p_title: validatedTaskInput.title,
       p_description: validatedTaskInput.description,
       p_task_type: validatedTaskInput.task_type,
@@ -254,31 +241,7 @@ export async function createTask(
       undefined,
       taskMultipleFields,
     );
-  try {
-    await saveTaskNotificationSettings(
-      supabase,
-      data,
-      formData,
-      notificationSettings.data,
-    );
-    await saveTaskDueTime(supabase, data, formData);
-  } catch (settingsError) {
-    return formFailure(
-      mutationError(
-        settingsError instanceof Error
-          ? settingsError.message
-          : "Could not save Task notification settings",
-      ),
-      formData,
-      taskFormFields,
-      undefined,
-      taskMultipleFields,
-    );
-  }
-  revalidatePath("/tasks");
-  revalidatePath("/calendar");
-  revalidatePath("/events/[id]", "page");
-  revalidatePath("/", "layout");
+  revalidateTaskPaths(data);
   redirect(withSuccessNotice(`/tasks#task-${data}`, "task-created"));
 }
 
@@ -301,8 +264,7 @@ export async function selfAssignTask(
   });
   if (error)
     return formFailure(mutationError(error.message), form, ["task_id"]);
-  revalidatePath("/tasks");
-  revalidatePath("/", "layout");
+  revalidateTaskPaths(validation.data.task_id);
   return { error: "", success: "Task assignment saved" };
 }
 
@@ -326,9 +288,7 @@ export async function selfCompleteTaskAssignment(
   });
   if (error)
     return formFailure(mutationError(error.message), form, ["task_id"]);
-  revalidatePath("/tasks");
-  revalidatePath(`/tasks/${validation.data.task_id}`);
-  revalidatePath("/", "layout");
+  revalidateTaskPaths(validation.data.task_id);
   return { error: "", success: "Task completion updated" };
 }
 
@@ -359,11 +319,7 @@ export async function setTaskNeedStatus(
   });
   if (error)
     return formFailure(mutationError(error.message), form, ["task_id"]);
-  revalidatePath("/tasks");
-  revalidatePath(`/tasks/${validation.data.task_id}`);
-  revalidatePath("/calendar");
-  revalidatePath("/points");
-  revalidatePath("/", "layout");
+  revalidateTaskPaths(validation.data.task_id);
   return {
     error: "",
     success:
@@ -401,10 +357,7 @@ async function reviewTaskCompletion(
   });
   if (error)
     return formFailure(mutationError(error.message), form, ["task_id"]);
-  revalidatePath("/tasks");
-  revalidatePath(`/tasks/${validation.data.task_id}`);
-  revalidatePath("/points");
-  revalidatePath("/", "layout");
+  revalidateTaskPaths(validation.data.task_id);
   return {
     error: "",
     success:
@@ -464,9 +417,7 @@ export async function bulkAssignTaskOfficers(
     added_officer_ids?: number[];
     already_assigned_officer_ids?: number[];
   };
-  revalidatePath("/tasks");
-  revalidatePath(`/tasks/${validation.data.task_id}`);
-  revalidatePath("/", "layout");
+  revalidateTaskPaths(validation.data.task_id);
   const added = result.added_officer_ids?.length ?? 0;
   const existing = result.already_assigned_officer_ids?.length ?? 0;
   return {
@@ -507,10 +458,7 @@ export async function setTaskAssignmentCompletion(
       "officer_id",
       "completed",
     ]);
-  revalidatePath("/tasks");
-  revalidatePath(`/tasks/${validation.data.task_id}`);
-  revalidatePath("/points");
-  revalidatePath("/", "layout");
+  revalidateTaskPaths(validation.data.task_id);
   return {
     error: "",
     success: validation.data.completed
@@ -539,9 +487,10 @@ export async function approveAllPendingTaskCompletions(
       ["officer_ids"],
     );
   const periodContext = String(form.get("writable_period") ?? "");
+  const uniqueOfficerIds = [...new Set(validation.data.officer_ids)];
   const supabase = await createClient();
   let approvedCount = 0;
-  for (const officerId of validation.data.officer_ids) {
+  for (const officerId of uniqueOfficerIds) {
     const { error } = await supabase.rpc("set_task_assignment_completion", {
       p_task_id: validation.data.task_id,
       p_officer_id: officerId,
@@ -549,18 +498,17 @@ export async function approveAllPendingTaskCompletions(
       p_period_context: periodContext,
     });
     if (error) {
-      revalidatePath("/tasks");
-      revalidatePath(`/tasks/${validation.data.task_id}`);
-      revalidatePath("/points");
-      revalidatePath("/", "layout");
-      return formFailure(mutationError(error.message), form, ["task_id"]);
+      if (approvedCount > 0) revalidateTaskPaths(validation.data.task_id);
+      const detail = mutationError(error.message);
+      const message =
+        approvedCount > 0
+          ? `Approved ${approvedCount} of ${uniqueOfficerIds.length} completions before an error occurred: ${detail}`
+          : detail;
+      return formFailure(message, form, ["task_id"]);
     }
     approvedCount += 1;
   }
-  revalidatePath("/tasks");
-  revalidatePath(`/tasks/${validation.data.task_id}`);
-  revalidatePath("/points");
-  revalidatePath("/", "layout");
+  revalidateTaskPaths(validation.data.task_id);
   return {
     error: "",
     success: `${approvedCount} completion${approvedCount === 1 ? "" : "s"} approved`,
@@ -591,9 +539,7 @@ export async function removeTaskAssignment(
       "task_id",
       "officer_id",
     ]);
-  revalidatePath("/tasks");
-  revalidatePath(`/tasks/${validation.data.task_id}`);
-  revalidatePath("/", "layout");
+  revalidateTaskPaths(validation.data.task_id);
   return { error: "", success: "Officer removed from task" };
 }
 
@@ -642,10 +588,7 @@ export async function removeTask(_previous: FormActionState, form: FormData) {
       });
   const { error } = result;
   if (error) return { error: mutationError(error.message), success: "" };
-  revalidatePath("/tasks");
-  revalidatePath(`/tasks/${validation.data.task_id}`);
-  revalidatePath("/calendar");
-  revalidatePath("/", "layout");
+  revalidateTaskPaths(validation.data.task_id);
   return { error: "", success: "Task deleted" };
 }
 
@@ -675,10 +618,7 @@ export async function restoreTask(_previous: FormActionState, form: FormData) {
       });
   const { error } = result;
   if (error) return { error: mutationError(error.message), success: "" };
-  revalidatePath("/tasks");
-  revalidatePath(`/tasks/${validation.data.task_id}`);
-  revalidatePath("/calendar");
-  revalidatePath("/", "layout");
+  revalidateTaskPaths(validation.data.task_id);
   return { error: "", success: "Task restored" };
 }
 
@@ -726,48 +666,39 @@ export async function editStandaloneTask(
   if (dueTime && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(dueTime))
     return formFailure("Enter a valid due time", form, taskFormFields);
   const supabase = await createClient();
-  const { error } = await supabase.rpc("update_task_details_with_resources", {
-    p_task_id: id.data.task_id,
-    p_title: validation.data.title,
-    p_description: validation.data.description,
-    p_task_type: validation.data.task_type,
-    p_branch_id: validation.data.branch_id,
-    p_due_date: validation.data.due_date,
-    p_points: validation.data.points,
-    p_event_ids: eventIds.data,
-    p_resource_links: validation.data.resource_links,
-  });
+  const { error } = await supabase.rpc(
+    "update_task_details_with_resources_atomic",
+    {
+      p_save_settings: taskSaveSettings(
+        form,
+        notificationSettings.data,
+        false,
+        dueTime,
+      ),
+      p_task_id: id.data.task_id,
+      p_title: validation.data.title,
+      p_description: validation.data.description,
+      p_task_type: validation.data.task_type,
+      p_branch_id: validation.data.branch_id,
+      p_due_date: validation.data.due_date,
+      p_points: validation.data.points,
+      p_event_ids: eventIds.data,
+      p_resource_links: validation.data.resource_links,
+    },
+  );
   if (error)
     return formFailure(mutationError(error.message), form, [
       "task_id",
       ...taskFormFields.slice(0, 6),
     ]);
-  try {
-    await saveTaskNotificationSettings(
-      supabase,
-      id.data.task_id,
-      form,
-      notificationSettings.data,
-    );
-    await saveTaskDueTime(supabase, id.data.task_id, form);
-  } catch (settingsError) {
-    return formFailure(
-      mutationError(
-        settingsError instanceof Error
-          ? settingsError.message
-          : "Could not save Task notification settings",
-      ),
-      form,
-      taskFormFields,
-      undefined,
-      taskMultipleFields,
-    );
-  }
-  revalidatePath("/", "layout");
-  revalidatePath("/events/[id]", "page");
+  revalidateTaskPaths(id.data.task_id);
   redirect(
     withSuccessNotice(
-      withReturnTo(`/tasks/${id.data.task_id}`, form.get("returnTo")),
+      await resolveTaskDetailPath(
+        supabase,
+        id.data.task_id,
+        form.get("returnTo"),
+      ),
       "task-updated",
     ),
   );
@@ -827,7 +758,15 @@ export async function editRecurringTask(
     const recurrenceForm = new FormData();
     for (const [name, value] of form.entries()) {
       if (name !== "edited_fields") recurrenceForm.append(name, value);
-      else if (value !== "event_ids" && value !== "resource_links")
+      else if (
+        ![
+          "event_ids",
+          "resource_links",
+          "notification_audience",
+          "reminder_offsets",
+          "due_time",
+        ].includes(String(value))
+      )
         recurrenceForm.append(name, value);
     }
     const args = await recurrenceMutation(
@@ -844,9 +783,15 @@ export async function editRecurringTask(
       .getAll("edited_fields")
       .includes("resource_links");
     const { error } = await supabase.rpc(
-      "mutate_recurring_task_with_resources",
+      "mutate_recurring_task_with_resources_atomic",
       {
         ...args,
+        p_save_settings: taskSaveSettings(
+          form,
+          notificationSettings.data,
+          false,
+          dueTime,
+        ),
         ...(eventLinksChanged ? { p_event_ids: eventIds.data } : {}),
         ...(resourceLinksChanged
           ? { p_resource_links: validation.data.resource_links }
@@ -870,32 +815,45 @@ export async function editRecurringTask(
       taskMultipleFields,
     );
   }
-  try {
-    await saveTaskNotificationSettings(
-      supabase,
-      id.data.task_id,
-      form,
-      notificationSettings.data,
-    );
-    await saveTaskDueTime(supabase, id.data.task_id, form);
-  } catch (settingsError) {
-    return formFailure(
-      mutationError(
-        settingsError instanceof Error
-          ? settingsError.message
-          : "Could not save Task notification settings",
-      ),
-      form,
-      taskFormFields,
-      undefined,
-      taskMultipleFields,
-    );
-  }
-  revalidatePath("/", "layout");
-  revalidatePath("/events/[id]", "page");
+  revalidateTaskPaths(id.data.task_id);
   const destination =
     form.get("scope") === "series"
       ? (safeReturnTo(form.get("returnTo")) ?? "/tasks")
-      : withReturnTo(`/tasks/${id.data.task_id}`, form.get("returnTo"));
+      : await resolveTaskDetailPath(
+          supabase,
+          id.data.task_id,
+          form.get("returnTo"),
+        );
   redirect(withSuccessNotice(destination, "task-updated"));
+}
+
+async function resolveTaskDetailPath(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  taskId: number,
+  returnTo: FormDataEntryValue | null,
+): Promise<Route> {
+  const [task, periods] = await Promise.all([
+    supabase.from("tasks").select("due_date").eq("id", taskId).maybeSingle(),
+    supabase.from("academic_periods").select("id,starts_on,ends_on"),
+  ]);
+  const href = new URL(
+    withReturnTo(`/tasks/${taskId}`, returnTo),
+    "https://cappy.invalid",
+  );
+  const date = task.data?.due_date;
+  const availablePeriods =
+    !periods.error && Array.isArray(periods.data) ? periods.data : [];
+  const matching =
+    !task.error && date
+      ? academicPeriodForDate(date, availablePeriods)
+      : undefined;
+  const { today } = currentDenverWeek(new Date());
+  const current = academicPeriodForDate(today, availablePeriods);
+  href.searchParams.delete("period");
+  if (availablePeriods.length > 0) {
+    if (!matching) href.searchParams.set("period", "none");
+    else if (matching.id !== current?.id)
+      href.searchParams.set("period", String(matching.id));
+  }
+  return `${href.pathname}${href.search}` as Route;
 }

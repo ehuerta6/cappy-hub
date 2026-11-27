@@ -35,6 +35,7 @@ import {
 
 export default function EventForm({
   returnTo,
+  writablePeriod,
   branches,
   positions = [],
   officers = [],
@@ -55,6 +56,7 @@ export default function EventForm({
   duplicateDraft,
 }: {
   returnTo?: string;
+  writablePeriod?: string;
   branches: Pick<Tables<"branches">, "id" | "name">[];
   positions?: Pick<Tables<"positions">, "id" | "name">[];
   officers?: Pick<Tables<"officers">, "id" | "name">[];
@@ -264,7 +266,7 @@ export default function EventForm({
           submitEvent.preventDefault();
       }}
     >
-      <AcademicPeriodWriteContextField />
+      <AcademicPeriodWriteContextField period={writablePeriod} />
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
       {editedFields.map((field) => (
         <input key={field} type="hidden" name="edited_fields" value={field} />
@@ -823,6 +825,7 @@ export default function EventForm({
         branches={branches}
         positions={positions}
         isEvent
+        editing={Boolean(event)}
         values={state.values}
         allActive={notificationSettings?.allActive}
         selectedBranchIds={notificationSettings?.branchIds}

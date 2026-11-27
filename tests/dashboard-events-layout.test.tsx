@@ -122,8 +122,18 @@ let transactions: {
   reason: string;
   created_at: string;
   officers: { id: number; name: string };
-  events: { id: number; name: string } | null;
-  tasks: { id: number; title: string } | null;
+  events: {
+    id: number;
+    name: string;
+    event_date?: string;
+    deleted_at?: string | null;
+  } | null;
+  tasks: {
+    id: number;
+    title: string;
+    due_date?: string;
+    removed_at?: string | null;
+  } | null;
 }[];
 let dashboardQueries: { table: string; operations: [string, unknown[]][] }[];
 let countedEventIds: number[];
@@ -556,6 +566,8 @@ it("preserves all three summary metric values and the existing summary/activity 
     ["neq", ["status", "cancelled"]],
     ["is", ["deleted_at", null]],
     ["gt", ["starts_at", expect.any(String)]],
+    ["gte", ["event_date", "2026-08-16"]],
+    ["lte", ["event_date", "2026-12-20"]],
     ["order", ["starts_at"]],
     ["order", ["id"]],
     ["limit", [5]],
@@ -564,7 +576,7 @@ it("preserves all three summary metric values and the existing summary/activity 
     [
       "select",
       [
-        "*,officers!point_transactions_officer_id_fkey(id,name),events(id,name),tasks(id,title)",
+        "*,officers!point_transactions_officer_id_fkey(id,name),events(id,name,event_date,deleted_at),tasks(id,title,due_date,removed_at)",
       ],
     ],
     ["is", ["removed_at", null]],
@@ -720,9 +732,20 @@ it("disables the row button while signup is pending and exposes accessible resul
 
 it("keeps main pages free of contextual navigation and shows the compact upcoming schedule", async () => {
   expect(await renderEvents()).not.toContain("Back to");
+  events = [
+    {
+      ...upcoming,
+      id: 2,
+      name: "Available event",
+      event_date: "2026-12-01",
+      starts_at: "2026-12-01T12:00:00Z",
+      ends_at: "2026-12-01T13:00:00Z",
+      event_officers: [],
+    },
+  ];
   const html = renderToStaticMarkup(await DashboardPage({}));
   expect(html).not.toContain("Back to");
-  expect(html).toContain("Jan 1 · 5:00–6:00 AM");
+  expect(html).toContain("Dec 1 · 5:00–6:00 AM");
 });
 
 it("shows a bounded upcoming-event preview of Events without an active signup", async () => {
@@ -730,6 +753,9 @@ it("shows a bounded upcoming-event preview of Events without an active signup", 
     ...upcoming,
     id: index + 1,
     name: `Upcoming event ${index + 1}`,
+    event_date: "2026-12-01",
+    starts_at: "2026-12-01T12:00:00Z",
+    ends_at: "2026-12-01T13:00:00Z",
     event_officers: index === 0 ? [{ officer_id: actor.id }] : [],
   }));
   const html = renderToStaticMarkup(await DashboardPage({}));
@@ -747,6 +773,88 @@ it("shows a bounded upcoming-event preview of Events without an active signup", 
   expect(html).toContain('href="/points?view=history"');
   expect(html).not.toContain("<table");
   expect(html).toContain('data-page-width="wide"');
+});
+
+it("excludes upcoming Events outside the current academic period and preserves period=none links", async () => {
+  events = [
+    {
+      ...upcoming,
+      id: 10,
+      name: "Current period Event",
+      event_date: "2026-12-01",
+      starts_at: "2026-12-01T12:00:00Z",
+      ends_at: "2026-12-01T13:00:00Z",
+      event_officers: [],
+    },
+    {
+      ...upcoming,
+      id: 11,
+      name: "Next period Event",
+      event_date: "2027-02-01",
+      starts_at: "2027-02-01T12:00:00Z",
+      ends_at: "2027-02-01T13:00:00Z",
+      event_officers: [],
+    },
+  ];
+
+  const currentHtml = renderToStaticMarkup(await DashboardPage({}));
+  const currentList = currentHtml
+    .split('aria-label="Upcoming events"')[1]
+    .split("</section>")[0];
+  expect(currentList).toContain("Current period Event");
+  expect(currentList).toContain('href="/events/10"');
+  expect(currentList).not.toContain("Next period Event");
+  expect(currentList).not.toContain('href="/events/11"');
+
+  const unfilteredHtml = renderToStaticMarkup(
+    await DashboardPage({ searchParams: Promise.resolve({ period: "none" }) }),
+  );
+  const unfilteredList = unfilteredHtml
+    .split('aria-label="Upcoming events"')[1]
+    .split("</section>")[0];
+  expect(unfilteredList).toContain('href="/events/10?period=none"');
+  expect(unfilteredList).toContain('href="/events/11?period=none"');
+});
+
+it("does not link Recent point activity to deleted or out-of-period Events", async () => {
+  transactions = [
+    {
+      id: 1,
+      points: 3,
+      reason: "Historical",
+      created_at: "2026-10-03T12:00:00Z",
+      officers: { id: 8, name: "Local Officer" },
+      events: {
+        id: 20,
+        name: "Spring Workshop",
+        event_date: "2026-04-15",
+        deleted_at: null,
+      },
+      tasks: null,
+    },
+    {
+      id: 2,
+      points: 2,
+      reason: "Deleted",
+      created_at: "2026-10-02T12:00:00Z",
+      officers: { id: 8, name: "Local Officer" },
+      events: {
+        id: 21,
+        name: "Removed Workshop",
+        event_date: "2026-10-01",
+        deleted_at: "2026-10-05T00:00:00Z",
+      },
+      tasks: null,
+    },
+  ];
+  const html = renderToStaticMarkup(await DashboardPage({}));
+  const list = html
+    .split('aria-label="Recent point activity"')[1]
+    .split("</section>")[0];
+  expect(list).toContain("Spring Workshop");
+  expect(list).toContain("Removed Workshop");
+  expect(list).not.toContain('href="/events/20"');
+  expect(list).not.toContain('href="/events/21"');
 });
 
 it("summarizes signed point values with officer and event/task links or a manual reason", async () => {

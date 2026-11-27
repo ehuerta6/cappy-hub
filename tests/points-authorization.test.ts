@@ -55,7 +55,7 @@ it("submits an admin correction with an authenticated client", async () => {
   transaction.set("event_id", "12");
   const result = await addTransaction({ error: "", success: "" }, transaction);
   expect(result.success).toBe("Point transaction added");
-  expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+  expect(revalidatePath).toHaveBeenCalledWith("/points");
   expect(rpc).toHaveBeenCalledWith("add_manual_transaction", {
     p_officer_id: 3,
     p_event_id: 12,
@@ -308,7 +308,7 @@ it.each(["3", "-1"])(
       p_reason: "Independent contribution",
       p_award_type: "manual",
     });
-    expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+    expect(revalidatePath).toHaveBeenCalledWith("/points");
   },
 );
 
@@ -373,5 +373,5 @@ it("submits explicit premature-award evidence and revalidates dependent views", 
     p_transaction_id: 5,
     p_reason: "Verified wrong original date from source records",
   });
-  expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+  expect(revalidatePath).toHaveBeenCalledWith("/points");
 });

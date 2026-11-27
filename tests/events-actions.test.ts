@@ -1,17 +1,9 @@
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/authorization", () => ({
+vi.mock("@/lib/authorization", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/authorization")>()),
   getAuthorizationContext: vi.fn(),
-  canEditEvent: (actor: { positionCode?: string }) =>
-    actor.positionCode === "president" || actor.positionCode === "lead",
-  canManageEvent: (
-    actor: { positionCode?: string; branchIds?: number[] },
-    branches: number[],
-  ) =>
-    actor.positionCode === "president" ||
-    (actor.positionCode === "lead" &&
-      branches.some((branchId) => actor.branchIds?.includes(branchId))),
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/google-calendar-sync", () => ({
@@ -44,16 +36,25 @@ import {
 import { denverTimestamp } from "@/lib/event-time";
 
 const rpc = vi.fn();
-const from = vi.fn(() => {
+let committedEventDate: string;
+const periods = [
+  { id: 1, starts_on: "2026-08-01", ends_on: "2026-12-20" },
+  { id: 2, starts_on: "2027-01-10", ends_on: "2027-05-20" },
+];
+const from = vi.fn((table: string) => {
+  let selectedColumns = "";
   const query = {
-    select: () => query,
+    select: (columns: string) => {
+      selectedColumns = columns;
+      return query;
+    },
     eq: () => query,
     in: () => query,
     maybeSingle: async () => ({
-      data: {
-        recurrence_series_id: 3,
-        recurrence_key: "2026-10-12",
-      },
+      data:
+        selectedColumns === "event_date"
+          ? { event_date: committedEventDate }
+          : { recurrence_series_id: 3, recurrence_key: "2026-10-12" },
       error: null,
     }),
     single: async () => ({
@@ -62,11 +63,14 @@ const from = vi.fn(() => {
     }),
     then: (resolve: (value: unknown) => unknown) =>
       Promise.resolve({
-        data: [
-          { id: 12, recurrence_key: "2026-10-12" },
-          { id: 13, recurrence_key: "2026-10-13" },
-          { id: 14, recurrence_key: "2026-10-14" },
-        ],
+        data:
+          table === "academic_periods"
+            ? periods
+            : [
+                { id: 12, recurrence_key: "2026-10-12" },
+                { id: 13, recurrence_key: "2026-10-13" },
+                { id: 14, recurrence_key: "2026-10-14" },
+              ],
         error: null,
       }).then(resolve),
   };
@@ -112,20 +116,45 @@ const eventForm = () => {
 };
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-27T12:00:00Z"));
+  committedEventDate = "2026-10-12";
   vi.clearAllMocks();
   vi.mocked(syncGoogleCalendarEvents).mockResolvedValue(true);
   vi.mocked(isGoogleCalendarSyncEnabled).mockReturnValue(true);
   vi.mocked(getAuthorizationContext).mockResolvedValue({ id: 8 } as never);
   vi.mocked(createClient).mockResolvedValue({ rpc, from } as never);
-  rpc.mockResolvedValue({
-    data: {
-      added_officer_ids: [3, 4],
-      awarded_officer_ids: [3, 4],
-      points_per_officer: 5,
-    },
-    error: null,
+  rpc.mockImplementation(async (name, params) => {
+    if (name === "mutate_recurring_event_with_resources_atomic") {
+      return {
+        data: [
+          {
+            event_id: 12,
+            calendar_event_ids:
+              params.p_scope === "occurrence" ? [12] : [12, 13, 14],
+          },
+        ],
+        error: null,
+      };
+    }
+    if (name === "create_recurring_event_with_resources_atomic") {
+      return {
+        data: [{ event_id: 12, calendar_event_ids: [12, 13, 14] }],
+        error: null,
+      };
+    }
+    return {
+      data: {
+        added_officer_ids: [3, 4],
+        awarded_officer_ids: [3, 4],
+        points_per_officer: 5,
+      },
+      error: null,
+    };
   });
 });
+
+afterEach(() => vi.useRealTimers());
 
 it("retries a manager-authorized Event by ID against canonical state", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
@@ -158,7 +187,7 @@ it("retries a manager-authorized Event by ID against canonical state", async () 
   );
 });
 
-it("does not allow a Lead to retry a Google Calendar sync for another Branch", async () => {
+it("allows a Lead to retry a writable global Event by ID", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 8,
     positionCode: "lead",
@@ -168,7 +197,48 @@ it("does not allow a Lead to retry a Google Calendar sync for another Branch", a
     select: () => ({
       eq: () => ({
         maybeSingle: async () => ({
-          data: { id: 12, event_branches: [{ branch_id: 1 }] },
+          data: {
+            id: 12,
+            deleted_at: null,
+            status: "upcoming",
+            event_branches: [],
+          },
+          error: null,
+        }),
+      }),
+    }),
+  }));
+  vi.mocked(createClient).mockResolvedValue({ rpc, from: retryFrom } as never);
+  const data = new FormData();
+  data.set("event_id", "12");
+  expect(
+    await retryGoogleCalendarSync({ error: "", success: "" }, data),
+  ).toEqual({
+    error: "",
+    success: "Google Calendar is up to date",
+  });
+  expect(syncGoogleCalendarEvents).toHaveBeenCalledWith(
+    [12],
+    expect.anything(),
+  );
+});
+
+it("does not allow a Lead to retry a deleted Event in another Branch", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 8,
+    positionCode: "lead",
+    branchIds: [2],
+  } as never);
+  const retryFrom = vi.fn(() => ({
+    select: () => ({
+      eq: () => ({
+        maybeSingle: async () => ({
+          data: {
+            id: 12,
+            deleted_at: "2026-11-01T00:00:00Z",
+            status: "archived",
+            event_branches: [{ branch_id: 1 }],
+          },
           error: null,
         }),
       }),
@@ -221,7 +291,7 @@ it("validates the Event ID and restores through the trusted RPC", async () => {
   const result = await restoreEvent({ error: "", success: "" }, data);
   expect(result).toEqual({ error: "", success: "Event restored" });
   expect(rpc).toHaveBeenCalledWith("restore_event", { p_event_id: 12 });
-  expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+  expect(revalidatePath).toHaveBeenCalledWith("/events");
 });
 
 it("rejects malformed Event IDs before calling the restore RPC", async () => {
@@ -341,8 +411,12 @@ it("sends validated Event fields and resources to the trusted RPC", async () => 
   data.set("returnTo", "/events?q=meeting&branch=2");
   rpc.mockResolvedValueOnce({ data: 12, error: null });
   await saveEvent({ error: "", success: "" }, data);
-  expect(rpc).toHaveBeenCalledWith("save_event_with_resources", {
-    p_event_id: undefined,
+  expect(rpc).toHaveBeenCalledWith("save_event_with_resources_atomic", {
+    p_request_key: "00000000-0000-4000-8000-000000000001",
+    p_save_settings: {
+      audience: { all_active: false, branch_ids: [], position_ids: [] },
+      reminder_offsets: [1440, 60],
+    },
     p_name: " CIC meeting ",
     p_description: " Agenda ",
     p_event_type_id: 2,
@@ -397,7 +471,7 @@ it("saves a selected Event roster in the atomic create mutation", async () => {
   await saveEvent({ error: "", success: "" }, data);
 
   expect(rpc).toHaveBeenCalledWith(
-    "save_event_with_resources_and_officers",
+    "save_event_with_resources_atomic",
     expect.objectContaining({
       p_officer_signups: [
         { officer_id: 31, participation_type: "volunteer", slot_indexes: [] },
@@ -425,12 +499,15 @@ it.each(["occurrence", "series"] as const)(
     data.set("roster_scope", scope);
     data.append("officer_ids", "31");
     data.set("participation_type_31", "attendee");
-    rpc.mockResolvedValueOnce({ data: 42, error: null });
+    rpc.mockResolvedValueOnce({
+      data: [{ event_id: 42, calendar_event_ids: [42, 43, 44] }],
+      error: null,
+    });
 
     await saveEvent({ error: "", success: "" }, data);
 
     expect(rpc).toHaveBeenCalledWith(
-      "create_recurring_event_with_resources_and_officers",
+      "create_recurring_event_with_resources_atomic",
       expect.objectContaining({
         p_officer_signups: [
           { officer_id: 31, participation_type: "attendee", slot_indexes: [] },
@@ -465,7 +542,7 @@ it("saves Volunteer slot choices with the atomic Event create mutation", async (
   await saveEvent({ error: "", success: "" }, data);
 
   expect(rpc).toHaveBeenCalledWith(
-    "save_event_with_resources_and_officers",
+    "save_event_with_resources_atomic",
     expect.objectContaining({
       p_officer_signups: [
         { officer_id: 31, participation_type: "volunteer", slot_indexes: [2] },
@@ -515,16 +592,19 @@ it("saves notification settings in a Lead's cross-Branch Event creation action",
 
   expect(rpc).toHaveBeenNthCalledWith(
     1,
-    "save_event_with_resources",
-    expect.objectContaining({ p_branch_ids: [-4] }),
+    "save_event_with_resources_atomic",
+    expect.objectContaining({
+      p_branch_ids: [-4],
+      p_save_settings: {
+        audience: { all_active: false, branch_ids: [], position_ids: [] },
+        reminder_offsets: [1440, 60],
+      },
+    }),
   );
-  expect(rpc).toHaveBeenCalledWith(
-    "set_event_notification_settings",
-    expect.objectContaining({ p_event_id: 42 }),
-  );
+  expect(rpc).toHaveBeenCalledTimes(1);
 });
 
-it("saves an Event before reporting that Google Calendar could not be updated", async () => {
+it("saves an Event and redirects with a recovery warning when Google Calendar could not be updated", async () => {
   vi.mocked(getAuthorizationContext).mockResolvedValue({
     id: 8,
     positionName: "President",
@@ -533,10 +613,10 @@ it("saves an Event before reporting that Google Calendar could not be updated", 
   rpc.mockResolvedValueOnce({ data: 42, error: null });
   vi.mocked(syncGoogleCalendarEvents).mockResolvedValueOnce(false);
 
-  const result = await saveEvent({ error: "", success: "" }, eventForm());
+  await saveEvent({ error: "", success: "" }, eventForm());
 
   expect(rpc).toHaveBeenCalledWith(
-    "save_event_with_resources",
+    "save_event_with_resources_atomic",
     expect.anything(),
   );
   expect(rpc.mock.calls[0]?.[1]).not.toHaveProperty("p_event_id");
@@ -544,10 +624,9 @@ it("saves an Event before reporting that Google Calendar could not be updated", 
     [42],
     expect.anything(),
   );
-  expect(result.error).toBe(
-    "Cappy Hub saved this Event, but Google Calendar could not be updated.",
+  expect(redirect).toHaveBeenCalledWith(
+    "/events/42?feedback=event-saved-calendar-warning",
   );
-  expect(redirect).not.toHaveBeenCalled();
 });
 
 it("uses per-slot capacity instead of Event capacity for a slotted Event", async () => {
@@ -566,7 +645,7 @@ it("uses per-slot capacity instead of Event capacity for a slotted Event", async
   await saveEvent({ error: "", success: "" }, data);
 
   expect(rpc).toHaveBeenCalledWith(
-    "save_event_with_resources",
+    "save_event_with_resources_atomic",
     expect.objectContaining({
       p_max_volunteers: 0,
       p_time_slots: [{ start_time: "10:00", end_time: "11:00", capacity: 5 }],
@@ -585,14 +664,10 @@ it("trims a free-entry location before the trusted Event RPC", async () => {
   rpc.mockResolvedValue({ data: 12, error: null });
   await saveEvent({ error: "", success: "" }, data);
   expect(rpc).toHaveBeenCalledWith(
-    "save_event_with_resources",
+    "save_event_with_resources_atomic",
     expect.objectContaining({ p_location: "CCSB   1.032" }),
   );
-  expect(rpc).toHaveBeenCalledTimes(2);
-  expect(rpc).toHaveBeenCalledWith(
-    "set_event_notification_settings",
-    expect.objectContaining({ p_event_id: 12 }),
-  );
+  expect(rpc).toHaveBeenCalledTimes(1);
 });
 
 it("rejects blank free-entry locations before calling a trusted Event RPC", async () => {
@@ -625,7 +700,7 @@ it("materializes recurring Events with independent Denver schedules", async () =
   recurring.set("recurrence_count", "3");
   await saveEvent({ error: "", success: "" }, recurring);
   expect(rpc).toHaveBeenCalledWith(
-    "create_recurring_event_with_resources",
+    "create_recurring_event_with_resources_atomic",
     expect.objectContaining({
       p_recurrence_rule: "RRULE:FREQ=DAILY;INTERVAL=1;COUNT=3",
       p_request_key: "00000000-0000-4000-8000-000000000001",
@@ -658,7 +733,7 @@ it("sends an inclusive end-date recurrence in the PostgreSQL canonical format", 
   await saveEvent({ error: "", success: "" }, recurring);
 
   expect(rpc).toHaveBeenCalledWith(
-    "create_recurring_event_with_resources",
+    "create_recurring_event_with_resources_atomic",
     expect.objectContaining({
       p_recurrence_rule: "RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=WE;UNTIL=20261203",
       p_event_dates: [
@@ -772,6 +847,8 @@ it.each(["current", "9001"])(
     expect(result.error).toBe("");
     expect(syncGoogleCalendarEvents).not.toHaveBeenCalled();
     expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+    expect(revalidatePath).toHaveBeenCalledWith("/events");
+    expect(revalidatePath).toHaveBeenCalledWith("/events/12");
   },
 );
 
@@ -806,7 +883,7 @@ it.each(["occurrence", "following", "series"] as const)(
     data.append("edited_fields", "branch_ids");
     await saveEvent({ error: "", success: "" }, data);
     expect(rpc).toHaveBeenCalledWith(
-      "mutate_recurring_event_with_resources",
+      "mutate_recurring_event_with_resources_atomic",
       expect.objectContaining({
         p_selected_id: 12,
         p_scope: scope,
@@ -841,15 +918,15 @@ it.each([false, true])(
       data.set("mutation_request_key", "00000000-0000-4000-8000-000000000068");
       data.append("edited_fields", "name");
     }
-    rpc.mockResolvedValue({ data: 12, error: null });
+    if (!recurring) rpc.mockResolvedValue({ data: 12, error: null });
     await saveEvent({ error: "", success: "" }, data);
     expect(redirect).toHaveBeenCalledWith(
       "/events/12?returnTo=%2Fevents%3Fq%3Dmeeting%26branch%3D2%26status%3Dupcoming&feedback=event-saved",
     );
     expect(rpc).toHaveBeenCalledWith(
       recurring
-        ? "mutate_recurring_event_with_resources"
-        : "save_event_with_resources",
+        ? "mutate_recurring_event_with_resources_atomic"
+        : "save_event_with_resources_atomic",
       expect.not.objectContaining({ returnTo: expect.anything() }),
     );
   },
@@ -882,8 +959,105 @@ it("a contextual edit still surfaces the Event RPC authorization denial without 
     (await saveEvent({ error: "", success: "" }, data)).error,
   ).toBeTruthy();
   expect(rpc).toHaveBeenCalledWith(
-    "save_event_with_resources",
+    "save_event_with_resources_atomic",
     expect.objectContaining({ p_event_id: 12 }),
   );
   expect(redirect).not.toHaveBeenCalled();
+});
+
+it("does not sync or redirect if the atomic Event save fails", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 8,
+    positionCode: "president",
+  } as never);
+  rpc.mockResolvedValueOnce({
+    data: null,
+    error: { message: "Notification write failed" },
+  });
+
+  const result = await saveEvent({ error: "", success: "" }, eventForm());
+  expect(result.error).toBe("Could not save changes");
+  expect(syncGoogleCalendarEvents).not.toHaveBeenCalled();
+  expect(revalidatePath).not.toHaveBeenCalled();
+  expect(redirect).not.toHaveBeenCalled();
+});
+
+it.each(["1", "none"])(
+  "preserves a future academic period after a Calendar sync failure when the origin period is %s",
+  async (originPeriod) => {
+    vi.mocked(getAuthorizationContext).mockResolvedValue({
+      id: 8,
+      positionName: "President",
+      positionCode: "president",
+    } as never);
+    const data = eventForm();
+    data.set("event_date", "2027-02-10");
+    const returnTo = `/events?period=${originPeriod}`;
+    data.set("returnTo", returnTo);
+    committedEventDate = "2027-02-10";
+    rpc.mockResolvedValueOnce({ data: 42, error: null });
+    vi.mocked(syncGoogleCalendarEvents).mockResolvedValueOnce(false);
+
+    await saveEvent({ error: "", success: "" }, data);
+
+    expect(redirect).toHaveBeenCalledWith(
+      `/events/42?returnTo=${encodeURIComponent(returnTo)}&period=2&feedback=event-saved-calendar-warning`,
+    );
+  },
+);
+
+it("redirects a recurring edit using the committed date while retaining the origin period in the back link", async () => {
+  const data = eventForm();
+  data.set("id", "12");
+  data.set("scope", "series");
+  data.set("recurrence_series_id", "3");
+  data.set("recurrence_revision", "2");
+  data.set("mutation_request_key", "00000000-0000-4000-8000-000000000068");
+  data.set("returnTo", "/events?period=1");
+  data.append("edited_fields", "name");
+  committedEventDate = "2026-12-24";
+
+  await saveEvent({ error: "", success: "" }, data);
+
+  expect(redirect).toHaveBeenCalledWith(
+    "/events/12?returnTo=%2Fevents%3Fperiod%3D1&period=none&feedback=event-saved",
+  );
+});
+
+it("normalizes writable_period=none to current for gap-date Event detail actions and surfaces historical read-only errors", async () => {
+  const gapForm = (extra: Record<string, string | string[]> = {}) => {
+    const data = new FormData();
+    data.set("event_id", "12");
+    data.set("writable_period", "none");
+    for (const [key, value] of Object.entries(extra))
+      for (const item of [value].flat()) data.append(key, item);
+    return data;
+  };
+
+  await selfSignup({ error: "", success: "" }, gapForm());
+  await bulkAddEventOfficers(
+    { error: "", success: "" },
+    gapForm({ officer_ids: ["3"] }),
+  );
+  await deleteEvent({ error: "", success: "" }, gapForm());
+  await restoreDeletedEvent({ error: "", success: "" }, gapForm());
+  await restoreEvent({ error: "", success: "" }, gapForm());
+
+  expect(getAuthorizationContext).toHaveBeenCalled();
+  for (const [options] of vi.mocked(getAuthorizationContext).mock.calls) {
+    expect(options).toEqual({
+      enforceWritablePeriod: true,
+      periodContext: "current",
+    });
+  }
+
+  rpc.mockResolvedValueOnce({
+    data: null,
+    error: { message: "Historical period is read-only" },
+  });
+  const blocked = await deleteEvent({ error: "", success: "" }, gapForm());
+  expect(blocked).toEqual({
+    error: "Historical period is read-only",
+    success: "",
+  });
 });

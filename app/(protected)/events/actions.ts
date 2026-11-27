@@ -3,7 +3,7 @@
 import {
   getAuthorizationContext,
   canEditEvent,
-  canManageEvent,
+  canRecoverEventCalendarSync,
 } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import { mutationError } from "@/lib/mutation-error";
@@ -13,6 +13,9 @@ import {
   type FormActionState,
 } from "@/lib/form-feedback";
 import { denverTimestamp } from "@/lib/event-time";
+import { academicPeriodForDate } from "@/lib/academic-periods";
+import { currentDenverWeek } from "@/lib/current-denver-week";
+import type { Route } from "next";
 import {
   canonicalRecurrenceRule,
   expandRecurrenceDates,
@@ -24,9 +27,9 @@ import {
 import { recurrenceInput } from "@/lib/recurrence-validation";
 import {
   readNotificationSettings,
-  saveEventNotificationSettings,
+  notificationSaveSettings,
 } from "@/lib/notification-settings";
-import { revalidatePath } from "next/cache";
+import { revalidateEventPaths } from "@/lib/revalidation";
 import { withReturnTo } from "@/lib/return-context";
 import { withSuccessNotice } from "@/lib/mutation-feedback";
 import { redirect } from "next/navigation";
@@ -257,17 +260,24 @@ export async function saveEvent(
       ["branches", "recurrence_weekdays"],
     );
   const supabase = await createClient();
+  const saveSettings = notificationSaveSettings(
+    formData,
+    notificationSettings.data,
+    validatedEventInput.id === undefined,
+  );
   if (validatedEventInput.id && formData.has("recurrence_series_id")) {
-    const beforeIds = await recurringEventIdsForScope(
-      supabase,
-      formData,
-      validatedEventInput.id,
-      false,
-    );
+    let calendarEventIds: number[];
     try {
       const recurrenceForm = new FormData();
       for (const [name, value] of formData.entries()) {
-        if (name !== "edited_fields" || value !== "resource_links")
+        if (
+          name !== "edited_fields" ||
+          ![
+            "resource_links",
+            "notification_audience",
+            "reminder_offsets",
+          ].includes(String(value))
+        )
           recurrenceForm.append(name, value);
       }
       const args = await recurrenceMutation(
@@ -293,10 +303,11 @@ export async function saveEvent(
           time_slots: timeSlots,
         },
       );
-      const { error } = await supabase.rpc(
-        "mutate_recurring_event_with_resources",
+      const { data, error } = await supabase.rpc(
+        "mutate_recurring_event_with_resources_atomic",
         {
           ...args,
+          p_save_settings: saveSettings,
           ...(resourceLinksChanged
             ? { p_resource_links: validatedEventInput.resource_links }
             : {}),
@@ -310,26 +321,7 @@ export async function saveEvent(
           undefined,
           ["branches", "recurrence_weekdays"],
         );
-      try {
-        await saveEventNotificationSettings(
-          supabase,
-          validatedEventInput.id,
-          formData,
-          notificationSettings.data,
-        );
-      } catch (settingsError) {
-        return formFailure(
-          mutationError(
-            settingsError instanceof Error
-              ? settingsError.message
-              : "Could not save Event notification settings",
-          ),
-          formData,
-          eventFormFields,
-          undefined,
-          eventMultipleFields,
-        );
-      }
+      calendarEventIds = data?.[0]?.calendar_event_ids ?? [];
     } catch (error) {
       return formFailure(
         recurrenceMutationError(error),
@@ -339,37 +331,18 @@ export async function saveEvent(
         ["branches", "recurrence_weekdays"],
       );
     }
-    revalidatePath("/", "layout");
-    const afterIds = await recurringEventIdsForScope(
-      supabase,
-      formData,
-      validatedEventInput.id,
-      true,
-    );
-    const synced = await syncGoogleCalendarEvents(
-      [
-        ...new Set([
-          ...(beforeIds ?? [validatedEventInput.id]),
-          ...(afterIds ?? [validatedEventInput.id]),
-        ]),
-      ],
-      supabase,
-    );
-    if (!synced || !beforeIds || !afterIds)
-      return formFailure(
-        calendarSyncWarning,
-        formData,
-        eventFormFields,
-        undefined,
-        ["branches", "recurrence_weekdays"],
-      );
+    revalidateEventPaths(validatedEventInput.id);
+    const synced =
+      calendarEventIds.length > 0 &&
+      (await syncGoogleCalendarEvents(calendarEventIds, supabase));
     redirect(
       withSuccessNotice(
-        withReturnTo(
-          `/events/${validatedEventInput.id}`,
+        await resolveEventDetailPath(
+          supabase,
+          validatedEventInput.id,
           formData.get("returnTo"),
         ),
-        "event-saved",
+        synced ? "event-saved" : "event-saved-calendar-warning",
       ),
     );
     return { error: "", success: "" };
@@ -411,10 +384,9 @@ export async function saveEvent(
         ["branches", "recurrence_weekdays"],
       );
     const { data, error } = await supabase.rpc(
-      officerSignups.data.length
-        ? "create_recurring_event_with_resources_and_officers"
-        : "create_recurring_event_with_resources",
+      "create_recurring_event_with_resources_atomic",
       {
+        p_save_settings: saveSettings,
         p_name: validatedEventInput.name,
         p_description: validatedEventInput.description,
         p_event_type_id: validatedEventInput.event_type_id,
@@ -452,49 +424,28 @@ export async function saveEvent(
         undefined,
         ["branches", "recurrence_weekdays"],
       );
-    try {
-      await saveEventNotificationSettings(
-        supabase,
-        data,
-        formData,
-        notificationSettings.data,
-      );
-    } catch (settingsError) {
-      return formFailure(
-        mutationError(
-          settingsError instanceof Error
-            ? settingsError.message
-            : "Could not save Event notification settings",
-        ),
-        formData,
-        eventFormFields,
-        undefined,
-        eventMultipleFields,
-      );
-    }
-    revalidatePath("/", "layout");
-    const eventIds = await recurringEventIdsFromFirstOccurrence(supabase, data);
-    const synced = await syncGoogleCalendarEvents(eventIds ?? [data], supabase);
-    if (!synced || !eventIds)
-      return formFailure(
-        calendarSyncWarning,
-        formData,
-        eventFormFields,
-        undefined,
-        ["branches", "recurrence_weekdays"],
-      );
+    const saved = data?.[0];
+    if (!saved) throw new Error("Recurring Event save returned no identity");
+    revalidateEventPaths(saved.event_id);
+    const synced =
+      saved.calendar_event_ids.length > 0 &&
+      (await syncGoogleCalendarEvents(saved.calendar_event_ids, supabase));
     redirect(
       withSuccessNotice(
-        withReturnTo(`/events/${data}`, formData.get("returnTo")),
-        "event-saved",
+        await resolveEventDetailPath(
+          supabase,
+          saved.event_id,
+          formData.get("returnTo"),
+        ),
+        synced ? "event-saved" : "event-saved-calendar-warning",
       ),
     );
   }
   const { data, error } = await supabase.rpc(
-    officerSignups.data.length && !validatedEventInput.id
-      ? "save_event_with_resources_and_officers"
-      : "save_event_with_resources",
+    "save_event_with_resources_atomic",
     {
+      p_save_settings: saveSettings,
+      p_request_key: validatedEventInput.recurrence_request_key,
       ...(validatedEventInput.id !== undefined
         ? { p_event_id: validatedEventInput.id }
         : {}),
@@ -533,50 +484,29 @@ export async function saveEvent(
       undefined,
       ["branches", "recurrence_weekdays"],
     );
-  try {
-    await saveEventNotificationSettings(
-      supabase,
-      data,
-      formData,
-      notificationSettings.data,
-    );
-  } catch (settingsError) {
-    return formFailure(
-      mutationError(
-        settingsError instanceof Error
-          ? settingsError.message
-          : "Could not save Event notification settings",
-      ),
-      formData,
-      eventFormFields,
-      undefined,
-      eventMultipleFields,
-    );
-  }
-  revalidatePath("/", "layout");
+  revalidateEventPaths(data);
   const synced = await syncGoogleCalendarEvents([data], supabase);
-  if (!synced)
-    return formFailure(
-      calendarSyncWarning,
-      formData,
-      eventFormFields,
-      undefined,
-      ["branches", "recurrence_weekdays"],
-    );
   redirect(
     withSuccessNotice(
-      withReturnTo(`/events/${data}`, formData.get("returnTo")),
-      "event-saved",
+      await resolveEventDetailPath(supabase, data, formData.get("returnTo")),
+      synced ? "event-saved" : "event-saved-calendar-warning",
     ),
   );
 }
+function eventMutationPeriodContext(periodContext: FormDataEntryValue | null) {
+  // A gap-date Event can be opened with ?period=none while a current period
+  // exists. Each Event mutation RPC checks the locked Event's actual event_date
+  // against historical academic periods inside the same transaction.
+  return periodContext === "none" ? "current" : periodContext;
+}
+
 export async function changeSignup(
   _previous: FormActionState,
   formData: FormData,
 ) {
   await getAuthorizationContext({
     enforceWritablePeriod: true,
-    periodContext: formData.get("writable_period"),
+    periodContext: eventMutationPeriodContext(formData.get("writable_period")),
   });
   const rawSignupInput = {
     event_id: formData.get("event_id") ?? "",
@@ -607,7 +537,7 @@ export async function changeSignup(
       ["event_id", "officer_id", "remove", "participation_type"],
       undefined,
     );
-  revalidatePath("/", "layout");
+  revalidateEventPaths(validatedSignupInput.event_id);
   return {
     error: "",
     success: validatedSignupInput.remove
@@ -621,7 +551,7 @@ export async function selfSignup(
 ) {
   const actor = await getAuthorizationContext({
     enforceWritablePeriod: true,
-    periodContext: formData.get("writable_period"),
+    periodContext: eventMutationPeriodContext(formData.get("writable_period")),
   });
   const writablePeriod = formData.get("writable_period");
   const signup = new FormData();
@@ -643,7 +573,7 @@ export async function bulkAddEventOfficers(
 ) {
   await getAuthorizationContext({
     enforceWritablePeriod: true,
-    periodContext: formData.get("writable_period"),
+    periodContext: eventMutationPeriodContext(formData.get("writable_period")),
   });
   const rawBulkAddEventOfficersInput = {
     event_id: formData.get("event_id") ?? "",
@@ -675,7 +605,7 @@ export async function bulkAddEventOfficers(
       undefined,
       ["officer_ids"],
     );
-  revalidatePath("/", "layout");
+  revalidateEventPaths(validatedBulkAddEventOfficersInput.event_id);
   const result = data as {
     added_officer_ids?: number[];
     awarded_officer_ids?: number[];
@@ -699,7 +629,7 @@ export async function restoreDeletedEvent(
 ) {
   await getAuthorizationContext({
     enforceWritablePeriod: true,
-    periodContext: formData.get("writable_period"),
+    periodContext: eventMutationPeriodContext(formData.get("writable_period")),
   });
   const restoreEventValidationResult = restoreEventInputSchema.safeParse({
     event_id: formData.get("event_id") ?? "",
@@ -725,8 +655,7 @@ export async function restoreDeletedEvent(
       });
   const error = result.error;
   if (error) return { error: mutationError(error.message), success: "" };
-  revalidatePath("/", "layout");
-  revalidatePath("/events");
+  revalidateEventPaths(restoreEventValidationResult.data.event_id);
   if (
     !(await syncGoogleCalendarEvents(
       Array.isArray(result.data)
@@ -745,7 +674,7 @@ export async function deleteEvent(
 ) {
   await getAuthorizationContext({
     enforceWritablePeriod: true,
-    periodContext: formData.get("writable_period"),
+    periodContext: eventMutationPeriodContext(formData.get("writable_period")),
   });
   const validationResult = eventRecordInputSchema.safeParse({
     event_id: formData.get("event_id") ?? "",
@@ -768,8 +697,7 @@ export async function deleteEvent(
       });
   const { data, error } = result;
   if (error) return { error: mutationError(error.message), success: "" };
-  revalidatePath("/", "layout");
-  revalidatePath("/events");
+  revalidateEventPaths(validationResult.data.event_id);
   if (
     !(await syncGoogleCalendarEvents(
       (data as number[] | boolean | null) instanceof Array
@@ -810,7 +738,7 @@ export async function restoreEvent(
 ) {
   await getAuthorizationContext({
     enforceWritablePeriod: true,
-    periodContext: formData.get("writable_period"),
+    periodContext: eventMutationPeriodContext(formData.get("writable_period")),
   });
   const validation = restoreEventInputSchema.safeParse({
     event_id: formData.get("event_id") ?? "",
@@ -822,7 +750,7 @@ export async function restoreEvent(
     p_event_id: validation.data.event_id,
   });
   if (error) return { error: mutationError(error.message), success: "" };
-  revalidatePath("/", "layout");
+  revalidateEventPaths(validation.data.event_id);
   if (!(await syncGoogleCalendarEvents([validation.data.event_id], supabase)))
     return { error: calendarSyncWarning, success: "" };
   return { error: "", success: "Event restored" };
@@ -834,7 +762,7 @@ export async function retryGoogleCalendarSync(
 ) {
   const actor = await getAuthorizationContext({
     enforceWritablePeriod: true,
-    periodContext: formData.get("writable_period"),
+    periodContext: eventMutationPeriodContext(formData.get("writable_period")),
   });
   const validation = eventRecordInputSchema.safeParse({
     event_id: formData.get("event_id") ?? "",
@@ -850,85 +778,70 @@ export async function retryGoogleCalendarSync(
   const supabase = await createClient();
   const { data: event, error: eventError } = await supabase
     .from("events")
-    .select("id,event_branches(branch_id)")
+    .select("id,status,deleted_at,event_branches(branch_id)")
     .eq("id", validation.data.event_id)
     .maybeSingle();
   if (eventError || !event) return { error: "Event not found", success: "" };
   if (
-    !canManageEvent(
+    !canRecoverEventCalendarSync(
       actor,
       event.event_branches.map((row) => row.branch_id),
+      event,
     )
   )
     return { error: "Event outside branch scope", success: "" };
 
   const synced = await syncGoogleCalendarEvents([event.id], supabase);
-  revalidatePath("/events");
-  revalidatePath(`/events/${event.id}`);
-  revalidatePath("/admin");
+  revalidateEventPaths(event.id);
+  if (synced && formData.has("detail_return_to")) {
+    redirect(
+      withSuccessNotice(
+        await resolveEventDetailPath(
+          supabase,
+          event.id,
+          formData.get("detail_return_to"),
+        ),
+        "event-calendar-synced",
+      ),
+    );
+  }
   return synced
     ? { error: "", success: "Google Calendar is up to date" }
-    : { error: calendarSyncWarning, success: "" };
+    : {
+        error: "Google Calendar sync could not be confirmed. Try again.",
+        success: "",
+      };
 }
 
-async function recurringEventIdsForScope(
+async function resolveEventDetailPath(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  formData: FormData,
-  selectedEventId: number,
-  afterMutation: boolean,
-): Promise<number[] | null> {
-  const scope = formData.get("scope");
-  if (scope === "occurrence") return [selectedEventId];
-  if (scope !== "following" && scope !== "series") return null;
-
-  const originalSeriesId = Number(formData.get("recurrence_series_id"));
-  if (!Number.isInteger(originalSeriesId) || originalSeriesId <= 0) return null;
-  const { data: selected, error: selectedError } = await supabase
-    .from("events")
-    .select("recurrence_series_id,recurrence_key")
-    .eq("id", selectedEventId)
-    .maybeSingle();
-  if (selectedError || !selected) return null;
-
-  const seriesIds = new Set([originalSeriesId]);
-  if (afterMutation && selected.recurrence_series_id !== null)
-    seriesIds.add(selected.recurrence_series_id);
-  const { data: occurrences, error } = await supabase
-    .from("events")
-    .select("id,recurrence_key,recurrence_series_id")
-    .in("recurrence_series_id", [...seriesIds]);
-  if (error || !occurrences) return null;
-  const selectedKey = selected.recurrence_key;
-  return [
-    ...new Set([
-      selectedEventId,
-      ...occurrences
-        .filter(
-          (occurrence) =>
-            scope === "series" ||
-            (selectedKey !== null &&
-              occurrence.recurrence_key !== null &&
-              occurrence.recurrence_key >= selectedKey),
-        )
-        .map((occurrence) => occurrence.id),
-    ]),
-  ];
-}
-
-async function recurringEventIdsFromFirstOccurrence(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  firstEventId: number,
-): Promise<number[] | null> {
-  const { data: first, error: firstError } = await supabase
-    .from("events")
-    .select("recurrence_series_id")
-    .eq("id", firstEventId)
-    .single();
-  if (firstError || !first?.recurrence_series_id) return null;
-  const { data, error } = await supabase
-    .from("events")
-    .select("id")
-    .eq("recurrence_series_id", first.recurrence_series_id);
-  if (error || !data) return null;
-  return data.map((event) => event.id);
+  eventId: number,
+  returnTo: FormDataEntryValue | null,
+): Promise<Route> {
+  const [event, periods] = await Promise.all([
+    supabase
+      .from("events")
+      .select("event_date")
+      .eq("id", eventId)
+      .maybeSingle(),
+    supabase.from("academic_periods").select("id,starts_on,ends_on"),
+  ]);
+  const href = new URL(
+    withReturnTo(`/events/${eventId}`, returnTo),
+    "https://cappy.invalid",
+  );
+  const date = event.data?.event_date;
+  const availablePeriods = !periods.error ? (periods.data ?? []) : [];
+  const matching =
+    !event.error && date
+      ? academicPeriodForDate(date, availablePeriods)
+      : undefined;
+  const { today } = currentDenverWeek(new Date());
+  const current = academicPeriodForDate(today, availablePeriods);
+  href.searchParams.delete("period");
+  // The detail period comes from the committed occurrence; returnTo is just the back link.
+  if (!matching) href.searchParams.set("period", "none");
+  else if (matching.id !== current?.id)
+    href.searchParams.set("period", String(matching.id));
+  return `${href.pathname}${href.search}` as Route;
 }

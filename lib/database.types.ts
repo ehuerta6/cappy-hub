@@ -1785,6 +1785,14 @@ export type Database = {
         Returns: number;
       };
       add_presenter_slot: { Args: { p_event_id: number }; Returns: number };
+      apply_google_calendar_sync_results: {
+        Args: {
+          p_event_ids: number[];
+          p_expected_states: Json;
+          p_failed_event_ids: number[];
+        };
+        Returns: number[];
+      };
       approve_task_assignment_completion: {
         Args: {
           p_officer_id: number;
@@ -2001,6 +2009,33 @@ export type Database = {
         };
         Returns: number;
       };
+      create_recurring_event_with_resources_atomic: {
+        Args: {
+          p_branch_ids: number[];
+          p_description: string;
+          p_ends_at: string[];
+          p_event_dates: string[];
+          p_event_type_id: number;
+          p_location: string;
+          p_max_volunteers: number;
+          p_meeting_notes_url: string;
+          p_name: string;
+          p_officer_signups?: Json;
+          p_recurrence_rule: string;
+          p_request_key: string;
+          p_resource_links: Json;
+          p_roster_scope?: string;
+          p_save_settings: Json;
+          p_signup_sheet_url: string;
+          p_slides_url: string;
+          p_starts_at: string[];
+          p_time_slots: Json;
+        };
+        Returns: {
+          calendar_event_ids: number[];
+          event_id: number;
+        }[];
+      };
       create_recurring_task: {
         Args: {
           p_approval_required: boolean;
@@ -2064,6 +2099,25 @@ export type Database = {
         };
         Returns: number;
       };
+      create_recurring_task_with_resources_atomic: {
+        Args: {
+          p_approval_required: boolean;
+          p_branch_id: number;
+          p_description: string;
+          p_due_dates: string[];
+          p_event_ids: number[];
+          p_officer_ids?: number[];
+          p_points: number;
+          p_recurrence_rule: string;
+          p_request_key: string;
+          p_resource_links: Json;
+          p_roster_scope?: string;
+          p_save_settings: Json;
+          p_task_type: string;
+          p_title: string;
+        };
+        Returns: number;
+      };
       create_task_type: { Args: { p_name: string }; Returns: number };
       create_warning: {
         Args: { p_officer_id: number; p_reason: string };
@@ -2085,6 +2139,19 @@ export type Database = {
         Returns: {
           confirmed_count: number;
           event_id: number;
+        }[];
+      };
+      get_google_calendar_sync_event: {
+        Args: { p_event_id: number };
+        Returns: {
+          deleted_at: string;
+          description: string;
+          ends_at: string;
+          id: number;
+          location: string;
+          name: string;
+          starts_at: string;
+          status: string;
         }[];
       };
       mark_all_notifications_read: {
@@ -2177,6 +2244,27 @@ export type Database = {
         };
         Returns: number;
       };
+      mutate_recurring_event_with_resources_atomic: {
+        Args: {
+          p_capacity_changed?: boolean;
+          p_dates?: string[];
+          p_max_volunteers?: number;
+          p_operation: string;
+          p_patch?: Json;
+          p_request_key: string;
+          p_resource_links?: Json;
+          p_revision: number;
+          p_rule?: string;
+          p_save_settings: Json;
+          p_scope: string;
+          p_selected_id: number;
+          p_series_id: number;
+        };
+        Returns: {
+          calendar_event_ids: number[];
+          event_id: number;
+        }[];
+      };
       mutate_recurring_task: {
         Args: {
           p_dates?: string[];
@@ -2227,6 +2315,23 @@ export type Database = {
           p_resource_links?: Json;
           p_revision: number;
           p_rule?: string;
+          p_scope: string;
+          p_selected_id: number;
+          p_series_id: number;
+        };
+        Returns: number;
+      };
+      mutate_recurring_task_with_resources_atomic: {
+        Args: {
+          p_dates?: string[];
+          p_event_ids?: number[];
+          p_operation: string;
+          p_patch?: Json;
+          p_request_key: string;
+          p_resource_links?: Json;
+          p_revision: number;
+          p_rule?: string;
+          p_save_settings: Json;
           p_scope: string;
           p_selected_id: number;
           p_series_id: number;
@@ -2410,6 +2515,30 @@ export type Database = {
         };
         Returns: number;
       };
+      save_event_with_resources_atomic: {
+        Args: {
+          p_branch_ids: number[];
+          p_description: string;
+          p_ends_at: string;
+          p_event_date: string;
+          p_event_id?: number;
+          p_event_type_id: number;
+          p_location: string;
+          p_max_volunteers?: number;
+          p_meeting_notes_url?: string;
+          p_name: string;
+          p_officer_signups?: Json;
+          p_request_key: string;
+          p_resource_links?: Json;
+          p_roster_scope?: string;
+          p_save_settings: Json;
+          p_signup_sheet_url?: string;
+          p_slides_url?: string;
+          p_starts_at: string;
+          p_time_slots?: Json;
+        };
+        Returns: number;
+      };
       save_event_with_signup_sheet: {
         Args: {
           p_branch_ids: number[];
@@ -2489,6 +2618,23 @@ export type Database = {
           p_officer_ids: number[];
           p_points: number;
           p_resource_links: Json;
+          p_task_type: string;
+          p_title: string;
+        };
+        Returns: number;
+      };
+      save_task_with_resources_atomic: {
+        Args: {
+          p_approval_required: boolean;
+          p_branch_id: number;
+          p_description: string;
+          p_due_date: string;
+          p_event_ids: number[];
+          p_officer_ids?: number[];
+          p_points: number;
+          p_request_key: string;
+          p_resource_links: Json;
+          p_save_settings: Json;
           p_task_type: string;
           p_title: string;
         };
@@ -2633,6 +2779,21 @@ export type Database = {
           p_event_ids: number[];
           p_points: number;
           p_resource_links: Json;
+          p_task_id: number;
+          p_task_type: string;
+          p_title: string;
+        };
+        Returns: undefined;
+      };
+      update_task_details_with_resources_atomic: {
+        Args: {
+          p_branch_id: number;
+          p_description: string;
+          p_due_date: string;
+          p_event_ids: number[];
+          p_points: number;
+          p_resource_links: Json;
+          p_save_settings: Json;
           p_task_id: number;
           p_task_type: string;
           p_title: string;

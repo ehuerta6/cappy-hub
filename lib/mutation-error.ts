@@ -19,6 +19,7 @@ const safeMessages = new Set([
   "Idempotency key already used",
   "Admin required",
   "Unauthorized",
+  "Historical period is read-only",
   "Officer not found",
   "Event not found",
   "Event is not archived",
@@ -125,5 +126,7 @@ export function mutationError(message: string) {
     return "This Officer already has an active award for this Event.";
   if (message === "Invalid recurrence definition")
     return "Review the recurrence frequency, repeat interval, selected weekdays, and end condition";
+  if (message.startsWith("Save request was already used"))
+    return "This save request was already used. Check the saved record before starting a new save.";
   return safeMessages.has(message) ? message : "Could not save changes";
 }

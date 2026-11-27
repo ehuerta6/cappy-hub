@@ -8,7 +8,7 @@ import {
   isLead,
   canSeeAllBranches,
   canEditEvent,
-  canManageEvent,
+  canRecoverEventCalendarSync,
 } from "@/lib/authorization";
 import { listReturnUrl, withReturnTo } from "@/lib/return-context";
 import Link from "next/link";
@@ -30,6 +30,7 @@ import { searchOrFilter } from "@/lib/list-search";
 import { eventListFiltersSchema } from "./filter-validation";
 import { currentDenverWeek } from "@/lib/current-denver-week";
 import {
+  academicPeriodForDate,
   getAcademicPeriodData,
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
@@ -166,7 +167,7 @@ export default async function EventsPage({
     supabase
       .from("event_calendar_sync_failures")
       .select(
-        "event_id,failed_at,event:events(id,name,starts_at,deleted_at,event_branches(branch_id))",
+        "event_id,failed_at,event:events(id,name,event_date,status,deleted_at,event_branches(branch_id))",
         { count: "exact" },
       )
       .order("failed_at", { ascending: true })
@@ -203,9 +204,10 @@ export default async function EventsPage({
   const calendarFailures = (calendarFailuresResult.data ?? []).filter(
     (failure) =>
       failure.event &&
-      canManageEvent(
+      canRecoverEventCalendarSync(
         actor,
         failure.event.event_branches.map((branch) => branch.branch_id),
+        failure.event,
       ),
   );
   const sections = [{ title: selectedPeriod?.name ?? "Events", events }];
@@ -316,24 +318,35 @@ export default async function EventsPage({
             status.
           </p>
           <ul className="space-y-3">
-            {calendarFailures.map((event) => (
-              <li
-                key={event.event_id}
-                className="flex flex-wrap items-center justify-between gap-3"
-              >
-                <Link
-                  href={withReturnTo(`/events/${event.event!.id}`, returnTo)}
-                  className="font-medium underline"
+            {calendarFailures.map(({ event }) => {
+              const failureEvent = event!;
+              const eventPeriod = academicPeriodForDate(
+                failureEvent.event_date,
+                periodData.periods,
+              );
+              const detailParams = new URLSearchParams({
+                returnTo,
+                period: eventPeriod ? String(eventPeriod.id) : "none",
+              });
+              return (
+                <li
+                  key={failureEvent.id}
+                  className="flex flex-wrap items-center justify-between gap-3"
                 >
-                  {event.event!.name}
-                  {event.event!.deleted_at ? " (deleted)" : ""}
-                </Link>
-                <RetryGoogleCalendarSyncForm
-                  eventId={event.event!.id}
-                  compact
-                />
-              </li>
-            ))}
+                  <Link
+                    href={`/events/${failureEvent.id}?${detailParams}`}
+                    className="font-medium underline"
+                  >
+                    {failureEvent.name}
+                    {failureEvent.deleted_at ? " (deleted)" : ""}
+                  </Link>
+                  <RetryGoogleCalendarSyncForm
+                    eventId={failureEvent.id}
+                    compact
+                  />
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
