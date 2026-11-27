@@ -108,6 +108,7 @@ begin
     where id = any(p_ids) and removed_at is null order by id for update
   loop
     if not private.can_manage_branches(array[target.branch_id]) then raise exception 'Task outside branch scope'; end if;
+    perform private.assert_event_period_writable(target.due_date);
     ids := array_append(ids, target.id);
   end loop;
   if p_settings ? 'audience' then
@@ -132,7 +133,7 @@ begin
       on conflict do nothing;
   end if;
   if p_settings ? 'due_time' then
-    update public.tasks set due_time = (p_settings->>'due_time')::time where id = any(ids);
+    update public.tasks set due_time = nullif(p_settings->>'due_time', '')::time where id = any(ids);
   end if;
 end;
 $$;

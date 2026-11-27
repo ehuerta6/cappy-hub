@@ -13,6 +13,7 @@ import {
 } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
 import {
+  academicPeriodForDate,
   getAcademicPeriodData,
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
@@ -92,11 +93,22 @@ export default async function TaskDetailPage({
       task.due_date > selectedPeriod.ends_on)
   )
     notFound();
+  const taskPeriod = academicPeriodForDate(task.due_date, periodData.periods);
+  const isHistorical =
+    periodSelection.isHistorical ||
+    (taskPeriod !== undefined && taskPeriod.ends_on < periodData.currentDate);
+  const editPeriod = taskPeriod
+    ? taskPeriod.id === periodData.currentPeriodId &&
+      context.period === undefined
+      ? null
+      : String(taskPeriod.id)
+    : periodSelection.explicitNoPeriod
+      ? "none"
+      : null;
   const canManageTask =
-    !periodSelection.isHistorical &&
-    canManageTaskForBranch(actor, task.branch_id);
+    !isHistorical && canManageTaskForBranch(actor, task.branch_id);
   const canChangeNeedStatus =
-    !periodSelection.isHistorical && (isAdmin(actor) || isLead(actor));
+    !isHistorical && (isAdmin(actor) || isLead(actor));
   if (task.removed_at && !canManageTask) notFound();
 
   const [
@@ -201,7 +213,7 @@ export default async function TaskDetailPage({
     (canChangeNeedStatus &&
       !task.removed_at &&
       (task.no_longer_needed_at || task.due_date < today)) ||
-    (!periodSelection.isHistorical &&
+    (!isHistorical &&
       !task.removed_at &&
       (!myAssignment || !myAssignment.completed_at)) ||
     canManageTask;
@@ -233,6 +245,7 @@ export default async function TaskDetailPage({
                 href={withReturnTo(
                   `/tasks/${taskIdParam}/edit`,
                   contextualReturnTo,
+                  editPeriod,
                 )}
               >
                 {series?.data ? "Edit recurring task" : "Edit task"}
@@ -342,7 +355,7 @@ export default async function TaskDetailPage({
                   : undefined
               }
               action={
-                !periodSelection.isHistorical &&
+                !isHistorical &&
                 !task.removed_at &&
                 pendingApprovalOfficerIds.length > 0 ? (
                   <ApproveAllPendingButton
@@ -392,7 +405,7 @@ export default async function TaskDetailPage({
                             </Link>
                           </td>
                           <td>
-                            {!periodSelection.isHistorical &&
+                            {!isHistorical &&
                             canChangeOtherTaskCompletion(
                               actor,
                               assignment.officer_id,
@@ -410,7 +423,7 @@ export default async function TaskDetailPage({
                             ) : completed ? (
                               "Completed"
                             ) : assignment.officer_id === actor.id &&
-                              !periodSelection.isHistorical ? (
+                              !isHistorical ? (
                               <TaskSelfCompletionForm taskId={task.id} />
                             ) : (
                               "Not completed"
@@ -453,7 +466,7 @@ export default async function TaskDetailPage({
                 {yourAssignmentLabel}
               </strong>
             </div>
-            {!periodSelection.isHistorical &&
+            {!isHistorical &&
               !task.removed_at &&
               (!myAssignment || !myAssignment.completed_at) && (
                 <div className="flex flex-wrap items-center gap-2 [&>form]:w-auto">
@@ -507,29 +520,44 @@ export default async function TaskDetailPage({
             <SectionHeading title={`Linked Events (${linkedEvents.length})`} />
             {linkedEvents.length ? (
               <ul className="divide-y divide-border rounded-lg border border-border bg-surface-muted/30 px-3 text-sm">
-                {linkedEvents.map(({ events: linkedEvent }) => (
-                  <li
-                    key={linkedEvent.id}
-                    className="flex flex-wrap items-center justify-between gap-x-3 py-2"
-                  >
-                    <Link
-                      href={withReturnTo(
-                        `/events/${linkedEvent.id}`,
-                        contextualReturnTo,
-                      )}
-                      className="font-medium text-foreground hover:text-brand hover:underline"
+                {linkedEvents.map(({ events: linkedEvent }) => {
+                  const linkedEventPeriod = academicPeriodForDate(
+                    linkedEvent.event_date,
+                    periodData.periods,
+                  );
+                  const linkedEventPeriodParam =
+                    periodData.periods.length === 0
+                      ? null
+                      : linkedEventPeriod
+                        ? linkedEventPeriod.id === periodData.currentPeriodId
+                          ? null
+                          : String(linkedEventPeriod.id)
+                        : "none";
+                  return (
+                    <li
+                      key={linkedEvent.id}
+                      className="flex flex-wrap items-center justify-between gap-x-3 py-2"
                     >
-                      {linkedEvent.name}
-                    </Link>
-                    <span className="text-xs text-muted">
-                      {linkedEvent.deleted_at
-                        ? "Archived"
-                        : linkedEvent.status === "cancelled"
-                          ? "Cancelled"
-                          : formatCalendarDate(linkedEvent.event_date)}
-                    </span>
-                  </li>
-                ))}
+                      <Link
+                        href={withReturnTo(
+                          `/events/${linkedEvent.id}`,
+                          contextualReturnTo,
+                          linkedEventPeriodParam,
+                        )}
+                        className="font-medium text-foreground hover:text-brand hover:underline"
+                      >
+                        {linkedEvent.name}
+                      </Link>
+                      <span className="text-xs text-muted">
+                        {linkedEvent.deleted_at
+                          ? "Archived"
+                          : linkedEvent.status === "cancelled"
+                            ? "Cancelled"
+                            : formatCalendarDate(linkedEvent.event_date)}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="text-sm text-muted">No linked Events.</p>

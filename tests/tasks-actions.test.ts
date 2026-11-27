@@ -31,6 +31,9 @@ import {
 } from "@/app/(protected)/tasks/actions";
 
 const rpc = vi.fn();
+let taskDetailDueDate = "2026-10-15";
+let academicPeriodRows: { id: number; starts_on: string; ends_on: string }[] =
+  [];
 const from = vi.fn((table: string) => {
   const query = {
     select: () => query,
@@ -40,6 +43,15 @@ const from = vi.fn((table: string) => {
         table === "task_series" ? { revision: 2 } : { recurrence_series_id: 3 },
       error: null,
     }),
+    maybeSingle: async () => ({
+      data: table === "tasks" ? { due_date: taskDetailDueDate } : null,
+      error: null,
+    }),
+    then: (resolve: (value: unknown) => unknown) =>
+      Promise.resolve({
+        data: table === "academic_periods" ? academicPeriodRows : [],
+        error: null,
+      }).then(resolve),
   };
   return query;
 });
@@ -59,6 +71,8 @@ const taskForm = () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  taskDetailDueDate = "2026-10-15";
+  academicPeriodRows = [];
   vi.mocked(getAuthorizationContext).mockResolvedValue({ id: 8 } as never);
   vi.mocked(createClient).mockResolvedValue({ rpc, from } as never);
   rpc.mockResolvedValue({ data: 9, error: null });
@@ -594,4 +608,30 @@ it("reports an atomic Task save failure on the form without redirecting", async 
   expect(rpc).toHaveBeenCalledTimes(1);
   expect(revalidatePath).not.toHaveBeenCalled();
   expect(redirect).not.toHaveBeenCalled();
+});
+
+it("redirects standalone Task edits to the saved Task's future or gap period", async () => {
+  academicPeriodRows = [
+    { id: 1, starts_on: "2026-08-01", ends_on: "2026-12-31" },
+    { id: 2, starts_on: "2099-01-01", ends_on: "2099-05-31" },
+  ];
+  taskDetailDueDate = "2099-03-10";
+  const futureForm = taskForm();
+  futureForm.set("task_id", "9");
+  futureForm.set("due_date", "2099-03-10");
+  futureForm.set("returnTo", "/tasks?period=1");
+  await editStandaloneTask({ error: "", success: "" }, futureForm);
+  expect(redirect).toHaveBeenCalledWith(
+    "/tasks/9?returnTo=%2Ftasks%3Fperiod%3D1&period=2&feedback=task-updated",
+  );
+
+  vi.mocked(redirect).mockClear();
+  taskDetailDueDate = "2098-06-15";
+  const gapForm = taskForm();
+  gapForm.set("task_id", "9");
+  gapForm.set("due_date", "2098-06-15");
+  await editStandaloneTask({ error: "", success: "" }, gapForm);
+  expect(redirect).toHaveBeenCalledWith(
+    "/tasks/9?period=none&feedback=task-updated",
+  );
 });

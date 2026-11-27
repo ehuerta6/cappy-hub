@@ -29,20 +29,20 @@ insert into academic_periods(id, name, starts_on, ends_on) values
 --   4. Recurring series spanning historical + future occurrences.
 with wt as (select id from event_types where name = 'Workshop' limit 1)
 insert into events(id, name, description, event_type_id, location, event_date, starts_at, ends_at, status)
-select id, name, 'Details', wt.id, 'Campus', event_date, starts_at, ends_at, status
+select rows.id, rows.name, 'Details', wt.id, 'Campus', event_date, starts_at, ends_at, status
 from wt, (values
-  (-48410, 'Gap Unslotted Event', '2098-06-15'::date, '2098-06-15 16:00Z'::timestamptz, '2098-06-15 17:00Z'::timestamptz, 'upcoming'),
-  (-48411, 'Gap Slotted Event', '2098-06-16'::date, '2098-06-16 16:00Z'::timestamptz, '2098-06-16 17:00Z'::timestamptz, 'upcoming'),
-  (-48412, 'Gap Retroactive Event', '2022-06-15'::date, '2022-06-15 16:00Z'::timestamptz, '2022-06-15 17:00Z'::timestamptz, 'past'),
-  (-48413, 'Historical Unslotted Event', '2020-03-10'::date, '2020-03-10 16:00Z'::timestamptz, '2020-03-10 17:00Z'::timestamptz, 'past'),
-  (-48414, 'Historical Slotted Event', '2020-03-11'::date, '2020-03-11 16:00Z'::timestamptz, '2020-03-11 17:00Z'::timestamptz, 'past'),
-  (-48415, 'Historical Cancelled Event', '2020-03-12'::date, '2020-03-12 16:00Z'::timestamptz, '2020-03-12 17:00Z'::timestamptz, 'cancelled'),
+  (-48410, 'Gap Unslotted Event', '2098-06-15'::date, '2098-06-15 16:00Z'::timestamptz, '2098-06-15 17:00Z'::timestamptz, 'upcoming', '2098-06-15'::date),
+  (-48411, 'Gap Slotted Event', '2098-06-16'::date, '2098-06-16 16:00Z'::timestamptz, '2098-06-16 17:00Z'::timestamptz, 'upcoming', '2098-06-16'::date),
+  (-48412, 'Gap Retroactive Event', '2022-06-15'::date, '2022-06-15 16:00Z'::timestamptz, '2022-06-15 17:00Z'::timestamptz, 'past', '2022-06-15'::date),
+  (-48413, 'Historical Unslotted Event', '2020-03-10'::date, '2020-03-10 16:00Z'::timestamptz, '2020-03-10 17:00Z'::timestamptz, 'past', '2020-03-10'::date),
+  (-48414, 'Historical Slotted Event', '2020-03-11'::date, '2020-03-11 16:00Z'::timestamptz, '2020-03-11 17:00Z'::timestamptz, 'past', '2020-03-11'::date),
+  (-48415, 'Historical Cancelled Event', '2020-03-12'::date, '2020-03-12 16:00Z'::timestamptz, '2020-03-12 17:00Z'::timestamptz, 'cancelled', '2020-03-12'::date),
   (-48416, 'Current Period Past Event',
     ((now() at time zone 'America/Denver')::date - 2),
     ((now() at time zone 'America/Denver')::date - 2 + time '10:00') at time zone 'America/Denver',
     ((now() at time zone 'America/Denver')::date - 2 + time '11:00') at time zone 'America/Denver',
-    'past')
-) as rows(id, name, event_date, starts_at, ends_at, status);
+    'past', ((now() at time zone 'America/Denver')::date - 2))
+) as rows(id, name, event_date, starts_at, ends_at, status, recurrence_key);
 
 insert into event_time_slots(id, event_id, starts_at, ends_at, capacity) values
   (-48420, -48411, '2098-06-16 16:00Z', '2098-06-16 17:00Z', 5),
@@ -54,14 +54,14 @@ insert into event_time_slot_officers(event_id, slot_id, officer_id) values
   (-48414, -48421, -4841);
 
 insert into event_series(id, request_key, recurrence_rule, created_by, starts_on, ends_on) values
-  (-48430, '00000000-0000-4000-8000-000000004849', 'RRULE:FREQ=DAILY;INTERVAL=1;COUNT=2', -4840, '2020-03-10', '2098-06-18');
+  (-48430, '00000000-0000-4000-8000-000000004849', 'RRULE:FREQ=DAILY;INTERVAL=1;COUNT=2', -4840, '2098-06-18', '2098-06-19');
 with wt as (select id from event_types where name = 'Workshop' limit 1)
 insert into events(id, name, description, event_type_id, location, event_date, starts_at, ends_at, status, recurrence_series_id, recurrence_key)
-select id, name, 'Details', wt.id, 'Campus', event_date, starts_at, ends_at, status, -48430, event_date
+select id, name, 'Details', wt.id, 'Campus', event_date, starts_at, ends_at, status, -48430, recurrence_key
 from wt, (values
-  (-48431, 'Mixed Series Historical', '2020-03-10'::date, '2020-03-10 16:00Z'::timestamptz, '2020-03-10 17:00Z'::timestamptz, 'past'),
-  (-48432, 'Mixed Series Future', '2098-06-18'::date, '2098-06-18 16:00Z'::timestamptz, '2098-06-18 17:00Z'::timestamptz, 'upcoming')
-) as rows(id, name, event_date, starts_at, ends_at, status);
+  (-48431, 'Mixed Series Historical', '2020-03-10'::date, '2020-03-10 16:00Z'::timestamptz, '2020-03-10 17:00Z'::timestamptz, 'past', '2098-06-19'::date),
+  (-48432, 'Mixed Series Future', '2098-06-18'::date, '2098-06-18 16:00Z'::timestamptz, '2098-06-18 17:00Z'::timestamptz, 'upcoming', '2098-06-18'::date)
+) as rows(id, name, event_date, starts_at, ends_at, status, recurrence_key);
 
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000004840', true);
 set local role authenticated;
@@ -110,6 +110,25 @@ select throws_ok(
   'bulk_add_event_officers blocks historical-period Event'
 );
 select throws_ok(
+  $$select public.bulk_add_event_officers(-48413, array[-4841]::bigint[])$$,
+  'P0001', 'Historical period is read-only',
+  'legacy bulk_add_event_officers blocks historical-period Event'
+);
+select throws_ok(
+  $$select public.remove_event(-48413)$$,
+  'P0001', 'Historical period is read-only',
+  'legacy archive blocks historical-period Event'
+);
+reset role;
+update events set deleted_at = now(), deleted_by = '00000000-0000-4000-8000-000000004840'
+where id = -48413;
+set local role authenticated;
+select throws_ok(
+  $$select public.restore_event_archive(-48413)$$,
+  'P0001', 'Historical period is read-only',
+  'legacy archive restore blocks historical-period Event'
+);
+select throws_ok(
   $$select public.delete_event(-48413)$$,
   'P0001', 'Historical period is read-only',
   'delete_event blocks historical-period Event'
@@ -145,6 +164,31 @@ select is(
   (select count(*) from events where recurrence_series_id = -48430 and deleted_at is not null),
   0::bigint,
   'no occurrence was deleted when recurring lifecycle check failed'
+);
+
+-- An earlier, independent removal is outside the new Delete and Restore batch.
+reset role;
+update events set deleted_at = now(), deleted_by = '00000000-0000-4000-8000-000000004840'
+where id = -48431;
+set local role authenticated;
+select is(
+  public.mutate_recurring_event_lifecycle(
+    -48432, 'series', 'delete', '00000000-0000-4000-8000-00000000484b', -48430, 0
+  ),
+  array[-48432]::bigint[],
+  'series delete changes only the writable occurrence when a historical sibling is already deleted'
+);
+select is(
+  public.mutate_recurring_event_lifecycle(
+    -48432, 'series', 'restore', '00000000-0000-4000-8000-00000000484c', -48430, 1
+  ),
+  array[-48432]::bigint[],
+  'series restore changes only the occurrence owned by the selected delete batch'
+);
+select is(
+  (select array_agg(id order by id) from events where recurrence_series_id = -48430 and deleted_at is not null),
+  array[-48431]::bigint[],
+  'the historical occurrence remains deleted after restoring a separate batch'
 );
 
 -- 4. Retroactively creating a historical period covering a gap-date Event immediately blocks writes.

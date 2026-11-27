@@ -9,7 +9,12 @@ export function EventLinkedTasksSection({
   linkedTasks,
   contextualReturnTo,
 }: {
-  linkedTasks: { id: number; title: string; removed_at: string | null }[];
+  linkedTasks: {
+    id: number;
+    title: string;
+    removed_at: string | null;
+    period?: string | null;
+  }[];
   contextualReturnTo: string;
 }) {
   if (linkedTasks.length === 0) return null;
@@ -35,6 +40,7 @@ export function EventLinkedTasksSection({
                 href={withReturnTo(
                   `/tasks/${linkedTask.id}`,
                   contextualReturnTo,
+                  linkedTask.period,
                 )}
                 className="font-medium text-foreground hover:text-brand hover:underline"
               >

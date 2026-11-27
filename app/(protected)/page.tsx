@@ -409,12 +409,19 @@ export default async function DashboardPage({
                 const pendingCount = task.task_officer_assignments.filter(
                   (a) => a.completion_approval_pending && a.removed_at == null,
                 ).length;
+                const taskInSelectedPeriod =
+                  !selectedPeriod ||
+                  (task.due_date >= selectedPeriod.starts_on &&
+                    task.due_date <= selectedPeriod.ends_on);
+                const taskPeriod = taskInSelectedPeriod
+                  ? undefined
+                  : academicPeriodForDate(task.due_date, periodData.periods);
+                const taskHref = taskInSelectedPeriod
+                  ? `/tasks/${task.id}`
+                  : `/tasks/${task.id}?period=${taskPeriod?.id ?? "none"}`;
                 return (
                   <li key={`review-task-${task.id}`}>
-                    <Link
-                      href={`/tasks/${task.id}` as Route}
-                      className={styles.actionRow}
-                    >
+                    <Link href={taskHref as Route} className={styles.actionRow}>
                       <span className="flex min-w-0 items-center gap-2.5">
                         <Badge tone="amber">
                           {pendingCount} pending approval

@@ -311,13 +311,40 @@ export async function loadDashboardActionItems(
     }
   }
 
+  const result = dashboardActionItems(
+    actor,
+    tasksUnavailable ? [] : assigned.data,
+    eventsUnavailable ? [] : eventResult.data,
+    visibleNotifications,
+  );
+  const items = !selectedPeriod
+    ? result.items
+    : result.items.map((item) => {
+        if (
+          item.kind !== "task" ||
+          item.taskId === undefined ||
+          !item.dueDate ||
+          item.href.includes("?")
+        )
+          return item;
+        if (
+          item.dueDate >= selectedPeriod.starts_on &&
+          item.dueDate <= selectedPeriod.ends_on
+        )
+          return item;
+        const taskPeriod = academicPeriodForDate(
+          item.dueDate,
+          periodData.periods,
+        );
+        return {
+          ...item,
+          href: `/tasks/${item.taskId}?period=${taskPeriod?.id ?? "none"}`,
+        };
+      });
+
   return {
-    ...dashboardActionItems(
-      actor,
-      tasksUnavailable ? [] : assigned.data,
-      eventsUnavailable ? [] : eventResult.data,
-      visibleNotifications,
-    ),
+    ...result,
+    items,
     unavailableSources: {
       tasks: tasksUnavailable,
       events: eventsUnavailable,

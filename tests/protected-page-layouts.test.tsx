@@ -1120,3 +1120,101 @@ it("labels mechanically suspended participation as awaiting Event reconciliation
   );
   expect(html).not.toContain("Removed by Unlinked account");
 });
+
+it("keeps Task detail read-only for a historical Task opened via period=none and preserves periods on cross-period links", async () => {
+  academicTestPeriods = [
+    {
+      id: 1,
+      name: "Historical Term",
+      starts_on: "2020-01-01",
+      ends_on: "2020-05-15",
+      created_at: "2020-01-01T00:00:00Z",
+      updated_at: "2020-01-01T00:00:00Z",
+    },
+    {
+      id: 2,
+      name: "Current Term",
+      starts_on: "2026-08-01",
+      ends_on: "2026-12-31",
+      created_at: "2026-08-01T00:00:00Z",
+      updated_at: "2026-08-01T00:00:00Z",
+    },
+    {
+      id: 3,
+      name: "Future Term",
+      starts_on: "2099-10-01",
+      ends_on: "2099-10-31",
+      created_at: "2026-08-01T00:00:00Z",
+      updated_at: "2026-08-01T00:00:00Z",
+    },
+  ];
+  academicTestCurrentPeriodId = 2;
+
+  // Historical Task opened with ?period=none must remain read-only.
+  task.due_date = "2020-03-10";
+  const historicalHtml = renderToStaticMarkup(
+    await TaskDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({ period: "none" }),
+    }),
+  );
+  expect(historicalHtml).not.toContain("Edit recurring task");
+  expect(historicalHtml).not.toContain("Delete Task");
+
+  await TaskEdit({
+    params: Promise.resolve({ id: "7" }),
+    searchParams: Promise.resolve({ period: "none" }),
+  });
+  expect(redirect).toHaveBeenCalledWith("/tasks/7?period=1");
+
+  // Future Task preserves its period on Edit task and resolves linked Event periods.
+  vi.mocked(redirect).mockClear();
+  task.due_date = "2099-10-08";
+  task.task_events = [
+    {
+      event_id: 42,
+      events: {
+        id: 42,
+        name: "Gap Linked Event",
+        event_date: "2098-06-15",
+        status: "upcoming",
+        deleted_at: null,
+      },
+    },
+  ] as never;
+  const futureHtml = renderToStaticMarkup(
+    await TaskDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({ period: "3" }),
+    }),
+  );
+  expect(futureHtml).toContain(
+    'href="/tasks/7/edit?returnTo=%2Ftasks%3Fperiod%3D3&amp;period=3"',
+  );
+  expect(futureHtml).toContain(
+    'href="/events/42?returnTo=%2Ftasks%3Fperiod%3D3&amp;period=none"',
+  );
+
+  // Event detail resolves Linked Task period so cross-period linked Tasks do not 404.
+  event.event_date = "2026-10-08";
+  eventTaskRows = [
+    {
+      task_id: 17,
+      tasks: {
+        id: 17,
+        title: "Future Linked Task",
+        due_date: "2099-10-08",
+        removed_at: null,
+      },
+    },
+  ];
+  const eventHtml = renderToStaticMarkup(
+    await EventDetail({
+      params: Promise.resolve({ id: "7" }),
+      searchParams: Promise.resolve({}),
+    }),
+  );
+  expect(eventHtml).toContain(
+    'href="/tasks/17?returnTo=%2Fevents&amp;period=3"',
+  );
+});

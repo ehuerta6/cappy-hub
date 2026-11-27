@@ -301,6 +301,12 @@ export default async function OfficerDetailPage({
   const completedTasksCount = associatedTasks.filter((t) =>
     Boolean(t.completed_at),
   ).length;
+  const detailPeriod =
+    typeof context.period === "string" &&
+    (context.period === "none" ||
+      context.period === String(periodSelection.period?.id))
+      ? context.period
+      : null;
 
   return (
     <div data-record-page="officer" className="space-y-5">
@@ -505,6 +511,7 @@ export default async function OfficerDetailPage({
                                 listReturnUrl("/tasks", {
                                   period: context.period,
                                 }),
+                                detailPeriod,
                               )}
                             >
                               {assignment.tasks.title}
@@ -554,6 +561,7 @@ export default async function OfficerDetailPage({
                       href={withReturnTo(
                         `/events/${event.id}`,
                         listReturnUrl("/events", { period: context.period }),
+                        detailPeriod,
                       )}
                       className="break-words font-medium text-foreground hover:text-brand hover:underline"
                     >

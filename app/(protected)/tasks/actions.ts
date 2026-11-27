@@ -3,6 +3,9 @@
 import { revalidateTaskPaths } from "@/lib/revalidation";
 import { safeReturnTo, withReturnTo } from "@/lib/return-context";
 import { withSuccessNotice } from "@/lib/mutation-feedback";
+import { academicPeriodForDate } from "@/lib/academic-periods";
+import { currentDenverWeek } from "@/lib/current-denver-week";
+import type { Route } from "next";
 import { redirect } from "next/navigation";
 import { getAuthorizationContext } from "@/lib/authorization";
 import { createClient } from "@/lib/supabase/server";
@@ -691,7 +694,11 @@ export async function editStandaloneTask(
   revalidateTaskPaths(id.data.task_id);
   redirect(
     withSuccessNotice(
-      withReturnTo(`/tasks/${id.data.task_id}`, form.get("returnTo")),
+      await resolveTaskDetailPath(
+        supabase,
+        id.data.task_id,
+        form.get("returnTo"),
+      ),
       "task-updated",
     ),
   );
@@ -812,6 +819,41 @@ export async function editRecurringTask(
   const destination =
     form.get("scope") === "series"
       ? (safeReturnTo(form.get("returnTo")) ?? "/tasks")
-      : withReturnTo(`/tasks/${id.data.task_id}`, form.get("returnTo"));
+      : await resolveTaskDetailPath(
+          supabase,
+          id.data.task_id,
+          form.get("returnTo"),
+        );
   redirect(withSuccessNotice(destination, "task-updated"));
+}
+
+async function resolveTaskDetailPath(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  taskId: number,
+  returnTo: FormDataEntryValue | null,
+): Promise<Route> {
+  const [task, periods] = await Promise.all([
+    supabase.from("tasks").select("due_date").eq("id", taskId).maybeSingle(),
+    supabase.from("academic_periods").select("id,starts_on,ends_on"),
+  ]);
+  const href = new URL(
+    withReturnTo(`/tasks/${taskId}`, returnTo),
+    "https://cappy.invalid",
+  );
+  const date = task.data?.due_date;
+  const availablePeriods =
+    !periods.error && Array.isArray(periods.data) ? periods.data : [];
+  const matching =
+    !task.error && date
+      ? academicPeriodForDate(date, availablePeriods)
+      : undefined;
+  const { today } = currentDenverWeek(new Date());
+  const current = academicPeriodForDate(today, availablePeriods);
+  href.searchParams.delete("period");
+  if (availablePeriods.length > 0) {
+    if (!matching) href.searchParams.set("period", "none");
+    else if (matching.id !== current?.id)
+      href.searchParams.set("period", String(matching.id));
+  }
+  return `${href.pathname}${href.search}` as Route;
 }

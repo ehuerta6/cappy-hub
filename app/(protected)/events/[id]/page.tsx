@@ -270,7 +270,9 @@ export default async function EventDetailPage({
       .order("officer_id"),
     supabase
       .from("task_events")
-      .select("task_id,tasks!task_events_task_id_fkey(id,title,removed_at)")
+      .select(
+        "task_id,tasks!task_events_task_id_fkey(id,title,due_date,removed_at)",
+      )
       .eq("event_id", event.id)
       .order("tasks(title)")
       .order("task_id"),
@@ -315,7 +317,21 @@ export default async function EventDetailPage({
   const estimatedAttendeePoints =
     Math.round(durationHours * (volunteerRate / 2) * 100) / 100;
   const durationLabel = `${Math.round(durationHours * 100) / 100}h`;
-  const linkedTasks = (tasksResult.data ?? []).map(({ tasks }) => tasks);
+  const linkedTasks = (tasksResult.data ?? []).map(({ tasks }) => {
+    const taskPeriod =
+      periodData.periods.length > 0 && tasks.due_date
+        ? academicPeriodForDate(tasks.due_date, periodData.periods)
+        : undefined;
+    const period =
+      periodData.periods.length === 0 || !tasks.due_date
+        ? null
+        : taskPeriod
+          ? taskPeriod.id === periodData.currentPeriodId
+            ? null
+            : String(taskPeriod.id)
+          : "none";
+    return { ...tasks, period };
+  });
   const transactions = transactionsResult.data ?? [];
   const confirmed = (personalRosterResult.count ?? 0) > 0;
   const personalParticipationType =
