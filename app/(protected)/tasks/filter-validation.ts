@@ -5,9 +5,9 @@ import {
 } from "@/lib/search-params";
 
 const taskListStatusSchema = searchParamStringSchema.transform((value) =>
-  (["open", "in_progress", "needs_approval", "complete"] as const).find(
-    (status) => status === value,
-  ),
+  (
+    ["open", "in_progress", "needs_approval", "overdue", "complete"] as const
+  ).find((status) => status === value),
 );
 
 const pageSchema = searchParamStringSchema.transform((value) => {

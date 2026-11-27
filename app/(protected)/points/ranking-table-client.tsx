@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { Badge, NegativePointValue, PointValue } from "@/components/ui";
+import { TopRankPill } from "@/components/ranking-visuals";
+import { getTopRankTier } from "@/lib/points-ranking";
 
 export type RankingRow = {
   id: number;
@@ -92,21 +94,29 @@ export default function PointsRankingTableClient({
               {filteredRows.map(({ officer, rank }) => {
                 const points = officer.total_points ?? 0;
                 const isMe = officer.id === actorId;
+                const tier = getTopRankTier(rank);
                 const rankAccent =
-                  rank === 1
+                  tier === 1
                     ? "font-semibold text-warning"
-                    : rank === 2
+                    : tier === 2
                       ? "font-semibold text-info"
-                      : rank === 3
+                      : tier === 3
                         ? "font-semibold text-teal"
                         : isMe
                           ? "font-semibold text-brand"
                           : "text-muted";
+                const rowClass = [
+                  tier ? `ranking-row-tier-${tier}` : null,
+                  isMe ? "bg-brand-bg/35" : null,
+                ]
+                  .filter(Boolean)
+                  .join(" ");
                 return (
                   <tr
                     key={officer.id}
                     id={isMe ? "my-rank" : undefined}
-                    className={isMe ? "bg-brand-bg/35" : undefined}
+                    data-rank-tier={tier ?? undefined}
+                    className={rowClass || undefined}
                   >
                     <td>
                       <span className={`tabular-nums ${rankAccent}`}>
@@ -123,6 +133,7 @@ export default function PointsRankingTableClient({
                         >
                           {officer.name}
                         </Link>
+                        {tier && <TopRankPill tier={tier} />}
                         {isMe && <Badge tone="blue">You</Badge>}
                       </span>
                     </td>

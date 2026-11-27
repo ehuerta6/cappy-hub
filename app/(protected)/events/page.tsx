@@ -26,6 +26,7 @@ import {
   TableFrame,
   type ActiveFilterChip,
 } from "@/components/ui";
+import { ExportCsvButton } from "@/components/export-csv-button";
 import { searchOrFilter } from "@/lib/list-search";
 import { eventListFiltersSchema } from "./filter-validation";
 import { currentDenverWeek } from "@/lib/current-denver-week";
@@ -294,15 +295,25 @@ export default async function EventsPage({
         title="Events"
         description="Club events and participation."
         action={
-          !periodSelection.isHistorical && canEditEvent(actor) ? (
-            <ActionLink
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <ExportCsvButton
               href={
-                `/events/new${params.period ? `?period=${params.period}` : ""}` as Route
+                filtersInUrl.size
+                  ? `/api/exports/events?${filtersInUrl.toString()}`
+                  : "/api/exports/events"
               }
-            >
-              + New event
-            </ActionLink>
-          ) : undefined
+              emptyMessage="No matching events to export."
+            />
+            {!periodSelection.isHistorical && canEditEvent(actor) && (
+              <ActionLink
+                href={
+                  `/events/new${params.period ? `?period=${params.period}` : ""}` as Route
+                }
+              >
+                + New event
+              </ActionLink>
+            )}
+          </div>
         }
       />
       {calendarFailures.length > 0 && !periodSelection.isHistorical && (

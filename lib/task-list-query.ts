@@ -3,7 +3,7 @@ import { searchOrFilter } from "@/lib/list-search";
 import type { Database } from "@/lib/database.types";
 
 export type TaskWorkflowStatus =
-  "open" | "in_progress" | "needs_approval" | "complete";
+  "open" | "in_progress" | "needs_approval" | "overdue" | "complete";
 export type TaskListSort = "urgency" | "newest";
 export type TaskListView = "current" | "past" | "all" | "deleted";
 
@@ -54,11 +54,13 @@ export function buildTaskListQuery(
     (view === "current" ||
       view === "past" ||
       status === "open" ||
+      status === "overdue" ||
       status === "complete") &&
       "active_assignments:task_officer_assignments(task_id,removed_at)",
     (view === "current" ||
       view === "past" ||
       status === "in_progress" ||
+      status === "overdue" ||
       status === "complete") &&
       "incomplete_assignments:task_officer_assignments(task_id,completed_at,completion_approval_pending,removed_at)",
     status === "needs_approval" &&
@@ -105,6 +107,7 @@ export function buildTaskListQuery(
     view === "current" ||
     view === "past" ||
     status === "open" ||
+    status === "overdue" ||
     status === "complete"
   )
     tasksQuery = tasksQuery.is("active_assignments.removed_at", null);
@@ -112,6 +115,7 @@ export function buildTaskListQuery(
     view === "current" ||
     view === "past" ||
     status === "in_progress" ||
+    status === "overdue" ||
     status === "complete"
   )
     tasksQuery = tasksQuery
@@ -145,6 +149,11 @@ export function buildTaskListQuery(
     tasksQuery = tasksQuery
       .eq("pending_approval.completion_approval_pending", true)
       .is("pending_approval.removed_at", null);
+  if (status === "overdue")
+    tasksQuery = tasksQuery
+      .is("no_longer_needed_at", null)
+      .lt("due_date", today)
+      .or("active_assignments.is.null,incomplete_assignments.not.is.null");
   if (status === "complete")
     tasksQuery = tasksQuery
       .is("active_assignments.removed_at", null)

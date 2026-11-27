@@ -115,10 +115,14 @@ const historyParameterNames = [
   "page",
 ] as const;
 
+export type PointsView = "overview" | "branch" | "position" | "history";
+
 export function resolvePointsView(
   params: Record<string, string | string[] | undefined>,
-): "overview" | "history" {
+): PointsView {
   if (params.view === "history") return "history";
+  if (params.view === "branch") return "branch";
+  if (params.view === "position") return "position";
   if (params.view === "overview") return "overview";
   return historyParameterNames.some((name) => {
     const value = params[name];

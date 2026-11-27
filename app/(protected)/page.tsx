@@ -15,6 +15,9 @@ import { createClient } from "@/lib/supabase/server";
 import { displayPoints } from "@/lib/participation";
 import { eventSignupCountLabel } from "@/lib/event-list";
 import { Badge, PageHeader, PointValue, SectionHeading } from "@/components/ui";
+import { ExportCsvButton } from "@/components/export-csv-button";
+import { TopRankPill } from "@/components/ranking-visuals";
+import { getTopRankTier } from "@/lib/points-ranking";
 import { SelfSignupForm } from "./events/event-controls";
 import { TaskSelfCompletionForm } from "./tasks/task-action-form";
 import { loadDashboardActionItems } from "./dashboard-action-items";
@@ -123,13 +126,29 @@ export default async function DashboardPage({
           <SectionHeading
             title="Points leaderboard"
             description="Officer totals for this academic period"
+            action={
+              <ExportCsvButton
+                href={
+                  params.period
+                    ? `/api/exports/points/leaderboard?period=${encodeURIComponent(String(params.period))}`
+                    : "/api/exports/points/leaderboard"
+                }
+                label="Export leaderboard CSV"
+                emptyMessage="No matching officers to export for this period."
+              />
+            }
           />
           {rankedOfficers.length === 0 ? (
             <div className={styles.emptyState}>
               <p>No active Points in this period yet.</p>
             </div>
           ) : (
-            <div className={styles.tableWrap}>
+            <div
+              className={styles.tableWrap}
+              role="region"
+              aria-label="Period ranking"
+              tabIndex={0}
+            >
               <table className={styles.rankingTable}>
                 <thead>
                   <tr>
@@ -141,30 +160,49 @@ export default async function DashboardPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {rankedOfficers.map((row, index) => (
-                    <tr key={row.id}>
-                      <td>
-                        <span
-                          className={`${styles.rankNumber} ${[styles.rank1, styles.rank2, styles.rank3][index] ?? ""}`}
-                        >
-                          {String(index + 1).padStart(2, "0")}
-                        </span>
-                      </td>
-                      <td>
-                        <Link
-                          href={`/officers/${row.id}${periodHref}`}
-                          className={styles.personLink}
-                        >
-                          {row.name}
-                        </Link>
-                      </td>
-                      <td className={styles.alignRight}>
-                        <strong className={styles.pointsValue}>
-                          <PointValue value={row.points} />
-                        </strong>
-                      </td>
-                    </tr>
-                  ))}
+                  {rankedOfficers.map((row, index) => {
+                    const rank = index + 1;
+                    const tier = getTopRankTier(rank);
+                    const isMe = row.id === officer.id;
+                    const rowClass = [
+                      tier ? `ranking-row-tier-${tier}` : null,
+                      isMe ? "bg-brand-bg/35" : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" ");
+                    return (
+                      <tr
+                        key={row.id}
+                        data-rank-tier={tier ?? undefined}
+                        className={rowClass || undefined}
+                      >
+                        <td>
+                          <span
+                            className={`${styles.rankNumber} ${[styles.rank1, styles.rank2, styles.rank3][index] ?? ""}`}
+                          >
+                            {String(rank).padStart(2, "0")}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="inline-flex flex-wrap items-center gap-2">
+                            <Link
+                              href={`/officers/${row.id}${periodHref}`}
+                              className={styles.personLink}
+                            >
+                              {row.name}
+                            </Link>
+                            {tier && <TopRankPill tier={tier} />}
+                            {isMe && <Badge tone="blue">You</Badge>}
+                          </span>
+                        </td>
+                        <td className={styles.alignRight}>
+                          <strong className={styles.pointsValue}>
+                            <PointValue value={row.points} />
+                          </strong>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

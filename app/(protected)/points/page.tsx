@@ -5,6 +5,7 @@ import TransactionForm from "./transaction-form";
 import HistoryTable from "./history-table";
 import PointHistoryFilterControls from "./history-filters";
 import PointsRankingTableClient from "./ranking-table-client";
+import GroupedPointsRankingClient from "./grouped-ranking-view";
 import { literalSearchPattern } from "@/lib/list-search";
 import { withPeriodParam } from "@/lib/period-url";
 import {
@@ -18,11 +19,18 @@ import {
   SectionHeading,
   TableFrame,
 } from "@/components/ui";
+import { ExportCsvButton } from "@/components/export-csv-button";
 import { ViewTabs } from "@/components/view-tabs";
 import {
   getAcademicPeriodData,
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
+import {
+  groupRankingByBranch,
+  groupRankingByPosition,
+  type GroupedRankingBranch,
+  type GroupedRankingOfficer,
+} from "@/lib/points-ranking";
 
 type PointHistorySearchParams = Record<string, string | string[] | undefined>;
 
@@ -105,6 +113,9 @@ export default async function PointsPage({
   if (fromDate) currentFilterSearch.set("from", fromDate);
   if (toDate) currentFilterSearch.set("to", toDate);
 
+  const isRankingView =
+    view === "overview" || view === "branch" || view === "position";
+  const needsGroupMetadata = view === "branch" || view === "position";
   const canAddAdjustment =
     admin &&
     !periodSelection.isHistorical &&
@@ -112,7 +123,7 @@ export default async function PointsPage({
       selectedPeriod.id === periodData.currentPeriodId);
   const [overviewData, historyData, historyAdjustmentContext] =
     await Promise.all([
-      view === "overview" ? loadOverviewData() : Promise.resolve(null),
+      isRankingView ? loadOverviewData() : Promise.resolve(null),
       view === "history" ? loadHistoryData() : Promise.resolve(null),
       view === "history" && canAddAdjustment
         ? loadAdjustmentContext()
@@ -148,11 +159,14 @@ export default async function PointsPage({
   }
 
   async function loadOverviewData() {
+    const officerSelect = needsGroupMetadata
+      ? "id,name,position_id,positions(id,name),officer_branches(branch_id,branches(id,name,color))"
+      : "id,name";
     const [activeOfficers, recentEvents, recentTasks, periodPoints] =
       await Promise.all([
         supabase
           .from("officers")
-          .select("id,name")
+          .select(officerSelect)
           .eq("status", "active")
           .order("name"),
         admin
@@ -185,8 +199,21 @@ export default async function PointsPage({
       periodPoints.error
     )
       throw new Error("Failed to load points");
-    const activeOfficerIds = new Set(
-      (activeOfficers.data ?? []).map((officer) => officer.id),
+
+    type OfficerRow = {
+      id: number;
+      name: string;
+      position_id?: number | null;
+      positions?: { id: number; name: string } | null;
+      officer_branches?: Array<{
+        branch_id: number;
+        branches: { id: number; name: string; color?: string | null } | null;
+      }>;
+    };
+
+    const officerList = (activeOfficers.data ?? []) as unknown as OfficerRow[];
+    const officerById = new Map(
+      officerList.map((officer) => [officer.id, officer]),
     );
     const ranking = selectedPeriod
       ? (
@@ -198,18 +225,39 @@ export default async function PointsPage({
             negative_points: number;
           }>
         )
-          .map((row) => ({
-            id: row.officer_id,
-            name: row.officer_name,
-            total_points: row.points,
-            normal_points: row.normal_points,
-            negative_points: row.negative_points,
-          }))
-          .filter((officer) => activeOfficerIds.has(officer.id))
+          .filter((row) => officerById.has(row.officer_id))
+          .map((row): GroupedRankingOfficer => {
+            const meta = officerById.get(row.officer_id);
+            const branches: GroupedRankingBranch[] = (
+              meta?.officer_branches ?? []
+            )
+              .map((membership) => membership.branches)
+              .filter(
+                (
+                  branch,
+                ): branch is {
+                  id: number;
+                  name: string;
+                  color?: string | null;
+                } => Boolean(branch),
+              );
+            return {
+              id: row.officer_id,
+              name: row.officer_name,
+              total_points: row.points,
+              normal_points: row.normal_points,
+              negative_points: row.negative_points,
+              positionId: meta?.positions?.id ?? meta?.position_id ?? null,
+              positionName: meta?.positions?.name ?? "Unassigned",
+              branches,
+            };
+          })
       : [];
 
     return {
-      activeOfficers,
+      activeOfficers: {
+        data: officerList.map((o) => ({ id: o.id, name: o.name })),
+      },
       recentEvents,
       recentTasks,
       totals: { data: ranking, count: ranking.length },
@@ -255,39 +303,84 @@ export default async function PointsPage({
       ? overviewData.totals.data[myRankingIndex]
       : null;
 
+  const groupedViewData =
+    overviewData && (view === "branch" || view === "position")
+      ? view === "branch"
+        ? groupRankingByBranch(overviewData.totals.data)
+        : groupRankingByPosition(overviewData.totals.data)
+      : null;
+
   const officerTotals = overviewData ? (
-    <section aria-label="Officer ranking" className="space-y-3">
+    <section
+      aria-label={
+        view === "branch"
+          ? "Officer ranking by branch"
+          : view === "position"
+            ? "Officer ranking by position"
+            : "Officer ranking"
+      }
+      className="space-y-3"
+    >
       <SectionHeading
-        title="Officer ranking"
+        title={
+          view === "branch"
+            ? "Points by branch"
+            : view === "position"
+              ? "Points by position"
+              : "Officer ranking"
+        }
         description={
           selectedPeriod
             ? `${overviewData.totals.count ?? 0} active officer${overviewData.totals.count === 1 ? "" : "s"} · ${selectedPeriod.name}`
             : "Select an academic period to see ranked points."
         }
         action={
-          myRankingRow ? (
-            <a
-              href="#my-rank"
-              className="inline-flex items-center gap-2 rounded-md border border-brand-border bg-brand-bg px-3 py-1.5 text-xs font-medium text-foreground hover:opacity-90"
-            >
-              <span className="text-muted">Your rank</span>
-              <strong className="tabular-nums text-brand">
-                #{myRankingIndex + 1}
-              </strong>
-              <span aria-hidden="true" className="text-muted">
-                ·
-              </span>
-              <PointValue value={myRankingRow.total_points ?? 0} />
-            </a>
+          view === "overview" ? (
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {myRankingRow && (
+                <a
+                  href="#my-rank"
+                  className="inline-flex items-center gap-2 rounded-md border border-brand-border bg-brand-bg px-3 py-1.5 text-xs font-medium text-foreground hover:opacity-90"
+                >
+                  <span className="text-muted">Your rank</span>
+                  <strong className="tabular-nums text-brand">
+                    #{myRankingIndex + 1}
+                  </strong>
+                  <span aria-hidden="true" className="text-muted">
+                    ·
+                  </span>
+                  <PointValue value={myRankingRow.total_points ?? 0} />
+                </a>
+              )}
+              <ExportCsvButton
+                href={
+                  periodQuery
+                    ? `/api/exports/points/leaderboard?period=${encodeURIComponent(periodQuery)}`
+                    : "/api/exports/points/leaderboard"
+                }
+                label="Export leaderboard CSV"
+                emptyMessage="No matching officers to export for this period."
+              />
+            </div>
           ) : undefined
         }
       />
       {selectedPeriod && overviewData.totals.data.length > 0 ? (
-        <PointsRankingTableClient
-          rows={overviewData.totals.data}
-          actorId={actor.id}
-          periodQuery={periodQuery}
-        />
+        view === "overview" ? (
+          <PointsRankingTableClient
+            rows={overviewData.totals.data}
+            actorId={actor.id}
+            periodQuery={periodQuery}
+          />
+        ) : (
+          <GroupedPointsRankingClient
+            mode={view === "branch" ? "branch" : "position"}
+            groups={groupedViewData ?? []}
+            actorId={actor.id}
+            periodQuery={periodQuery}
+            periodName={selectedPeriod.name}
+          />
+        )
       ) : (
         <p className="points-ranking-empty" role="status">
           {selectedPeriod
@@ -306,7 +399,7 @@ export default async function PointsPage({
         title="Points"
         description="Event participation earns 2 Points per hour for Volunteers and 1 for Attendees."
         action={
-          canAddAdjustment && view === "overview" ? (
+          canAddAdjustment && isRankingView ? (
             <TransactionForm
               officers={overviewData!.activeOfficers.data}
               events={overviewData!.recentEvents!.data}
@@ -332,6 +425,18 @@ export default async function PointsPage({
             active: view === "overview",
           },
           {
+            key: "branch",
+            label: "By branch",
+            href: withPeriodParam("/points?view=branch", periodQuery),
+            active: view === "branch",
+          },
+          {
+            key: "position",
+            label: "By position",
+            href: withPeriodParam("/points?view=position", periodQuery),
+            active: view === "position",
+          },
+          {
             key: "history",
             label: "History",
             href: withPeriodParam("/points?view=history", periodQuery),
@@ -339,13 +444,20 @@ export default async function PointsPage({
           },
         ]}
       />
-      {view === "overview" ? (
+      {isRankingView ? (
         <div>{officerTotals}</div>
       ) : (
         <section className="min-w-0 space-y-4">
           <SectionHeading
             title="Point history"
             description="Search by Officer, reason, Event, or Task. Filter by award type, date range, and history status."
+            action={
+              <ExportCsvButton
+                href={`/api/exports/points/history?${currentFilterSearch.toString()}`}
+                label="Export history CSV"
+                emptyMessage="No matching point transactions to export."
+              />
+            }
           />
           <PointHistoryFilterControls
             isAdmin={admin}

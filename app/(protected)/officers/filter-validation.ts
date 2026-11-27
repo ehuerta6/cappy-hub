@@ -20,6 +20,9 @@ const pageSchema = searchParamStringSchema.transform((value) => {
 
 export const officerListFiltersSchema = zod.object({
   q: searchParamStringSchema.transform((value) => value.trim().slice(0, 100)),
+  view: searchParamStringSchema.transform((value) =>
+    value === "activity" ? "activity" : "directory",
+  ),
   scope: searchParamStringSchema.transform((value) =>
     value === "branch" ? "branch" : "all",
   ),

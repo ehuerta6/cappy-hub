@@ -2710,6 +2710,31 @@ button.cappy-toast-dismiss:hover:not(:disabled) {
   opacity: 1;
 }
 
+/* Restrained Top-3 ranking distinction (light & dark) */
+.ranking-row-tier-1 {
+  background: color-mix(in srgb, var(--warning-bg) 32%, transparent);
+}
+
+.ranking-row-tier-2 {
+  background: color-mix(in srgb, var(--info-bg) 28%, transparent);
+}
+
+.ranking-row-tier-3 {
+  background: color-mix(in srgb, var(--teal-bg) 28%, transparent);
+}
+
+.ranking-row-tier-1 > td:first-child {
+  box-shadow: inset 3px 0 0 var(--warning);
+}
+
+.ranking-row-tier-2 > td:first-child {
+  box-shadow: inset 3px 0 0 var(--info);
+}
+
+.ranking-row-tier-3 > td:first-child {
+  box-shadow: inset 3px 0 0 var(--teal);
+}
+
 @media (prefers-reduced-motion: reduce) {
   button,
   a,
