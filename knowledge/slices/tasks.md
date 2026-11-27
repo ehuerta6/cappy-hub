@@ -9,7 +9,7 @@
 
 A Task is a branch-scoped work record with a date-only due date and zero or more Event links for context. Assignment is represented by `task_officer_assignments`; multiple Officers can be assigned independently. Officers may self-assign when open, while authorized managers assign/remove Officers and manage completion. After the due date, trusted processing reconciles one Task-derived Point award per completed assignment. Task deletion suspends eligible automatic awards and restoration re-evaluates the preserved completion state. Standalone and recurring occurrences lead to the same Task record workflow.
 
-Task-to-Event links provide context only: they do not inherit Event permissions or make Event lifecycle changes recalculate Task awards. The internal [Calendar](calendar.md) displays active Task due dates; the [Dashboard](dashboard.md) may show incomplete assigned Tasks as personal action items.
+Task-to-Event links provide context only: they do not inherit Event permissions or make Event lifecycle changes recalculate Task awards. The internal [Calendar](calendar.md) displays active Task due dates; the [Dashboard](dashboard.md) may show incomplete assigned Tasks as personal action items; the `/tasks` surface provides **Overdue (N)** (`status=overdue`) and manager-scoped **Needs approval (N)** quick tabs plus filtered CSV export (`/api/exports/tasks`). Due Task completion state also feeds the selected-period Officer Activity view (see [Officers](officers.md)).
 
 Historical approval fields/audit entries are compatibility evidence. The retired single-assignee projection and legacy completion-approval workflow are not current behavior.
 

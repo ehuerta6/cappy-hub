@@ -9,7 +9,7 @@
 
 An Event is a materialized occurrence with its own schedule, Branch scope, signup roster, optional Volunteer Time Slots, and optional external resource links. Event managers create or edit it through `/events`; Officers use the same canonical Event record to sign up or leave while eligible. Trusted database processing derives participation Points from confirmed signups and the occurrence schedule. Reversible deletion suspends linked active credit while retaining history; restoration reconciles eligible credit. Recurring Events are still individual rows governed by a series definition (see [recurrence](recurrence.md)). A successful saved Event operation also mirrors its eligible state to Google Calendar (see [Google Calendar integration](google-calendar-integration.md)).
 
-An Event's optional Signup sheet is only a URL. The native `event_officers` roster remains authoritative; there is no sheet import/export or roster synchronization.
+An Event's optional Signup sheet is only a URL. The native `event_officers` roster remains authoritative; there is no sheet import/export or roster synchronization. Filtered Events CSV downloads (`/api/exports/events`) and authorized manager roster CSV downloads (`/api/exports/events/[id]/roster`, UTEP email only plus Volunteer Time Slots) read from native Cappy Hub records rather than external signup sheets.
 
 ## Boundaries and status
 

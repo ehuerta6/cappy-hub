@@ -9,7 +9,7 @@
 
 Participation starts with an Officer's confirmed Volunteer or Attend signup on a canonical Event occurrence. Volunteers receive 2 Points per eligible hour and Attendees receive 1; Time Slot signups are Volunteers and earn from selected slot duration. The award does not depend on attendance validation. The trusted database boundary handles signup eligibility, concurrent capacity checks, and manager roster corrections. Once an active timed Event ends, processing reconciles awards from the confirmed roster. Manual Point entries and corrections remain independent records and intentional removals are preserved. Event deletion suspends Event-linked active credit; restoration reconciles eligibility without restoring independently removed awards.
 
-The signup roster and participation awards are connected, while signup-sheet URLs and historical Presenter rows are not participation sources. Time Slot registration is supported participation state, not a separate presenter workflow.
+The signup roster and participation awards are connected, while signup-sheet URLs and historical Presenter rows are not participation sources. Time Slot registration is supported participation state, not a separate presenter workflow. Authorized Event managers can copy confirmed Officers' UTEP emails or download the confirmed roster as CSV (excluding personal email) from the Event detail page. Recorded Volunteer and Attend signups also feed the selected-period Officer Activity view (see [Officers](officers.md)) as recorded signups rather than verified attendance.
 
 ## Sources
 
