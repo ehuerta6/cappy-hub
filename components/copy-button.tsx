@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, Link2 } from "lucide-react";
+import { Check, Copy, Link2, Mail } from "lucide-react";
 import { emitToast } from "@/components/toast-region";
 
 export function CopyTextButton({
@@ -80,6 +80,51 @@ export function CopyCanonicalLinkButton({
         <Link2 aria-hidden="true" size={14} />
       )}
       <span>{copied ? "Copied" : label}</span>
+    </button>
+  );
+}
+
+export function CopyEmailsButton({
+  emails,
+  label = "Copy UTEP emails",
+}: {
+  emails: readonly string[];
+  label?: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const uniqueEmails = Array.from(
+    new Set(emails.map((email) => email.trim()).filter(Boolean)),
+  );
+  if (uniqueEmails.length === 0) return null;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(uniqueEmails.join(", "));
+      setCopied(true);
+      emitToast(
+        `Copied ${uniqueEmails.length} UTEP ${uniqueEmails.length === 1 ? "email" : "emails"}`,
+        "success",
+      );
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      emitToast("Could not copy emails", "error");
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={() => void handleCopy()}
+      aria-label={`${label} (${uniqueEmails.length})`}
+      className="button-secondary inline-flex min-h-11 items-center gap-1.5 px-3 py-2 text-sm font-medium lg:min-h-0"
+    >
+      {copied ? (
+        <Check aria-hidden="true" size={14} className="text-success" />
+      ) : (
+        <Mail aria-hidden="true" size={14} />
+      )}
+      <span>{copied ? "Copied" : `${label} (${uniqueEmails.length})`}</span>
     </button>
   );
 }

@@ -16,6 +16,7 @@ import {
   TableFrame,
   type ActiveFilterChip,
 } from "@/components/ui";
+import { ExportCsvButton } from "@/components/export-csv-button";
 import {
   formatLabel,
   formatRelativeDayCue,
@@ -144,13 +145,47 @@ export default async function TasksPage({
   if (view === "deleted" && isLead(actor) && !canSeeAllBranches(actor))
     taskCountQuery = taskCountQuery.in("branch_id", actor.branchIds);
 
-  const [tasksResult, taskCountResult, branchesResult, officersResult] =
-    await Promise.all([
-      tasksQuery,
-      taskCountQuery,
-      supabase.from("branches").select("id,name,color").order("name"),
-      supabase.from("officers").select("id,name,status").order("name"),
-    ]);
+  const mayReviewApprovals = mayBrowseDeleted;
+  const periodDateRange = selectedPeriod
+    ? { from: selectedPeriod.starts_on, through: selectedPeriod.ends_on }
+    : undefined;
+  const overdueCountQuery =
+    view === "deleted"
+      ? Promise.resolve({ count: 0, error: null })
+      : buildTaskListQuery(supabase, {
+          view: "current",
+          sort: "urgency",
+          today,
+          status: "overdue",
+          dateRange: periodDateRange,
+        }).limit(1);
+  const needsApprovalCountQuery =
+    mayReviewApprovals && view !== "deleted"
+      ? buildTaskListQuery(supabase, {
+          view: "current",
+          sort: "urgency",
+          today,
+          status: "needs_approval",
+          branchScope: !canSeeAllBranches(actor) ? actor.branchIds : undefined,
+          dateRange: periodDateRange,
+        }).limit(1)
+      : Promise.resolve({ count: 0, error: null });
+
+  const [
+    tasksResult,
+    taskCountResult,
+    overdueCountResult,
+    needsApprovalCountResult,
+    branchesResult,
+    officersResult,
+  ] = await Promise.all([
+    tasksQuery,
+    taskCountQuery,
+    overdueCountQuery,
+    needsApprovalCountQuery,
+    supabase.from("branches").select("id,name,color").order("name"),
+    supabase.from("officers").select("id,name,status").order("name"),
+  ]);
   if (
     tasksResult.error ||
     taskCountResult.error ||
@@ -158,6 +193,12 @@ export default async function TasksPage({
     officersResult.error
   )
     throw new Error("Failed to load tasks");
+  const overdueQuickCount = overdueCountResult.error
+    ? 0
+    : (overdueCountResult.count ?? 0);
+  const needsApprovalQuickCount = needsApprovalCountResult.error
+    ? 0
+    : (needsApprovalCountResult.count ?? 0);
 
   const totalCount = tasksResult.count ?? 0;
   const tasks = tasksResult.data as unknown as TaskListRow[];
@@ -200,10 +241,19 @@ export default async function TasksPage({
   const clearFiltersHref = clearFiltersQuery.size
     ? (`/tasks?${clearFiltersQuery.toString()}` as Route)
     : "/tasks";
-  const quickViewHref = (nextScope: "all" | "mine" | "branch") => {
+  const quickViewHref = (
+    nextScope: "all" | "mine" | "branch",
+    nextStatus?: "overdue" | "needs_approval",
+  ) => {
     const query = new URLSearchParams(filtersInUrl);
     if (nextScope !== "all") query.set("scope", nextScope);
     else query.delete("scope");
+    if (nextStatus) {
+      query.set("status", nextStatus);
+      query.delete("view");
+    } else if (status === "overdue" || status === "needs_approval") {
+      query.delete("status");
+    }
     const serialized = query.toString();
     return (serialized ? `/tasks?${serialized}` : "/tasks") as Route;
   };
@@ -328,17 +378,27 @@ export default async function TasksPage({
         title="Tasks"
         description="Task assignments, due dates, and completion."
         action={
-          !periodSelection.isHistorical &&
-          (canSeeAllBranches(actor) ||
-            (isLead(actor) && actor.branchIds.length > 0)) ? (
-            <ActionLink
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <ExportCsvButton
               href={
-                `/tasks/new${params.period ? `?period=${params.period}` : ""}` as Route
+                filtersInUrl.size
+                  ? `/api/exports/tasks?${filtersInUrl.toString()}`
+                  : "/api/exports/tasks"
               }
-            >
-              + New task
-            </ActionLink>
-          ) : undefined
+              emptyMessage="No matching tasks to export."
+            />
+            {!periodSelection.isHistorical &&
+              (canSeeAllBranches(actor) ||
+                (isLead(actor) && actor.branchIds.length > 0)) && (
+                <ActionLink
+                  href={
+                    `/tasks/new${params.period ? `?period=${params.period}` : ""}` as Route
+                  }
+                >
+                  + New task
+                </ActionLink>
+              )}
+          </div>
         }
       />
       <SuccessNotice status={params.feedback} />
@@ -358,16 +418,42 @@ export default async function TasksPage({
                 },
               ]
             : []),
-        ].map(({ scope: itemScope, label }) => (
+        ].map(({ scope: itemScope, label }) => {
+          const isActive =
+            effectiveScope === itemScope &&
+            status !== "overdue" &&
+            status !== "needs_approval";
+          return (
+            <Link
+              key={itemScope}
+              href={quickViewHref(itemScope)}
+              aria-current={isActive ? "page" : undefined}
+              className={`min-h-10 border-b-2 px-1 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${isActive ? "border-brand text-brand" : "border-transparent text-secondary hover:text-foreground"}`}
+            >
+              {label}
+            </Link>
+          );
+        })}
+        <Link
+          href={quickViewHref("all", "overdue")}
+          aria-current={status === "overdue" ? "page" : undefined}
+          className={`min-h-10 border-b-2 px-1 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${status === "overdue" ? "border-brand text-brand" : "border-transparent text-secondary hover:text-foreground"}`}
+        >
+          Overdue{overdueQuickCount > 0 ? ` (${overdueQuickCount})` : ""}
+        </Link>
+        {mayReviewApprovals && (
           <Link
-            key={itemScope}
-            href={quickViewHref(itemScope)}
-            aria-current={effectiveScope === itemScope ? "page" : undefined}
-            className={`min-h-10 border-b-2 px-1 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${effectiveScope === itemScope ? "border-brand text-brand" : "border-transparent text-secondary hover:text-foreground"}`}
+            href={quickViewHref(
+              canSeeAllBranches(actor) ? "all" : "branch",
+              "needs_approval",
+            )}
+            aria-current={status === "needs_approval" ? "page" : undefined}
+            className={`min-h-10 border-b-2 px-1 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${status === "needs_approval" ? "border-brand text-brand" : "border-transparent text-secondary hover:text-foreground"}`}
           >
-            {label}
+            Needs approval
+            {needsApprovalQuickCount > 0 ? ` (${needsApprovalQuickCount})` : ""}
           </Link>
-        ))}
+        )}
       </nav>
       <ListFilterBar
         key={JSON.stringify(filters)}
@@ -459,6 +545,7 @@ export default async function TasksPage({
             <option value="">All statuses</option>
             <option value="open">Open</option>
             <option value="in_progress">In progress</option>
+            <option value="overdue">Overdue</option>
             <option value="needs_approval">Needs approval</option>
             <option value="complete">Complete</option>
           </select>

@@ -401,6 +401,14 @@
 .tableWrap {
   width: 100%;
   overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+}
+
+.tableWrap:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }
 
 .rankingTable {

@@ -4,8 +4,10 @@ import {
   CopyTextButton,
 } from "@/components/copy-button";
 import PointTransactionTable from "@/components/point-transaction-table";
+import { ExportCsvButton } from "@/components/export-csv-button";
 import {
   ActionLink,
+  Badge,
   BranchBadges,
   PageHeader,
   PointValue,
@@ -47,9 +49,19 @@ import {
   getAcademicPeriodData,
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
+import { currentDenverWeek } from "@/lib/current-denver-week";
+import {
+  computeOfficerActivityMap,
+  emptyOfficerActivitySummary,
+  formatTaskCompletionLabel,
+} from "@/lib/officer-activity";
 
 type Warning = Tables<"officer_warnings">;
-type EventAssociation = { events: Tables<"events"> };
+type EventAssociation = {
+  participation_type: string;
+  event_id: number;
+  events: Tables<"events">;
+};
 type PointTransactionWithRelations = Tables<"point_transactions"> & {
   officers: Pick<Tables<"officers">, "id" | "name">;
   events: Pick<Tables<"events">, "id" | "name"> | null;
@@ -118,7 +130,7 @@ export default async function OfficerDetailPage({
   const makeEventsQuery = () => {
     let query = supabase
       .from("event_officers")
-      .select("events!inner(*)")
+      .select("participation_type,event_id,events!inner(*)")
       .eq("officer_id", officer.id)
       .is("removed_at", null)
       .is("events.deleted_at", null)
@@ -136,7 +148,7 @@ export default async function OfficerDetailPage({
     let query = supabase
       .from("task_officer_assignments")
       .select(
-        "completed_at,approved_at,tasks!inner(id,title,due_date,points,task_type,removed_at)",
+        "completed_at,approved_at,completion_approval_pending,tasks!inner(id,title,due_date,points,task_type,removed_at,no_longer_needed_at)",
       )
       .eq("officer_id", officer.id)
       .is("removed_at", null)
@@ -266,9 +278,16 @@ export default async function OfficerDetailPage({
       | {
           completed_at: string | null;
           approved_at: string | null;
+          completion_approval_pending?: boolean | null;
           tasks: Pick<
             Tables<"tasks">,
-            "id" | "title" | "due_date" | "points" | "task_type" | "removed_at"
+            | "id"
+            | "title"
+            | "due_date"
+            | "points"
+            | "task_type"
+            | "removed_at"
+            | "no_longer_needed_at"
           >;
         }[]
       | null;
@@ -298,9 +317,24 @@ export default async function OfficerDetailPage({
     );
   };
 
-  const completedTasksCount = associatedTasks.filter((t) =>
-    Boolean(t.completed_at),
-  ).length;
+  const { today } = currentDenverWeek(new Date());
+  const officerActivity =
+    computeOfficerActivityMap(
+      [officer.id],
+      associatedTasks.map((assignment) => ({
+        officer_id: officer.id,
+        completed_at: assignment.completed_at,
+        completion_approval_pending: assignment.completion_approval_pending,
+        tasks: assignment.tasks,
+      })),
+      associatedEvents.map((row) => ({
+        officer_id: officer.id,
+        event_id: row.event_id,
+        participation_type: row.participation_type,
+        events: row.events,
+      })),
+      today,
+    ).get(officer.id) ?? emptyOfficerActivitySummary();
   const detailPeriod =
     typeof context.period === "string" &&
     (context.period === "none" ||
@@ -391,23 +425,70 @@ export default async function OfficerDetailPage({
 
         <div className="rounded-lg border border-border bg-surface px-4 py-3">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-            Events
+            Recorded events
           </p>
-          <p className="mt-1 text-lg font-semibold leading-tight tabular-nums text-foreground">
-            {associatedEvents.length}
-          </p>
+          <div className="mt-1 space-y-1.5">
+            <p className="text-lg font-semibold leading-tight tabular-nums text-foreground">
+              {officerActivity.totalRecordedEventsCount}{" "}
+              <span className="text-xs font-normal text-muted">
+                {officerActivity.totalRecordedEventsCount === 1
+                  ? "signup"
+                  : "signups"}
+              </span>
+            </p>
+            <div className="flex flex-wrap items-center gap-1.5 text-xs tabular-nums">
+              <span className="rounded-full border border-info-border bg-info-bg px-2 py-0.5 font-medium text-info">
+                {officerActivity.volunteerEventsCount} Volunteer
+              </span>
+              <span className="rounded-full border border-border bg-surface-muted px-2 py-0.5 font-medium text-secondary">
+                {officerActivity.attendEventsCount} Attend
+              </span>
+            </div>
+          </div>
         </div>
 
         <div className="rounded-lg border border-border bg-surface px-4 py-3">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-            Tasks done
+            Task completion
           </p>
-          <p className="mt-1 text-lg font-semibold leading-tight tabular-nums text-foreground">
-            {completedTasksCount}
-            <span className="text-xs font-normal text-muted">
-              /{associatedTasks.length}
-            </span>
-          </p>
+          <div className="mt-1 space-y-1.5">
+            <div className="flex flex-wrap items-baseline gap-2">
+              <p
+                className={`text-lg font-semibold leading-tight tabular-nums ${
+                  officerActivity.taskCompletionPercent === null
+                    ? "text-muted"
+                    : officerActivity.taskCompletionPercent >= 100
+                      ? "text-success"
+                      : officerActivity.taskCompletionPercent >= 50
+                        ? "text-warning"
+                        : "text-danger"
+                }`}
+              >
+                {formatTaskCompletionLabel(officerActivity)}
+              </p>
+              {officerActivity.dueTasksCount > 0 && (
+                <span className="text-xs tabular-nums text-secondary">
+                  {officerActivity.completedDueTasksCount} of{" "}
+                  {officerActivity.dueTasksCount} due
+                </span>
+              )}
+            </div>
+            {(officerActivity.pendingApprovalTasksCount > 0 ||
+              officerActivity.upcomingTasksCount > 0) && (
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                {officerActivity.pendingApprovalTasksCount > 0 && (
+                  <span className="font-medium text-warning">
+                    {officerActivity.pendingApprovalTasksCount} pending approval
+                  </span>
+                )}
+                {officerActivity.upcomingTasksCount > 0 && (
+                  <span className="tabular-nums text-muted">
+                    {officerActivity.upcomingTasksCount} upcoming
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {showWarnings && (
@@ -437,7 +518,12 @@ export default async function OfficerDetailPage({
             <SectionHeading
               title={`Point history (${officerTransactions.length})`}
               action={
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <ExportCsvButton
+                    href={`/api/exports/points/history?${new URLSearchParams({ officer: String(officer.id), ...(context.period === undefined ? {} : { period: String(context.period) }) })}`}
+                    label="Export CSV"
+                    emptyMessage="No point transactions to export for this officer."
+                  />
                   {canAddPointAdjustment && (
                     <TransactionForm
                       officers={[{ id: officer.id, name: officer.name }]}
@@ -524,9 +610,17 @@ export default async function OfficerDetailPage({
                             <PointValue value={assignment.tasks.points} />
                           </td>
                           <td>
-                            {assignment.completed_at
-                              ? "Complete"
-                              : "Incomplete"}
+                            {assignment.tasks.no_longer_needed_at ? (
+                              <Badge tone="neutral">No longer needed</Badge>
+                            ) : assignment.completion_approval_pending ? (
+                              <Badge tone="amber">Pending approval</Badge>
+                            ) : assignment.completed_at ? (
+                              <Badge tone="green">Complete</Badge>
+                            ) : assignment.tasks.due_date < today ? (
+                              <Badge tone="red">Overdue</Badge>
+                            ) : (
+                              <Badge tone="blue">Upcoming</Badge>
+                            )}
                           </td>
                         </tr>
                       );
@@ -552,29 +646,42 @@ export default async function OfficerDetailPage({
               <p className="text-sm text-muted">No associated events yet.</p>
             ) : (
               <ul className="divide-y divide-border rounded-lg border border-border bg-surface-muted/30 px-3 text-sm">
-                {associatedEvents.map(({ events: event }: EventAssociation) => (
-                  <li
-                    key={event.id}
-                    className="flex flex-wrap items-center justify-between gap-2 py-2"
-                  >
-                    <Link
-                      href={withReturnTo(
-                        `/events/${event.id}`,
-                        listReturnUrl("/events", { period: context.period }),
-                        detailPeriod,
-                      )}
-                      className="break-words font-medium text-foreground hover:text-brand hover:underline"
+                {associatedEvents.map(
+                  ({ events: event, participation_type }: EventAssociation) => (
+                    <li
+                      key={event.id}
+                      className="flex flex-wrap items-center justify-between gap-2 py-2"
                     >
-                      {event.name}
-                    </Link>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted">
-                        {formatCalendarDate(event.event_date)}
-                      </span>
-                      <StatusBadge status={eventStatus(event)} />
-                    </div>
-                  </li>
-                ))}
+                      <Link
+                        href={withReturnTo(
+                          `/events/${event.id}`,
+                          listReturnUrl("/events", { period: context.period }),
+                          detailPeriod,
+                        )}
+                        className="break-words font-medium text-foreground hover:text-brand hover:underline"
+                      >
+                        {event.name}
+                      </Link>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          tone={
+                            participation_type === "attendee"
+                              ? "neutral"
+                              : "blue"
+                          }
+                        >
+                          {participation_type === "attendee"
+                            ? "Attend"
+                            : "Volunteer"}
+                        </Badge>
+                        <span className="text-xs text-muted">
+                          {formatCalendarDate(event.event_date)}
+                        </span>
+                        <StatusBadge status={eventStatus(event)} />
+                      </div>
+                    </li>
+                  ),
+                )}
               </ul>
             )}
           </section>

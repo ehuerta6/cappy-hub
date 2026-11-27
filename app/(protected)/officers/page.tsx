@@ -9,7 +9,8 @@ import Link from "next/link";
 import type { Route } from "next";
 import { ArrowUpRight, GraduationCap, Mail, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { CopyTextButton } from "@/components/copy-button";
+import { CopyEmailsButton, CopyTextButton } from "@/components/copy-button";
+import { ExportCsvButton } from "@/components/export-csv-button";
 import {
   ActionLink,
   Badge,
@@ -23,10 +24,19 @@ import { formatLabel } from "@/lib/presentation";
 import { searchOrFilter } from "@/lib/list-search";
 import { listPageUrl } from "@/lib/list-url";
 import { officerListFiltersSchema } from "./filter-validation";
+import OfficerActivityTable from "./activity-table";
 import {
   getAcademicPeriodData,
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
+import { fetchAllPages } from "@/lib/csv";
+import { currentDenverWeek } from "@/lib/current-denver-week";
+import {
+  computeOfficerActivityMap,
+  emptyOfficerActivitySummary,
+  type ActivityEventSignupInput,
+  type ActivityTaskAssignmentInput,
+} from "@/lib/officer-activity";
 
 type OfficerListSearchParams = Record<string, string | string[] | undefined>;
 
@@ -45,6 +55,7 @@ export default async function OfficersPage({
   const filters = officerListFiltersSchema.parse(params);
   const {
     q: search,
+    view,
     scope,
     status,
     position: positionId,
@@ -55,6 +66,7 @@ export default async function OfficersPage({
   const showBranchScope = isLead(actor) && actor.branchIds.length > 0;
   const effectiveScope = scope === "branch" && !showBranchScope ? "all" : scope;
   const effectiveWarningFilter = admin ? warningFilter : undefined;
+  const selectedPeriod = periodSelection.period;
 
   const officerSelection =
     "*,positions(name),officer_branches(branch_id,branches(name,color)),filter_branch:officer_branches(branch_id),scope_branch:officer_branches(branch_id)";
@@ -62,6 +74,7 @@ export default async function OfficersPage({
   const filterSearch = new URLSearchParams();
   if (params.period !== undefined)
     filterSearch.set("period", String(params.period));
+  if (view === "activity") filterSearch.set("view", "activity");
   if (search) filterSearch.set("q", search);
   if (effectiveScope === "branch") filterSearch.set("scope", "branch");
   if (status !== "active") filterSearch.set("status", status);
@@ -132,6 +145,54 @@ export default async function OfficersPage({
   const officerCount = officers.length;
   const directoryHref = listPageUrl("/officers", filterSearch, 1);
 
+  const officerIds = officers.map((officer) => officer.id);
+  const activityByOfficerId = await (async () => {
+    if (view !== "activity" || officerIds.length === 0) return null;
+    const { today } = currentDenverWeek(new Date());
+    const [taskAssignments, eventSignups] = await Promise.all([
+      fetchAllPages<ActivityTaskAssignmentInput>((from, to) => {
+        let query = supabase
+          .from("task_officer_assignments")
+          .select(
+            "officer_id,completed_at,completion_approval_pending,removed_at,tasks!inner(due_date,removed_at,no_longer_needed_at)",
+          )
+          .in("officer_id", officerIds)
+          .is("removed_at", null)
+          .is("tasks.removed_at", null)
+          .is("tasks.no_longer_needed_at", null);
+        if (selectedPeriod) {
+          query = query
+            .gte("tasks.due_date", selectedPeriod.starts_on)
+            .lte("tasks.due_date", selectedPeriod.ends_on);
+        }
+        return query.order("officer_id").order("task_id").range(from, to);
+      }),
+      fetchAllPages<ActivityEventSignupInput>((from, to) => {
+        let query = supabase
+          .from("event_officers")
+          .select(
+            "officer_id,event_id,participation_type,removed_at,events!inner(id,event_date,deleted_at,status)",
+          )
+          .in("officer_id", officerIds)
+          .is("removed_at", null)
+          .is("events.deleted_at", null)
+          .neq("events.status", "cancelled");
+        if (selectedPeriod) {
+          query = query
+            .gte("events.event_date", selectedPeriod.starts_on)
+            .lte("events.event_date", selectedPeriod.ends_on);
+        }
+        return query.order("officer_id").order("event_id").range(from, to);
+      }),
+    ]);
+    return computeOfficerActivityMap(
+      officerIds,
+      taskAssignments,
+      eventSignups,
+      today,
+    );
+  })();
+
   const hasFilters = Boolean(
     search ||
     status !== "active" ||
@@ -146,8 +207,11 @@ export default async function OfficersPage({
   const quickViewHref = (
     nextScope: "all" | "branch",
     nextWarnings?: "review",
+    nextView: "directory" | "activity" = "directory",
   ): Route => {
     const query = new URLSearchParams(filterSearch);
+    if (nextView === "activity") query.set("view", "activity");
+    else query.delete("view");
     if (nextScope === "branch") query.set("scope", "branch");
     else query.delete("scope");
     if (nextWarnings) query.set("warnings", nextWarnings);
@@ -162,83 +226,129 @@ export default async function OfficersPage({
         title="Officers"
         description="Club directory and branch memberships."
         action={
-          canManage ? (
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <Link
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <CopyEmailsButton
+              emails={officers
+                .map((officer) => officer.utep_email)
+                .filter((email): email is string => Boolean(email))}
+            />
+            {view === "activity" ? (
+              <ExportCsvButton
                 href={
-                  `/officers/catalogs${params.period ? `?period=${params.period}` : ""}` as Route
+                  filterSearch.size
+                    ? `/api/exports/officers/activity?${filterSearch.toString()}`
+                    : "/api/exports/officers/activity"
                 }
-                className="button-secondary inline-flex min-h-11 items-center justify-center rounded-md px-3 py-2 text-sm font-medium lg:min-h-0"
-              >
-                Manage catalogs
-              </Link>
-              <ActionLink
+                label="Export activity CSV"
+                emptyMessage="No matching officers to export."
+              />
+            ) : admin ? (
+              <ExportCsvButton
                 href={
-                  `/officers/new${params.period ? `?period=${params.period}` : ""}` as Route
+                  filterSearch.size
+                    ? `/api/exports/officers?${filterSearch.toString()}`
+                    : "/api/exports/officers"
                 }
-              >
-                + Add officer
-              </ActionLink>
-            </div>
-          ) : undefined
+                emptyMessage="No matching officers to export."
+              />
+            ) : null}
+            {admin && canManage && (
+              <>
+                <Link
+                  href={
+                    `/officers/catalogs${params.period ? `?period=${params.period}` : ""}` as Route
+                  }
+                  className="button-secondary inline-flex min-h-11 items-center justify-center rounded-md px-3 py-2 text-sm font-medium lg:min-h-0"
+                >
+                  Manage catalogs
+                </Link>
+                <ActionLink
+                  href={
+                    `/officers/new${params.period ? `?period=${params.period}` : ""}` as Route
+                  }
+                >
+                  + Add officer
+                </ActionLink>
+              </>
+            )}
+          </div>
         }
       />
 
-      {(showBranchScope || admin) && (
-        <nav
-          aria-label="Officer quick views"
-          className="flex flex-wrap gap-5 border-b border-border"
+      <nav
+        aria-label="Officer quick views"
+        className="flex flex-wrap gap-5 border-b border-border"
+      >
+        <Link
+          href={quickViewHref("all", undefined, "directory")}
+          aria-current={
+            view === "directory" &&
+            effectiveScope === "all" &&
+            !effectiveWarningFilter
+              ? "page"
+              : undefined
+          }
+          className={`min-h-10 border-b-2 px-1 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
+            view === "directory" &&
+            effectiveScope === "all" &&
+            !effectiveWarningFilter
+              ? "border-brand text-brand"
+              : "border-transparent text-secondary hover:text-foreground"
+          }`}
         >
+          All officers
+        </Link>
+        <Link
+          href={quickViewHref("all", undefined, "activity")}
+          aria-current={view === "activity" ? "page" : undefined}
+          className={`min-h-10 border-b-2 px-1 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
+            view === "activity"
+              ? "border-brand text-brand"
+              : "border-transparent text-secondary hover:text-foreground"
+          }`}
+        >
+          Activity
+        </Link>
+        {showBranchScope && (
           <Link
-            href={quickViewHref("all", undefined)}
+            href={quickViewHref("branch", undefined, "directory")}
             aria-current={
-              effectiveScope === "all" && !effectiveWarningFilter
+              view === "directory" &&
+              effectiveScope === "branch" &&
+              !effectiveWarningFilter
                 ? "page"
                 : undefined
             }
             className={`min-h-10 border-b-2 px-1 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
-              effectiveScope === "all" && !effectiveWarningFilter
+              view === "directory" &&
+              effectiveScope === "branch" &&
+              !effectiveWarningFilter
                 ? "border-brand text-brand"
                 : "border-transparent text-secondary hover:text-foreground"
             }`}
           >
-            All officers
+            {actor.branchIds.length === 1 ? "My branch" : "My branches"}
           </Link>
-          {showBranchScope && (
-            <Link
-              href={quickViewHref("branch", undefined)}
-              aria-current={
-                effectiveScope === "branch" && !effectiveWarningFilter
-                  ? "page"
-                  : undefined
-              }
-              className={`min-h-10 border-b-2 px-1 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
-                effectiveScope === "branch" && !effectiveWarningFilter
-                  ? "border-brand text-brand"
-                  : "border-transparent text-secondary hover:text-foreground"
-              }`}
-            >
-              {actor.branchIds.length === 1 ? "My branch" : "My branches"}
-            </Link>
-          )}
-          {admin && (
-            <Link
-              href={quickViewHref("all", "review")}
-              aria-current={
-                effectiveWarningFilter === "review" ? "page" : undefined
-              }
-              className={`min-h-10 border-b-2 px-1 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
-                effectiveWarningFilter === "review"
-                  ? "border-brand text-brand"
-                  : "border-transparent text-secondary hover:text-foreground"
-              }`}
-            >
-              3+ warnings
-              {reviewOfficerCount > 0 ? ` (${reviewOfficerCount})` : ""}
-            </Link>
-          )}
-        </nav>
-      )}
+        )}
+        {admin && (
+          <Link
+            href={quickViewHref("all", "review", "directory")}
+            aria-current={
+              view === "directory" && effectiveWarningFilter === "review"
+                ? "page"
+                : undefined
+            }
+            className={`min-h-10 border-b-2 px-1 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
+              view === "directory" && effectiveWarningFilter === "review"
+                ? "border-brand text-brand"
+                : "border-transparent text-secondary hover:text-foreground"
+            }`}
+          >
+            3+ warnings
+            {reviewOfficerCount > 0 ? ` (${reviewOfficerCount})` : ""}
+          </Link>
+        )}
+      </nav>
 
       <ListFilterBar
         key={JSON.stringify(filters)}
@@ -295,6 +405,9 @@ export default async function OfficersPage({
       >
         {params.period !== undefined && (
           <input type="hidden" name="period" value={String(params.period)} />
+        )}
+        {view === "activity" && (
+          <input type="hidden" name="view" value="activity" />
         )}
         {effectiveScope === "branch" && (
           <input type="hidden" name="scope" value="branch" />
@@ -367,145 +480,170 @@ export default async function OfficersPage({
               see more.
             </p>
           )}
-          <ul className="grid list-none grid-cols-1 gap-3.5 p-0 sm:grid-cols-2 xl:grid-cols-3">
-            {officers.map((officer) => {
-              const warningCount = activeWarningCounts.get(officer.id) ?? 0;
-              return (
-                <li
-                  key={officer.id}
-                  className="group flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-surface transition-colors hover:border-border-strong"
-                >
-                  <div className="p-4 pb-3">
-                    <div className="flex min-w-0 items-start justify-between gap-2">
+          {view === "activity" ? (
+            <OfficerActivityTable
+              periodLabel={selectedPeriod ? selectedPeriod.name : "All periods"}
+              rows={officers.map((officer) => ({
+                id: officer.id,
+                name: officer.name,
+                utepEmail: officer.utep_email,
+                status: officer.status,
+                positionName: officer.positions.name,
+                branches: officer.officer_branches.map(
+                  (membership) => membership.branches,
+                ),
+                profileHref: withReturnTo(`/officers/${officer.id}`, returnTo),
+                activity:
+                  activityByOfficerId?.get(officer.id) ??
+                  emptyOfficerActivitySummary(),
+              }))}
+            />
+          ) : (
+            <ul className="grid list-none grid-cols-1 gap-3.5 p-0 sm:grid-cols-2 xl:grid-cols-3">
+              {officers.map((officer) => {
+                const warningCount = activeWarningCounts.get(officer.id) ?? 0;
+                return (
+                  <li
+                    key={officer.id}
+                    className="group flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-surface transition-colors hover:border-border-strong"
+                  >
+                    <div className="p-4 pb-3">
+                      <div className="flex min-w-0 items-start justify-between gap-2">
+                        <Link
+                          href={withReturnTo(
+                            `/officers/${officer.id}`,
+                            returnTo,
+                          )}
+                          className="truncate text-[0.95rem] font-semibold text-foreground transition-colors hover:text-brand hover:underline hover:underline-offset-3"
+                          title={officer.name}
+                        >
+                          {officer.name}
+                        </Link>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          {admin && officer.application_role === "admin" && (
+                            <Badge tone="blue">Admin</Badge>
+                          )}
+                          {admin && warningCount >= 3 && (
+                            <Badge tone="amber">{warningCount} warnings</Badge>
+                          )}
+                          <StatusBadge status={officer.status} />
+                        </div>
+                      </div>
+                      <p className="mt-1 truncate text-xs font-medium text-muted">
+                        {officer.positions.name}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-1 flex-col gap-2.5 border-t border-border px-4 py-3 text-xs">
+                      <div className="space-y-1.5">
+                        <div className="flex min-w-0 items-center gap-2 text-secondary">
+                          <Mail
+                            aria-hidden="true"
+                            size={13}
+                            className="shrink-0 text-subtle"
+                          />
+                          <span className="w-14 shrink-0 text-muted">UTEP</span>
+                          {officer.utep_email ? (
+                            <span className="flex min-w-0 flex-1 items-center gap-1">
+                              <a
+                                href={`mailto:${officer.utep_email}`}
+                                className="min-w-0 truncate text-secondary hover:text-foreground hover:underline"
+                                title={officer.utep_email}
+                              >
+                                {officer.utep_email}
+                              </a>
+                              <CopyTextButton
+                                value={officer.utep_email}
+                                label={`Copy ${officer.name}'s UTEP email`}
+                                toastMessage="Email copied"
+                              />
+                            </span>
+                          ) : (
+                            <span className="text-subtle">—</span>
+                          )}
+                        </div>
+                        <div className="flex min-w-0 items-center gap-2 text-secondary">
+                          <Mail
+                            aria-hidden="true"
+                            size={13}
+                            className="shrink-0 text-subtle opacity-0"
+                          />
+                          <span className="w-14 shrink-0 text-muted">
+                            Personal
+                          </span>
+                          {officer.personal_email ? (
+                            <span className="flex min-w-0 flex-1 items-center gap-1">
+                              <a
+                                href={`mailto:${officer.personal_email}`}
+                                className="min-w-0 truncate text-secondary hover:text-foreground hover:underline"
+                                title={officer.personal_email}
+                              >
+                                {officer.personal_email}
+                              </a>
+                              <CopyTextButton
+                                value={officer.personal_email}
+                                label={`Copy ${officer.name}'s personal email`}
+                                toastMessage="Email copied"
+                              />
+                            </span>
+                          ) : (
+                            <span className="text-subtle">—</span>
+                          )}
+                        </div>
+                        <div className="flex min-w-0 items-center gap-2 text-secondary">
+                          <GraduationCap
+                            aria-hidden="true"
+                            size={13}
+                            className="shrink-0 text-subtle"
+                          />
+                          <span className="w-14 shrink-0 text-muted">
+                            Class
+                          </span>
+                          <span className="min-w-0 truncate">
+                            {officer.classification
+                              ? formatLabel(officer.classification)
+                              : "Not specified"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="pt-1">
+                        <BranchBadges
+                          branches={officer.officer_branches.map(
+                            (membership) => membership.branches,
+                          )}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-auto flex items-center justify-between gap-3 border-t border-border bg-surface-muted/50 px-4 py-2.5">
                       <Link
                         href={withReturnTo(`/officers/${officer.id}`, returnTo)}
-                        className="truncate text-[0.95rem] font-semibold text-foreground transition-colors hover:text-brand hover:underline hover:underline-offset-3"
-                        title={officer.name}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline hover:underline-offset-3"
+                        aria-label={`View ${officer.name}'s profile`}
                       >
-                        {officer.name}
+                        View profile
+                        <ArrowUpRight aria-hidden="true" size={13} />
                       </Link>
-                      <div className="flex shrink-0 items-center gap-1.5">
-                        {admin && officer.application_role === "admin" && (
-                          <Badge tone="blue">Admin</Badge>
-                        )}
-                        {admin && warningCount >= 3 && (
-                          <Badge tone="amber">{warningCount} warnings</Badge>
-                        )}
-                        <StatusBadge status={officer.status} />
-                      </div>
+                      {canManage && (
+                        <Link
+                          href={withReturnTo(
+                            `/officers/${officer.id}/edit`,
+                            returnTo,
+                          )}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-secondary hover:text-foreground hover:underline hover:underline-offset-3"
+                          aria-label={`Edit ${officer.name}`}
+                        >
+                          <Pencil aria-hidden="true" size={12} />
+                          Edit
+                        </Link>
+                      )}
                     </div>
-                    <p className="mt-1 truncate text-xs font-medium text-muted">
-                      {officer.positions.name}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-1 flex-col gap-2.5 border-t border-border px-4 py-3 text-xs">
-                    <div className="space-y-1.5">
-                      <div className="flex min-w-0 items-center gap-2 text-secondary">
-                        <Mail
-                          aria-hidden="true"
-                          size={13}
-                          className="shrink-0 text-subtle"
-                        />
-                        <span className="w-14 shrink-0 text-muted">UTEP</span>
-                        {officer.utep_email ? (
-                          <span className="flex min-w-0 flex-1 items-center gap-1">
-                            <a
-                              href={`mailto:${officer.utep_email}`}
-                              className="min-w-0 truncate text-secondary hover:text-foreground hover:underline"
-                              title={officer.utep_email}
-                            >
-                              {officer.utep_email}
-                            </a>
-                            <CopyTextButton
-                              value={officer.utep_email}
-                              label={`Copy ${officer.name}'s UTEP email`}
-                              toastMessage="Email copied"
-                            />
-                          </span>
-                        ) : (
-                          <span className="text-subtle">—</span>
-                        )}
-                      </div>
-                      <div className="flex min-w-0 items-center gap-2 text-secondary">
-                        <Mail
-                          aria-hidden="true"
-                          size={13}
-                          className="shrink-0 text-subtle opacity-0"
-                        />
-                        <span className="w-14 shrink-0 text-muted">
-                          Personal
-                        </span>
-                        {officer.personal_email ? (
-                          <span className="flex min-w-0 flex-1 items-center gap-1">
-                            <a
-                              href={`mailto:${officer.personal_email}`}
-                              className="min-w-0 truncate text-secondary hover:text-foreground hover:underline"
-                              title={officer.personal_email}
-                            >
-                              {officer.personal_email}
-                            </a>
-                            <CopyTextButton
-                              value={officer.personal_email}
-                              label={`Copy ${officer.name}'s personal email`}
-                              toastMessage="Email copied"
-                            />
-                          </span>
-                        ) : (
-                          <span className="text-subtle">—</span>
-                        )}
-                      </div>
-                      <div className="flex min-w-0 items-center gap-2 text-secondary">
-                        <GraduationCap
-                          aria-hidden="true"
-                          size={13}
-                          className="shrink-0 text-subtle"
-                        />
-                        <span className="w-14 shrink-0 text-muted">Class</span>
-                        <span className="min-w-0 truncate">
-                          {officer.classification
-                            ? formatLabel(officer.classification)
-                            : "Not specified"}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="pt-1">
-                      <BranchBadges
-                        branches={officer.officer_branches.map(
-                          (membership) => membership.branches,
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-auto flex items-center justify-between gap-3 border-t border-border bg-surface-muted/50 px-4 py-2.5">
-                    <Link
-                      href={withReturnTo(`/officers/${officer.id}`, returnTo)}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline hover:underline-offset-3"
-                      aria-label={`View ${officer.name}'s profile`}
-                    >
-                      View profile
-                      <ArrowUpRight aria-hidden="true" size={13} />
-                    </Link>
-                    {canManage && (
-                      <Link
-                        href={withReturnTo(
-                          `/officers/${officer.id}/edit`,
-                          returnTo,
-                        )}
-                        className="inline-flex items-center gap-1 text-xs font-medium text-secondary hover:text-foreground hover:underline hover:underline-offset-3"
-                        aria-label={`Edit ${officer.name}`}
-                      >
-                        <Pencil aria-hidden="true" size={12} />
-                        Edit
-                      </Link>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </>
       )}
     </div>

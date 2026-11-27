@@ -5,7 +5,11 @@ import {
   type NavigationSearchParams,
 } from "@/lib/return-context";
 import ContextualBackLink from "@/components/contextual-back-link";
-import { CopyCanonicalLinkButton } from "@/components/copy-button";
+import {
+  CopyCanonicalLinkButton,
+  CopyEmailsButton,
+} from "@/components/copy-button";
+import { ExportCsvButton } from "@/components/export-csv-button";
 import EventRosterTableClient from "../event-roster-client";
 import {
   getAuthorizationContext,
@@ -778,6 +782,22 @@ export default async function EventDetailPage({
             confirmedCount > 0
               ? `${volunteerCount} Volunteer${volunteerCount === 1 ? "" : "s"} · ${attendeeCount} Attendee${attendeeCount === 1 ? "" : "s"} · Listed alphabetically.`
               : "Officers are listed alphabetically."
+          }
+          action={
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <CopyEmailsButton
+                emails={rosterRows
+                  .map(({ officers: officer }) => officer.utep_email)
+                  .filter((email): email is string => Boolean(email))}
+              />
+              {canManageEvent(actor, eventBranches) && (
+                <ExportCsvButton
+                  href={`/api/exports/events/${event.id}/roster`}
+                  label="Export roster CSV"
+                  emptyMessage="No confirmed officers on this roster to export."
+                />
+              )}
+            </div>
           }
         />
         {rosterRows.length ? (
