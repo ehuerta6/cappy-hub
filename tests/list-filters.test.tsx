@@ -543,6 +543,14 @@ it("shows a Lead Calendar recovery for editable Events and managed deletions", a
         created_at: "2026-08-01T00:00:00Z",
         updated_at: "2026-08-01T00:00:00Z",
       },
+      {
+        id: 2,
+        name: "Future period",
+        starts_on: "2099-10-01",
+        ends_on: "2099-10-31",
+        created_at: "2026-08-01T00:00:00Z",
+        updated_at: "2026-08-01T00:00:00Z",
+      },
     ],
     currentDate: "2026-11-01",
     currentPeriodId: 1,
@@ -607,7 +615,7 @@ it("shows a Lead Calendar recovery for editable Events and managed deletions", a
   expect(html).toContain("Global failed Event");
   expect(html).not.toContain("Other branch deleted Event");
   expect(html).toContain(
-    'href="/events/-9104?returnTo=%2Fevents%3Fperiod%3D1&amp;period=none"',
+    'href="/events/-9104?returnTo=%2Fevents%3Fperiod%3D1&amp;period=2"',
   );
 });
 

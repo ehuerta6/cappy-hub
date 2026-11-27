@@ -1,5 +1,9 @@
 import "server-only";
-import type { AcademicPeriod } from "@/lib/academic-periods";
+import {
+  academicPeriodForDate,
+  type AcademicPeriod,
+  type AcademicPeriodData,
+} from "@/lib/academic-periods";
 import { canManageEvent, type AuthorizationContext } from "@/lib/authorization";
 import type { Tables } from "@/lib/database.types";
 import type { createClient } from "@/lib/supabase/server";
@@ -192,6 +196,7 @@ export function dashboardActionItems(
 export async function loadDashboardActionItems(
   supabase: Awaited<ReturnType<typeof createClient>>,
   actor: AuthorizationContext,
+  periodData: AcademicPeriodData,
   selectedPeriod: Pick<AcademicPeriod, "starts_on" | "ends_on"> | null = null,
 ): Promise<DashboardActionItems> {
   const taskQuery = () =>
@@ -271,35 +276,37 @@ export async function loadDashboardActionItems(
           signedUpEventIds.has(notification.entity_id),
       );
     } else {
-      const accessibleEventIds = new Set(
-        referencedEvents
-          .filter((event) => {
-            if (
-              selectedPeriod &&
-              (event.event_date < selectedPeriod.starts_on ||
-                event.event_date > selectedPeriod.ends_on)
-            )
-              return false;
-            if (
-              event.deleted_at &&
-              !canManageEvent(
-                actor,
-                (event.event_branches ?? []).map((b) => b.branch_id),
-              )
-            )
-              return false;
-            return true;
-          })
-          .map((event) => event.id),
-      );
-      visibleNotifications = visibleNotifications.filter((notification) => {
+      const accessibleEventLinks = new Map<number, string>();
+      for (const event of referencedEvents) {
+        const period = academicPeriodForDate(
+          event.event_date,
+          periodData.periods,
+        );
+        // The historical detail route does not expose deleted records.
+        if (
+          event.deleted_at &&
+          ((period && period.ends_on < periodData.currentDate) ||
+            !canManageEvent(
+              actor,
+              (event.event_branches ?? []).map((branch) => branch.branch_id),
+            ))
+        )
+          continue;
+        accessibleEventLinks.set(
+          event.id,
+          `/events/${event.id}?period=${period?.id ?? "none"}`,
+        );
+      }
+      visibleNotifications = visibleNotifications.flatMap((notification) => {
         if (
           notification.entity_type !== "event" ||
           notification.entity_id === null ||
           signedUpEventIds.has(notification.entity_id)
-        )
-          return true;
-        return accessibleEventIds.has(notification.entity_id);
+        ) {
+          return [notification];
+        }
+        const href = accessibleEventLinks.get(notification.entity_id);
+        return href ? [{ ...notification, href }] : [];
       });
     }
   }

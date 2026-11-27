@@ -982,25 +982,29 @@ it("does not sync or redirect if the atomic Event save fails", async () => {
   expect(redirect).not.toHaveBeenCalled();
 });
 
-it("preserves a future academic period when redirecting after a Calendar sync failure", async () => {
-  vi.mocked(getAuthorizationContext).mockResolvedValue({
-    id: 8,
-    positionName: "President",
-    positionCode: "president",
-  } as never);
-  const data = eventForm();
-  data.set("event_date", "2027-02-10");
-  data.set("returnTo", "/events?period=1");
-  committedEventDate = "2027-02-10";
-  rpc.mockResolvedValueOnce({ data: 42, error: null });
-  vi.mocked(syncGoogleCalendarEvents).mockResolvedValueOnce(false);
+it.each(["1", "none"])(
+  "preserves a future academic period after a Calendar sync failure when the origin period is %s",
+  async (originPeriod) => {
+    vi.mocked(getAuthorizationContext).mockResolvedValue({
+      id: 8,
+      positionName: "President",
+      positionCode: "president",
+    } as never);
+    const data = eventForm();
+    data.set("event_date", "2027-02-10");
+    const returnTo = `/events?period=${originPeriod}`;
+    data.set("returnTo", returnTo);
+    committedEventDate = "2027-02-10";
+    rpc.mockResolvedValueOnce({ data: 42, error: null });
+    vi.mocked(syncGoogleCalendarEvents).mockResolvedValueOnce(false);
 
-  await saveEvent({ error: "", success: "" }, data);
+    await saveEvent({ error: "", success: "" }, data);
 
-  expect(redirect).toHaveBeenCalledWith(
-    "/events/42?returnTo=%2Fevents%3Fperiod%3D1&period=2&feedback=event-saved-calendar-warning",
-  );
-});
+    expect(redirect).toHaveBeenCalledWith(
+      `/events/42?returnTo=${encodeURIComponent(returnTo)}&period=2&feedback=event-saved-calendar-warning`,
+    );
+  },
+);
 
 it("redirects a recurring edit using the committed date while retaining the origin period in the back link", async () => {
   const data = eventForm();

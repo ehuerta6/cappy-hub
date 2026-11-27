@@ -153,3 +153,14 @@ it("restores a warning through the trusted RPC and revalidates its officer", asy
   expect(rpc).toHaveBeenCalledWith("restore_warning", { p_warning_id: 7 });
   expect(revalidatePath).toHaveBeenCalledWith("/officers/3");
 });
+
+it.each([deleteWarning, restoreWarning])(
+  "revalidates shared views when a Warning lifecycle action has no Officer ID",
+  async (action) => {
+    const form = new FormData();
+    form.set("warning_id", "7");
+    expect((await action({ error: "", success: "" }, form)).error).toBe("");
+    expect(revalidatePath).toHaveBeenCalledWith("/officers");
+    expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+  },
+);

@@ -30,6 +30,7 @@ import { searchOrFilter } from "@/lib/list-search";
 import { eventListFiltersSchema } from "./filter-validation";
 import { currentDenverWeek } from "@/lib/current-denver-week";
 import {
+  academicPeriodForDate,
   getAcademicPeriodData,
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
@@ -319,15 +320,14 @@ export default async function EventsPage({
           <ul className="space-y-3">
             {calendarFailures.map(({ event }) => {
               const failureEvent = event!;
-              const outsidePeriod =
-                selectedPeriod &&
-                (failureEvent.event_date < selectedPeriod.starts_on ||
-                  failureEvent.event_date > selectedPeriod.ends_on);
-              const detailParams = new URLSearchParams({ returnTo });
-              if (outsidePeriod || periodSelection.explicitNoPeriod)
-                detailParams.set("period", "none");
-              else if (selectedPeriod)
-                detailParams.set("period", String(selectedPeriod.id));
+              const eventPeriod = academicPeriodForDate(
+                failureEvent.event_date,
+                periodData.periods,
+              );
+              const detailParams = new URLSearchParams({
+                returnTo,
+                period: eventPeriod ? String(eventPeriod.id) : "none",
+              });
               return (
                 <li
                   key={failureEvent.id}

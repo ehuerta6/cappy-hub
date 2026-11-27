@@ -20,6 +20,7 @@ import { TaskSelfCompletionForm } from "./tasks/task-action-form";
 import { loadDashboardActionItems } from "./dashboard-action-items";
 import { DASHBOARD_PREVIEW_LIMIT } from "./dashboard-limits";
 import {
+  academicPeriodForDate,
   getAcademicPeriodData,
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
@@ -246,7 +247,7 @@ export default async function DashboardPage({
       .eq("id", officer.id)
       .single(),
     Promise.resolve().then(() =>
-      loadDashboardActionItems(supabase, officer, selectedPeriod),
+      loadDashboardActionItems(supabase, officer, periodData, selectedPeriod),
     ),
     canReviewBranch
       ? pendingApprovalsQuery()
@@ -428,12 +429,11 @@ export default async function DashboardPage({
                 );
               })}
               {calendarSyncFailures.map((failure) => {
-                const failureOutsidePeriod =
-                  selectedPeriod !== null &&
-                  Boolean(failure.event!.event_date) &&
-                  (failure.event!.event_date < selectedPeriod.starts_on ||
-                    failure.event!.event_date > selectedPeriod.ends_on);
-                const failureHref = `/events/${failure.event!.id}${failureOutsidePeriod ? "?period=none" : periodHref}`;
+                const eventPeriod = academicPeriodForDate(
+                  failure.event!.event_date,
+                  periodData.periods,
+                );
+                const failureHref = `/events/${failure.event!.id}?period=${eventPeriod?.id ?? "none"}`;
                 return (
                   <li key={`review-cal-${failure.event_id}`}>
                     <Link

@@ -25,12 +25,12 @@ vi.mock("@/lib/academic-periods", async (importOriginal) => ({
   getAcademicPeriodData: async () => ({
     periods: academicTestPeriods,
     currentDate: "2026-11-01",
-    currentPeriodId: null,
+    currentPeriodId: academicTestCurrentPeriodId,
   }),
 }));
 vi.mock("next/navigation", () => ({
   usePathname: () => "/",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => testSearchParams,
   useRouter: () => ({ refresh: vi.fn() }),
   notFound: () => {
     throw new Error("Not found");
@@ -40,6 +40,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import {
   canChangeOtherTaskCompletion,
   canManageEvent,
@@ -63,6 +64,8 @@ import TaskActionForm from "@/app/(protected)/tasks/task-action-form";
 import { formatEventSchedule } from "@/lib/presentation";
 
 let academicTestPeriods: Tables<"academic_periods">[] = [];
+let academicTestCurrentPeriodId: number | null = null;
+let testSearchParams: URLSearchParams;
 const officer = {
   id: 7,
   name: "Synthetic Officer",
@@ -127,6 +130,9 @@ const queryLog: { table: string; method: string; args: unknown[] }[] = [];
 
 beforeEach(() => {
   academicTestPeriods = [];
+  academicTestCurrentPeriodId = null;
+  testSearchParams = new URLSearchParams();
+  vi.mocked(redirect).mockClear();
   task.due_date = "2099-10-08";
   task.no_longer_needed_at = null;
   task.task_officer_assignments = [
@@ -896,6 +902,65 @@ it("keeps the Event period through Detail and Edit even when the back list uses 
   expect(edit).toContain(
     'href="/events/7?returnTo=%2Fevents%3Fperiod%3D1&amp;period=2"',
   );
+
+  const unfilteredProps = {
+    ...props,
+    searchParams: Promise.resolve({
+      period: "none",
+      returnTo: "/events?period=1",
+    }),
+  };
+  testSearchParams.set("period", "none");
+  const unfilteredDetail = renderToStaticMarkup(
+    await EventDetail(unfilteredProps),
+  );
+  expect(unfilteredDetail).toContain(
+    'href="/events/7/edit?returnTo=%2Fevents%3Fperiod%3D1&amp;period=2"',
+  );
+  expect(unfilteredDetail).toMatch(
+    /<input[^>]*name="writable_period"[^>]*value="2"/,
+  );
+  await EventEdit(unfilteredProps);
+  expect(redirect).toHaveBeenCalledWith(
+    "/events/7/edit?returnTo=%2Fevents%3Fperiod%3D1&period=2",
+  );
+});
+
+it("edits an Event outside configured periods using the current write context", async () => {
+  academicTestPeriods = [
+    {
+      id: 1,
+      name: "Active fixture period",
+      starts_on: "2026-08-01",
+      ends_on: "2026-12-31",
+      created_at: "2026-08-01T00:00:00Z",
+      updated_at: "2026-08-01T00:00:00Z",
+    },
+  ];
+  academicTestCurrentPeriodId = 1;
+  testSearchParams.set("period", "none");
+  const props = {
+    params: Promise.resolve({ id: "7" }),
+    searchParams: Promise.resolve({ period: "none" }),
+  };
+  const detail = renderToStaticMarkup(await EventDetail(props));
+  expect(detail).toContain("Synthetic Event");
+  expect(detail).toContain(
+    'href="/events/7/edit?returnTo=%2Fevents%3Fperiod%3Dnone&amp;period=none"',
+  );
+  expect(detail).toContain('href="/events/new?from=7"');
+  expect(detail).toContain('href="/tasks/new?event=7"');
+  expect(detail).toMatch(
+    /<input[^>]*name="writable_period"[^>]*value="current"/,
+  );
+  expect(detail).not.toMatch(
+    /<input[^>]*name="writable_period"[^>]*value="none"/,
+  );
+
+  const edit = renderToStaticMarkup(await EventEdit(props));
+  expect(edit).toContain('href="/events/7?period=none"');
+  expect(edit).toMatch(/<input[^>]*name="writable_period"[^>]*value="current"/);
+  expect(redirect).not.toHaveBeenCalled();
 });
 
 it.each([OfficerDetail, EventDetail, TaskDetail])(

@@ -13,6 +13,7 @@ import {
   type FormActionState,
 } from "@/lib/form-feedback";
 import { denverTimestamp } from "@/lib/event-time";
+import { academicPeriodForDate } from "@/lib/academic-periods";
 import { currentDenverWeek } from "@/lib/current-denver-week";
 import type { Route } from "next";
 import {
@@ -826,22 +827,16 @@ async function resolveEventDetailPath(
     "https://cappy.invalid",
   );
   const date = event.data?.event_date;
+  const availablePeriods = !periods.error ? (periods.data ?? []) : [];
   const matching =
-    !event.error && !periods.error && date
-      ? periods.data?.find(
-          (period) => date >= period.starts_on && date <= period.ends_on,
-        )
+    !event.error && date
+      ? academicPeriodForDate(date, availablePeriods)
       : undefined;
   const { today } = currentDenverWeek(new Date());
-  const current = !periods.error
-    ? periods.data?.find(
-        (period) => today >= period.starts_on && today <= period.ends_on,
-      )
-    : undefined;
-  const fromUnfilteredView = href.searchParams.get("period") === "none";
+  const current = academicPeriodForDate(today, availablePeriods);
   href.searchParams.delete("period");
   // The detail period comes from the committed occurrence; returnTo is just the back link.
-  if (fromUnfilteredView || !matching) href.searchParams.set("period", "none");
+  if (!matching) href.searchParams.set("period", "none");
   else if (matching.id !== current?.id)
     href.searchParams.set("period", String(matching.id));
   return `${href.pathname}${href.search}` as Route;

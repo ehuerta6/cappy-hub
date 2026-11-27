@@ -23,7 +23,9 @@ import Link from "next/link";
 import type { Route } from "next";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { AcademicPeriodWriteContextProvider } from "@/components/academic-period-selector";
 import {
+  academicPeriodForDate,
   getAcademicPeriodData,
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
@@ -135,12 +137,30 @@ export default async function EventDetailPage({
   const signupOpen = !event.deleted_at && eventSignupOpen(event);
   const past = status === "past";
   const eventBranches = event.event_branches.map(({ branch_id }) => branch_id);
-  const canManage =
-    !periodSelection.isHistorical && canManageEvent(actor, eventBranches);
-  const canEdit = !periodSelection.isHistorical && canEditEvent(actor);
+  const eventPeriod = academicPeriodForDate(
+    event.event_date,
+    periodData.periods,
+  );
+  const isHistorical =
+    eventPeriod !== undefined && eventPeriod.ends_on < periodData.currentDate;
+  const canManage = !isHistorical && canManageEvent(actor, eventBranches);
+  const canEdit = !isHistorical && canEditEvent(actor);
+  const editPeriod = eventPeriod
+    ? eventPeriod.id === periodData.currentPeriodId &&
+      query.period === undefined
+      ? null
+      : String(eventPeriod.id)
+    : periodSelection.explicitNoPeriod
+      ? "none"
+      : null;
+  const createPeriod =
+    editPeriod === "none" && periodData.currentPeriodId !== null
+      ? null
+      : editPeriod;
+  const createPeriodQuery =
+    createPeriod === null ? "" : `&period=${createPeriod}`;
   const canRecoverCalendar =
-    !periodSelection.isHistorical &&
-    canRecoverEventCalendarSync(actor, eventBranches, event);
+    !isHistorical && canRecoverEventCalendarSync(actor, eventBranches, event);
   const canManageCurrentRoster = canManage || (canEdit && !past);
   if (event.deleted_at && !canManage) notFound();
 
@@ -338,7 +358,7 @@ export default async function EventDetailPage({
       : "Archived"
     : status;
 
-  return (
+  const detail = (
     <div data-record-page="event" className="space-y-5">
       <ContextualBackLink href="/events" returnTo={contextualReturnTo}>
         Back to events
@@ -348,13 +368,13 @@ export default async function EventDetailPage({
         action={
           <div className="flex flex-wrap items-center gap-2">
             <CopyCanonicalLinkButton path={`/events/${eventIdParam}`} />
-            {!periodSelection.isHistorical &&
+            {!isHistorical &&
               !event.deleted_at &&
               (canSeeAllBranches(actor) ||
                 (isLead(actor) && actor.branchIds.length > 0)) && (
                 <Link
                   href={
-                    `/tasks/new?event=${event.id}${typeof query.period === "string" ? `&period=${encodeURIComponent(query.period)}` : ""}` as Route
+                    `/tasks/new?event=${event.id}${createPeriodQuery}` as Route
                   }
                   className="button-secondary inline-flex min-h-11 items-center justify-center rounded-md border px-3 py-2 text-sm font-medium lg:min-h-0"
                 >
@@ -364,7 +384,7 @@ export default async function EventDetailPage({
             {canEdit && !event.deleted_at && (
               <Link
                 href={
-                  `/events/new?from=${event.id}${typeof query.period === "string" ? `&period=${encodeURIComponent(query.period)}` : ""}` as Route
+                  `/events/new?from=${event.id}${createPeriodQuery}` as Route
                 }
                 className="button-secondary inline-flex min-h-11 items-center justify-center rounded-md border px-3 py-2 text-sm font-medium lg:min-h-0"
               >
@@ -376,12 +396,7 @@ export default async function EventDetailPage({
                 href={withReturnTo(
                   `/events/${eventIdParam}/edit`,
                   contextualReturnTo,
-                  periodSelection.explicitNoPeriod
-                    ? "none"
-                    : typeof query.period === "string" &&
-                        query.period === String(selectedPeriod?.id)
-                      ? query.period
-                      : null,
+                  editPeriod,
                 )}
               >
                 Edit event
@@ -865,5 +880,16 @@ export default async function EventDetailPage({
         period={typeof query.period === "string" ? query.period : undefined}
       />
     </div>
+  );
+  return (
+    <AcademicPeriodWriteContextProvider
+      period={
+        periodSelection.explicitNoPeriod
+          ? (createPeriod ?? "current")
+          : undefined
+      }
+    >
+      {detail}
+    </AcademicPeriodWriteContextProvider>
   );
 }

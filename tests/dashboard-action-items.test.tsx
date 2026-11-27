@@ -13,7 +13,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/academic-periods", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/academic-periods")>()),
   getAcademicPeriodData: async () => ({
-    periods: [],
+    periods,
     currentDate: "2026-11-01",
     currentPeriodId: null,
   }),
@@ -78,6 +78,10 @@ let referencedEvents: {
   deleted_at: string | null;
   event_branches: { branch_id: number }[];
 }[];
+let calendarFailures: {
+  event_id: number;
+  event: { id: number; name: string; event_date: string; deleted_at: null };
+}[];
 let discoveryEventRows: {
   id: number;
   name: string;
@@ -113,6 +117,8 @@ const mockFetch = async (input: RequestInfo | URL) => {
   if (table === "officer_point_totals")
     return Response.json({ total_points: 7 });
   if (table === "notifications") return Response.json(notifications);
+  if (table === "event_calendar_sync_failures")
+    return Response.json(calendarFailures);
   if (table === "events") {
     const idFilter = url.searchParams.get("id");
     if (idFilter?.startsWith("in.(")) {
@@ -210,7 +216,26 @@ const client = () =>
     auth: { persistSession: false, autoRefreshToken: false },
     global: { fetch: mockFetch },
   });
-const load = () => loadDashboardActionItems(client(), actor);
+const periods = [
+  {
+    id: 1,
+    name: "Fall",
+    starts_on: "2026-08-16",
+    ends_on: "2026-12-20",
+    created_at: "2026-08-01",
+    updated_at: "2026-08-01",
+  },
+  {
+    id: 2,
+    name: "Spring",
+    starts_on: "2027-01-11",
+    ends_on: "2027-05-15",
+    created_at: "2026-08-01",
+    updated_at: "2026-08-01",
+  },
+];
+const periodData = { periods, currentPeriodId: 1, currentDate: "2026-11-27" };
+const load = () => loadDashboardActionItems(client(), actor, periodData);
 const render = async () => renderToStaticMarkup(await DashboardPage({}));
 beforeEach(() => {
   actor = { ...officer, branchIds: [...officer.branchIds] };
@@ -218,6 +243,7 @@ beforeEach(() => {
   warnings = [];
   notifications = [];
   referencedEvents = [];
+  calendarFailures = [];
   signedUpEventRows = [];
   discoveryEventRows = [];
   urls = [];
@@ -226,6 +252,33 @@ beforeEach(() => {
   failEventVerification = false;
   vi.mocked(requireCurrentOfficer).mockImplementation(async () => actor);
   vi.mocked(createClient).mockImplementation(async () => client());
+});
+
+it("routes Calendar recovery links to the Event period or to unfiltered detail when there is no period", async () => {
+  actor = { ...actor, applicationRole: "admin" };
+  calendarFailures = [
+    {
+      event_id: 703,
+      event: {
+        id: 703,
+        name: "Spring sync failure",
+        event_date: "2027-02-10",
+        deleted_at: null,
+      },
+    },
+    {
+      event_id: 704,
+      event: {
+        id: 704,
+        name: "Between-period sync failure",
+        event_date: "2026-12-24",
+        deleted_at: null,
+      },
+    },
+  ];
+  const html = await render();
+  expect(html).toContain('href="/events/703?period=2"');
+  expect(html).toContain('href="/events/704?period=none"');
 });
 
 it("includes only this Officer's incomplete assignments", async () => {
@@ -574,7 +627,7 @@ it("reports Task source failures without a false empty-state success", async () 
   expect(section).not.toContain("Warning decisions");
 });
 
-it("filters signed-up upcoming Events and Event notifications by period and existence", async () => {
+it("keeps important future Event notifications while filtering signups by period and excluding inaccessible Events", async () => {
   notifications = [
     {
       id: 101,
@@ -638,10 +691,12 @@ it("filters signed-up upcoming Events and Event notifications by period and exis
     },
   ];
 
-  const result = await loadDashboardActionItems(client(), actor, {
-    starts_on: "2026-08-16",
-    ends_on: "2026-12-20",
-  });
+  const result = await loadDashboardActionItems(
+    client(),
+    actor,
+    periodData,
+    periods[0],
+  );
 
   const signedUpQuery = urls.find(
     (url) =>
@@ -652,7 +707,10 @@ it("filters signed-up upcoming Events and Event notifications by period and exis
     "gte.2026-08-16",
     "lte.2026-12-20",
   ]);
-  expect(result.items.map((item) => item.href)).toEqual(["/events/501"]);
+  expect(result.items.map((item) => item.href)).toEqual([
+    "/events/503?period=2",
+    "/events/501?period=1",
+  ]);
 });
 
 it("drops unverified Event notifications and flags notifications unavailable when Event verification fails", async () => {
@@ -670,10 +728,12 @@ it("drops unverified Event notifications and flags notifications unavailable whe
   ];
   failingTables.add("events");
 
-  const result = await loadDashboardActionItems(client(), actor, {
-    starts_on: "2026-08-16",
-    ends_on: "2026-12-20",
-  });
+  const result = await loadDashboardActionItems(
+    client(),
+    actor,
+    periodData,
+    periods[0],
+  );
 
   expect(result.items).toEqual([]);
   expect(result.unavailableSources).toEqual({
@@ -706,10 +766,12 @@ it("keeps signed-up Events visible while omitting unverified Event notifications
   ];
   failEventVerification = true;
 
-  const result = await loadDashboardActionItems(client(), actor, {
-    starts_on: "2026-08-16",
-    ends_on: "2026-12-20",
-  });
+  const result = await loadDashboardActionItems(
+    client(),
+    actor,
+    periodData,
+    periods[0],
+  );
 
   expect(result.items.map((item) => item.href)).toEqual(["/events/700"]);
   expect(result.unavailableSources).toEqual({

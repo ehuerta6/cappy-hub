@@ -16,7 +16,9 @@ import { createClient } from "@/lib/supabase/server";
 import EventForm from "../../event-form";
 import { denverParts } from "@/lib/event-time";
 import { PageHeader } from "@/components/ui";
+import { AcademicPeriodWriteContextProvider } from "@/components/academic-period-selector";
 import {
+  academicPeriodForDate,
   getAcademicPeriodData,
   resolveAcademicPeriod,
 } from "@/lib/academic-periods";
@@ -30,10 +32,8 @@ export default async function EditEventPage({
 }) {
   const context = (await searchParams) ?? {};
   const returnTo = safeReturnTo(context.returnTo);
-  const periodSelection = resolveAcademicPeriod(
-    context.period,
-    await getAcademicPeriodData(),
-  );
+  const periodData = await getAcademicPeriodData();
+  const periodSelection = resolveAcademicPeriod(context.period, periodData);
   if (periodSelection.isHistorical)
     redirect(`/events?period=${context.period}`);
   const actor = await getAuthorizationContext();
@@ -127,6 +127,28 @@ export default async function EditEventPage({
   )
     notFound();
   if (!canEditEvent(actor)) redirect("/access-denied");
+  if (periodSelection.explicitNoPeriod) {
+    const eventPeriod = academicPeriodForDate(
+      currentEvent.event_date,
+      periodData.periods,
+    );
+    if (eventPeriod) {
+      if (eventPeriod.ends_on < periodData.currentDate)
+        redirect(
+          withReturnTo(`/events/${eventId}`, returnTo, String(eventPeriod.id)),
+        );
+      redirect(
+        withReturnTo(
+          `/events/${eventId}/edit`,
+          returnTo,
+          eventPeriod.id === periodData.currentPeriodId
+            ? null
+            : String(eventPeriod.id),
+        ),
+      );
+    }
+  }
+
   const series =
     currentEvent.recurrence_series_id === null
       ? undefined
@@ -177,7 +199,7 @@ export default async function EditEventPage({
           .map((award) => String(award.officer_id)),
       }));
   }
-  return (
+  const form = (
     <div data-form-page="event" className="space-y-6">
       <ContextualBackLink
         href={withReturnTo(
@@ -248,5 +270,18 @@ export default async function EditEventPage({
         }))}
       />
     </div>
+  );
+  // Keep navigation unfiltered for an unassigned date. The save RPC checks
+  // the Event's actual old and new dates independently of the form context.
+  return (
+    <AcademicPeriodWriteContextProvider
+      period={
+        periodSelection.explicitNoPeriod && periodData.currentPeriodId !== null
+          ? "current"
+          : undefined
+      }
+    >
+      {form}
+    </AcademicPeriodWriteContextProvider>
   );
 }
