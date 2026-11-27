@@ -1023,3 +1023,41 @@ it("redirects a recurring edit using the committed date while retaining the orig
     "/events/12?returnTo=%2Fevents%3Fperiod%3D1&period=none&feedback=event-saved",
   );
 });
+
+it("normalizes writable_period=none to current for gap-date Event detail actions and surfaces historical read-only errors", async () => {
+  const gapForm = (extra: Record<string, string | string[]> = {}) => {
+    const data = new FormData();
+    data.set("event_id", "12");
+    data.set("writable_period", "none");
+    for (const [key, value] of Object.entries(extra))
+      for (const item of [value].flat()) data.append(key, item);
+    return data;
+  };
+
+  await selfSignup({ error: "", success: "" }, gapForm());
+  await bulkAddEventOfficers(
+    { error: "", success: "" },
+    gapForm({ officer_ids: ["3"] }),
+  );
+  await deleteEvent({ error: "", success: "" }, gapForm());
+  await restoreDeletedEvent({ error: "", success: "" }, gapForm());
+  await restoreEvent({ error: "", success: "" }, gapForm());
+
+  expect(getAuthorizationContext).toHaveBeenCalled();
+  for (const [options] of vi.mocked(getAuthorizationContext).mock.calls) {
+    expect(options).toEqual({
+      enforceWritablePeriod: true,
+      periodContext: "current",
+    });
+  }
+
+  rpc.mockResolvedValueOnce({
+    data: null,
+    error: { message: "Historical period is read-only" },
+  });
+  const blocked = await deleteEvent({ error: "", success: "" }, gapForm());
+  expect(blocked).toEqual({
+    error: "Historical period is read-only",
+    success: "",
+  });
+});

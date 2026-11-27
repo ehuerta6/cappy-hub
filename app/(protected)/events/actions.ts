@@ -493,13 +493,20 @@ export async function saveEvent(
     ),
   );
 }
+function eventMutationPeriodContext(periodContext: FormDataEntryValue | null) {
+  // A gap-date Event can be opened with ?period=none while a current period
+  // exists. Each Event mutation RPC checks the locked Event's actual event_date
+  // against historical academic periods inside the same transaction.
+  return periodContext === "none" ? "current" : periodContext;
+}
+
 export async function changeSignup(
   _previous: FormActionState,
   formData: FormData,
 ) {
   await getAuthorizationContext({
     enforceWritablePeriod: true,
-    periodContext: formData.get("writable_period"),
+    periodContext: eventMutationPeriodContext(formData.get("writable_period")),
   });
   const rawSignupInput = {
     event_id: formData.get("event_id") ?? "",
@@ -544,7 +551,7 @@ export async function selfSignup(
 ) {
   const actor = await getAuthorizationContext({
     enforceWritablePeriod: true,
-    periodContext: formData.get("writable_period"),
+    periodContext: eventMutationPeriodContext(formData.get("writable_period")),
   });
   const writablePeriod = formData.get("writable_period");
   const signup = new FormData();
@@ -566,7 +573,7 @@ export async function bulkAddEventOfficers(
 ) {
   await getAuthorizationContext({
     enforceWritablePeriod: true,
-    periodContext: formData.get("writable_period"),
+    periodContext: eventMutationPeriodContext(formData.get("writable_period")),
   });
   const rawBulkAddEventOfficersInput = {
     event_id: formData.get("event_id") ?? "",
@@ -622,7 +629,7 @@ export async function restoreDeletedEvent(
 ) {
   await getAuthorizationContext({
     enforceWritablePeriod: true,
-    periodContext: formData.get("writable_period"),
+    periodContext: eventMutationPeriodContext(formData.get("writable_period")),
   });
   const restoreEventValidationResult = restoreEventInputSchema.safeParse({
     event_id: formData.get("event_id") ?? "",
@@ -667,7 +674,7 @@ export async function deleteEvent(
 ) {
   await getAuthorizationContext({
     enforceWritablePeriod: true,
-    periodContext: formData.get("writable_period"),
+    periodContext: eventMutationPeriodContext(formData.get("writable_period")),
   });
   const validationResult = eventRecordInputSchema.safeParse({
     event_id: formData.get("event_id") ?? "",
@@ -731,7 +738,7 @@ export async function restoreEvent(
 ) {
   await getAuthorizationContext({
     enforceWritablePeriod: true,
-    periodContext: formData.get("writable_period"),
+    periodContext: eventMutationPeriodContext(formData.get("writable_period")),
   });
   const validation = restoreEventInputSchema.safeParse({
     event_id: formData.get("event_id") ?? "",
@@ -753,12 +760,9 @@ export async function retryGoogleCalendarSync(
   _previous: FormActionState,
   formData: FormData,
 ) {
-  const periodContext = formData.get("writable_period");
-  // A gap-date Event can be opened without a period. The sync snapshot still
-  // checks the Event's actual date and the actor's Calendar scope in SQL.
   const actor = await getAuthorizationContext({
     enforceWritablePeriod: true,
-    periodContext: periodContext === "none" ? "current" : periodContext,
+    periodContext: eventMutationPeriodContext(formData.get("writable_period")),
   });
   const validation = eventRecordInputSchema.safeParse({
     event_id: formData.get("event_id") ?? "",

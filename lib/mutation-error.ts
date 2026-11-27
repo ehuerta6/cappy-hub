@@ -19,6 +19,7 @@ const safeMessages = new Set([
   "Idempotency key already used",
   "Admin required",
   "Unauthorized",
+  "Historical period is read-only",
   "Officer not found",
   "Event not found",
   "Event is not archived",

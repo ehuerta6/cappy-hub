@@ -220,3 +220,65 @@ it("keeps historical slot correction within the existing Branch scope", async ()
   expect(result.error).toBe("Event outside branch scope");
   expect(rpc).not.toHaveBeenCalled();
 });
+
+it("normalizes writable_period=none for gap-date Time Slot actions and surfaces historical read-only errors", async () => {
+  vi.mocked(getAuthorizationContext).mockResolvedValue({
+    id: 5,
+    positionCode: "lead",
+    branchIds: [1],
+  } as never);
+  rpc.mockResolvedValue({
+    data: { added_officer_ids: [9], award_transaction_ids: [] },
+    error: null,
+  });
+
+  await changeTimeSlotSignup(
+    initial,
+    form({
+      event_id: "12",
+      mode: "join_selected",
+      slot_ids: ["4"],
+      writable_period: "none",
+    }),
+  );
+  await assignBulkOfficersToTimeSlots(
+    initial,
+    form({
+      event_id: "12",
+      officer_ids: ["9"],
+      slot_ids: ["4"],
+      writable_period: "none",
+    }),
+  );
+  await correctHistoricalTimeSlotAssignments(
+    initial,
+    form({
+      event_id: "12",
+      officer_id: "9",
+      slot_ids: ["4"],
+      writable_period: "none",
+    }),
+  );
+
+  for (const [options] of vi.mocked(getAuthorizationContext).mock.calls) {
+    expect(options).toEqual({
+      enforceWritablePeriod: true,
+      periodContext: "current",
+    });
+  }
+
+  rpc.mockResolvedValueOnce({
+    data: null,
+    error: { message: "Historical period is read-only" },
+  });
+  const blocked = await changeTimeSlotSignup(
+    initial,
+    form({
+      event_id: "12",
+      mode: "join_selected",
+      slot_ids: ["4"],
+      writable_period: "none",
+    }),
+  );
+  expect(blocked.error).toBe("Historical period is read-only");
+});

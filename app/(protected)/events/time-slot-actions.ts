@@ -37,13 +37,20 @@ const slotSelectionInputSchema = zod.object({
     .default([]),
 });
 
+function eventMutationPeriodContext(periodContext: FormDataEntryValue | null) {
+  // A gap-date Event can be opened with ?period=none while a current period
+  // exists. Each Time Slot RPC checks the locked Event's actual event_date
+  // against historical academic periods inside the same transaction.
+  return periodContext === "none" ? "current" : periodContext;
+}
+
 export async function changeTimeSlotSignup(
   _previous: FormActionState,
   formData: FormData,
 ): Promise<FormActionState> {
   const actor = await getAuthorizationContext({
     enforceWritablePeriod: true,
-    periodContext: formData.get("writable_period"),
+    periodContext: eventMutationPeriodContext(formData.get("writable_period")),
   });
   const validation = slotSelectionInputSchema.safeParse({
     event_id: formData.get("event_id") ?? "",
@@ -96,7 +103,7 @@ export async function assignBulkOfficersToTimeSlots(
 ): Promise<FormActionState> {
   const actor = await getAuthorizationContext({
     enforceWritablePeriod: true,
-    periodContext: formData.get("writable_period"),
+    periodContext: eventMutationPeriodContext(formData.get("writable_period")),
   });
   const validation = zod
     .object({
@@ -173,7 +180,7 @@ export async function correctHistoricalTimeSlotAssignments(
 ): Promise<FormActionState> {
   const actor = await getAuthorizationContext({
     enforceWritablePeriod: true,
-    periodContext: formData.get("writable_period"),
+    periodContext: eventMutationPeriodContext(formData.get("writable_period")),
   });
   const validation = zod
     .object({
