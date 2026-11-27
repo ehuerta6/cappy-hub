@@ -917,9 +917,6 @@ it("keeps the Event period through Detail and Edit even when the back list uses 
   expect(unfilteredDetail).toContain(
     'href="/events/7/edit?returnTo=%2Fevents%3Fperiod%3D1&amp;period=2"',
   );
-  expect(unfilteredDetail).toMatch(
-    /<input[^>]*name="writable_period"[^>]*value="2"/,
-  );
   await EventEdit(unfilteredProps);
   expect(redirect).toHaveBeenCalledWith(
     "/events/7/edit?returnTo=%2Fevents%3Fperiod%3D1&period=2",
@@ -950,12 +947,6 @@ it("edits an Event outside configured periods using the current write context", 
   );
   expect(detail).toContain('href="/events/new?from=7"');
   expect(detail).toContain('href="/tasks/new?event=7"');
-  expect(detail).toMatch(
-    /<input[^>]*name="writable_period"[^>]*value="current"/,
-  );
-  expect(detail).not.toMatch(
-    /<input[^>]*name="writable_period"[^>]*value="none"/,
-  );
 
   const edit = renderToStaticMarkup(await EventEdit(props));
   expect(edit).toContain('href="/events/7?period=none"');

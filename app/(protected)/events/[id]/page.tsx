@@ -23,7 +23,6 @@ import Link from "next/link";
 import type { Route } from "next";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { AcademicPeriodWriteContextProvider } from "@/components/academic-period-selector";
 import {
   academicPeriodForDate,
   getAcademicPeriodData,
@@ -358,7 +357,7 @@ export default async function EventDetailPage({
       : "Archived"
     : status;
 
-  const detail = (
+  return (
     <div data-record-page="event" className="space-y-5">
       <ContextualBackLink href="/events" returnTo={contextualReturnTo}>
         Back to events
@@ -880,16 +879,5 @@ export default async function EventDetailPage({
         period={typeof query.period === "string" ? query.period : undefined}
       />
     </div>
-  );
-  return (
-    <AcademicPeriodWriteContextProvider
-      period={
-        periodSelection.explicitNoPeriod
-          ? (createPeriod ?? "current")
-          : undefined
-      }
-    >
-      {detail}
-    </AcademicPeriodWriteContextProvider>
   );
 }

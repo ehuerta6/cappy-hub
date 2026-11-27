@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useTransition,
-  type ReactNode,
-} from "react";
+import { useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { AcademicPeriod } from "@/lib/academic-periods";
 import type { Route } from "next";
@@ -112,24 +107,11 @@ export default function AcademicPeriodSelector({
   );
 }
 
-const AcademicPeriodWriteContext = createContext<string | undefined>(undefined);
-
-export function AcademicPeriodWriteContextProvider({
+export function AcademicPeriodWriteContextField({
   period,
-  children,
 }: {
   period?: string;
-  children: ReactNode;
 }) {
-  return (
-    <AcademicPeriodWriteContext value={period}>
-      {children}
-    </AcademicPeriodWriteContext>
-  );
-}
-
-export function AcademicPeriodWriteContextField() {
-  const period = useContext(AcademicPeriodWriteContext);
   const searchParams = useSearchParams();
   return (
     <input

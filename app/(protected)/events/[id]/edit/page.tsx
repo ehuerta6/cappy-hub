@@ -16,7 +16,6 @@ import { createClient } from "@/lib/supabase/server";
 import EventForm from "../../event-form";
 import { denverParts } from "@/lib/event-time";
 import { PageHeader } from "@/components/ui";
-import { AcademicPeriodWriteContextProvider } from "@/components/academic-period-selector";
 import {
   academicPeriodForDate,
   getAcademicPeriodData,
@@ -199,7 +198,13 @@ export default async function EditEventPage({
           .map((award) => String(award.officer_id)),
       }));
   }
-  const form = (
+  // Keep navigation unfiltered for an unassigned date. The save RPC checks
+  // the Event's actual old and new dates independently of the form context.
+  const writablePeriod =
+    periodSelection.explicitNoPeriod && periodData.currentPeriodId !== null
+      ? "current"
+      : undefined;
+  return (
     <div data-form-page="event" className="space-y-6">
       <ContextualBackLink
         href={withReturnTo(
@@ -218,6 +223,7 @@ export default async function EditEventPage({
       <PageHeader title="Edit event" />
       <EventForm
         returnTo={returnTo}
+        writablePeriod={writablePeriod}
         series={series?.data ?? undefined}
         mutationRequestKey={crypto.randomUUID()}
         pointsImpactOfficerCount={
@@ -270,18 +276,5 @@ export default async function EditEventPage({
         }))}
       />
     </div>
-  );
-  // Keep navigation unfiltered for an unassigned date. The save RPC checks
-  // the Event's actual old and new dates independently of the form context.
-  return (
-    <AcademicPeriodWriteContextProvider
-      period={
-        periodSelection.explicitNoPeriod && periodData.currentPeriodId !== null
-          ? "current"
-          : undefined
-      }
-    >
-      {form}
-    </AcademicPeriodWriteContextProvider>
   );
 }
